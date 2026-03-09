@@ -1,13 +1,13 @@
 # Sharkitect Claude Toolkit
 
-Personal Claude Code skill library and setup guide. Contains 108 custom skills, 3 core components, and a complete install guide to restore or replicate this environment from any machine.
+Personal Claude Code skill library and setup guide. Contains 106 custom skills, 4 core components, and a complete install guide to restore or replicate this environment from any machine.
 
 ## Quick Start
 
 1. Install Claude Code and authenticate
 2. Follow [INSTALL-GUIDE.md](INSTALL-GUIDE.md) to set up plugins, MCP servers, and marketplaces
 3. Copy skills: `cp -r skills/* ~/.claude/skills/`
-4. Copy core skills: `cp -r core/ultimate-skill-creator core/systematic-debugging core/writing-plans ~/.claude/skills/`
+4. Copy core skills: `cp -r core/ultimate-skill-creator core/systematic-debugging core/writing-plans core/executing-plans ~/.claude/skills/`
 5. Install superpowers plugin: see [INSTALL-GUIDE.md](INSTALL-GUIDE.md#step-2-install-plugins)
 
 ## What's Included
@@ -21,8 +21,9 @@ The `core/` directory contains foundational tools that power everything else:
 | `ultimate-skill-creator` | Skill | Unified skill creation tool (hybrid of 3 tools — structure + TDD + eval) |
 | `systematic-debugging` | Skill | Structured debugging methodology with root cause tracing and defense-in-depth |
 | `writing-plans` | Skill | Plan writing discipline for implementation tasks |
+| `executing-plans` | Skill | Structured plan execution with checkpoints and verification |
 
-### Custom Skills (108)
+### Custom Skills (106)
 
 Skills live in the `skills/` directory. Each skill has a `SKILL.md` file and optional reference/example subdirectories.
 
@@ -125,7 +126,6 @@ Skills live in the `skills/` directory. Each skill has a `SKILL.md` file and opt
 #### Skill & Plugin Development
 | Skill | Description |
 |-------|-------------|
-| `skill-creator` | Skill creation with eval pipeline |
 | `skill-judge` | Skill quality evaluation |
 | `hook-development` | Hook creation |
 | `mcp-integration` | MCP server integration |
@@ -161,5 +161,6 @@ cp -r sharkitect-claude-toolkit/skills/* ~/.claude/skills/
 cp -r sharkitect-claude-toolkit/core/ultimate-skill-creator ~/.claude/skills/
 cp -r sharkitect-claude-toolkit/core/systematic-debugging ~/.claude/skills/
 cp -r sharkitect-claude-toolkit/core/writing-plans ~/.claude/skills/
+cp -r sharkitect-claude-toolkit/core/executing-plans ~/.claude/skills/
 # Then follow INSTALL-GUIDE.md for plugins and MCP servers
 ```
