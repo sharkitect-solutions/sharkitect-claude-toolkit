@@ -35,6 +35,10 @@ These make Claude Code fundamentally better at writing disciplined, quality code
 /plugin install superpowers@claude-plugins-official
 ```
 
+> **Note:** This is the [Obra Superpowers](https://github.com/obra/superpowers) plugin by Jesse Vincent,
+> distributed through Anthropic's official marketplace. It provides auto-triggered workflows for
+> brainstorming, TDD, systematic debugging, and code review.
+>
 > **IMPORTANT:** Restart your session after installing superpowers.
 > It uses a SessionStart hook that only activates on new sessions.
 
