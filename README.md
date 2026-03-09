@@ -1,16 +1,27 @@
 # Sharkitect Claude Toolkit
 
-Personal Claude Code skill library and setup guide. Contains 111 custom skills and a complete install guide to restore or replicate this environment from any machine.
+Personal Claude Code skill library and setup guide. Contains 110 custom skills, 2 core components, and a complete install guide to restore or replicate this environment from any machine.
 
 ## Quick Start
 
 1. Install Claude Code and authenticate
 2. Follow [INSTALL-GUIDE.md](INSTALL-GUIDE.md) to set up plugins, MCP servers, and marketplaces
 3. Copy skills: `cp -r skills/* ~/.claude/skills/`
+4. Copy core skill: `cp -r core/ultimate-skill-creator ~/.claude/skills/`
+5. Install superpowers plugin: see [INSTALL-GUIDE.md](INSTALL-GUIDE.md#step-2-install-plugins)
 
 ## What's Included
 
-### Custom Skills (111)
+### Core Components
+
+The `core/` directory contains foundational tools that power everything else:
+
+| Component | Type | Description |
+|-----------|------|-------------|
+| `ultimate-skill-creator` | Skill | Unified skill creation tool (hybrid of 3 tools — structure + TDD + eval) |
+| `superpowers` | Plugin | Auto-triggered brainstorming, TDD, debugging, code review workflows (v4.3.0) |
+
+### Custom Skills (110)
 
 Skills live in the `skills/` directory. Each skill has a `SKILL.md` file and optional reference/example subdirectories.
 
@@ -114,7 +125,6 @@ Skills live in the `skills/` directory. Each skill has a `SKILL.md` file and opt
 #### Skill & Plugin Development
 | Skill | Description |
 |-------|-------------|
-| `ultimate-skill-creator` | Unified skill creation (hybrid of 3 tools) |
 | `skill-creator` | Skill creation with eval pipeline |
 | `skill-judge` | Skill quality evaluation |
 | `hook-development` | Hook creation |
@@ -146,7 +156,8 @@ git push
 ## Restoring on a New Machine
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/sharkitect-claude-toolkit.git
+git clone https://github.com/sharkitect-solutions/sharkitect-claude-toolkit.git
 cp -r sharkitect-claude-toolkit/skills/* ~/.claude/skills/
+cp -r sharkitect-claude-toolkit/core/ultimate-skill-creator ~/.claude/skills/
 # Then follow INSTALL-GUIDE.md for plugins and MCP servers
 ```
