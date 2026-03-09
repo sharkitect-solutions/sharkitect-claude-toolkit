@@ -1,109 +1,124 @@
 #!/usr/bin/env python3
 """
-Skill Packager - Creates a distributable zip file of a skill folder
+Ultimate Skill Creator — Skill Packager
+
+Validates a skill, then packages it into a distributable zip file.
+Runs full CSO validation before packaging — broken skills don't ship.
 
 Usage:
-    python utils/package_skill.py <path/to/skill-folder> [output-directory]
+    python package_skill.py <path/to/skill-folder> [output-directory]
 
 Example:
-    python utils/package_skill.py skills/public/my-skill
-    python utils/package_skill.py skills/public/my-skill ./dist
+    python package_skill.py ~/.claude/skills/my-skill
+    python package_skill.py ~/.claude/skills/my-skill ./dist
 """
 
 import sys
 import zipfile
 from pathlib import Path
+
+# Import validation from sibling module
+sys.path.insert(0, str(Path(__file__).parent))
 from quick_validate import validate_skill
 
 
-def package_skill(skill_path, output_dir=None):
-    """
-    Package a skill folder into a zip file.
+EXCLUDE_PATTERNS = {
+    "__pycache__", ".pyc", ".pyo", ".DS_Store", "Thumbs.db",
+    "eval-prompts.md",  # Generated output, not part of the skill
+}
 
-    Args:
-        skill_path: Path to the skill folder
-        output_dir: Optional output directory for the zip file (defaults to current directory)
+
+def should_exclude(path: Path) -> bool:
+    return any(part in EXCLUDE_PATTERNS or part.startswith(".") for part in path.parts)
+
+
+def package_skill(skill_path: str | Path, output_dir: str | Path | None = None) -> Path | None:
+    """
+    Package a skill folder into a zip file after validation.
 
     Returns:
-        Path to the created zip file, or None if error
+        Path to created zip file, or None on error.
     """
     skill_path = Path(skill_path).resolve()
 
-    # Validate skill folder exists
     if not skill_path.exists():
-        print(f"❌ Error: Skill folder not found: {skill_path}")
+        print(f"ERROR: Skill folder not found: {skill_path}")
         return None
 
     if not skill_path.is_dir():
-        print(f"❌ Error: Path is not a directory: {skill_path}")
+        print(f"ERROR: Not a directory: {skill_path}")
         return None
 
-    # Validate SKILL.md exists
-    skill_md = skill_path / "SKILL.md"
-    if not skill_md.exists():
-        print(f"❌ Error: SKILL.md not found in {skill_path}")
+    if not (skill_path / "SKILL.md").exists():
+        print(f"ERROR: SKILL.md not found in {skill_path}")
         return None
 
-    # Run validation before packaging
-    print("🔍 Validating skill...")
-    valid, message = validate_skill(skill_path)
-    if not valid:
-        print(f"❌ Validation failed: {message}")
-        print("   Please fix the validation errors before packaging.")
-        return None
-    print(f"✅ {message}\n")
+    # Run full validation
+    print("Validating skill...")
+    passed, summary, result = validate_skill(skill_path)
 
-    # Determine output location
+    if not passed:
+        print(f"Validation FAILED: {summary}")
+        print("Fix errors before packaging.")
+        if result.errors:
+            for e in result.errors:
+                print(f"  x {e}")
+        return None
+
+    if result.warnings:
+        print(f"Validation passed with warnings: {summary}")
+        for w in result.warnings:
+            print(f"  ! {w}")
+        print()
+    else:
+        print(f"Validation: {summary}")
+        print()
+
+    # Build zip
     skill_name = skill_path.name
     if output_dir:
-        output_path = Path(output_dir).resolve()
-        output_path.mkdir(parents=True, exist_ok=True)
+        out = Path(output_dir).resolve()
+        out.mkdir(parents=True, exist_ok=True)
     else:
-        output_path = Path.cwd()
+        out = Path.cwd()
 
-    zip_filename = output_path / f"{skill_name}.zip"
+    zip_path = out / f"{skill_name}.zip"
 
-    # Create the zip file
     try:
-        with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            # Walk through the skill directory
-            for file_path in skill_path.rglob('*'):
-                if file_path.is_file():
-                    # Calculate the relative path within the zip
-                    arcname = file_path.relative_to(skill_path.parent)
-                    zipf.write(file_path, arcname)
-                    print(f"  Added: {arcname}")
+        file_count = 0
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            for fp in sorted(skill_path.rglob("*")):
+                if fp.is_file() and not should_exclude(fp.relative_to(skill_path)):
+                    arcname = fp.relative_to(skill_path.parent)
+                    zf.write(fp, arcname)
+                    print(f"  + {arcname}")
+                    file_count += 1
 
-        print(f"\n✅ Successfully packaged skill to: {zip_filename}")
-        return zip_filename
+        print(f"\nPackaged {file_count} files: {zip_path}")
+        return zip_path
 
-    except Exception as e:
-        print(f"❌ Error creating zip file: {e}")
+    except OSError as e:
+        print(f"ERROR creating zip: {e}")
         return None
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: python utils/package_skill.py <path/to/skill-folder> [output-directory]")
-        print("\nExample:")
-        print("  python utils/package_skill.py skills/public/my-skill")
-        print("  python utils/package_skill.py skills/public/my-skill ./dist")
-        sys.exit(1)
+    args = sys.argv[1:]
 
-    skill_path = sys.argv[1]
-    output_dir = sys.argv[2] if len(sys.argv) > 2 else None
+    if not args or args[0] in ("-h", "--help"):
+        print(__doc__)
+        sys.exit(0)
 
-    print(f"📦 Packaging skill: {skill_path}")
+    skill_path = args[0]
+    output_dir = args[1] if len(args) > 1 else None
+
+    print(f"Packaging: {Path(skill_path).resolve()}")
     if output_dir:
-        print(f"   Output directory: {output_dir}")
+        print(f"Output: {Path(output_dir).resolve()}")
     print()
 
     result = package_skill(skill_path, output_dir)
-
-    if result:
-        sys.exit(0)
-    else:
-        sys.exit(1)
+    sys.exit(0 if result else 1)
 
 
 if __name__ == "__main__":

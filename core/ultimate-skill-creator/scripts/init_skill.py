@@ -1,302 +1,303 @@
 #!/usr/bin/env python3
 """
-Skill Initializer - Creates a new skill from template
+Ultimate Skill Creator — Skill Initializer
+
+Scaffolds a new skill directory using the ultimate-skill-creator's prescribed
+structure: trigger-only description, failure-confrontation body, rationalization
+table, red flags checklist, and file index.
 
 Usage:
-    init_skill.py <skill-name> --path <path>
+    python init_skill.py <skill-name> [--path <path>] [--minimal]
 
 Examples:
-    init_skill.py my-new-skill --path skills/public
-    init_skill.py my-api-helper --path skills/private
-    init_skill.py custom-skill --path /custom/location
+    python init_skill.py api-rate-limiter
+    python init_skill.py api-rate-limiter --path ~/.claude/skills
+    python init_skill.py api-rate-limiter --path ./skills --minimal
 """
 
 import sys
+import re
 from pathlib import Path
 
 
-SKILL_TEMPLATE = """---
+# ---------------------------------------------------------------------------
+# Templates — these match the structure prescribed in examples/skill-directory-template.md
+# ---------------------------------------------------------------------------
+
+SKILL_TEMPLATE = '''---
 name: {skill_name}
-description: [TODO: Complete and informative explanation of what the skill does and when to use it. Include WHEN to use this skill - specific scenarios, file types, or tasks that trigger it.]
+description: >
+  Use when [primary triggering condition — describe the situation, not the skill].
+  Use when a user says "[trigger phrase 1]", "[trigger phrase 2]", or "[trigger phrase 3]".
+  Use when [edge case that should still trigger — describe the risk of skipping].
+  Use when [technology-specific trigger with named providers or tools].
+  Use when [indirect indicator that this skill is relevant].
+  This skill applies to [scope assertion] — including [commonly-skipped cases].
 ---
 
 # {skill_title}
 
-## Overview
+## Why This Skill Exists
 
-[TODO: 1-2 sentences explaining what this skill enables]
+[TODO: 2-3 sentences explaining the problem this skill solves. Name Claude's default
+failure mode explicitly. State why the default behavior is wrong.]
 
-## Structuring This Skill
+## The Core Failure Pattern
 
-[TODO: Choose the structure that best fits this skill's purpose. Common patterns:
+[TODO: Describe what Claude does WITHOUT this skill. Be specific — name the exact
+sequence of bad decisions Claude makes. This section confronts Claude with its own
+behavior so it recognizes the pattern in real time.]
 
-**1. Workflow-Based** (best for sequential processes)
-- Works well when there are clear step-by-step procedures
-- Example: DOCX skill with "Workflow Decision Tree" → "Reading" → "Creating" → "Editing"
-- Structure: ## Overview → ## Workflow Decision Tree → ## Step 1 → ## Step 2...
+## Rationalization Table
 
-**2. Task-Based** (best for tool collections)
-- Works well when the skill offers different operations/capabilities
-- Example: PDF skill with "Quick Start" → "Merge PDFs" → "Split PDFs" → "Extract Text"
-- Structure: ## Overview → ## Quick Start → ## Task Category 1 → ## Task Category 2...
+[TODO: Run 3 pressure scenarios WITHOUT the skill loaded. Record Claude's exact
+rationalizations verbatim. Each rationalization becomes a row in this table.]
 
-**3. Reference/Guidelines** (best for standards or specifications)
-- Works well for brand guidelines, coding standards, or requirements
-- Example: Brand styling with "Brand Guidelines" → "Colors" → "Typography" → "Features"
-- Structure: ## Overview → ## Guidelines → ## Specifications → ## Usage...
+| Rationalization | When It Appears | Why It Is Wrong |
+|---|---|---|
+| "[Excuse 1 — use Claude's exact words]" | [Context when this excuse surfaces] | [Concrete counterargument with numbers or specifics] |
+| "[Excuse 2]" | [Context] | [Counterargument] |
+| "[Excuse 3]" | [Context] | [Counterargument] |
+| "[Excuse 4]" | [Context] | [Counterargument] |
 
-**4. Capabilities-Based** (best for integrated systems)
-- Works well when the skill provides multiple interrelated features
-- Example: Product Management with "Core Capabilities" → numbered capability list
-- Structure: ## Overview → ## Core Capabilities → ### 1. Feature → ### 2. Feature...
+## Non-Negotiable Rules
 
-Patterns can be mixed and matched as needed. Most skills combine patterns (e.g., start with task-based, add workflow for complex operations).
+### 1. [Rule Name]
 
-Delete this entire "Structuring This Skill" section when done - it's just guidance.]
+[Imperative statement of the rule.] [1-2 sentences explaining WHY — rules without
+reasons get ignored under pressure.]
 
-## [TODO: Replace with the first main section based on chosen structure]
+### 2. [Rule Name]
 
-[TODO: Add content here. See examples in existing skills:
-- Code samples for technical skills
-- Decision trees for complex workflows
-- Concrete examples with realistic user requests
-- References to scripts/templates/references as needed]
+[Imperative statement.] [Why.]
 
-## Resources
+### 3. [Rule Name]
 
-This skill includes example resource directories that demonstrate how to organize different types of bundled resources:
+[Imperative statement.] [Why.]
 
-### scripts/
-Executable code (Python/Bash/etc.) that can be run directly to perform specific operations.
+[TODO: 3-5 rules. More than 5 should be split — excess detail belongs in references.]
 
-**Examples from other skills:**
-- PDF skill: `fill_fillable_fields.py`, `extract_form_field_info.py` - utilities for PDF manipulation
-- DOCX skill: `document.py`, `utilities.py` - Python modules for document processing
+## Red Flags Checklist
 
-**Appropriate for:** Python scripts, shell scripts, or any executable code that performs automation, data processing, or specific operations.
+Before declaring output complete, verify none of these are present:
 
-**Note:** Scripts may be executed without loading into context, but can still be read by Claude for patching or environment adjustments.
+- [ ] [Specific bad pattern 1 — concrete enough to pattern-match against code/output]
+- [ ] [Specific bad pattern 2]
+- [ ] [Specific bad pattern 3]
+- [ ] [Specific bad pattern 4]
+- [ ] [Specific bad pattern 5]
 
-### references/
-Documentation and reference material intended to be loaded into context to inform Claude's process and thinking.
+[TODO: 5-10 items, ordered from most common to least common.]
 
-**Examples from other skills:**
-- Product management: `communication.md`, `context_building.md` - detailed workflow guides
-- BigQuery: API reference documentation and query examples
-- Finance: Schema documentation, company policies
+## [Domain-Specific Section]
 
-**Appropriate for:** In-depth documentation, API references, database schemas, comprehensive guides, or any detailed information that Claude should reference while working.
+[TODO: Key patterns, code examples, decision tables, or guidance specific to this
+skill's domain. Keep focused — implementation details go in references.]
 
-### assets/
-Files not intended to be loaded into context, but rather used within the output Claude produces.
+[TODO: For coding skills, show WRONG and RIGHT patterns side by side.]
 
-**Examples from other skills:**
-- Brand styling: PowerPoint template files (.pptx), logo files
-- Frontend builder: HTML/React boilerplate project directories
-- Typography: Font files (.ttf, .woff2)
+See `references/[topic].md` for [what it contains].
 
-**Appropriate for:** Templates, boilerplate code, document templates, images, icons, fonts, or any files meant to be copied or used in the final output.
+## File Index
 
----
-
-**Any unneeded directories can be deleted.** Not every skill requires all three types of resources.
-"""
-
-EXAMPLE_SCRIPT = '''#!/usr/bin/env python3
-"""
-Example helper script for {skill_name}
-
-This is a placeholder script that can be executed directly.
-Replace with actual implementation or delete if not needed.
-
-Example real scripts from other skills:
-- pdf/scripts/fill_fillable_fields.py - Fills PDF form fields
-- pdf/scripts/convert_pdf_to_images.py - Converts PDF pages to images
-"""
-
-def main():
-    print("This is an example script for {skill_name}")
-    # TODO: Add actual script logic here
-    # This could be data processing, file conversion, API calls, etc.
-
-if __name__ == "__main__":
-    main()
+| File | Purpose |
+|---|---|
+| `references/[topic].md` | [What this file contains and when to use it] |
 '''
 
-EXAMPLE_REFERENCE = """# Reference Documentation for {skill_title}
+REFERENCE_TEMPLATE = '''# {topic_title}
 
-This is a placeholder for detailed reference documentation.
-Replace with actual reference content or delete if not needed.
+[TODO: Deep-dive content for this topic. This file is loaded on demand when Claude
+needs specific details beyond what the SKILL.md body provides.]
 
-Example real reference docs from other skills:
-- product-management/references/communication.md - Comprehensive guide for status updates
-- product-management/references/context_building.md - Deep-dive on gathering context
-- bigquery/references/ - API references and query examples
+## Overview
 
-## When Reference Docs Are Useful
+[What this reference covers and when to consult it.]
 
-Reference docs are ideal for:
-- Comprehensive API documentation
-- Detailed workflow guides
-- Complex multi-step processes
-- Information too lengthy for main SKILL.md
-- Content that's only needed for specific use cases
+## [Section 1]
 
-## Structure Suggestions
+[Detailed content. This can be longer than what belongs in the body — references
+have a soft limit of 3,000 words but can go up to 5,000 if needed.]
 
-### API Reference Example
-- Overview
-- Authentication
-- Endpoints with examples
-- Error codes
-- Rate limits
+## [Section 2]
 
-### Workflow Guide Example
-- Prerequisites
-- Step-by-step instructions
-- Common patterns
-- Troubleshooting
-- Best practices
-"""
+[More detailed content.]
+'''
 
-EXAMPLE_ASSET = """# Example Asset File
-
-This placeholder represents where asset files would be stored.
-Replace with actual asset files (templates, images, fonts, etc.) or delete if not needed.
-
-Asset files are NOT intended to be loaded into context, but rather used within
-the output Claude produces.
-
-Example asset files from other skills:
-- Brand guidelines: logo.png, slides_template.pptx
-- Frontend builder: hello-world/ directory with HTML/React boilerplate
-- Typography: custom-font.ttf, font-family.woff2
-- Data: sample_data.csv, test_dataset.json
-
-## Common Asset Types
-
-- Templates: .pptx, .docx, boilerplate directories
-- Images: .png, .jpg, .svg, .gif
-- Fonts: .ttf, .otf, .woff, .woff2
-- Boilerplate code: Project directories, starter files
-- Icons: .ico, .svg
-- Data files: .csv, .json, .xml, .yaml
-
-Note: This is a text placeholder. Actual assets can be any file type.
-"""
-
-
-def title_case_skill_name(skill_name):
-    """Convert hyphenated skill name to Title Case for display."""
-    return ' '.join(word.capitalize() for word in skill_name.split('-'))
+EVALS_TEMPLATE = '''{
+  "skill": "{skill_name}",
+  "version": "1.0",
+  "test_cases": [
+    {
+      "id": 1,
+      "query": "[TODO: should-trigger prompt]",
+      "category": "should_trigger",
+      "expected": {
+        "must_contain": ["[expected pattern 1]", "[expected pattern 2]"],
+        "must_not_contain": ["[bad pattern 1]"],
+        "behavior": "[description of expected behavior]"
+      },
+      "last_result": null,
+      "last_score": null
+    },
+    {
+      "id": 2,
+      "query": "[TODO: should-NOT-trigger prompt]",
+      "category": "should_not_trigger",
+      "expected": {
+        "must_contain": [],
+        "must_not_contain": [],
+        "behavior": "Skill should NOT activate for this query"
+      },
+      "last_result": null,
+      "last_score": null
+    },
+    {
+      "id": 3,
+      "query": "[TODO: pressure prompt combining 3+ pressure types]",
+      "category": "pressure",
+      "expected": {
+        "must_contain": ["[correct behavior despite pressure]"],
+        "must_not_contain": ["[shortcut compliance]"],
+        "behavior": "[description of expected resistance]"
+      },
+      "last_result": null,
+      "last_score": null
+    }
+  ]
+}
+'''
 
 
-def init_skill(skill_name, path):
+def title_case(name: str) -> str:
+    """Convert kebab-case to Title Case."""
+    return " ".join(word.capitalize() for word in name.split("-"))
+
+
+def validate_name(name: str) -> tuple[bool, str]:
+    """Validate skill name follows kebab-case rules."""
+    if not re.match(r"^[a-z0-9]+(-[a-z0-9]+)*$", name):
+        return False, (
+            f"Name '{name}' must be kebab-case: lowercase letters, digits, "
+            "and single hyphens between words. No leading/trailing/consecutive hyphens."
+        )
+    if len(name) > 60:
+        return False, f"Name '{name}' exceeds 60 characters."
+    return True, ""
+
+
+def init_skill(skill_name: str, base_path: str, minimal: bool = False) -> Path | None:
     """
-    Initialize a new skill directory with template SKILL.md.
+    Initialize a new skill directory with the ultimate-skill-creator's structure.
 
     Args:
-        skill_name: Name of the skill
-        path: Path where the skill directory should be created
+        skill_name: kebab-case skill name
+        base_path: parent directory where skill folder will be created
+        minimal: if True, skip optional directories (references/, examples/)
 
     Returns:
-        Path to created skill directory, or None if error
+        Path to created skill directory, or None on error.
     """
-    # Determine skill directory path
-    skill_dir = Path(path).resolve() / skill_name
+    valid, err = validate_name(skill_name)
+    if not valid:
+        print(f"ERROR: {err}")
+        return None
 
-    # Check if directory already exists
+    skill_dir = Path(base_path).resolve() / skill_name
+
     if skill_dir.exists():
-        print(f"❌ Error: Skill directory already exists: {skill_dir}")
+        print(f"ERROR: Directory already exists: {skill_dir}")
         return None
 
-    # Create skill directory
+    skill_title = title_case(skill_name)
+
+    # Create directory tree
     try:
-        skill_dir.mkdir(parents=True, exist_ok=False)
-        print(f"✅ Created skill directory: {skill_dir}")
-    except Exception as e:
-        print(f"❌ Error creating directory: {e}")
+        skill_dir.mkdir(parents=True)
+        print(f"  Created {skill_dir}/")
+
+        # SKILL.md — always created
+        (skill_dir / "SKILL.md").write_text(
+            SKILL_TEMPLATE.format(skill_name=skill_name, skill_title=skill_title),
+            encoding="utf-8",
+        )
+        print("  Created SKILL.md")
+
+        # references/ — unless --minimal
+        if not minimal:
+            refs_dir = skill_dir / "references"
+            refs_dir.mkdir()
+            (refs_dir / "topic-a.md").write_text(
+                REFERENCE_TEMPLATE.format(topic_title=f"{skill_title} — Topic A"),
+                encoding="utf-8",
+            )
+            print("  Created references/topic-a.md")
+
+        # evals.json — always created (testing is non-negotiable)
+        (skill_dir / "evals.json").write_text(
+            EVALS_TEMPLATE.format(skill_name=skill_name),
+            encoding="utf-8",
+        )
+        print("  Created evals.json")
+
+    except OSError as e:
+        print(f"ERROR: {e}")
         return None
 
-    # Create SKILL.md from template
-    skill_title = title_case_skill_name(skill_name)
-    skill_content = SKILL_TEMPLATE.format(
-        skill_name=skill_name,
-        skill_title=skill_title
-    )
-
-    skill_md_path = skill_dir / 'SKILL.md'
-    try:
-        skill_md_path.write_text(skill_content)
-        print("✅ Created SKILL.md")
-    except Exception as e:
-        print(f"❌ Error creating SKILL.md: {e}")
-        return None
-
-    # Create resource directories with example files
-    try:
-        # Create scripts/ directory with example script
-        scripts_dir = skill_dir / 'scripts'
-        scripts_dir.mkdir(exist_ok=True)
-        example_script = scripts_dir / 'example.py'
-        example_script.write_text(EXAMPLE_SCRIPT.format(skill_name=skill_name))
-        example_script.chmod(0o755)
-        print("✅ Created scripts/example.py")
-
-        # Create references/ directory with example reference doc
-        references_dir = skill_dir / 'references'
-        references_dir.mkdir(exist_ok=True)
-        example_reference = references_dir / 'api_reference.md'
-        example_reference.write_text(EXAMPLE_REFERENCE.format(skill_title=skill_title))
-        print("✅ Created references/api_reference.md")
-
-        # Create assets/ directory with example asset placeholder
-        assets_dir = skill_dir / 'assets'
-        assets_dir.mkdir(exist_ok=True)
-        example_asset = assets_dir / 'example_asset.txt'
-        example_asset.write_text(EXAMPLE_ASSET)
-        print("✅ Created assets/example_asset.txt")
-    except Exception as e:
-        print(f"❌ Error creating resource directories: {e}")
-        return None
-
-    # Print next steps
-    print(f"\n✅ Skill '{skill_name}' initialized successfully at {skill_dir}")
-    print("\nNext steps:")
-    print("1. Edit SKILL.md to complete the TODO items and update the description")
-    print("2. Customize or delete the example files in scripts/, references/, and assets/")
-    print("3. Run the validator when ready to check the skill structure")
+    # Next steps
+    print(f"\nSkill '{skill_name}' initialized at {skill_dir}")
+    print()
+    print("Next steps (follow the three-stage workflow):")
+    print()
+    print("  Stage 1 — Structure & Planning")
+    print("    1. Write the description with 'Use when...' trigger conditions ONLY")
+    print("    2. Plan which content goes in body vs references")
+    print()
+    print("  Stage 2 — TDD Content Creation")
+    print("    3. Run 3 pressure scenarios WITHOUT the skill (RED phase)")
+    print("    4. Build rationalization table from captured failures")
+    print("    5. Write non-negotiable rules with 'why' explanations (GREEN phase)")
+    print("    6. Audit for loopholes and tighten rules (REFACTOR phase)")
+    print()
+    print("  Stage 3 — Eval, Benchmark & Polish")
+    print("    7. Fill in evals.json with 10-20 test cases")
+    print("    8. Run: python run_evals.py generate <skill-path>")
+    print("    9. Grade results and iterate until passing")
+    print()
+    print("Validate anytime: python quick_validate.py <skill-path>")
 
     return skill_dir
 
 
 def main():
-    if len(sys.argv) < 4 or sys.argv[2] != '--path':
-        print("Usage: init_skill.py <skill-name> --path <path>")
-        print("\nSkill name requirements:")
-        print("  - Hyphen-case identifier (e.g., 'data-analyzer')")
-        print("  - Lowercase letters, digits, and hyphens only")
-        print("  - Max 40 characters")
-        print("  - Must match directory name exactly")
-        print("\nExamples:")
-        print("  init_skill.py my-new-skill --path skills/public")
-        print("  init_skill.py my-api-helper --path skills/private")
-        print("  init_skill.py custom-skill --path /custom/location")
-        sys.exit(1)
+    args = sys.argv[1:]
 
-    skill_name = sys.argv[1]
-    path = sys.argv[3]
+    if not args or args[0] in ("-h", "--help"):
+        print(__doc__)
+        sys.exit(0)
 
-    print(f"🚀 Initializing skill: {skill_name}")
-    print(f"   Location: {path}")
+    skill_name = args[0]
+    base_path = "."
+    minimal = False
+
+    i = 1
+    while i < len(args):
+        if args[i] == "--path" and i + 1 < len(args):
+            base_path = args[i + 1]
+            i += 2
+        elif args[i] == "--minimal":
+            minimal = True
+            i += 1
+        else:
+            print(f"Unknown argument: {args[i]}")
+            sys.exit(1)
+
+    print(f"Initializing skill: {skill_name}")
+    print(f"Location: {Path(base_path).resolve() / skill_name}")
     print()
 
-    result = init_skill(skill_name, path)
-
-    if result:
-        sys.exit(0)
-    else:
-        sys.exit(1)
+    result = init_skill(skill_name, base_path, minimal)
+    sys.exit(0 if result else 1)
 
 
 if __name__ == "__main__":

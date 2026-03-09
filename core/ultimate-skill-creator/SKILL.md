@@ -8,8 +8,8 @@ description: >
   refactoring, or debugging an existing skill that fails to trigger, gets ignored under
   pressure, or produces inconsistent results. Use when evaluating whether a skill actually
   changes Claude's behavior versus baseline. Use when packaging a skill for sharing or
-  marketplace distribution. This skill applies to every skill creation task — including
-  "simple" or "quick" ones. Those are the highest-risk cases.
+  marketplace distribution. Use when the task seems "simple" or "quick" — those are
+  the highest-risk cases where Claude skips quality steps.
 ---
 
 # Ultimate Skill Creator
@@ -132,7 +132,20 @@ For each, define expected behaviors — specific things the output MUST or MUST 
 - Target: precision > 90%, recall > 90%
 - Adjust trigger phrases and keywords until both thresholds pass
 
+Use `scripts/run_evals.py generate <skill-path>` to auto-generate test prompts from
+`evals.json`, then `run_evals.py grade` for interactive scoring and `run_evals.py report`
+for aggregate benchmarks.
+
 See `references/eval-pipeline.md` for detailed testing methodology and grading criteria.
+
+### Updating Existing Skills
+
+When fixing or improving an existing skill, always add a failing test FIRST, make the
+minimal change, then re-run ALL evals to prevent regression. Never change a skill based
+on a single report without verifying existing tests still pass.
+
+See `references/skill-versioning.md` for the complete update workflow, version bumping,
+and deprecation process.
 
 ## Critical Rules
 
@@ -223,7 +236,10 @@ A skill is done when ALL of these pass:
 | `references/tdd-methodology.md` | Complete RED-GREEN-REFACTOR process, pressure type taxonomy, subagent testing |
 | `references/eval-pipeline.md` | Test case design, subagent evaluation, grading, benchmarking, description optimization |
 | `references/writing-rules.md` | CSO rules, description patterns, body writing style, rationalization table design |
+| `references/skill-versioning.md` | When and how to update existing skills, version bumping, regression prevention |
 | `examples/skill-directory-template.md` | Reference directory layout and frontmatter template for new skills |
-| `scripts/init_skill.py` | Scaffolds a new skill directory with template SKILL.md and resource directories |
-| `scripts/quick_validate.py` | Validates skill frontmatter (name, description, format) |
+| `scripts/init_skill.py` | Scaffolds a new skill directory with the prescribed structure (not a generic template) |
+| `scripts/quick_validate.py` | Validates skill against CSO rules, body quality, word counts, and required sections |
+| `scripts/run_evals.py` | Generates test prompts, runs interactive grading, calculates aggregate benchmarks |
 | `scripts/package_skill.py` | Packages a skill folder into a distributable zip (runs validation first) |
+| `evals.json` | 20 test cases for the ultimate-skill-creator itself (meta self-test) |

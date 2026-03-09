@@ -41,27 +41,14 @@ description: >
 
 ### Description Rules
 
-The description has ONE job: get Claude to load this skill when it's relevant.
+The description determines whether the skill triggers. It is the single most important
+factor in skill effectiveness — a skill that never loads is a skill that doesn't exist.
 
-**Format:**
-- Every sentence starts with "Use when..."
-- Include 3-5 specific user phrases in quotes
-- Add a Keywords line at the end for non-obvious matches
-- Target: 100-200 words
+**One rule:** every sentence starts with "Use when..." and describes WHEN to load the
+skill, never WHAT the skill contains. Target: 100-200 words.
 
-**What to include:**
-- Triggering conditions (when the skill should activate)
-- User phrases that indicate relevance
-- Edge cases that should still trigger (e.g., "simple" scripts that actually need this)
-- Specific technology names (OpenAI, Stripe, React, etc.)
-
-**What to NEVER include:**
-- What the skill does ("Implements...", "Provides...", "Covers...")
-- The skill's internal structure ("Three-stage workflow...")
-- Feature lists ("exponential backoff, circuit breakers, token bucket...")
-- Methodology descriptions ("Uses TDD to...")
-
-See `writing-rules.md` for the full CSO (Claude Search Optimization) framework.
+See `writing-rules.md` for the complete CSO (Claude Search Optimization) framework,
+including good vs bad examples, the pushiness rule, and description red flags.
 
 ## Size Targets
 

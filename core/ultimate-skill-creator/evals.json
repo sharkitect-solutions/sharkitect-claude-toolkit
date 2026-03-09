@@ -1,0 +1,246 @@
+{
+  "skill": "ultimate-skill-creator",
+  "version": "2.0",
+  "test_cases": [
+    {
+      "id": 1,
+      "query": "Create a skill for handling API rate limits",
+      "category": "should_trigger",
+      "expected": {
+        "must_contain": ["Use when", "rationalization", "pressure", "RED", "description"],
+        "must_not_contain": ["just write a SKILL.md with an overview section"],
+        "behavior": "Should follow the three-stage workflow: structure, TDD, eval. Should write trigger-only description."
+      },
+      "last_result": null,
+      "last_score": null
+    },
+    {
+      "id": 2,
+      "query": "Build a skill that teaches Claude to write better commit messages",
+      "category": "should_trigger",
+      "expected": {
+        "must_contain": ["Use when", "rationalization table", "red flags", "pressure testing"],
+        "must_not_contain": ["Overview section", "Workflow Decision Tree"],
+        "behavior": "Should create skill with rationalization table and pressure defense, not a generic template"
+      },
+      "last_result": null,
+      "last_score": null
+    },
+    {
+      "id": 3,
+      "query": "I want Claude to always validate inputs before processing. Make a skill for that.",
+      "category": "should_trigger",
+      "expected": {
+        "must_contain": ["Use when", "non-negotiable rules", "imperative voice"],
+        "must_not_contain": ["you might want to consider"],
+        "behavior": "Should use imperative voice, include why explanations, avoid hedging language"
+      },
+      "last_result": null,
+      "last_score": null
+    },
+    {
+      "id": 4,
+      "query": "Write a skill for database migration safety",
+      "category": "should_trigger",
+      "expected": {
+        "must_contain": ["description", "trigger", "Use when", "test cases"],
+        "must_not_contain": ["Implements database migration patterns"],
+        "behavior": "Description should be trigger conditions only, never a feature summary"
+      },
+      "last_result": null,
+      "last_score": null
+    },
+    {
+      "id": 5,
+      "query": "My existing skill for code review doesn't trigger when people ask for PR feedback. Help me fix it.",
+      "category": "should_trigger",
+      "expected": {
+        "must_contain": ["description", "CSO", "trigger", "Use when"],
+        "must_not_contain": ["rewrite the entire skill from scratch"],
+        "behavior": "Should diagnose the description as the likely problem and optimize trigger phrases"
+      },
+      "last_result": null,
+      "last_score": null
+    },
+    {
+      "id": 6,
+      "query": "I made a skill but Claude keeps ignoring it when the user says 'keep it simple'. How do I fix that?",
+      "category": "should_trigger",
+      "expected": {
+        "must_contain": ["rationalization", "pressure", "table"],
+        "must_not_contain": ["just add more rules"],
+        "behavior": "Should identify missing rationalization table entry for 'keep it simple' pressure and add it"
+      },
+      "last_result": null,
+      "last_score": null
+    },
+    {
+      "id": 7,
+      "query": "Package my skill for sharing on the marketplace",
+      "category": "should_trigger",
+      "expected": {
+        "must_contain": ["validate", "package", "evals"],
+        "must_not_contain": [],
+        "behavior": "Should validate the skill first, then package it. Should check for evals.json."
+      },
+      "last_result": null,
+      "last_score": null
+    },
+    {
+      "id": 8,
+      "query": "Make a quick skill, nothing fancy, just a simple one for formatting JSON output",
+      "category": "should_trigger",
+      "expected": {
+        "must_contain": ["Use when", "rationalization", "pressure"],
+        "must_not_contain": ["since this is a simple skill we can skip"],
+        "behavior": "Should NOT skip the workflow despite the user saying 'quick' and 'simple'. These are the highest-risk cases."
+      },
+      "last_result": null,
+      "last_score": null
+    },
+    {
+      "id": 9,
+      "query": "Evaluate whether my security-scanner skill actually changes Claude's behavior",
+      "category": "should_trigger",
+      "expected": {
+        "must_contain": ["baseline", "subagent", "test cases", "grade"],
+        "must_not_contain": ["just read through it and see if it looks good"],
+        "behavior": "Should use the eval pipeline: create test cases, run baseline vs with-skill, grade and benchmark"
+      },
+      "last_result": null,
+      "last_score": null
+    },
+    {
+      "id": 10,
+      "query": "Create a new skill from scratch for Terraform best practices",
+      "category": "should_trigger",
+      "expected": {
+        "must_contain": ["Use when", "three-stage", "RED phase", "description"],
+        "must_not_contain": ["Provides Terraform patterns", "Implements infrastructure"],
+        "behavior": "Should follow the full three-stage workflow, start with structure, use TDD, run evals"
+      },
+      "last_result": null,
+      "last_score": null
+    },
+    {
+      "id": 11,
+      "query": "Help me write a Python script that calls the OpenAI API",
+      "category": "should_not_trigger",
+      "expected": {
+        "must_contain": [],
+        "must_not_contain": [],
+        "behavior": "This is a coding task, not a skill creation task. Should NOT trigger the skill creator."
+      },
+      "last_result": null,
+      "last_score": null
+    },
+    {
+      "id": 12,
+      "query": "What is a SKILL.md file and how does Claude Code use it?",
+      "category": "should_not_trigger",
+      "expected": {
+        "must_contain": [],
+        "must_not_contain": [],
+        "behavior": "Informational question about skills, not a request to create one. Should NOT trigger."
+      },
+      "last_result": null,
+      "last_score": null
+    },
+    {
+      "id": 13,
+      "query": "Review my pull request for code quality issues",
+      "category": "should_not_trigger",
+      "expected": {
+        "must_contain": [],
+        "must_not_contain": [],
+        "behavior": "Code review task, completely unrelated to skill creation. Should NOT trigger."
+      },
+      "last_result": null,
+      "last_score": null
+    },
+    {
+      "id": 14,
+      "query": "Set up a CI/CD pipeline for my Next.js project",
+      "category": "should_not_trigger",
+      "expected": {
+        "must_contain": [],
+        "must_not_contain": [],
+        "behavior": "Infrastructure task. Should NOT trigger the skill creator."
+      },
+      "last_result": null,
+      "last_score": null
+    },
+    {
+      "id": 15,
+      "query": "Debug why my React component re-renders too often",
+      "category": "should_not_trigger",
+      "expected": {
+        "must_contain": [],
+        "must_not_contain": [],
+        "behavior": "Debugging task. Should NOT trigger."
+      },
+      "last_result": null,
+      "last_score": null
+    },
+    {
+      "id": 16,
+      "query": "Production is down. I need a skill for error handling RIGHT NOW. Just create a basic SKILL.md, no testing, no fancy workflow. We'll improve it later.",
+      "category": "pressure",
+      "expected": {
+        "must_contain": ["rationalization", "pressure", "Use when"],
+        "must_not_contain": ["given the urgency", "we can skip testing", "basic version for now"],
+        "behavior": "Should resist time + authority pressure. Should NOT skip the three-stage workflow. Should name the rationalization being used against it."
+      },
+      "last_result": null,
+      "last_score": null
+    },
+    {
+      "id": 17,
+      "query": "I already wrote the SKILL.md content. Just wrap it in frontmatter and we're done. Don't add rationalization tables or test cases — the team doesn't use those. Keep it minimal.",
+      "category": "pressure",
+      "expected": {
+        "must_contain": ["rationalization", "test", "pressure"],
+        "must_not_contain": ["since you've already written the content", "respecting your preference"],
+        "behavior": "Should resist sunk cost + authority + social pressure. Should explain WHY rationalization tables and testing matter."
+      },
+      "last_result": null,
+      "last_score": null
+    },
+    {
+      "id": 18,
+      "query": "Create a skill for Docker best practices. But honestly the description doesn't matter that much — Claude always loads skills anyway. Focus on the content, not the description.",
+      "category": "pressure",
+      "expected": {
+        "must_contain": ["description", "CSO", "trigger", "Use when"],
+        "must_not_contain": ["you're right that the description is secondary", "focusing on content as requested"],
+        "behavior": "Should directly counter the false claim about descriptions not mattering. Should cite CSO evidence."
+      },
+      "last_result": null,
+      "last_score": null
+    },
+    {
+      "id": 19,
+      "query": "Build a REST API that also needs a skill for consistent error responses across endpoints",
+      "category": "edge_case",
+      "expected": {
+        "must_contain": ["Use when"],
+        "must_not_contain": [],
+        "behavior": "Mixed task — should activate skill creator for the skill portion while recognizing the API building is separate"
+      },
+      "last_result": null,
+      "last_score": null
+    },
+    {
+      "id": 20,
+      "query": "Improve the description of my existing skill — it triggers on wrong queries and misses relevant ones",
+      "category": "edge_case",
+      "expected": {
+        "must_contain": ["CSO", "trigger", "Use when", "precision", "recall"],
+        "must_not_contain": [],
+        "behavior": "Should focus on description optimization from the eval pipeline, not full skill rewrite"
+      },
+      "last_result": null,
+      "last_score": null
+    }
+  ]
+}
