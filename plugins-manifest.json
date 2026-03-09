@@ -1,0 +1,429 @@
+{
+  "generated_at": "2026-03-09T16:30:00Z",
+  "total_plugins": 44,
+  "marketplaces": {
+    "claude-plugins-official": {
+      "repo": "anthropics/claude-plugins-official",
+      "register_command": "/plugin marketplace add anthropics/claude-plugins-official",
+      "note": "Anthropic's official marketplace. Usually auto-registered."
+    },
+    "claude-code-plugins": {
+      "repo": "anthropics/claude-code",
+      "register_command": "/plugin marketplace add anthropics/claude-code",
+      "note": "Anthropic's Claude Code marketplace. Usually auto-registered."
+    },
+    "claude-code-workflows": {
+      "repo": "wshobson/agents",
+      "register_command": "/plugin marketplace add wshobson/agents",
+      "note": "Community workflow agents by wshobson."
+    },
+    "claude-code-plugins-plus": {
+      "repo": "jeremylongshore/claude-code-plugins",
+      "register_command": "/plugin marketplace add jeremylongshore/claude-code-plugins",
+      "note": "Community plugins by Jeremy Longshore."
+    },
+    "agentic-forge": {
+      "repo": "e-stpierre/agentic-forge",
+      "register_command": "/plugin marketplace add e-stpierre/agentic-forge",
+      "note": "Agentic Forge marketplace. Currently no plugins installed from here."
+    }
+  },
+  "plugins": [
+    {
+      "name": "superpowers",
+      "marketplace": "claude-plugins-official",
+      "install_command": "/plugin install superpowers@claude-plugins-official",
+      "version": "4.3.1",
+      "tier": 1,
+      "description": "Obra Superpowers — auto-triggered brainstorming, TDD, debugging, code review workflows. INSTALL FIRST. Restart session after install.",
+      "installed_at": "2026-03-09T02:54:47.796Z"
+    },
+    {
+      "name": "github",
+      "marketplace": "claude-plugins-official",
+      "install_command": "/plugin install github@claude-plugins-official",
+      "version": "205b6e0b3036",
+      "tier": 1,
+      "description": "GitHub integration for PR management, issues, and repo operations.",
+      "installed_at": "2026-02-19T02:20:16.036Z"
+    },
+    {
+      "name": "pr-review-toolkit",
+      "marketplace": "claude-plugins-official",
+      "install_command": "/plugin install pr-review-toolkit@claude-plugins-official",
+      "version": "205b6e0b3036",
+      "tier": 1,
+      "description": "Code review, simplification, comment analysis, test analysis, silent failure hunting.",
+      "installed_at": "2026-02-19T02:20:35.878Z"
+    },
+    {
+      "name": "code-simplifier",
+      "marketplace": "claude-plugins-official",
+      "install_command": "/plugin install code-simplifier@claude-plugins-official",
+      "version": "1.0.0",
+      "tier": 1,
+      "description": "Simplifies code for clarity, consistency, and maintainability.",
+      "installed_at": "2026-02-19T02:27:23.132Z"
+    },
+    {
+      "name": "feature-dev",
+      "marketplace": "claude-plugins-official",
+      "install_command": "/plugin install feature-dev@claude-plugins-official",
+      "version": "205b6e0b3036",
+      "tier": 1,
+      "description": "Feature architecture, code exploration, and code review agents.",
+      "installed_at": "2026-02-19T02:27:26.889Z"
+    },
+    {
+      "name": "security-guidance",
+      "marketplace": "claude-plugins-official",
+      "install_command": "/plugin install security-guidance@claude-plugins-official",
+      "version": "205b6e0b3036",
+      "tier": 1,
+      "description": "Security best practices and guidance.",
+      "installed_at": "2026-02-19T02:27:29.567Z"
+    },
+    {
+      "name": "hookify",
+      "marketplace": "claude-plugins-official",
+      "install_command": "/plugin install hookify@claude-plugins-official",
+      "version": "205b6e0b3036",
+      "tier": 1,
+      "description": "Hook creation, management, and conversation analysis.",
+      "installed_at": "2026-02-19T02:27:32.350Z"
+    },
+    {
+      "name": "claude-md-management",
+      "marketplace": "claude-plugins-official",
+      "install_command": "/plugin install claude-md-management@claude-plugins-official",
+      "version": "1.0.0",
+      "tier": 1,
+      "description": "CLAUDE.md revision and improvement tools.",
+      "installed_at": "2026-02-19T02:27:12.565Z"
+    },
+    {
+      "name": "context7",
+      "marketplace": "claude-plugins-official",
+      "install_command": "/plugin install context7@claude-plugins-official",
+      "version": "205b6e0b3036",
+      "tier": 1,
+      "description": "Up-to-date documentation lookup for any library or framework.",
+      "installed_at": "2026-03-09T15:38:21.265Z"
+    },
+    {
+      "name": "plugin-dev",
+      "marketplace": "claude-plugins-official",
+      "install_command": "/plugin install plugin-dev@claude-plugins-official",
+      "version": "205b6e0b3036",
+      "tier": 2,
+      "description": "Plugin development — create plugins, agents, skills, commands, hooks.",
+      "installed_at": "2026-03-06T15:27:05.844Z"
+    },
+    {
+      "name": "skill-creator",
+      "marketplace": "claude-plugins-official",
+      "install_command": "/plugin install skill-creator@claude-plugins-official",
+      "version": "205b6e0b3036",
+      "tier": 2,
+      "description": "Skill creation and development tools.",
+      "installed_at": "2026-03-08T19:53:37.703Z"
+    },
+    {
+      "name": "claude-code-setup",
+      "marketplace": "claude-plugins-official",
+      "install_command": "/plugin install claude-code-setup@claude-plugins-official",
+      "version": "1.0.0",
+      "tier": 2,
+      "description": "Claude Code setup and automation recommendations.",
+      "installed_at": "2026-03-06T15:26:48.685Z"
+    },
+    {
+      "name": "frontend-design",
+      "marketplace": "claude-plugins-official",
+      "install_command": "/plugin install frontend-design@claude-plugins-official",
+      "version": "205b6e0b3036",
+      "tier": 2,
+      "description": "Frontend design tools and patterns.",
+      "installed_at": "2026-03-08T19:53:37.703Z"
+    },
+    {
+      "name": "firecrawl",
+      "marketplace": "claude-plugins-official",
+      "install_command": "/plugin install firecrawl@claude-plugins-official",
+      "version": "1.0.3",
+      "tier": 2,
+      "description": "Web crawling and scraping integration.",
+      "installed_at": "2026-03-06T15:27:56.039Z"
+    },
+    {
+      "name": "ralph-loop",
+      "marketplace": "claude-plugins-official",
+      "install_command": "/plugin install ralph-loop@claude-plugins-official",
+      "version": "205b6e0b3036",
+      "tier": 2,
+      "description": "Autonomous agent loop for iterative task execution.",
+      "installed_at": "2026-03-09T15:38:29.266Z"
+    },
+    {
+      "name": "playwright",
+      "marketplace": "claude-plugins-official",
+      "install_command": "/plugin install playwright@claude-plugins-official",
+      "version": "205b6e0b3036",
+      "tier": 2,
+      "description": "Browser automation for testing and web interaction.",
+      "installed_at": "2026-03-09T15:38:48.717Z"
+    },
+    {
+      "name": "pyright-lsp",
+      "marketplace": "claude-plugins-official",
+      "install_command": "/plugin install pyright-lsp@claude-plugins-official",
+      "version": "1.0.0",
+      "tier": 3,
+      "description": "Python language server for better code intelligence.",
+      "installed_at": "2026-02-19T02:20:10.407Z"
+    },
+    {
+      "name": "typescript-lsp",
+      "marketplace": "claude-plugins-official",
+      "install_command": "/plugin install typescript-lsp@claude-plugins-official",
+      "version": "1.0.0",
+      "tier": 3,
+      "description": "TypeScript language server for better TS code intelligence.",
+      "installed_at": "2026-03-09T15:38:36.409Z"
+    },
+    {
+      "name": "Notion",
+      "marketplace": "claude-plugins-official",
+      "install_command": "/plugin install Notion@claude-plugins-official",
+      "version": "0.1.0",
+      "tier": 3,
+      "description": "Notion integration — pages, databases, tasks, search.",
+      "installed_at": "2026-03-06T15:27:12.294Z"
+    },
+    {
+      "name": "slack",
+      "marketplace": "claude-plugins-official",
+      "install_command": "/plugin install slack@claude-plugins-official",
+      "version": "1.0.0",
+      "tier": 3,
+      "description": "Slack integration — messaging, search, channel management.",
+      "installed_at": "2026-02-19T02:20:57.246Z"
+    },
+    {
+      "name": "sentry",
+      "marketplace": "claude-plugins-official",
+      "install_command": "/plugin install sentry@claude-plugins-official",
+      "version": "1.0.0",
+      "tier": 3,
+      "description": "Sentry error tracking integration.",
+      "installed_at": "2026-02-19T02:21:01.632Z"
+    },
+    {
+      "name": "python-development",
+      "marketplace": "claude-code-workflows",
+      "install_command": "/plugin install python-development@claude-code-workflows",
+      "version": "1.2.1",
+      "tier": 3,
+      "description": "Python dev agents — Django, FastAPI, async patterns, testing, packaging.",
+      "installed_at": "2026-02-19T03:20:54.440Z"
+    },
+    {
+      "name": "conductor",
+      "marketplace": "claude-code-workflows",
+      "install_command": "/plugin install conductor@claude-code-workflows",
+      "version": "1.2.0",
+      "tier": 2,
+      "description": "Project orchestration — tracks, workflows, context-driven development.",
+      "installed_at": "2026-02-19T03:22:09.214Z"
+    },
+    {
+      "name": "customer-sales-automation",
+      "marketplace": "claude-code-workflows",
+      "install_command": "/plugin install customer-sales-automation@claude-code-workflows",
+      "version": "1.2.0",
+      "tier": 3,
+      "description": "Customer support and sales automation agents.",
+      "installed_at": "2026-02-19T03:21:46.528Z"
+    },
+    {
+      "name": "data-validation-suite",
+      "marketplace": "claude-code-workflows",
+      "install_command": "/plugin install data-validation-suite@claude-code-workflows",
+      "version": "1.2.0",
+      "tier": 3,
+      "description": "Backend security and input validation agents.",
+      "installed_at": "2026-02-19T03:21:48.880Z"
+    },
+    {
+      "name": "llm-application-dev",
+      "marketplace": "claude-code-workflows",
+      "install_command": "/plugin install llm-application-dev@claude-code-workflows",
+      "version": "2.0.3",
+      "tier": 3,
+      "description": "LLM app development — RAG, agents, vector search, prompt engineering.",
+      "installed_at": "2026-02-19T03:21:51.249Z"
+    },
+    {
+      "name": "seo-content-creation",
+      "marketplace": "claude-code-workflows",
+      "install_command": "/plugin install seo-content-creation@claude-code-workflows",
+      "version": "1.2.0",
+      "tier": 3,
+      "description": "SEO content planning, writing, and auditing.",
+      "installed_at": "2026-02-19T03:21:53.527Z"
+    },
+    {
+      "name": "security-scanning",
+      "marketplace": "claude-code-workflows",
+      "install_command": "/plugin install security-scanning@claude-code-workflows",
+      "version": "1.3.0",
+      "tier": 3,
+      "description": "Security auditing, threat modeling, SAST scanning.",
+      "installed_at": "2026-02-19T03:21:55.800Z"
+    },
+    {
+      "name": "data-engineering",
+      "marketplace": "claude-code-workflows",
+      "install_command": "/plugin install data-engineering@claude-code-workflows",
+      "version": "1.3.0",
+      "tier": 3,
+      "description": "Data pipelines, backend architecture, Airflow, dbt, Spark.",
+      "installed_at": "2026-02-19T03:22:02.032Z"
+    },
+    {
+      "name": "business-analytics",
+      "marketplace": "claude-code-workflows",
+      "install_command": "/plugin install business-analytics@claude-code-workflows",
+      "version": "1.2.1",
+      "tier": 3,
+      "description": "Business analysis, KPI dashboards, data storytelling.",
+      "installed_at": "2026-02-19T03:22:04.438Z"
+    },
+    {
+      "name": "content-marketing",
+      "marketplace": "claude-code-workflows",
+      "install_command": "/plugin install content-marketing@claude-code-workflows",
+      "version": "1.2.0",
+      "tier": 3,
+      "description": "Content marketing, web research, search specialist.",
+      "installed_at": "2026-02-19T03:22:06.677Z"
+    },
+    {
+      "name": "sow-generator",
+      "marketplace": "claude-code-plugins-plus",
+      "install_command": "/plugin install sow-generator@claude-code-plugins-plus",
+      "version": "1.0.0",
+      "tier": 3,
+      "description": "Statement of Work generator.",
+      "installed_at": "2026-02-23T16:00:00.000Z"
+    },
+    {
+      "name": "discovery-questionnaire",
+      "marketplace": "claude-code-plugins-plus",
+      "install_command": "/plugin install discovery-questionnaire@claude-code-plugins-plus",
+      "version": "1.0.0",
+      "tier": 3,
+      "description": "Client discovery questionnaire generator.",
+      "installed_at": "2026-02-23T16:00:00.000Z"
+    },
+    {
+      "name": "roi-calculator",
+      "marketplace": "claude-code-plugins-plus",
+      "install_command": "/plugin install roi-calculator@claude-code-plugins-plus",
+      "version": "1.0.0",
+      "tier": 3,
+      "description": "ROI calculation tools.",
+      "installed_at": "2026-02-23T16:00:00.000Z"
+    },
+    {
+      "name": "make-scenario-builder",
+      "marketplace": "claude-code-plugins-plus",
+      "install_command": "/plugin install make-scenario-builder@claude-code-plugins-plus",
+      "version": "1.0.0",
+      "tier": 3,
+      "description": "Make.com scenario designer for visual automation.",
+      "installed_at": "2026-02-23T16:00:00.000Z"
+    },
+    {
+      "name": "zapier-zap-builder",
+      "marketplace": "claude-code-plugins-plus",
+      "install_command": "/plugin install zapier-zap-builder@claude-code-plugins-plus",
+      "version": "1.0.0",
+      "tier": 3,
+      "description": "Zapier Zap builder for automation workflows.",
+      "installed_at": "2026-02-23T16:00:00.000Z"
+    },
+    {
+      "name": "prettier-markdown-hook",
+      "marketplace": "claude-code-plugins-plus",
+      "install_command": "/plugin install prettier-markdown-hook@claude-code-plugins-plus",
+      "version": "1.0.0",
+      "tier": 3,
+      "description": "Prettier formatting hook for markdown files.",
+      "installed_at": "2026-02-23T16:00:00.000Z"
+    },
+    {
+      "name": "retellai-pack",
+      "marketplace": "claude-code-plugins-plus",
+      "install_command": "/plugin install retellai-pack@claude-code-plugins-plus",
+      "version": "1.0.0",
+      "tier": 3,
+      "description": "Retell AI voice agent integration (30 skills).",
+      "installed_at": "2026-02-25T14:00:00.000Z"
+    },
+    {
+      "name": "brand-strategy-framework",
+      "marketplace": "claude-code-plugins-plus",
+      "install_command": "/plugin install brand-strategy-framework@claude-code-plugins-plus",
+      "version": "1.0.0",
+      "tier": 3,
+      "description": "Brand strategy and positioning framework.",
+      "installed_at": "2026-02-25T14:00:00.000Z"
+    },
+    {
+      "name": "excel-analyst-pro",
+      "marketplace": "claude-code-plugins-plus",
+      "install_command": "/plugin install excel-analyst-pro@claude-code-plugins-plus",
+      "version": "1.0.0",
+      "tier": 3,
+      "description": "Excel analysis — DCF modeling, LBO, pivot tables, variance analysis.",
+      "installed_at": "2026-03-08T19:53:37.703Z"
+    },
+    {
+      "name": "customerio-pack",
+      "marketplace": "claude-code-plugins-plus",
+      "install_command": "/plugin install customerio-pack@claude-code-plugins-plus",
+      "version": "1.0.0",
+      "tier": 3,
+      "description": "Customer.io integration (24 skills).",
+      "installed_at": "2026-03-08T19:53:37.703Z"
+    },
+    {
+      "name": "deepgram-pack",
+      "marketplace": "claude-code-plugins-plus",
+      "install_command": "/plugin install deepgram-pack@claude-code-plugins-plus",
+      "version": "1.0.0",
+      "tier": 3,
+      "description": "Deepgram speech-to-text integration (24 skills).",
+      "installed_at": "2026-03-08T19:53:37.703Z"
+    },
+    {
+      "name": "documenso-pack",
+      "marketplace": "claude-code-plugins-plus",
+      "install_command": "/plugin install documenso-pack@claude-code-plugins-plus",
+      "version": "1.0.0",
+      "tier": 3,
+      "description": "Documenso document signing integration (24 skills).",
+      "installed_at": "2026-03-08T19:53:37.703Z"
+    },
+    {
+      "name": "gamma-pack",
+      "marketplace": "claude-code-plugins-plus",
+      "install_command": "/plugin install gamma-pack@claude-code-plugins-plus",
+      "version": "1.0.0",
+      "tier": 3,
+      "description": "Gamma presentation/document creation integration (24 skills).",
+      "installed_at": "2026-03-08T19:53:37.703Z"
+    }
+  ]
+}

@@ -2,6 +2,8 @@
 
 Complete setup guide to restore or replicate this Claude Code environment from scratch.
 
+**Last updated:** 2026-03-09
+
 ---
 
 ## Prerequisites
@@ -18,8 +20,9 @@ Run these inside a Claude Code session:
 
 ```
 /plugin marketplace add anthropics/claude-plugins-official
-/plugin marketplace add anthropics/claude-code-plugins
+/plugin marketplace add anthropics/claude-code
 /plugin marketplace add wshobson/agents
+/plugin marketplace add jeremylongshore/claude-code-plugins
 /plugin marketplace add e-stpierre/agentic-forge
 ```
 
@@ -27,51 +30,54 @@ Run these inside a Claude Code session:
 
 ## Step 2: Install Plugins
 
-### Tier 1 — Non-Negotiable (install these first, always)
+> A machine-readable manifest of all plugins with install commands
+> is available at `plugins-manifest.json` in this repo.
 
-These make Claude Code fundamentally better at writing disciplined, quality code.
+### Tier 1 — Core (install these first, always)
+
+These are non-negotiable. They make Claude Code fundamentally better.
 
 ```
 /plugin install superpowers@claude-plugins-official
 ```
 
-> **Note:** This is the [Obra Superpowers](https://github.com/obra/superpowers) plugin by Jesse Vincent,
-> distributed through Anthropic's official marketplace. It provides auto-triggered workflows for
-> brainstorming, TDD, systematic debugging, and code review.
->
-> **IMPORTANT:** Restart your session after installing superpowers.
+> **IMPORTANT:** Restart your session after installing Superpowers.
 > It uses a SessionStart hook that only activates on new sessions.
+> This is the [Obra Superpowers](https://github.com/obra/superpowers) plugin — auto-triggered
+> brainstorming, TDD, systematic debugging, and code review.
 
-Then install the rest:
+Then install the rest of Tier 1:
 
 ```
 /plugin install github@claude-plugins-official
-/plugin install commit-commands@claude-code-plugins
-/plugin install code-simplifier@claude-plugins-official
 /plugin install pr-review-toolkit@claude-plugins-official
+/plugin install code-simplifier@claude-plugins-official
 /plugin install feature-dev@claude-plugins-official
 /plugin install security-guidance@claude-plugins-official
 /plugin install hookify@claude-plugins-official
 /plugin install claude-md-management@claude-plugins-official
+/plugin install context7@claude-plugins-official
 ```
 
 ### Tier 2 — Highly Recommended
 
 ```
 /plugin install plugin-dev@claude-plugins-official
-/plugin install firecrawl@claude-plugins-official
-/plugin install conductor@claude-code-workflows
-/plugin install frontend-design@claude-plugins-official
 /plugin install skill-creator@claude-plugins-official
 /plugin install claude-code-setup@claude-plugins-official
+/plugin install frontend-design@claude-plugins-official
+/plugin install firecrawl@claude-plugins-official
+/plugin install ralph-loop@claude-plugins-official
+/plugin install playwright@claude-plugins-official
+/plugin install conductor@claude-code-workflows
 ```
 
-### Tier 3 — Stack-Dependent (install based on your needs)
+### Tier 3 — Stack & Domain Specific
 
-**Python development:**
+**Language servers (install based on your stack):**
 ```
 /plugin install pyright-lsp@claude-plugins-official
-/plugin install python-development@claude-code-workflows
+/plugin install typescript-lsp@claude-plugins-official
 ```
 
 **Integrations:**
@@ -81,7 +87,12 @@ Then install the rest:
 /plugin install sentry@claude-plugins-official
 ```
 
-**Workflow agents (from wshobson/agents):**
+**Python development:**
+```
+/plugin install python-development@claude-code-workflows
+```
+
+**Workflow agents (wshobson/agents):**
 ```
 /plugin install data-engineering@claude-code-workflows
 /plugin install business-analytics@claude-code-workflows
@@ -93,23 +104,41 @@ Then install the rest:
 /plugin install data-validation-suite@claude-code-workflows
 ```
 
-**Business tools (from claude-code-plugins-plus):**
+**Business tools (jeremylongshore/claude-code-plugins):**
 ```
-/plugin marketplace add <org/repo-for-claude-code-plugins-plus>
 /plugin install sow-generator@claude-code-plugins-plus
 /plugin install discovery-questionnaire@claude-code-plugins-plus
 /plugin install roi-calculator@claude-code-plugins-plus
 /plugin install make-scenario-builder@claude-code-plugins-plus
 /plugin install zapier-zap-builder@claude-code-plugins-plus
+/plugin install prettier-markdown-hook@claude-code-plugins-plus
 /plugin install brand-strategy-framework@claude-code-plugins-plus
+/plugin install excel-analyst-pro@claude-code-plugins-plus
+```
+
+**API integration packs (jeremylongshore/claude-code-plugins):**
+```
 /plugin install retellai-pack@claude-code-plugins-plus
+/plugin install customerio-pack@claude-code-plugins-plus
+/plugin install deepgram-pack@claude-code-plugins-plus
+/plugin install documenso-pack@claude-code-plugins-plus
+/plugin install gamma-pack@claude-code-plugins-plus
 ```
 
 ---
 
 ## Step 3: MCP Servers
 
-### Essential MCP (add these always)
+### GitHub MCP (recommended for repo management)
+
+```bash
+claude mcp add -s user --transport http github-mcp "https://api.githubcopilot.com/mcp/" -H "Authorization: Bearer YOUR_GITHUB_PAT"
+```
+
+> Requires a GitHub Personal Access Token with `repo` scope.
+> Create at: github.com → Settings → Developer settings → Personal access tokens
+
+### Essential MCPs
 
 ```bash
 # Persistent knowledge graph memory
@@ -131,16 +160,13 @@ claude mcp add --transport http vercel https://mcp.vercel.com
 # Cloudinary (asset/media management)
 claude mcp add --transport http cloudinary https://asset-management.mcp.cloudinary.com/sse
 
-# Clarify (AI media understanding)
-claude mcp add --transport http clarify https://api.clarify.ai/mcp
-
 # Make.com (automation platform)
 claude mcp add --transport http make https://mcp.make.com
 ```
 
 ### Credential-Based MCPs (require API keys)
 
-These need API keys set in environment variables. Add to `~/.mcp.json` or `~/.claude/mcp.json`:
+Add to `~/.claude/mcp.json`:
 
 ```json
 {
@@ -174,7 +200,7 @@ These need API keys set in environment variables. Add to `~/.mcp.json` or `~/.cl
 }
 ```
 
-### Claude.ai Remote MCP (configured via web UI)
+### Claude.ai Remote MCPs (configured via web UI)
 
 These are configured at https://claude.ai settings, not locally:
 - Canva, Clay, Figma, Gmail, Google Calendar, HubSpot, Jotform, Notion, Slack, Zapier, n8n
@@ -186,20 +212,42 @@ These are configured at https://claude.ai settings, not locally:
 Copy the `skills/` folder from this repo into your Claude home:
 
 ```bash
-# Copy all skills
+# Mac/Linux
 cp -r skills/* ~/.claude/skills/
 
-# Or on Windows:
-# xcopy /E /I skills "%USERPROFILE%\.claude\skills"
+# Windows (Command Prompt)
+xcopy /E /I skills "%USERPROFILE%\.claude\skills"
+
+# Windows (PowerShell)
+Copy-Item -Path "skills\*" -Destination "$env:USERPROFILE\.claude\skills" -Recurse -Force
 ```
 
-Skills are immediately available in the next Claude Code session. No restart required.
+Skills are immediately available in the next Claude Code session.
 
 ---
 
-## Step 5: Install Skills from AI Templates Marketplace
+## Step 5: Install Custom Agents
 
-Browse available skills at https://www.aitmpl.com/skills
+Copy the `agents/` folder from this repo into your Claude home:
+
+```bash
+# Mac/Linux
+cp -r agents/* ~/.claude/agents/
+
+# Windows (Command Prompt)
+xcopy /E /I agents "%USERPROFILE%\.claude\agents"
+
+# Windows (PowerShell)
+Copy-Item -Path "agents\*" -Destination "$env:USERPROFILE\.claude\agents" -Recurse -Force
+```
+
+Agents are available immediately for the Task tool in your next session.
+
+---
+
+## Step 6: Install Marketplace Skills (optional)
+
+Browse available community skills at https://www.aitmpl.com/skills
 
 Install with:
 ```bash
@@ -216,6 +264,19 @@ After setup, start a new Claude Code session and verify:
 1. Superpowers auto-triggers brainstorming when you describe a task
 2. Run `/help` to see available skills listed
 3. Check MCP tools are discoverable (Claude will show them as deferred tools)
+4. Test GitHub MCP: ask Claude to read a file from your repo
+
+---
+
+## What's in This Repo
+
+| Directory/File | Contents | Count |
+|----------------|----------|-------|
+| `skills/` | Custom Claude Code skills (SKILL.md files) | 110 |
+| `agents/` | Global subagent definitions (.md files) | 38 |
+| `core/` | Core framework files | — |
+| `plugins-manifest.json` | Machine-readable plugin inventory with install commands | 44 plugins |
+| `INSTALL-GUIDE.md` | This file | — |
 
 ---
 
@@ -224,8 +285,10 @@ After setup, start a new Claude Code session and verify:
 | Resource | URL |
 |----------|-----|
 | claude-plugins-official | https://github.com/anthropics/claude-plugins-official |
-| claude-code-plugins | https://github.com/anthropics/claude-code-plugins |
-| wshobson/agents | https://github.com/wshobson/agents |
+| claude-code | https://github.com/anthropics/claude-code |
+| claude-code-workflows | https://github.com/wshobson/agents |
+| claude-code-plugins-plus | https://github.com/jeremylongshore/claude-code-plugins |
+| agentic-forge | https://github.com/e-stpierre/agentic-forge |
 | MCP Servers (official) | https://github.com/modelcontextprotocol/servers |
 | AI Templates Marketplace | https://www.aitmpl.com |
 | Context7 | https://context7.com |
