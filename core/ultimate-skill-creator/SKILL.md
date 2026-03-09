@@ -224,3 +224,6 @@ A skill is done when ALL of these pass:
 | `references/eval-pipeline.md` | Test case design, subagent evaluation, grading, benchmarking, description optimization |
 | `references/writing-rules.md` | CSO rules, description patterns, body writing style, rationalization table design |
 | `examples/skill-directory-template.md` | Reference directory layout and frontmatter template for new skills |
+| `scripts/init_skill.py` | Scaffolds a new skill directory with template SKILL.md and resource directories |
+| `scripts/quick_validate.py` | Validates skill frontmatter (name, description, format) |
+| `scripts/package_skill.py` | Packages a skill folder into a distributable zip (runs validation first) |
