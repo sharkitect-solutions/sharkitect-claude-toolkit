@@ -1,0 +1,16 @@
+# Environment and credentials
+.env
+*.key
+*.pem
+
+# Temporary files
+.tmp/
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Node
+node_modules/
