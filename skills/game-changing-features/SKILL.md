@@ -1,264 +1,161 @@
 ---
 name: game-changing-features
-description: Find 10x product opportunities and high-leverage improvements. Use when user wants strategic product thinking, mentions '10x', wants to find high-impact features, or says 'what would make this 10x better', 'product strategy', or 'what should we build next'.
+description: >
+  Use when the user wants to identify 10x product opportunities, asks "what should we build next",
+  says "game-changing", "10x", "high-leverage features", or wants to discover transformative
+  product moves rather than incremental improvements. NEVER for RICE scoring or PRD writing
+  (product-manager-toolkit). NEVER for brand positioning or go-to-market strategy
+  (product-strategist). NEVER for marketing campaign ideation (marketing-ideas). NEVER for
+  executive-level business strategy (ceo-advisor).
+version: 2.0
+optimized: true
+optimized_date: 2026-03-11
 ---
 
-# 10x Mode
+# Game-Changing Features
 
-You are a product strategist with founder mentality. We're not here to add features—we're here to find the moves that 10x the product's value. Think like you own this. What would make users unable to live without it?
+## File Index
 
-> **No Chat Output**: ALL responses go to `.claude/docs/ai/<product-or-area>/10x/session-N.md`
-> **No Code**: This is pure strategy. Implementation comes later.
+| File | Purpose | Load When |
+|------|---------|-----------|
+| SKILL.md | Opportunity discovery (5 methods), 10x vs 10% litmus test, innovation theater detection (6), evaluation rigor, prioritization traps (7) | Always (auto-loaded) |
+| opportunity-sizing-playbook.md | TAM expansion sizing (5-step), conversion funnel impact, retention impact quantification, build cost estimation (4 components + ROI), confidence-weighted sizing (5 evidence tiers), comparison framework | When quantifying feature impact, building business cases, or comparing multiple opportunities by expected value |
+| competitive-moat-analysis.md | Moat types and durability (6), defensibility scoring (4 dimensions), feature moat patterns (5) and anti-moat patterns (3), build vs buy vs partner decision matrix, timing analysis (4 market stages), platform shift timing | When evaluating whether a feature creates lasting competitive advantage or deciding build vs buy vs partner |
+| feature-validation-methods.md | Validation method selection (6 methods by constraint), fake door test design, painted door tests, Wizard of Oz, pre-order/waitlist validation, evidence quality tiers (5), validation sequencing (5 phases), kill criteria by phase | When testing a feature hypothesis before investment, designing validation experiments, or assessing evidence quality |
 
----
+## Scope Boundary
 
-## The Point
-
-Most product work is incremental: fix bugs, add requested features, polish edges. That's necessary but not sufficient.
-
-This mode forces a different question: **What would make this 10x more valuable?**
-
-Not 10% better. Not "nice to have." Game-changing. The kind of thing that makes users say "how did I live without this?"
-
----
-
-## Session Setup
-
-User provides:
-- **Product/Area**: What we're thinking about
-- **Current state** (optional): Brief description of what exists
-- **Constraints** (optional): Technical limits, timeline, team size
-
----
-
-## Workflow
-
-### Step 1: Understand Current Value
-
-Before proposing additions, understand what value exists:
-
-1. **What problem does this solve today?**
-2. **Who uses it and why?**
-3. **What's the core action users take?**
-4. **Where do users spend most time?**
-5. **What do users complain about / request most?**
-
-Research the codebase, look at existing features, understand the shape of the product.
-
-### Step 2: Find the 10x Opportunities
-
-Think across three scales:
-
-#### Massive (High effort, transformative)
-Features that fundamentally expand what the product can do. New markets, new use cases, new capabilities that weren't possible before.
-
-Ask:
-- What adjacent problem could we solve that would make this indispensable?
-- What would make this a platform instead of a tool?
-- What would make users bring their team/friends/family?
-- What's the feature that would make competitors nervous?
-
-#### Medium (Moderate effort, high leverage)
-Features that significantly enhance the core experience. Force multipliers on what already works.
-
-Ask:
-- What would make the core action 10x faster/easier?
-- What data do we have that we're not using?
-- What workflow is painful that we could automate?
-- What would turn casual users into power users?
-
-#### Small (Low effort, disproportionate value)
-Tiny changes that punch way above their weight. Often overlooked because they seem "too simple."
-
-Ask:
-- What single button/shortcut would save users minutes daily?
-- What information is users hunting for that we could surface?
-- What anxiety do users have that we could eliminate with one indicator?
-- What's the thing users do manually that we could remember/automate?
-
-### Step 3: Evaluate Ruthlessly
-
-For each idea, assess:
-
-| Criteria | Question |
-|----------|----------|
-| **Impact** | How much more valuable does this make the product? |
-| **Reach** | What % of users would this affect? |
-| **Frequency** | How often would users encounter this value? |
-| **Differentiation** | Does this set us apart or just match competitors? |
-| **Defensibility** | Is this easy to copy or does it compound over time? |
-| **Feasibility** | Can we actually build this? |
-
-Use a simple scoring:
-- 🔥 **Must do** — High impact, clearly worth it
-- 👍 **Strong** — Good impact, should prioritize
-- 🤔 **Maybe** — Interesting but needs more thought
-- ❌ **Pass** — Not worth it right now
-
-### Step 4: Identify the Highest-Leverage Moves
-
-Look for:
-
-**Quick wins with outsized impact**
-- Small effort, big value
-- Often overlooked because they're "obvious"
-- Can ship fast, validate fast
-
-**Strategic bets**
-- Larger effort, potentially transformative
-- Opens new possibilities
-- Worth the investment if it works
-
-**Compounding features**
-- Get more valuable over time
-- Network effects, data effects, habit formation
-- Build moats
-
-### Step 5: Prioritize
-
-Don't just list ideas—stack rank them:
-
-```
-## Recommended Priority
-
-### Do Now (Quick wins)
-1. [Feature] — Why: [reason], Impact: [what changes]
-
-### Do Next (High leverage)
-1. [Feature] — Why: [reason], Unlocks: [what becomes possible]
-
-### Explore (Strategic bets)
-1. [Feature] — Why: [reason], Risk: [what could go wrong], Upside: [what we gain]
-
-### Backlog (Good but not now)
-1. [Feature] — Why later: [reason]
-```
+| Need | Use This Skill | Not This One |
+|------|---------------|--------------|
+| Find 10x product opportunities | game-changing-features | -- |
+| RICE scoring, PRD quality, sprint planning | product-manager-toolkit | game-changing-features |
+| Market positioning, competitive moats, GTM | product-strategist | game-changing-features |
+| Marketing campaign brainstorming | marketing-ideas | game-changing-features |
+| Executive business strategy, M&A, org design | ceo-advisor | game-changing-features |
 
 ---
 
-## Idea Categories to Explore
+## Opportunity Discovery Framework
 
-Force yourself through each category:
+Do not brainstorm from a blank page. Use these five systematic methods to surface real opportunities backed by evidence.
 
-| Category | Question | Example |
-|----------|----------|---------|
-| **Speed** | What takes too long? | Instant search, predictive loading |
-| **Automation** | What's repetitive? | Auto-scheduling, smart defaults |
-| **Intelligence** | What could be smarter? | Recommendations, anomaly detection |
-| **Integration** | What else do users use? | Calendar sync, export options |
-| **Collaboration** | How do users work together? | Sharing, comments, real-time |
-| **Personalization** | How is everyone different? | Custom views, preferences |
-| **Visibility** | What's hidden that shouldn't be? | Dashboards, progress tracking |
-| **Confidence** | What creates anxiety? | Confirmations, undo, previews |
-| **Delight** | What could spark joy? | Animations, celebrations, polish |
-| **Access** | Who can't use this yet? | Mobile, offline, accessibility |
+### 1. Jobs-to-Be-Done Adjacency Mapping
+Identify jobs users hire COMPETITORS for that they wish YOUR product handled. Each adjacent job is a potential 10x feature.
+- What tools do users open immediately before or after using this product?
+- What do users copy-paste OUT of this product into another tool?
+- What job did users EXPECT this product to do when they first signed up?
 
----
+### 2. Workflow Interrupt Analysis
+Every time a user LEAVES your product to use another tool, that exit point is an opportunity.
+- Map the user's full workflow. Where does your product start and stop?
+- Each exit = friction. Each re-entry = context loss. Eliminating either = value.
+- Priority: exits that happen EVERY session, not occasional ones.
 
-## Output Format
+### 3. Support Ticket Mining
+- Top 10 feature requests = things users are willing to ASK for (surface demand).
+- Complaints about workarounds = things users NEED but found ugly alternatives (deeper demand).
+- "How do I...?" questions about things that SHOULD be obvious = UX failures masquerading as feature gaps.
 
-```markdown
-# 10x Analysis: <Product/Area>
-Session N | Date: YYYY-MM-DD
+### 4. Power User Behavior Audit
+What do the top 5% of users do that the other 95% don't?
+- These behaviors reveal unproductized value -- the product CAN do it, but most users don't discover it.
+- Productizing power-user behavior (making it default, surfacing it, automating it) is consistently high-leverage.
+- Warning: some power-user behavior is niche. Validate that the behavior WOULD help the 95% if they knew about it.
 
-## Current Value
-What the product does today and for whom.
-
-## The Question
-What would make this 10x more valuable?
-
----
-
-## Massive Opportunities
-
-### 1. [Feature Name]
-**What**: Description
-**Why 10x**: Why this is transformative
-**Unlocks**: What becomes possible
-**Effort**: High/Very High
-**Risk**: What could go wrong
-**Score**: 🔥/👍/🤔/❌
-
-### 2. ...
+### 5. Churn Interview Patterns
+- What did churned users switch TO? That product's core differentiator is your gap.
+- WHY did they switch? "Missing feature X" is surface. "Couldn't accomplish Y" is the real signal.
+- Users who churned in the first 14 days had onboarding failures. Users who churned after 90 days had value-ceiling failures. Different problems, different features.
 
 ---
 
-## Medium Opportunities
+## 10x vs 10% Litmus Test
 
-### 1. [Feature Name]
-**What**: Description
-**Why 10x**: Why this matters more than it seems
-**Impact**: What changes for users
-**Effort**: Medium
-**Score**: 🔥/👍/🤔/❌
+Before investing in any idea, run it through these five gates. A genuine 10x opportunity passes at least 3 of 5.
 
-### 2. ...
-
----
-
-## Small Gems
-
-### 1. [Feature Name]
-**What**: Description (one line)
-**Why powerful**: Why this punches above its weight
-**Effort**: Low
-**Score**: 🔥/👍/🤔/❌
-
-### 2. ...
+| Gate | 10x Signal | 10% Signal |
+|------|-----------|------------|
+| **Capability** | Creates something users COULDN'T do before | Makes existing capability faster/easier |
+| **Audience** | Opens product to a new user segment | Improves experience for existing users |
+| **Compounding** | Gets more valuable over time (data/network/habit effects) | Value is static after launch |
+| **Defensibility** | Would take a competitor 6+ months to replicate | Competitor could copy in 1 sprint |
+| **Pricing power** | Changes the pricing conversation (new tier, new metric) | Doesn't affect willingness to pay |
 
 ---
 
-## Recommended Priority
+## Innovation Theater Detection
 
-### Do Now
-1. ...
+These patterns FEEL innovative but deliver incremental value disguised as transformation.
 
-### Do Next
-1. ...
-
-### Explore
-1. ...
-
----
-
-## Questions
-
-### Answered
-- **Q**: ... **A**: ...
-
-### Blockers
-- **Q**: ... (need user input)
-
-## Next Steps
-- [ ] Validate assumption: ...
-- [ ] Research: ...
-- [ ] Decide: ...
-```
+1. **"AI-powered everything"** -- Adding AI as a feature checkbox vs. solving a real problem that happens to use AI. Test: remove the AI label. Is it still compelling?
+2. **Dashboard proliferation** -- More charts != more insight. If users can't name the ONE metric they check daily, more dashboards won't help.
+3. **Integration checklist** -- 50 integrations nobody configures vs. 3 deep integrations that work out of the box. Breadth impresses buyers; depth retains users.
+4. **Feature parity** -- Copying competitors guarantees you're always one release behind. You can't out-feature the incumbent; you must out-frame the problem.
+5. **Complexity masking as power** -- More settings, more options, more toggles. Power users tolerate complexity; everyone else bounces.
+6. **Rebrand-as-feature** -- Renaming existing functionality, reshuffling navigation, adding a "new" label. Users notice. Trust erodes.
 
 ---
 
-## Rules
+## Evaluation Rigor
 
-- **THINK BIG FIRST**—don't self-censor with "that's too hard." Capture the idea, evaluate later.
-- **SMALL CAN BE HUGE**—don't dismiss simple ideas. Sometimes one button changes everything.
-- **USER VALUE, NOT FEATURE COUNT**—10 features that add 1% each ≠ 1 feature that adds 10x.
-- **BE SPECIFIC**—"better UX" is not an idea. "One-click rescheduling from notification" is.
-- **QUESTION ASSUMPTIONS**—"users want X" may be wrong. What do they actually need?
-- **COMPOUND THINKING**—prefer features that get better over time.
-- **NO SAFE IDEAS**—if every idea is "obviously good," you're not thinking hard enough.
-- **CITE EVIDENCE**—if you saw something in the codebase or research, reference it.
+Replace gut-feel scoring with structured assessment for each candidate feature.
+
+### Impact Sizing (pick ONE, quantify it)
+- **TAM expansion**: How many NEW users does this unlock? (e.g., "opens mobile segment = +40% addressable market")
+- **Conversion lift**: What % improvement in signup-to-active? (e.g., "reduces time-to-value from 20min to 2min")
+- **Retention improvement**: What % reduction in monthly churn? (e.g., "eliminates #1 churn reason = -15% churn")
+
+### Decision Dimensions
+
+| Dimension | Question | Why It Matters |
+|-----------|----------|----------------|
+| Reversibility | Can you ship it, learn, and roll back? | One-way doors need 10x more evidence |
+| Dependencies | Does this UNLOCK other features downstream? | Unlocking features > terminal features |
+| Evidence quality | User request (weak) / Behavioral data (medium) / Validated prototype (strong) | Weak evidence + high cost = dangerous |
+| Cannibalization | Does this compete with an existing feature? | Internal competition confuses users |
 
 ---
 
-## Prompts to Unstick Thinking
+## Prioritization Traps
 
-If stuck, ask yourself:
+These biases specifically corrupt FEATURE ideation (distinct from RICE/backlog traps in product-manager-toolkit).
 
-- "What would make a user tell their friend about this?"
-- "What's the thing users do every day that's slightly annoying?"
-- "What would we build if we had 10x the engineering team? 1/10th?"
-- "What would a competitor need to build to beat us?"
-- "What do power users do manually that we could make native?"
-- "What's the insight we have from data that users don't see?"
-- "What would make this addictive (in a good way)?"
-- "What's the feature that sounds crazy but might work?"
+1. **The founder's pet** -- Ideas championed by the CEO/founder get immunity from scrutiny. Test: would this survive if proposed by a junior PM?
+2. **The complexity discount** -- Hard-to-build features get ASSUMED to be high-value. Difficulty of implementation has zero correlation with user value.
+3. **Demo-driven development** -- Features that look spectacular in a sales demo but solve no real workflow problem. If the feature only impresses in a 5-minute presentation, it's a demo feature.
+4. **The loud minority** -- 5 vocal users requesting something != market demand. Check: what % of your user base would ACTUALLY use this weekly?
+5. **The sunk cost feature** -- "We already built half of it" as justification to finish. Half-built features with weak evidence should be killed, not completed.
+6. **The strategic hand-wave** -- "It's strategic" used to bypass evidence requirements. Anything labeled "strategic" that can't name the specific user behavior it changes is theater.
+7. **Recency bias** -- The last customer call, the latest competitor launch, the most recent churn interview disproportionately influence the roadmap. One data point is an anecdote, not a signal.
+
+---
+
+## Rationalization Table
+
+| If You Catch Yourself Thinking... | The Real Issue |
+|----------------------------------|----------------|
+| "Users will figure it out" | You're shipping complexity you don't want to simplify |
+| "We just need one big feature" | You're avoiding the harder work of making existing features excellent |
+| "The market isn't ready yet" | You lack evidence and are using timing as an excuse |
+| "This is strategic, metrics don't apply" | You can't articulate the value, so you're hiding behind abstraction |
+| "Every competitor has this" | You're chasing parity instead of differentiation |
+| "We'll iterate after launch" | You know it's not ready but want credit for shipping |
+
+## Red Flags
+
+1. Feature idea originated from a single customer conversation with no validation
+2. The opportunity requires users to change established workflows with no clear incentive
+3. You can't name 10 specific users who would use this feature weekly
+4. The feature's value proposition requires a paragraph to explain instead of a sentence
+5. Impact is described with qualitative words ("huge", "massive") instead of numbers
+6. The idea has been on the roadmap for 3+ quarters with no progress (signal: nobody actually believes in it)
+7. Building the feature requires a technology bet on something unproven in your stack
+8. The feature solves a problem users have already found acceptable workarounds for
+
+## NEVER
+
+1. NEVER present unvalidated brainstorming as strategic recommendations -- label evidence quality explicitly
+2. NEVER score opportunities with emoji or vague tiers -- use the structured evaluation dimensions
+3. NEVER list features without connecting each one to a specific discovery method that surfaced it
+4. NEVER skip the 10x vs 10% litmus test -- every candidate must be classified before evaluation
+5. NEVER conflate "users asked for it" with "users need it" -- requests are surface signals, not ground truth

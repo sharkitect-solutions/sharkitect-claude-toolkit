@@ -1,0 +1,64 @@
+{
+  "evals": [
+    {
+      "input": "I want to build a crew with 8 agents to handle my content pipeline",
+      "expected_behavior": "Push back on agent count. 8 agents = 12-20x cost of single agent, with coordination overhead. Ask what each agent does. Likely 3-4 focused agents cover the same work. Apply the 'too many cooks' rule.",
+      "anti_pattern": "Helping design an 8-agent crew without questioning whether fewer agents would produce equal or better results",
+      "difficulty": "easy"
+    },
+    {
+      "input": "Should I use Process.hierarchical for my crew? It sounds more capable.",
+      "expected_behavior": "Ask what the task structure is. If tasks follow a fixed order (A then B then C), use sequential. Hierarchical adds a manager agent (extra cost, latency, failure point) and is only better when task order genuinely depends on intermediate results. Sequential handles 80% of cases.",
+      "anti_pattern": "Recommending hierarchical because it 'sounds more sophisticated' without analyzing the task structure",
+      "difficulty": "easy"
+    },
+    {
+      "input": "My agent backstory is 'You are a helpful assistant.' Is that enough?",
+      "expected_behavior": "No. Generic backstories produce generic output. The backstory should give the agent PERSPECTIVE — specific experience, domain expertise, approach style. Example: 'You've spent 10 years analyzing financial data at a Big 4 firm' shapes how the agent interprets data and what it flags.",
+      "anti_pattern": "Accepting generic backstories without explaining the quality impact",
+      "difficulty": "easy"
+    },
+    {
+      "input": "My crew's second task seems to ignore the first task's output completely",
+      "expected_behavior": "Diagnose missing context parameter. Task B needs explicit context=[task_a] to see Task A's output. Without it, context doesn't automatically pass between tasks. This is a common gotcha.",
+      "anti_pattern": "Suggesting the agent or LLM is at fault without checking the context parameter",
+      "difficulty": "medium"
+    },
+    {
+      "input": "I need conditional logic in my crew — if the research finds enough data, write a report, otherwise ask for more sources",
+      "expected_behavior": "This needs Flows, not a basic Crew. Basic Crews are linear. Use Flow with @router decorator for conditional branching based on state. Point to references/flows.md for implementation details.",
+      "anti_pattern": "Trying to hack conditional logic into a sequential Crew instead of recommending Flows",
+      "difficulty": "medium"
+    },
+    {
+      "input": "My crew costs $15 per run and takes 3 minutes. How do I optimize?",
+      "expected_behavior": "Three levers: 1) Reduce agent count (each agent = more LLM calls). 2) Use cheaper models for simple agents (haiku for summarizers, sonnet for analyzers). 3) Lower max_iter (default 15 is often too high). Also check if agents are looping unnecessarily — verbose=True will reveal this.",
+      "anti_pattern": "Only suggesting to switch to a cheaper model without analyzing agent count and iteration waste",
+      "difficulty": "medium"
+    },
+    {
+      "input": "Should I use CrewAI or LangGraph for my multi-agent workflow?",
+      "expected_behavior": "Ask about the workflow pattern. If linear pipeline with specialized roles → CrewAI (simpler setup). If complex graph with cycles, conditional branches, and parallel paths → LangGraph (more control). CrewAI is the default choice unless you specifically need graph-based orchestration.",
+      "anti_pattern": "Recommending one framework without asking about the specific workflow requirements",
+      "difficulty": "medium"
+    },
+    {
+      "input": "One of my agents keeps getting stuck in a loop and running for 10+ minutes",
+      "expected_behavior": "Diagnose missing or too-high max_iter. Default is 15 iterations which is often excessive. Set max_iter=10 or lower. Also check if the agent has tools that return errors silently — the agent may be retrying a failing tool call. Use verbose=True to trace the loop.",
+      "anti_pattern": "Suggesting to increase timeout or wait longer rather than fixing the iteration limit",
+      "difficulty": "hard"
+    },
+    {
+      "input": "I want each agent in my crew to use a different LLM — researcher uses GPT-4o, writer uses Claude, editor uses a local model",
+      "expected_behavior": "CrewAI supports this via the LLM class on each agent. Good pattern for cost optimization — use expensive models only for agents that need complex reasoning, cheaper/local models for simpler tasks. Show the LLM() configuration. Note: mixing providers can cause style inconsistency in output.",
+      "anti_pattern": "Saying all agents must use the same model, or not warning about style inconsistency across providers",
+      "difficulty": "hard"
+    },
+    {
+      "input": "My hierarchical crew's manager agent keeps assigning tasks to the wrong agents",
+      "expected_behavior": "Common hierarchical process failure. The manager agent doesn't understand agent capabilities well enough. Solutions: 1) Switch to sequential if task order is predictable. 2) Use a stronger model for manager_llm. 3) Make agent roles and goals more distinctive so the manager can differentiate them. 4) Reduce agent count — fewer agents = easier management.",
+      "anti_pattern": "Trying to fix manager behavior with prompt engineering instead of questioning whether hierarchical is the right process type",
+      "difficulty": "hard"
+    }
+  ]
+}

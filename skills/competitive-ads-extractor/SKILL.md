@@ -1,293 +1,102 @@
 ---
 name: competitive-ads-extractor
-description: Extracts and analyzes competitors' ads from ad libraries (Facebook, LinkedIn, etc.) to understand what messaging, problems, and creative approaches are working. Helps inspire and improve your own ad campaigns.
+description: "Use when extracting, analyzing, or comparing competitors' ads from ad libraries (Facebook Ad Library, LinkedIn Ad Library, Google Ads Transparency Center). Also use when the user wants to understand competitor messaging, creative patterns, or ad strategy. NEVER use for creating ads (use copywriting or social-content), running ad campaigns, or non-advertising competitive analysis."
+version: "2.0"
+optimized: true
+optimized_date: "2026-03-11"
 ---
 
 # Competitive Ads Extractor
 
-This skill extracts your competitors' ads from ad libraries and analyzes what's working—the problems they're highlighting, use cases they're targeting, and copy/creative that's resonating.
+Extracts and structures competitor ad data from public ad libraries, then applies a repeatable analysis framework to surface messaging patterns, creative approaches, and positioning gaps.
 
-## When to Use This Skill
+## File Index
 
-- Researching competitor ad strategies
-- Finding inspiration for your own ads
-- Understanding market positioning
-- Identifying successful ad patterns
-- Analyzing messaging that works
-- Discovering new use cases or pain points
-- Planning ad campaigns with proven concepts
+| File | Purpose | When to Load |
+|---|---|---|
+| SKILL.md | Extraction workflow, platform overview, analysis framework, output structure | Always (auto-loaded) |
+| platform-data-access-realities.md | Deep dive on what each platform API actually exposes vs what users expect: Facebook Ad Library API specifics, Google Ads Transparency gaps, LinkedIn active-only limitation, TikTok curation bias, platform-specific gotchas | Load when the user asks about specific data availability, encounters missing data, or wants programmatic API access. Also load when choosing which platforms to prioritize. Do NOT load for basic extraction (SKILL.md covers the overview). |
+| competitive-intelligence-frameworks.md | Share of voice estimation (volume-based and spend-based), messaging positioning analysis (message maps, positioning quadrants, differentiation scoring), creative testing velocity measurement, report template | Load when analyzing 3+ competitors, calculating share of voice, assessing messaging positioning, or measuring creative testing velocity. Do NOT load for single-competitor basic extraction. |
+| spend-estimation-methods.md | Impression-based spend modeling, volume-duration method, Facebook EU spend range interpretation, seasonal adjustment factors (B2B/B2C), multi-platform budget distribution inference, hiring signal budget inference, confidence calibration | Load when the user asks about competitor ad budgets, spend estimation, or wants to compare budgets across competitors. Do NOT load for messaging or creative analysis. |
 
-## What This Skill Does
+## Extraction Workflow
 
-1. **Extracts Ads**: Scrapes ads from Facebook Ad Library, LinkedIn, etc.
-2. **Captures Screenshots**: Saves visual copies of all ads
-3. **Analyzes Messaging**: Identifies problems, use cases, and value props
-4. **Categorizes Ads**: Groups by theme, audience, or format
-5. **Identifies Patterns**: Finds common successful approaches
-6. **Provides Insights**: Explains why certain ads likely perform well
+1. **Identify targets** -- confirm company name(s), ad library platforms, and whether the scope is active-only or historical ads
+2. **Access the library** -- navigate to the platform URL (see Platform-Specific Access below), search by brand name or page ID
+3. **Filter and capture** -- apply date range, format (video/image/carousel), and country filters as needed; record ad copy, visuals, CTAs, run dates, and any available impression data
+4. **Organize raw data** -- group ads by competitor, then tag each with primary theme, format, and audience signal (offer, pain point, demographic cue)
+5. **Run analysis** -- apply the Analysis Framework below; identify patterns across the full set before drawing conclusions from individual ads
 
-## How to Use
+## Platform-Specific Access
 
-### Basic Extraction
+| Platform | URL / Method | What's Available | Key Limitations |
+|---|---|---|---|
+| Facebook Ad Library | facebook.com/ads/library | Active + inactive ads, run dates, spend ranges (EU only), impressions (EU only), ad creative | No engagement metrics; US hides spend data |
+| LinkedIn Ad Library | linkedin.com/ad-library | Active ads only, targeting category (job title, industry), ad format | Historical ads not retained; no spend data |
+| Google Ads Transparency | adstransparency.google.com | Search, display, YouTube ads; verified advertiser status; run dates | Creative detail limited for display; no keyword data |
+| TikTok Creative Center | ads.tiktok.com/business/creativecenter | Top-performing ads by industry, CTR/CVR benchmarks (aggregated), trending formats | Only shows curated "top" ads, not full brand libraries |
 
-```
-Extract all current ads from [Competitor Name] on Facebook Ad Library
-```
+**Legal note:** All four platforms publish this data intentionally for transparency. Manually reading and recording ad content is legal in all jurisdictions. Automated scraping via bots may violate platform ToS and in some regions data protection law -- if the user wants to scrape programmatically, flag this risk before proceeding.
 
-```
-Scrape ads from [Company] and analyze their messaging
-```
+## Analysis Framework
 
-### Specific Analysis
-
-```
-Get all ads from [Competitor] focusing on their messaging 
-about [specific problem]. What pain points are they highlighting?
-```
+| Dimension | What to Look For | Why It Matters |
+|---|---|---|
+| Pain point framing | Which problem is named in the hook? | Reveals which segment the ad targets and what fear/frustration is most activating |
+| Value proposition type | Feature vs. outcome vs. social proof vs. price | Shows maturity of market positioning and where competitors anchor |
+| CTA pattern | Verb choice, commitment level (free trial vs. buy now) | Signals funnel stage and conversion strategy |
+| Creative format | Static, video length, carousel sequence logic | Indicates platform fit and audience attention assumption |
+| Run duration | First seen vs. last seen dates | Long-running ads are statistically performing; recently paused may have failed |
+| Audience signals | Terminology, visuals, offers that index to a segment | Reveals who they are prioritizing and which segments are underserved |
 
-### Competitive Set
-
-```
-Extract ads from these 5 competitors: [list]. 
-Compare their approaches and tell me what's working.
-```
+## Multi-Competitor Comparison Matrix
 
-### Specific Platform
+When analyzing 3+ competitors, structure findings as a matrix before writing narrative conclusions:
 
-```
-Get LinkedIn ads from [Competitor] and analyze their 
-B2B positioning strategy
-```
+- **Rows**: Each competitor
+- **Columns**: Pain point, primary value prop, dominant format, CTA type, estimated volume (few/moderate/many), notable gap or differentiator
+- **Summary row**: What is consistent across all (table stakes messaging) vs. what only one or two say (differentiation opportunity)
 
-## Example
+Flag the "white space" -- pain points or audiences that no competitor is addressing in ads, which represent positioning opportunities for the user.
 
-**User**: "Extract ads from Notion on Facebook Ad Library and tell me what messaging is working for them."
+## Output Structure
 
-**Process**:
-```
-Accessing Facebook Ad Library...
-Searching for: Notion
-Found: 23 active ads
+Deliver analysis in this order:
 
-Extracting screenshots...
-[████████████████████] 100%
+1. **Snapshot** -- competitor name, platform, total ads reviewed, date range, formats observed
+2. **Top 3 messaging themes** -- each with representative copy excerpt and frequency count
+3. **Creative patterns** -- dominant formats, visual approaches, CTA language
+4. **Audience segmentation signals** -- which segments each competitor appears to be targeting based on ad variations
+5. **Comparison matrix** -- if multi-competitor scope
+6. **White space / gaps** -- what is not being said that could be owned
+7. **Recommendations** -- 3-5 specific, testable hypotheses for the user's own ads, grounded in what was observed
 
-Saved to: competitor-ads/notion/
-- ad-001-collaboration.png
-- ad-002-productivity.png
-- ad-003-templates.png
-...
+Do NOT fabricate metrics, impression counts, or engagement rates unless the platform surfaced them explicitly.
 
-Analyzing messaging...
-```
+## Rationalization Table
 
-**Output**:
-```
-# Notion Ad Analysis
+| Decision | Rationale |
+|---|---|
+| Delete 170-line mock Notion output | Fake data simulating tool output wastes context, teaches nothing generalizable, and misleads about what ad libraries actually expose |
+| Platform table with Limitations column | Each platform has distinct constraints (EU-only spend data, active-only history) that determine what analysis is possible -- omitting this causes user to expect data that does not exist |
+| Legal note in Platform section | Automated scraping risk is commonly misunderstood; flagging it proactively prevents the user from requesting something that could violate ToS before the work begins |
+| Run duration as analysis dimension | Ad longevity is the most accessible performance proxy in ad libraries that do not expose engagement metrics -- it is the key insight most users miss |
+| White space as mandatory output section | Competitor analysis value is highest when it surfaces gaps, not just what competitors do; many users only get a description without the opportunity identification |
+| Removed "What You Can Learn" and all tip sections | Claude already knows messaging analysis, copy formulas, and campaign strategy -- restating them as bullet lists adds lines without adding capability |
 
-## Overview
-- Total Ads: 23 active
-- Primary Themes: Productivity (35%), Collaboration (30%), 
-  Templates (20%), AI Features (15%)
-- Ad Formats: Static images (60%), Video (40%)
-- CTA Patterns: "Try for free", "Get started"
+## Red Flags
 
-## Key Problems They're Highlighting
+- User asks to "copy" or "replicate" a competitor ad -- reframe immediately as extracting the strategic pattern, not duplicating creative or copy
+- User expects engagement rate, CTR, or ROAS data -- ad libraries do not expose these; only Facebook EU and TikTok Creative Center surface any performance proxies
+- User names a company with a very common name (e.g., "Apple" or "Visa") -- search results will include many unrelated pages; confirm the exact page URL or page ID before extracting
+- User wants historical ads beyond 7 years on Facebook or any inactive ads on LinkedIn -- confirm platform retention limits before scoping the project
+- User is analyzing a company in a restricted category (finance, housing, employment, politics) -- Facebook applies additional filtering and reduced data for these categories; output will be sparser than expected
+- User wants to automate extraction via a script -- flag ToS risk and data protection law implications before writing any scraping code
 
-1. **Scattered Information** (8 ads)
-   Copy: "Stop switching between 10 different tools"
-   Why it works: Direct pain point many teams face
+## NEVER
 
-2. **Meeting Overload** (5 ads)
-   Copy: "Replace unnecessary meetings with async updates"
-   Why it works: Post-COVID remote work pain point
-
-3. **Lost Documentation** (4 ads)
-   Copy: "Never ask 'where is that doc?' again"
-   Why it works: Universal workplace frustration
-
-## Successful Creative Patterns
-
-### Pattern 1: Before/After Split
-- Shows chaotic tool landscape → Clean Notion workspace
-- Used in 6 high-performing ads
-- Visual metaphor is immediately clear
-
-### Pattern 2: Feature Showcase
-- GIF of actual product usage
-- Shows specific feature in 5 seconds
-- Used for new features (AI, templates)
-
-### Pattern 3: Social Proof
-- "Join 20M users" messaging
-- Customer logos
-- Used in 4 ads targeting enterprise
-
-## Copy That's Working
-
-Best Headlines:
-1. "Your team's knowledge, finally in one place"
-   → Benefit-focused, addresses pain directly
-   
-2. "The all-in-one workspace"
-   → Clear positioning, broad appeal
-   
-3. "AI that actually helps you work"
-   → Addresses AI skepticism, practical angle
-
-Best Body Copy Patterns:
-- Short sentences (under 10 words)
-- Focus on outcomes not features
-- Include specific numbers ("Cut meetings by 50%")
-
-## Audience Targeting Insights
-
-Based on ad variations:
-- Startup founders: Solo productivity angle
-- Team leads: Collaboration and alignment
-- Enterprise: Security and compliance mentions
-- Students: Free plan, templates, organization
-
-## Recommendations for Your Ads
-
-1. **Test the "tool sprawl" pain point**
-   → Strong resonance based on their ad frequency
-
-2. **Use product screenshots over abstract visuals**
-   → All their top ads show actual UI
-
-3. **Lead with the problem, not the solution**
-   → "Tired of X?" performs better than "Introducing Y"
-
-4. **Keep copy under 100 characters**
-   → Their shortest ads seem most frequent
-
-5. **Test before/after visual formats**
-   → Proven pattern in their creative
-
-## Files Saved
-- All ads: ~/competitor-ads/notion/
-- Analysis: ~/competitor-ads/notion/analysis.md
-- Best performers: ~/competitor-ads/notion/top-10/
-```
-
-**Inspired by:** Sumant Subrahmanya's use case from Lenny's Newsletter
-
-## What You Can Learn
-
-### Messaging Analysis
-- What problems they emphasize
-- How they position against competition
-- Value propositions that resonate
-- Target audience segments
-
-### Creative Patterns
-- Visual styles that work
-- Video vs. static image performance
-- Color schemes and branding
-- Layout patterns
-
-### Copy Formulas
-- Headline structures
-- Call-to-action patterns
-- Length and tone
-- Emotional triggers
-
-### Campaign Strategy
-- Seasonal campaigns
-- Product launch approaches
-- Feature announcement tactics
-- Retargeting patterns
-
-## Best Practices
-
-### Legal & Ethical
-✓ Only use for research and inspiration
-✓ Don't copy ads directly
-✓ Respect intellectual property
-✓ Use insights to inform original creative
-✗ Don't plagiarize copy or steal designs
-
-### Analysis Tips
-1. **Look for patterns**: What themes repeat?
-2. **Track over time**: Save ads monthly to see evolution
-3. **Test hypotheses**: Adapt successful patterns for your brand
-4. **Segment by audience**: Different messages for different targets
-5. **Compare platforms**: LinkedIn vs Facebook messaging differs
-
-## Advanced Features
-
-### Trend Tracking
-```
-Compare [Competitor]'s ads from Q1 vs Q2. 
-What messaging has changed?
-```
-
-### Multi-Competitor Analysis
-```
-Extract ads from [Company A], [Company B], [Company C]. 
-What are the common patterns? Where do they differ?
-```
-
-### Industry Benchmarks
-```
-Show me ad patterns across the top 10 project management 
-tools. What problems do they all focus on?
-```
-
-### Format Analysis
-```
-Analyze video ads vs static image ads from [Competitor]. 
-Which gets more engagement? (if data available)
-```
-
-## Common Workflows
-
-### Ad Campaign Planning
-1. Extract competitor ads
-2. Identify successful patterns
-3. Note gaps in their messaging
-4. Brainstorm unique angles
-5. Draft test ad variations
-
-### Positioning Research
-1. Get ads from 5 competitors
-2. Map their positioning
-3. Find underserved angles
-4. Develop differentiated messaging
-5. Test against their approaches
-
-### Creative Inspiration
-1. Extract ads by theme
-2. Analyze visual patterns
-3. Note color and layout trends
-4. Adapt successful patterns
-5. Create original variations
-
-## Tips for Success
-
-1. **Regular Monitoring**: Check monthly for changes
-2. **Broad Research**: Look at adjacent competitors too
-3. **Save Everything**: Build a reference library
-4. **Test Insights**: Run your own experiments
-5. **Track Performance**: A/B test inspired concepts
-6. **Stay Original**: Use for inspiration, not copying
-7. **Multiple Platforms**: Compare Facebook, LinkedIn, TikTok, etc.
-
-## Output Formats
-
-- **Screenshots**: All ads saved as images
-- **Analysis Report**: Markdown summary of insights
-- **Spreadsheet**: CSV with ad copy, CTAs, themes
-- **Presentation**: Visual deck of top performers
-- **Pattern Library**: Categorized by approach
-
-## Related Use Cases
-
-- Writing better ad copy for your campaigns
-- Understanding market positioning
-- Finding content gaps in your messaging
-- Discovering new use cases for your product
-- Planning product marketing strategy
-- Inspiring social media content
-
+- Fabricate ad copy, creative descriptions, impression counts, or engagement metrics that were not actually present in the ad library
+- Present the mock Notion example (or any fabricated example) as representative output -- illustrative examples must be clearly labeled as hypothetical
+- Use this skill to write new ad copy or design new creatives -- that is copywriting or social-content work
+- Recommend specific scraping tools or bots without first flagging the platform ToS and legal exposure risk
+- Draw conclusions about ad performance from run duration alone without noting that ads can run long due to budget scheduling, not just performance

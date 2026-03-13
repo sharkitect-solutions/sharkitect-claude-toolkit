@@ -1,602 +1,157 @@
 ---
 name: referral-program
-description: "When the user wants to create, optimize, or analyze a referral program, affiliate program, or word-of-mouth strategy. Also use when the user mentions 'referral,' 'affiliate,' 'ambassador,' 'word of mouth,' 'viral loop,' 'refer a friend,' or 'partner program.' This skill covers program design, incentive structure, and growth optimization."
+description: "Use when designing referral programs, affiliate programs, or word-of-mouth growth loops. Also use when the user mentions referral incentive structure, viral coefficient modeling, affiliate commission design, referral fraud prevention, or ambassador programs. NEVER use for email nurture sequences (email-sequence), psychological persuasion principles (marketing-psychology), pricing model design (pricing-strategy), or launch execution planning (launch-strategy)."
+version: "2.0"
+optimized: true
+optimized_date: "2026-03-12"
 ---
 
 # Referral & Affiliate Programs
 
-You are an expert in viral growth and referral marketing with access to referral program data and third-party tools. Your goal is to help design and optimize programs that turn customers into growth engines.
+## File Index
 
-## Before Starting
+| File | Purpose | When to Load |
+|---|---|---|
+| SKILL.md | Program type decision, incentive structure, viral coefficient, referral timing, fraud prevention, anti-patterns | Always (auto-loaded) |
+| fraud-prevention-playbook.md | Sophisticated fraud patterns (referral rings, coupon hijacking, attribution gaming), device fingerprinting approaches, payout delay strategies, verification tier selection, fraud cost modeling | When designing fraud prevention for a referral program, investigating suspicious referral patterns, or choosing verification strictness level |
+| platform-selection-guide.md | Platform comparison (ReferralCandy, GrowSurf, Viral Loops, PartnerStack, Rewardful, custom build), Stripe integration patterns, attribution window gotchas, migration considerations, build-vs-buy decision framework | When choosing a referral/affiliate platform, evaluating build-vs-buy for referral tracking, or migrating between referral tools |
+| referral-analytics-optimization.md | K-factor decomposition methodology, cohort analysis for referred vs organic customers, A/B test framework for incentives (minimum sample sizes, test duration), industry benchmarks by vertical, program health scorecard | When measuring referral program performance, designing referral A/B tests, or diagnosing why a referral program is underperforming |
 
-Gather this context (ask if not provided):
+Do NOT load companion files for basic program type decisions, incentive sizing, or anti-pattern reference -- SKILL.md covers these fully.
 
-### 1. Program Type
-- Are you building a customer referral program, affiliate program, or both?
-- Is this B2B or B2C?
-- What's the average customer value (LTV)?
-- What's your current CAC from other channels?
+## Scope Boundary
 
-### 2. Current State
-- Do you have an existing referral/affiliate program?
-- What's your current referral rate (% of customers who refer)?
-- What incentives have you tried?
-- Do you have customer NPS or satisfaction data?
+| Area | This Skill | Other Skill |
+|---|---|---|
+| Referral program architecture and incentive design | YES | -- |
+| Affiliate program commission structure | YES | -- |
+| Viral coefficient modeling and K-factor analysis | YES | -- |
+| Referral timing and trigger moment selection | YES | -- |
+| Referral fraud detection and prevention | YES | -- |
+| Email nurture sequences for referral campaigns | NO | email-sequence |
+| Psychological persuasion principles (reciprocity, social proof) | NO | marketing-psychology |
+| Pricing model design and monetization strategy | NO | pricing-strategy |
+| Product launch execution and channel strategy | NO | launch-strategy |
+| Analytics tracking implementation (UTM, events) | NO | analytics-tracking |
+| Landing page conversion optimization | NO | page-cro |
+| A/B test statistical design | NO | ab-test-setup |
 
-### 3. Product Fit
-- Is your product shareable? (Does using it involve others?)
-- Does your product have network effects?
-- Do customers naturally talk about your product?
-- What triggers word-of-mouth currently?
+## Program Type Decision
 
-### 4. Resources
-- What tools/platforms do you use or consider?
-- What's your budget for referral incentives?
-- Do you have engineering resources for custom implementation?
+Answer these questions in order. First match determines program type.
 
----
+| Signal | Program Type | Why |
+|---|---|---|
+| Product naturally involves others (collaboration, sharing) | Customer referral | Network effects create organic sharing. Referral program amplifies existing behavior |
+| Need to reach audiences you don't have access to | Affiliate | Affiliates bring their own audience. You're buying distribution, not amplifying existing word-of-mouth |
+| High-ticket product (>$500 ACV) with long sales cycles | Affiliate | Justifies commission economics. Customer referrals work poorly for products friends don't personally use |
+| Product has strong NPS (>50) and natural word-of-mouth | Customer referral | High NPS = customers already recommend you. Program adds incentive to existing behavior |
+| Low NPS (<30) but need growth | Fix the product first | Referral programs amplify satisfaction. If customers aren't happy, paying them to refer creates resentment and low-quality referrals |
+| Want both customer sharing AND partner distribution | Hybrid (separate programs) | Run a simple customer referral (small rewards) AND a structured affiliate (commissions). Never combine into one program -- incentives and management differ completely |
 
-## Referral vs. Affiliate: When to Use Each
+**The Referral Program Paradox**: Products that need referral programs most (low organic sharing) benefit least. If customers don't naturally talk about your product, a referral program won't fix that -- it creates mercenary referrers who game the system. Fix product-market fit first.
 
-### Customer Referral Programs
+## Incentive Structure Decision
 
-**Best for:**
-- Existing customers recommending to their network
-- Products with natural word-of-mouth
-- Building authentic social proof
-- Lower-ticket or self-serve products
+| Decision | Default | Override When |
+|---|---|---|
+| Single-sided vs double-sided | Double-sided (both parties rewarded). Friendbuy data: 35% higher conversion than single-sided | Single-sided for enterprise (referred party gets a demo, not a discount) or when referred party already has strong motivation |
+| Cash vs product credit | Product credit. Lower cost to you + drives engagement. Cash attracts fraudsters and mercenary referrers | Cash for marketplaces where product credit doesn't apply, or when product credit value is ambiguous |
+| Immediate vs delayed reward | Delayed (after referred user activates/purchases). Reduces fraud by 60-80% | Immediate only for very low-value rewards (<$5) where fraud cost is negligible |
+| Flat vs tiered rewards | Flat for launch (simplicity). Tiered after 90 days if you want to increase referrer engagement | Tiered from day 1 only if you have a large existing user base (>10K) and can afford the complexity |
+| Reward amount | 10-20% of first-year revenue per referred customer. Never exceed 30% of gross margin on that customer | Higher for land-and-expand models where first-year revenue underrepresents LTV. Lower for high-volume/low-margin businesses |
 
-**Characteristics:**
-- Referrer is an existing customer
-- Motivation: Rewards + helping friends
-- Typically one-time or limited rewards
-- Tracked via unique links or codes
-- Higher trust, lower volume
-
-### Affiliate Programs
-
-**Best for:**
-- Reaching audiences you don't have access to
-- Content creators, influencers, bloggers
-- Products with clear value proposition
-- Higher-ticket products that justify commissions
-
-**Characteristics:**
-- Affiliates may not be customers
-- Motivation: Revenue/commission
-- Ongoing commission relationship
-- Requires more management
-- Higher volume, variable trust
-
-### Hybrid Approach
-
-Many successful programs combine both:
-- Referral program for customers (simple, small rewards)
-- Affiliate program for partners (larger commissions, more structure)
-
----
-
-## Referral Program Design
-
-### The Referral Loop
+### Incentive Sizing Formula
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                                                     │
-│  ┌──────────┐    ┌──────────┐    ┌──────────┐     │
-│  │ Trigger  │───▶│  Share   │───▶│ Convert  │     │
-│  │ Moment   │    │  Action  │    │ Referred │     │
-│  └──────────┘    └──────────┘    └──────────┘     │
-│       ▲                               │            │
-│       │                               │            │
-│       └───────────────────────────────┘            │
-│                  Reward                            │
-└─────────────────────────────────────────────────────┘
+Max Referral Reward = (Customer LTV x Gross Margin) - Target CAC
+Recommended Reward = Max Referral Reward x 0.3 to 0.5 (split between both sides)
 ```
 
-### Step 1: Identify Trigger Moments
-
-When are customers most likely to refer?
-
-**High-intent moments:**
-- Right after first "aha" moment
-- After achieving a milestone
-- After receiving exceptional support
-- After renewing or upgrading
-- When they tell you they love the product
-
-**Natural sharing moments:**
-- When the product involves collaboration
-- When they're asked "what tool do you use?"
-- When they share results publicly
-- When they complete something shareable
-
-### Step 2: Design the Share Mechanism
-
-**Methods ranked by effectiveness:**
-
-1. **In-product sharing** — Highest conversion, feels native
-2. **Personalized link** — Easy to track, works everywhere
-3. **Email invitation** — Direct, personal, higher intent
-4. **Social sharing** — Broadest reach, lowest conversion
-5. **Referral code** — Memorable, works offline
-
-**Best practice:** Offer multiple sharing options, lead with the highest-converting method.
-
-### Step 3: Choose Incentive Structure
-
-**Single-sided rewards** (referrer only):
-- Simpler to explain
-- Works for high-value products
-- Risk: Referred may feel no urgency
-
-**Double-sided rewards** (both parties):
-- Higher conversion rates
-- Creates win-win framing
-- Standard for most programs
-
-**Tiered rewards:**
-- Increases engagement over time
-- Gamifies the referral process
-- More complex to communicate
-
-### Incentive Types
-
-| Type | Pros | Cons | Best For |
-|------|------|------|----------|
-| Cash/credit | Universally valued | Feels transactional | Marketplaces, fintech |
-| Product credit | Drives usage | Only valuable if they'll use it | SaaS, subscriptions |
-| Free months | Clear value | May attract freebie-seekers | Subscription products |
-| Feature unlock | Low cost to you | Only works for gated features | Freemium products |
-| Swag/gifts | Memorable, shareable | Logistics complexity | Brand-focused companies |
-| Charity donation | Feel-good | Lower personal motivation | Mission-driven brands |
-
-### Incentive Sizing Framework
-
-**Calculate your maximum incentive:**
-```
-Max Referral Reward = (Customer LTV × Gross Margin) - Target CAC
-```
-
-**Example:**
-- LTV: $1,200
-- Gross margin: 70%
-- Target CAC: $200
-- Max reward: ($1,200 × 0.70) - $200 = $640
-
-**Typical referral rewards:**
-- B2C: $10-50 or 10-25% of first purchase
-- B2B SaaS: $50-500 or 1-3 months free
-- Enterprise: Higher, often custom
-
----
-
-## Referral Program Examples
-
-### Dropbox (Classic)
-
-**Program:** Give 500MB storage, get 500MB storage
-**Why it worked:**
-- Reward directly tied to product value
-- Low friction (just an email)
-- Both parties benefit equally
-- Gamified with progress tracking
-
-### Uber/Lyft
-
-**Program:** Give $10 ride credit, get $10 when they ride
-**Why it worked:**
-- Immediate, clear value
-- Double-sided incentive
-- Easy to share (code/link)
-- Triggered at natural moments
-
-### Morning Brew
-
-**Program:** Tiered rewards for subscriber referrals
-- 3 referrals: Newsletter stickers
-- 5 referrals: T-shirt
-- 10 referrals: Mug
-- 25 referrals: Hoodie
-
-**Why it worked:**
-- Gamification drives ongoing engagement
-- Physical rewards are shareable (more referrals)
-- Low cost relative to subscriber value
-- Built status/identity
-
-### Notion
-
-**Program:** $10 credit per referral (education)
-**Why it worked:**
-- Targeted high-sharing audience (students)
-- Product naturally spreads in teams
-- Credit keeps users engaged
-
----
-
-## Affiliate Program Design
-
-### Commission Structures
-
-**Percentage of sale:**
-- Standard: 10-30% of first sale or first year
-- Works for: E-commerce, SaaS with clear pricing
-- Example: "Earn 25% of every sale you refer"
-
-**Flat fee per action:**
-- Standard: $5-500 depending on value
-- Works for: Lead gen, trials, freemium
-- Example: "$50 for every qualified demo"
-
-**Recurring commission:**
-- Standard: 10-25% of recurring revenue
-- Works for: Subscription products
-- Example: "20% of subscription for 12 months"
-
-**Tiered commission:**
-- Works for: Motivating high performers
-- Example: "20% for 1-10 sales, 25% for 11-25, 30% for 26+"
-
-### Cookie Duration
-
-How long after click does affiliate get credit?
-
-| Duration | Use Case |
-|----------|----------|
-| 24 hours | High-volume, low-consideration purchases |
-| 7-14 days | Standard e-commerce |
-| 30 days | Standard SaaS/B2B |
-| 60-90 days | Long sales cycles, enterprise |
-| Lifetime | Premium affiliate relationships |
-
-### Affiliate Recruitment
-
-**Where to find affiliates:**
-- Existing customers who create content
-- Industry bloggers and reviewers
-- YouTubers in your niche
-- Newsletter writers
-- Complementary tool companies
-- Consultants and agencies
-
-**Outreach template:**
-```
-Subject: Partnership opportunity — [Your Product]
-
-Hi [Name],
-
-I've been following your content on [topic] — particularly [specific piece] — and think there could be a great fit for a partnership.
-
-[Your Product] helps [audience] [achieve outcome], and I think your audience would find it valuable.
-
-We offer [commission structure] for partners, plus [additional benefits: early access, co-marketing, etc.].
-
-Would you be open to learning more?
-
-[Your name]
-```
-
-### Affiliate Enablement
-
-Provide affiliates with:
-- [ ] Unique tracking links/codes
-- [ ] Product overview and key benefits
-- [ ] Target audience description
-- [ ] Comparison to competitors
-- [ ] Creative assets (logos, banners, images)
-- [ ] Sample copy and talking points
-- [ ] Case studies and testimonials
-- [ ] Demo access or free account
-- [ ] FAQ and objection handling
-- [ ] Payment terms and schedule
-
----
-
-## Viral Coefficient & Modeling
-
-### Key Metrics
-
-**Viral coefficient (K-factor):**
-```
-K = Invitations × Conversion Rate
-
-K > 1 = Viral growth (each user brings more than 1 new user)
-K < 1 = Amplified growth (referrals supplement other acquisition)
-```
-
-**Example:**
-- Average customer sends 3 invitations
-- 15% of invitations convert
-- K = 3 × 0.15 = 0.45
-
-**Referral rate:**
-```
-Referral Rate = (Customers who refer) / (Total customers)
-```
-
-Benchmarks:
-- Good: 10-25% of customers refer
-- Great: 25-50%
-- Exceptional: 50%+
-
-**Referrals per referrer:**
-```
-How many successful referrals does each referring customer generate?
-```
-
-Benchmarks:
-- Average: 1-2 referrals per referrer
-- Good: 2-5
-- Exceptional: 5+
-
-### Calculating Referral Program ROI
-
-```
-Referral Program ROI = (Revenue from referred customers - Program costs) / Program costs
-
-Program costs = Rewards paid + Tool costs + Management time
-```
-
-**Track separately:**
-- Cost per referred customer (CAC via referral)
-- LTV of referred customers (often higher than average)
-- Payback period for referral rewards
-
----
-
-## Program Optimization
-
-### Improving Referral Rate
-
-**If few customers are referring:**
-- Ask at better moments (after wins, not randomly)
-- Simplify the sharing process
-- Test different incentive types
-- Make the referral prominent in product
-- Remind via email campaigns
-- Reduce friction in the flow
-
-**If referrals aren't converting:**
-- Improve the landing experience for referred users
-- Strengthen the incentive for new users
-- Test different messaging on referral pages
-- Ensure the referrer's endorsement is visible
-- Shorten the path to value
-
-### A/B Tests to Run
-
-**Incentive tests:**
-- Reward amount (10% higher, 20% higher)
-- Reward type (credit vs. cash vs. free months)
-- Single vs. double-sided
-- Immediate vs. delayed reward
-
-**Messaging tests:**
-- How you describe the program
-- CTA copy on share buttons
-- Email subject lines for referral invites
-- Landing page copy for referred users
-
-**Placement tests:**
-- Where the referral prompt appears
-- When it appears (trigger timing)
-- How prominent it is
-- In-app vs. email prompts
-
-### Common Problems & Fixes
-
-| Problem | Likely Cause | Fix |
-|---------|--------------|-----|
-| Low awareness | Program not visible | Add prominent in-app prompts |
-| Low share rate | Too much friction | Simplify to one click |
-| Low conversion | Weak landing page | Optimize referred user experience |
-| Fraud/abuse | Gaming the system | Add verification, limits |
-| One-time referrers | No ongoing motivation | Add tiered/gamified rewards |
-
----
-
-## Fraud Prevention
-
-### Common Referral Fraud
-
-- Self-referrals (creating fake accounts)
-- Referral rings (groups referring each other)
-- Coupon sites posting referral codes
-- Fake email addresses
-- VPN/device spoofing
-
-### Prevention Measures
-
-**Technical:**
-- Email verification required
-- Device fingerprinting
-- IP address monitoring
-- Delayed reward payout (after activation)
-- Minimum activity threshold
-
-**Policy:**
-- Clear terms of service
-- Maximum referrals per period
-- Reward clawback for refunds/chargebacks
-- Manual review for suspicious patterns
-
-**Structural:**
-- Require referred user to take meaningful action
-- Cap lifetime rewards
-- Pay rewards in product credit (less attractive to fraudsters)
-
----
-
-## Tools & Platforms
-
-### Referral Program Tools
-
-**Full-featured platforms:**
-- ReferralCandy — E-commerce focused
-- Ambassador — Enterprise referral programs
-- Friendbuy — E-commerce and subscription
-- GrowSurf — SaaS and tech companies
-- Viral Loops — Template-based campaigns
-
-**Built-in options:**
-- Stripe (basic referral tracking)
-- HubSpot (CRM-integrated)
-- Segment (tracking and analytics)
-
-### Affiliate Program Tools
-
-**Affiliate networks:**
-- ShareASale — Large merchant network
-- Impact — Enterprise partnerships
-- PartnerStack — SaaS focused
-- Tapfiliate — Simple SaaS affiliate tracking
-- FirstPromoter — SaaS affiliate management
-
-**Self-hosted:**
-- Rewardful — Stripe-integrated affiliates
-- Refersion — E-commerce affiliates
-
-### Choosing a Tool
-
-Consider:
-- Integration with your payment system
-- Fraud detection capabilities
-- Payout management
-- Reporting and analytics
-- Customization options
-- Price vs. program scale
-
----
-
-## Email Sequences for Referral Programs
-
-### Referral Program Launch
-
-**Email 1: Announcement**
-```
-Subject: You can now earn [reward] for sharing [Product]
-
-Body:
-We just launched our referral program!
-
-Share [Product] with friends and earn [reward] for each person who signs up. They get [their reward] too.
-
-[Unique referral link]
-
-Here's how it works:
-1. Share your link
-2. Friend signs up
-3. You both get [reward]
-
-[CTA: Share now]
-```
-
-### Referral Nurture Sequence
-
-**After signup (if they haven't referred):**
-- Day 7: Remind about referral program
-- Day 30: "Know anyone who'd benefit?"
-- Day 60: Success story + referral prompt
-- After milestone: "You just [achievement] — know others who'd want this?"
-
-### Re-engagement for Past Referrers
-
-```
-Subject: Your friends are loving [Product]
-
-Body:
-Remember when you referred [Name]? They've [achievement/milestone].
-
-Know anyone else who'd benefit? You'll earn [reward] for each friend who joins.
-
-[Referral link]
-```
-
----
-
-## Measuring Success
-
-### Dashboard Metrics
-
-**Program health:**
-- Active referrers (referred someone in last 30 days)
-- Total referrals (invites sent)
-- Referral conversion rate
-- Rewards earned/paid
-
-**Business impact:**
-- % of new customers from referrals
-- CAC via referral vs. other channels
-- LTV of referred customers
-- Referral program ROI
-
-### Cohort Analysis
-
-Track referred customers separately:
-- Do they convert faster?
-- Do they have higher LTV?
-- Do they refer others at higher rates?
-- Do they churn less?
-
-Typical findings:
-- Referred customers have 16-25% higher LTV
-- Referred customers have 18-37% lower churn
-- Referred customers refer others at 2-3x rate
-
----
-
-## Launch Checklist
-
-### Before Launch
-
-- [ ] Define program goals and success metrics
-- [ ] Design incentive structure
-- [ ] Build or configure referral tool
-- [ ] Create referral landing page
-- [ ] Design email templates
-- [ ] Set up tracking and attribution
-- [ ] Define fraud prevention rules
-- [ ] Create terms and conditions
-- [ ] Test complete referral flow
-- [ ] Plan launch announcement
-
-### Launch
-
-- [ ] Announce to existing customers (email)
-- [ ] Add in-app referral prompts
-- [ ] Update website with program details
-- [ ] Brief support team on program
-- [ ] Monitor for fraud/issues
-- [ ] Track initial metrics
-
-### Post-Launch (First 30 Days)
-
-- [ ] Review conversion funnel
-- [ ] Identify top referrers
-- [ ] Gather feedback on program
-- [ ] Fix any friction points
-- [ ] Plan first optimizations
-- [ ] Send reminder emails to non-referrers
-
----
-
-## Questions to Ask
-
-If you need more context:
-1. What type of program are you building (referral, affiliate, or both)?
-2. What's your customer LTV and current CAC?
-3. Do you have an existing program, or starting from scratch?
-4. What tools/platforms are you using or considering?
-5. What's your budget for rewards/commissions?
-6. Is your product naturally shareable (involves others, visible results)?
-
----
-
-## Related Skills
-
-- **launch-strategy**: For launching referral program effectively
-- **email-sequence**: For referral nurture campaigns
-- **marketing-psychology**: For understanding referral motivation
-- **analytics-tracking**: For tracking referral attribution
-- **pricing-strategy**: For structuring rewards relative to LTV
+| Business Model | Typical Referrer Reward | Typical Referred Reward | Notes |
+|---|---|---|---|
+| B2C SaaS ($20-50/month) | 1 month free or $20-50 credit | 1 month free or 20% off first 3 months | Product credit preferred. Keeps both users engaged |
+| B2B SaaS ($200-2000/month) | $100-500 credit or 1-3 months free | Extended trial or first month free | Referred reward should reduce purchase friction, not just save money |
+| E-commerce (AOV $50-200) | $10-25 store credit | $10-15 off first order or free shipping | Store credit drives repeat purchase. Don't do % discount (feels small on low AOV) |
+| Marketplace | $10-25 credit | $10-20 credit for first transaction | Both sides need credit because marketplace requires both supply and demand |
+| Enterprise ($10K+ ACV) | Custom (gift cards, exclusive access) | None (they get a demo) | Enterprise referrals are relationship-based, not incentive-driven. Reward is a thank-you, not a motivator |
+
+## Viral Coefficient Reality Check
+
+**K-factor formula**: K = (invitations per user) x (conversion rate per invitation)
+
+| K Value | What It Means | How Common | Reality |
+|---|---|---|---|
+| K > 1.0 | True viral growth (each user brings >1 new user) | Extremely rare (<1% of programs) | Only happens in products with inherent network effects (messaging apps, collaboration tools). If someone promises K>1 for a non-network product, they're lying |
+| K = 0.3-0.7 | Good amplification. Referrals supplement paid acquisition | Top 10% of programs | This is the realistic target. Each 10 customers bring 3-7 new customers. Meaningful CAC reduction |
+| K = 0.1-0.3 | Modest contribution. Referrals are a channel, not a growth engine | Median outcome | Most referral programs land here. Still valuable if referral CAC < paid CAC |
+| K < 0.1 | Program isn't working | Bottom 50% | Diagnose: low sharing rate (trigger/friction problem) or low conversion (landing page/incentive problem) |
+
+**Benchmarks that actually matter**:
+- Referral rate (% of customers who refer at least once): Good = 10-15%, Great = 15-25%, Exceptional = 25%+
+- Referred customer LTV premium: Referred customers have 16-25% higher LTV and 18-37% lower churn (source: Wharton study, Schmitt et al. 2011). This is due to trust transfer + selection bias (people refer friends similar to themselves)
+- Time to first referral: Median is 14-30 days after activation. If most referrals happen in first 7 days, you're capturing the "new toy" effect only
+
+## Referral Timing Decision
+
+When you ask matters more than what you offer. Referral prompts at wrong moments get ignored or create negative sentiment.
+
+| Trigger Moment | Effectiveness | Why | Implementation |
+|---|---|---|---|
+| Right after first value moment ("aha") | HIGH | Customer just experienced value. Enthusiasm is peak. Social proof of value is fresh | Detect product milestone completion. Show referral prompt inline, not as modal popup |
+| After positive NPS/CSAT response | VERY HIGH (3x baseline) | Customer just told you they're happy. Asking them to act on that sentiment works. NPS 9-10 respondents refer at 3-5x rate of 7-8 respondents | Trigger referral prompt immediately after NPS submission for scores 9-10 only |
+| After support ticket resolution (positive) | HIGH | Gratitude + relief. Customer feels the team cares | Only for tickets resolved within SLA with positive feedback. Never after escalations |
+| Random in-app prompt | LOW | No emotional context. Feels like spam. "Why are you asking me this right now?" | Avoid. If you must, limit to 1x per 30 days |
+| In email drip sequence | MEDIUM | Scalable, but easy to ignore. Works better as a reminder than a first ask | Day 14 after activation. Include a specific reason ("You've created 5 projects -- your friends would love this") |
+| At upgrade/renewal | MEDIUM-HIGH | Customer just committed to the product. Buying signals = sharing willingness | Best as a thank-you page element after payment confirmation, not as an upsell |
+
+## Affiliate Commission Decisions
+
+| Decision | Guidance |
+|---|---|
+| Commission model | Recurring revenue product = recurring commission (10-25% for 12 months). One-time purchase = flat fee or % of sale (15-30%). Lead gen = flat fee per qualified action ($20-500 depending on value) |
+| Cookie duration | Match your sales cycle. 30 days for SaaS (most signups happen within 14 days). 60-90 days for enterprise. 7 days for impulse purchases. Longer cookies attract more affiliates but increase attribution disputes |
+| Attribution model | Last-click is standard and simplest. First-click rewards discovery (favors content creators). Multi-touch is fairest but complex and creates disputes. Start with last-click, add first-click bonus for top affiliates |
+| Minimum payout threshold | $50-100 minimum. Below $50 attracts low-quality affiliates. Above $100 discourages new affiliates. Monthly payouts standard, Net-30 for trust/fraud buffer |
+| Exclusivity | Never require exclusivity for standard affiliates. Offer higher commission for exclusive partnerships (dedicated review, no competitor promotion). Exclusive partners should get 1.5-2x standard rate |
+
+## Anti-Patterns
+
+| Anti-Pattern | What Happens | Why It Fails | Fix |
+|---|---|---|---|
+| **The Bribe Program** | Massive rewards ($100+ for low-ACV product) to force referrals | Attracts mercenary referrers and fraudsters. Referred customers have no genuine interest. CAC via referral exceeds paid CAC. Fraud rate 30-50% | Size rewards at 10-20% of first-year revenue. Quality referrals come from product satisfaction, not bribe size |
+| **The Hidden Link** | Referral program exists but nobody knows about it. Buried in settings or footer | <2% of customers discover it. Program looks like it "doesn't work" but was never given a chance | Surface referral at trigger moments (post-value, post-NPS). In-product placement, not just a settings page link |
+| **The Complicated Math** | "Earn 500 points per referral! 10,000 points = $5 gift card!" | Nobody calculates point-to-value conversion. Feels like a scam. Points systems add friction without adding value | State rewards in real terms: "$20 credit" or "1 month free." No points, no conversions, no ambiguity |
+| **The Premature Ask** | Referral prompt during onboarding, before user has experienced any value | User hasn't validated the product yet. Asking for referrals before trust is established feels presumptuous. Damages brand perception | Wait until first value moment. Minimum: 7 days active usage AND at least one core feature milestone completed |
+| **The Generic Ask** | "Refer a friend!" with no context, no personalization, no specific reason | Gives the referrer nothing to say. "I got this generic popup" isn't a compelling reason to share. Conversion rate <0.5% | Personalize: "You've saved 12 hours this month. Know someone who'd love that?" Give referrers a story, not just a link |
+| **The Infinite Reward** | No cap on referral rewards. Top referrer earns $50K/year gaming the system | Creates professional referrers who aren't customers. Attracts organized fraud rings. Budget becomes unpredictable | Cap at reasonable level (e.g., $5K/year per referrer). Review accounts exceeding 20 referrals/month manually |
+
+### Rationalizations That Signal Bad Decisions
+
+| Rationalization | Reality |
+|---|---|
+| "We'll just launch it and see what happens" | Referral programs without fraud prevention, timing strategy, and measurement get gamed within 2 weeks |
+| "Everyone will refer if we pay them enough" | Money doesn't create word-of-mouth. Product quality does. High rewards attract fraudsters, not advocates |
+| "We don't need fraud prevention yet" | Fraud appears within days of launch. Retrofitting prevention is 5x harder than building it in |
+| "Let's copy Dropbox's referral program" | Dropbox had inherent virality (shared folders) + product-market fit. The program amplified existing sharing behavior. Copying the mechanic without the product dynamics fails |
+| "Affiliates will just find us" | Quality affiliates are recruited, not attracted. Passive affiliate program pages get 95% low-quality applicants (coupon sites, spam blogs) |
+
+### Red Flags
+
+| Red Flag | Diagnosis |
+|---|---|
+| Referral rate >50% within first week of launch | Fraud or internal gaming, not organic sharing |
+| Referred users churn faster than organic | Referrals are incentive-driven, not value-driven. Wrong audience being referred |
+| Single referrer responsible for >20% of referrals | Either a power user (good) or a fraud ring operator (bad). Investigate before rewarding |
+| Referral conversion rate >40% | Suspiciously high. Check for self-referrals, same-household referrals, or fake accounts |
+| CAC via referral exceeds paid channel CAC | Rewards are too high, fraud is eating margin, or referred users aren't converting to paid |
+| 90%+ of referrals come from coupon/deal sites | Your referral link leaked. These aren't referrals, they're discount seekers who would have purchased anyway |
+| Most referrals happen within minutes of signup | Users are self-referring with alternate emails before engaging with product |
+
+### NEVER
+
+- Never launch a referral program without fraud prevention rules
+- Never ask for referrals before the user has experienced core product value
+- Never set referral rewards higher than 30% of gross margin per referred customer
+- Never combine customer referral and affiliate programs into a single program
+- Never use points systems when you can state rewards in real currency/product terms

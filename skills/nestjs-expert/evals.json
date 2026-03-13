@@ -1,0 +1,58 @@
+[
+  {
+    "input": "I need to design the module architecture for a multi-tenant SaaS app in NestJS. How should I organize feature modules, shared modules, and handle tenant isolation?",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "I'm getting 'Nest can't resolve dependencies of the OrderService (?)' error. The question mark is at position 2 in my constructor. How do I debug this?",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "Should I use a Guard or middleware for role-based access control in NestJS? I need to check @SetMetadata decorators on route handlers.",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "How do I write an interceptor that adds response timing headers and transforms the response into a standard envelope format in NestJS?",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "I need to validate incoming DTOs with nested objects and arrays in NestJS. What's the best pipe configuration for deep validation with class-validator?",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "How do I set up integration tests for my NestJS service that uses TypeORM? I want to test against a real database without mocking the repository layer.",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "I'm building a NestJS microservice using gRPC transport. How do I set up the proto definitions, implement message patterns, and handle errors across the transport?",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "My NestJS app is leaking memory in production. We're running in Kubernetes containers and the heap keeps growing. How do I diagnose and fix NestJS-specific memory leaks?",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "I want to migrate my NestJS app from Express to Fastify adapter for better performance. What are the breaking changes and how do I handle middleware compatibility?",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "I have a circular dependency between UserModule and OrderModule in NestJS. Both services need to call each other. How do I resolve this without forwardRef?",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "How do I set up a dynamic ConfigModule with forRootAsync that loads config from AWS Secrets Manager and validates it with Joi before the app starts?",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "What's the difference between REQUEST and TRANSIENT injection scopes in NestJS, and what are the performance implications of using REQUEST scope?",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "How do I set up Express routing with path parameters and query strings? I'm not using any framework, just raw Express.",
+    "expected_output": "should not trigger"
+  },
+  {
+    "input": "How do I create a React component with useState and useEffect hooks that fetches data from an API on mount?",
+    "expected_output": "should not trigger"
+  }
+]

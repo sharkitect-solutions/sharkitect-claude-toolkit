@@ -1,15 +1,15 @@
 ---
 name: ultimate-skill-creator
 description: >
-  Use when creating a new skill for Claude Code — whether from scratch, from a user
-  request, or by formalizing behavior that should be consistent. Use when a user says
-  "create a skill", "write a skill", "build a skill", "make a skill for", or describes
-  behavior they want Claude to follow reliably across sessions. Use when improving,
-  refactoring, or debugging an existing skill that fails to trigger, gets ignored under
-  pressure, or produces inconsistent results. Use when evaluating whether a skill actually
-  changes Claude's behavior versus baseline. Use when packaging a skill for sharing or
-  marketplace distribution. Use when the task seems "simple" or "quick" — those are
-  the highest-risk cases where Claude skips quality steps.
+  Use when creating a new skill for Claude Code -- from scratch, from a user request,
+  or by formalizing behavior that should be consistent. Use when a user says "create a
+  skill", "write a skill", "build a skill", "make a skill for", or describes behavior
+  they want Claude to follow reliably across sessions. Use when improving, refactoring,
+  or debugging an existing skill that fails to trigger, gets ignored under pressure, or
+  produces inconsistent results. Use when packaging a skill for sharing or marketplace
+  distribution. Use when the task seems "simple" or "quick" -- those are the highest-risk
+  cases where Claude skips quality steps. Do NOT use for: skill-judge (evaluating/scoring
+  existing skills for quality), superpowers:writing-skills (auto-triggered writing workflows).
 ---
 
 # Ultimate Skill Creator
@@ -28,6 +28,46 @@ Skills fail for three predictable reasons:
 This skill addresses all three failures through a single workflow that combines structural
 planning (so skills are organized and discoverable), test-driven development (so skills
 resist pressure), and eval-based iteration (so skills actually trigger and work).
+
+---
+
+## File Index
+
+| File | Load When | Do NOT Load |
+|---|---|---|
+| `references/structure-guide.md` | Planning file organization, setting up directories, frontmatter format | Content already structured, in writing/testing phase |
+| `references/writing-rules.md` | Writing descriptions (CSO), body content, rationalization tables, red flags | Structure planned, in eval/testing phase |
+| `references/tdd-methodology.md` | RED-GREEN-REFACTOR process, pressure scenarios, subagent baseline tests | Skill already passes pressure tests |
+| `references/eval-pipeline.md` | Creating test cases, subagent evaluations, grading, benchmarking | Skill body not written yet (finish TDD first) |
+| `references/skill-versioning.md` | Updating existing skills, version bumps, preventing regressions | Creating a new skill from scratch |
+| `references/description-exclusions.md` | Writing exclusion patterns, designing Scope Boundary tables, routing between similar skills | Single-purpose skill with no overlapping neighbors |
+| `references/companion-design.md` | Designing companion files, planning progressive disclosure, choosing content types | Simple skill under 100 lines that doesn't need companions |
+| `references/optimization-lessons.md` | Domain saturation assessment, named anti-pattern design, decision matrix design, compression | First draft (optimization lessons apply during refinement) |
+| `scripts/init_skill.py` | Scaffolding a new skill directory | Skill directory already exists |
+| `scripts/quick_validate.py` | Validating against CSO rules and required sections | Skill still being drafted |
+| `scripts/run_evals.py` | Running test prompts, interactive grading, aggregate benchmarks | No test cases written yet |
+| `scripts/package_skill.py` | Packaging completed skill for distribution | Skill hasn't passed validation |
+| `examples/skill-directory-template.md` | Setting up a new skill directory from template | Updating existing skill |
+| `evals.json` | Meta self-test reference for the skill-creator itself | Normal skill creation |
+
+---
+
+## Scope Boundary
+
+| Request | This Skill | Use Instead |
+|---|---|---|
+| "Create a skill for X" | YES | - |
+| "Build a skill that does Y" | YES | - |
+| "Fix this skill -- it's not triggering" | YES | - |
+| "Improve/refactor this skill" | YES | - |
+| "Package this skill for sharing" | YES | - |
+| "Score/evaluate this skill's quality" | NO | skill-judge |
+| "Audit all my skills for quality" | NO | skill-judge |
+| "Write better content for this skill" | PARTIAL -- structure + TDD, not auto-writing | superpowers:writing-skills |
+| "Create an agent (not a skill)" | NO | agent-development, ai-agents-architect |
+| "Help with prompt engineering" | NO | prompt-engineering-guidance |
+
+---
 
 ## The Three-Stage Workflow
 
@@ -228,18 +268,3 @@ A skill is done when ALL of these pass:
 - [ ] Zero content duplication between body and references
 - [ ] Writing uses imperative voice with "why" explanations
 
-## File Index
-
-| File | Purpose |
-|---|---|
-| `references/structure-guide.md` | File organization, frontmatter format, directory templates, word count targets |
-| `references/tdd-methodology.md` | Complete RED-GREEN-REFACTOR process, pressure type taxonomy, subagent testing |
-| `references/eval-pipeline.md` | Test case design, subagent evaluation, grading, benchmarking, description optimization |
-| `references/writing-rules.md` | CSO rules, description patterns, body writing style, rationalization table design |
-| `references/skill-versioning.md` | When and how to update existing skills, version bumping, regression prevention |
-| `examples/skill-directory-template.md` | Reference directory layout and frontmatter template for new skills |
-| `scripts/init_skill.py` | Scaffolds a new skill directory with the prescribed structure (not a generic template) |
-| `scripts/quick_validate.py` | Validates skill against CSO rules, body quality, word counts, and required sections |
-| `scripts/run_evals.py` | Generates test prompts, runs interactive grading, calculates aggregate benchmarks |
-| `scripts/package_skill.py` | Packages a skill folder into a distributable zip (runs validation first) |
-| `evals.json` | 20 test cases for the ultimate-skill-creator itself (meta self-test) |

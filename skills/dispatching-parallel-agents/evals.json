@@ -1,0 +1,52 @@
+{
+  "evals": [
+    {
+      "input": "I have 5 test files failing. Let me dispatch an agent for each one.",
+      "expected_behavior": "Stop and check: are the failures independent? Multiple test files failing after a refactor may share a root cause. Investigate first — fixing one root cause may fix all 5. Only parallelize after confirming independence.",
+      "anti_pattern": "Immediately dispatching 5 agents without checking if failures share a root cause",
+      "difficulty": "easy"
+    },
+    {
+      "input": "I want to dispatch agents to fix the login page and the user settings page at the same time",
+      "expected_behavior": "Run the independence test: do they share files? (shared auth module, shared user model?) Does settings depend on login? If they share components or models, they're not independent. Check before dispatching.",
+      "anti_pattern": "Assuming pages are independent because they have different URLs, without checking for shared code",
+      "difficulty": "medium"
+    },
+    {
+      "input": "Fix these 3 failing tests: auth.test.ts (line 42), auth.test.ts (line 87), auth.test.ts (line 103)",
+      "expected_behavior": "Don't parallelize — all 3 failures are in the SAME file. They likely share root cause or context. One agent handles all 3 tests in auth.test.ts. Parallel dispatch is for independent problem domains, not individual tests in one file.",
+      "anti_pattern": "Dispatching 3 agents for 3 tests in the same file",
+      "difficulty": "easy"
+    },
+    {
+      "input": "I need to research market trends, competitive analysis, and customer feedback — all for different product areas. Should I dispatch parallel agents?",
+      "expected_behavior": "Yes — research tasks on unrelated topics are textbook independence. Each agent can work with its own context, no shared state, no file overlap. Use SCCO framework: specific topic scope, relevant context, constraints on depth, output format.",
+      "anti_pattern": "Running all research sequentially when topics are truly independent",
+      "difficulty": "easy"
+    },
+    {
+      "input": "Two of my parallel agents both modified the utils.ts file. Now there are merge conflicts.",
+      "expected_behavior": "This should have been caught by the independence test. The agents weren't truly independent. For now: resolve manually by understanding both changes. For next time: check for file overlap before dispatching. If agents must touch the same file, sequence them instead.",
+      "anti_pattern": "Re-dispatching the agents without addressing the root problem (shared file dependency)",
+      "difficulty": "medium"
+    },
+    {
+      "input": "I want to dispatch 10 agents to parallelize all my work",
+      "expected_behavior": "Push back: beyond 5-6 parallel agents, integration overhead (reviewing, merging, conflict-checking) exceeds time savings. Batch into 3-5 focused groups. 10 agents means reviewing 10 summaries and checking 45 potential conflict pairs.",
+      "anti_pattern": "Dispatching 10 agents because 'more parallelism = faster'",
+      "difficulty": "medium"
+    },
+    {
+      "input": "One of my 3 parallel agents failed but the other 2 succeeded. What do I do?",
+      "expected_behavior": "Don't let one failure block the others. Review and integrate the 2 successful agents' work. Re-dispatch the failed task — possibly with a better prompt, narrower scope, or more context. Check if the failure reveals a hidden dependency with the other tasks.",
+      "anti_pattern": "Discarding all 3 agents' work because one failed",
+      "difficulty": "medium"
+    },
+    {
+      "input": "I'm not sure what's broken in the application. Let me dispatch agents to investigate different areas simultaneously.",
+      "expected_behavior": "Don't parallelize exploratory debugging. If you don't know what's broken, you can't create focused agent scopes. Investigate first to identify specific problems, THEN parallelize the fixes once you know they're independent.",
+      "anti_pattern": "Dispatching agents with vague scopes like 'investigate the backend' when you haven't identified the actual problems",
+      "difficulty": "hard"
+    }
+  ]
+}

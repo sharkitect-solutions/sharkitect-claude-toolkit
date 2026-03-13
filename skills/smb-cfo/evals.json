@@ -1,0 +1,75 @@
+{
+  "skill": "smb-cfo",
+  "evals": [
+    {
+      "prompt": "We did $450K in revenue last month but only have $80K in the bank. Can you help me understand where the cash is going and build a forecast?",
+      "expected_behavior": "Build a 13-week cash flow forecast using the direct method. Analyze AR aging, AP timing, and working capital to explain the revenue-to-cash disconnect. Calculate DSO and cash conversion cycle. Reference the cash-flow-models companion for forecast template structure.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "I need to create our annual budget for next year. We're a 15-person SaaS company at $2M ARR growing 40% year-over-year.",
+      "expected_behavior": "Apply top-down budgeting from revenue target, validate bottom-up from capacity. Set COGS target for 70-85% gross margin. Allocate OPEX buckets (S&M, G&A, R&D) as percentage of revenue. Include variance analysis cadence and reforecast triggers. Apply Rule of 40 as a health check.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "How much runway do we have? We have $1.2M in the bank, burning about $95K/month, but we just hired 3 people and burn is increasing.",
+      "expected_behavior": "Use the refined runway formula accounting for burn rate acceleration rather than the basic formula. Calculate monthly burn increase from new hires. Flag The Runway Delusion anti-pattern. Provide runway safety thresholds. Model worst/base/best scenarios.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "Can you help me set up our monthly close process? We're a 20-person company and our books are always a mess.",
+      "expected_behavior": "Load the monthly-close-checklist companion. Walk through the 5-day close timeline. Cover revenue recognition, AR/AP reconciliation, payroll verification, bank reconciliation, and management reporting package. Emphasize locking the period after close.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "Our P&L shows we're profitable but I feel like we're always short on cash. What's going on?",
+      "expected_behavior": "Diagnose the classic P&L-to-cash-flow divergence. Check AR growth vs revenue growth, inventory buildup, prepaid expenses, debt principal, and CAPEX. Reference The Missing Accrual anti-pattern. Build indirect cash flow statement to trace the gap. Recommend 13-week forecast.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "We spend $12K/month on marketing and acquired 40 customers last month at $99/month average. Our monthly churn is 4%. Are these good numbers?",
+      "expected_behavior": "Calculate CAC ($300), LTV ($99 * gross margin / 0.04), LTV:CAC ratio, and payback period. Benchmark against targets (LTV:CAC > 3:1, payback < 12 months). Load financial-metrics-guide for benchmarks. Warn about blended vs cohort analysis and The Vanity Revenue Trap if applicable.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "I need to categorize our expenses properly. We have contractors, SaaS tools, some equipment purchases, and regular payroll. What goes where?",
+      "expected_behavior": "Apply the OPEX vs CAPEX taxonomy and fixed vs variable cost map. Classify each expense type with specific thresholds ($2,500 CAPEX threshold, 1-year useful life test). Flag The Contractor Mirage for contractor classification. Explain why misclassification matters for both tax and management reporting.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "Should we hire two more engineers? We're at $3M ARR, 85% gross margin, and the team is stretched thin.",
+      "expected_behavior": "Apply the Financial Decision Framework hiring criteria: utilization > 85% for 3+ months, lost revenue exceeds fully-loaded cost, runway remains above 12 months, measurable 90-day impact. Calculate fully-loaded cost per engineer. Run break-even analysis on the additional fixed cost. Check runway impact.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "We need to figure out our quarterly tax estimates. We're an S-Corp with about $500K projected net income this year.",
+      "expected_behavior": "Cover quarterly estimated tax payment schedule (Apr/Jun/Sep/Jan). Discuss S-Corp pass-through implications. Mention Section 179 and R&D credit opportunities. Calculate approximate quarterly payment. Defer specific return preparation to CPA while providing planning framework.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "Can you help me build a DCF model for acquiring a competitor? They're doing $15M revenue with $3M EBITDA.",
+      "expected_behavior": "Decline or redirect. DCF modeling for M&A acquisitions is investment banking / corporate finance territory, outside SMB CFO scope. Suggest engaging an investment banker or M&A advisor for deal valuation. The skill covers SMB operations, not deal-making.",
+      "should_trigger": false
+    },
+    {
+      "prompt": "I need help setting up my personal budget and figuring out how much to save for retirement in my 401k.",
+      "expected_behavior": "Decline or redirect. Personal finance, retirement planning, and individual tax optimization are outside scope. This skill covers business financial operations for SMBs, not personal wealth management. Suggest a personal financial advisor or relevant personal finance resources.",
+      "should_trigger": false
+    },
+    {
+      "prompt": "Our revenue grew 80% this year but we lost $400K. The board says growth is great. Should I be worried?",
+      "expected_behavior": "Flag The Vanity Revenue Trap and The Growth-at-All-Costs Fallacy. Analyze whether gross profit growth matches revenue growth. Calculate burn multiple (net burn / net new ARR). Check unit economics cohort by cohort. Apply Rule of 40. Present the rationalization table entry about growing into profitability. Require proven LTV:CAC before further growth investment.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "We have 50 enterprise customers and one of them is 30% of our revenue. They just told us they might not renew. What should I do financially?",
+      "expected_behavior": "Flag the customer concentration red flag (>25% single customer). Model worst-case scenario removing that customer's revenue. Recalculate runway, break-even, and required cost cuts. Build contingency budget. Stress-test cash flow forecast without that revenue. Recommend diversification strategy as structural fix.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "Help me analyze our break-even point. We're an e-commerce business with $45 AOV, 35% contribution margin, and $85K/month in fixed costs.",
+      "expected_behavior": "Calculate break-even units ($85K / ($45 * 0.35) = ~5,397 orders/month) and break-even revenue ($85K / 0.35 = ~$243K/month). Load financial-metrics-guide for e-commerce benchmarks. Analyze what happens if AOV or margin changes. Recommend running this analysis before any fixed cost increase.",
+      "should_trigger": true
+    }
+  ]
+}

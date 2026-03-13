@@ -1,539 +1,165 @@
 ---
 name: analytics-tracking
-description: When the user wants to set up, improve, or audit analytics tracking and measurement. Also use when the user mentions "set up tracking," "GA4," "Google Analytics," "conversion tracking," "event tracking," "UTM parameters," "tag manager," "GTM," "analytics implementation," or "tracking plan." For A/B test measurement, see ab-test-setup.
+description: "Use when implementing analytics tracking, building measurement plans, configuring GA4 or GTM, designing event taxonomies, setting up conversion tracking, or auditing existing tracking implementations. Also use when choosing between analytics platforms, debugging tracking issues, designing UTM strategies, or implementing consent-compliant measurement. NEVER use for A/B test design and statistical analysis (ab-test-setup), CRO experiment recommendations (page-cro, form-cro), SEO performance analysis (seo-optimizer), or marketing attribution modeling (marketing-demand-acquisition)."
+version: "2.0"
+optimized: true
+optimized_date: "2026-03-12"
 ---
 
 # Analytics Tracking
 
-You are an expert in analytics implementation and measurement. Your goal is to help set up tracking that provides actionable insights for marketing and product decisions.
-
-## Initial Assessment
-
-Before implementing tracking, understand:
-
-1. **Business Context**
-   - What decisions will this data inform?
-   - What are the key conversion actions?
-   - What questions need answering?
-
-2. **Current State**
-   - What tracking exists?
-   - What tools are in use (GA4, Mixpanel, Amplitude, etc.)?
-   - What's working/not working?
-
-3. **Technical Context**
-   - What's the tech stack?
-   - Who will implement and maintain?
-   - Any privacy/compliance requirements?
-
----
-
-## Core Principles
-
-### 1. Track for Decisions, Not Data
-- Every event should inform a decision
-- Avoid vanity metrics
-- Quality > quantity of events
-
-### 2. Start with the Questions
-- What do you need to know?
-- What actions will you take based on this data?
-- Work backwards to what you need to track
-
-### 3. Name Things Consistently
-- Naming conventions matter
-- Establish patterns before implementing
-- Document everything
-
-### 4. Maintain Data Quality
-- Validate implementation
-- Monitor for issues
-- Clean data > more data
-
----
-
-## Tracking Plan Framework
-
-### Structure
-
-```
-Event Name | Event Category | Properties | Trigger | Notes
----------- | ------------- | ---------- | ------- | -----
-```
-
-### Event Types
-
-**Pageviews**
-- Automatic in most tools
-- Enhanced with page metadata
-
-**User Actions**
-- Button clicks
-- Form submissions
-- Feature usage
-- Content interactions
-
-**System Events**
-- Signup completed
-- Purchase completed
-- Subscription changed
-- Errors occurred
-
-**Custom Conversions**
-- Goal completions
-- Funnel stages
-- Business-specific milestones
-
----
-
-## Event Naming Conventions
-
-### Format Options
-
-**Object-Action (Recommended)**
-```
-signup_completed
-button_clicked
-form_submitted
-article_read
-```
-
-**Action-Object**
-```
-click_button
-submit_form
-complete_signup
-```
-
-**Category_Object_Action**
-```
-checkout_payment_completed
-blog_article_viewed
-onboarding_step_completed
-```
-
-### Best Practices
-
-- Lowercase with underscores
-- Be specific: `cta_hero_clicked` vs. `button_clicked`
-- Include context in properties, not event name
-- Avoid spaces and special characters
-- Document decisions
-
----
-
-## Essential Events to Track
-
-### Marketing Site
-
-**Navigation**
-- page_view (enhanced)
-- outbound_link_clicked
-- scroll_depth (25%, 50%, 75%, 100%)
-
-**Engagement**
-- cta_clicked (button_text, location)
-- video_played (video_id, duration)
-- form_started
-- form_submitted (form_type)
-- resource_downloaded (resource_name)
-
-**Conversion**
-- signup_started
-- signup_completed
-- demo_requested
-- contact_submitted
-
-### Product/App
-
-**Onboarding**
-- signup_completed
-- onboarding_step_completed (step_number, step_name)
-- onboarding_completed
-- first_key_action_completed
-
-**Core Usage**
-- feature_used (feature_name)
-- action_completed (action_type)
-- session_started
-- session_ended
-
-**Monetization**
-- trial_started
-- pricing_viewed
-- checkout_started
-- purchase_completed (plan, value)
-- subscription_cancelled
-
-### E-commerce
-
-**Browsing**
-- product_viewed (product_id, category, price)
-- product_list_viewed (list_name, products)
-- product_searched (query, results_count)
-
-**Cart**
-- product_added_to_cart
-- product_removed_from_cart
-- cart_viewed
-
-**Checkout**
-- checkout_started
-- checkout_step_completed (step)
-- payment_info_entered
-- purchase_completed (order_id, value, products)
-
----
-
-## Event Properties (Parameters)
-
-### Standard Properties to Consider
-
-**Page/Screen**
-- page_title
-- page_location (URL)
-- page_referrer
-- content_group
-
-**User**
-- user_id (if logged in)
-- user_type (free, paid, admin)
-- account_id (B2B)
-- plan_type
-
-**Campaign**
-- source
-- medium
-- campaign
-- content
-- term
-
-**Product** (e-commerce)
-- product_id
-- product_name
-- category
-- price
-- quantity
-- currency
-
-**Timing**
-- timestamp
-- session_duration
-- time_on_page
-
-### Best Practices
-
-- Use consistent property names
-- Include relevant context
-- Don't duplicate GA4 automatic properties
-- Avoid PII in properties
-- Document expected values
-
----
-
-## GA4 Implementation
-
-### Configuration
-
-**Data Streams**
-- One stream per platform (web, iOS, Android)
-- Enable enhanced measurement
-
-**Enhanced Measurement Events**
-- page_view (automatic)
-- scroll (90% depth)
-- outbound_click
-- site_search
-- video_engagement
-- file_download
-
-**Recommended Events**
-- Use Google's predefined events when possible
-- Correct naming for enhanced reporting
-- See: https://support.google.com/analytics/answer/9267735
-
-### Custom Events (GA4)
-
-```javascript
-// gtag.js
-gtag('event', 'signup_completed', {
-  'method': 'email',
-  'plan': 'free'
-});
-
-// Google Tag Manager (dataLayer)
-dataLayer.push({
-  'event': 'signup_completed',
-  'method': 'email',
-  'plan': 'free'
-});
-```
-
-### Conversions Setup
-
-1. Collect event in GA4
-2. Mark as conversion in Admin > Events
-3. Set conversion counting (once per session or every time)
-4. Import to Google Ads if needed
-
-### Custom Dimensions and Metrics
-
-**When to use:**
-- Properties you want to segment by
-- Metrics you want to aggregate
-- Beyond standard parameters
-
-**Setup:**
-1. Create in Admin > Custom definitions
-2. Scope: Event, User, or Item
-3. Parameter name must match
-
----
-
-## Google Tag Manager Implementation
-
-### Container Structure
-
-**Tags**
-- GA4 Configuration (base)
-- GA4 Event tags (one per event or grouped)
-- Conversion pixels (Facebook, LinkedIn, etc.)
-
-**Triggers**
-- Page View (DOM Ready, Window Loaded)
-- Click - All Elements / Just Links
-- Form Submission
-- Custom Events
-
-**Variables**
-- Built-in: Click Text, Click URL, Page Path, etc.
-- Data Layer variables
-- JavaScript variables
-- Lookup tables
-
-### Best Practices
-
-- Use folders to organize
-- Consistent naming (Tag_Type_Description)
-- Version notes on every publish
-- Preview mode for testing
-- Workspaces for team collaboration
-
-### Data Layer Pattern
-
-```javascript
-// Push custom event
-dataLayer.push({
-  'event': 'form_submitted',
-  'form_name': 'contact',
-  'form_location': 'footer'
-});
-
-// Set user properties
-dataLayer.push({
-  'user_id': '12345',
-  'user_type': 'premium'
-});
-
-// E-commerce event
-dataLayer.push({
-  'event': 'purchase',
-  'ecommerce': {
-    'transaction_id': 'T12345',
-    'value': 99.99,
-    'currency': 'USD',
-    'items': [{
-      'item_id': 'SKU123',
-      'item_name': 'Product Name',
-      'price': 99.99
-    }]
-  }
-});
-```
-
----
-
-## UTM Parameter Strategy
-
-### Standard Parameters
-
-| Parameter | Purpose | Example |
-|-----------|---------|---------|
-| utm_source | Where traffic comes from | google, facebook, newsletter |
-| utm_medium | Marketing medium | cpc, email, social, referral |
-| utm_campaign | Campaign name | spring_sale, product_launch |
-| utm_content | Differentiate versions | hero_cta, sidebar_link |
-| utm_term | Paid search keywords | running+shoes |
-
-### Naming Conventions
-
-**Lowercase everything**
-- google, not Google
-- email, not Email
-
-**Use underscores or hyphens consistently**
-- product_launch or product-launch
-- Pick one, stick with it
-
-**Be specific but concise**
-- blog_footer_cta, not cta1
-- 2024_q1_promo, not promo
-
-### UTM Documentation
-
-Track all UTMs in a spreadsheet or tool:
-
-| Campaign | Source | Medium | Content | Full URL | Owner | Date |
-|----------|--------|--------|---------|----------|-------|------|
-| ... | ... | ... | ... | ... | ... | ... |
-
-### UTM Builder
-
-Provide a consistent UTM builder link to team:
-- Google's URL builder
-- Internal tool
-- Spreadsheet formula
-
----
-
-## Debugging and Validation
-
-### Testing Tools
-
-**GA4 DebugView**
-- Real-time event monitoring
-- Enable with ?debug_mode=true
-- Or via Chrome extension
-
-**GTM Preview Mode**
-- Test triggers and tags
-- See data layer state
-- Validate before publish
-
-**Browser Extensions**
-- GA Debugger
-- Tag Assistant
-- dataLayer Inspector
-
-### Validation Checklist
-
-- [ ] Events firing on correct triggers
-- [ ] Property values populating correctly
-- [ ] No duplicate events
-- [ ] Works across browsers
-- [ ] Works on mobile
-- [ ] Conversions recorded correctly
-- [ ] User ID passing when logged in
-- [ ] No PII leaking
-
-### Common Issues
-
-**Events not firing**
-- Trigger misconfigured
-- Tag paused
-- GTM not loaded on page
-
-**Wrong values**
-- Variable not configured
-- Data layer not pushing correctly
-- Timing issues (fire before data ready)
-
-**Duplicate events**
-- Multiple GTM containers
-- Multiple tag instances
-- Trigger firing multiple times
-
----
-
-## Privacy and Compliance
-
-### Considerations
-
-- Cookie consent required in EU/UK/CA
-- No PII in analytics properties
-- Data retention settings
-- User deletion capabilities
-- Cross-device tracking consent
-
-### Implementation
-
-**Consent Mode (GA4)**
-- Wait for consent before tracking
-- Use consent mode for partial tracking
-- Integrate with consent management platform
-
-**Data Minimization**
-- Only collect what you need
-- IP anonymization
-- No PII in custom dimensions
-
----
-
-## Output Format
-
-### Tracking Plan Document
-
-```
-# [Site/Product] Tracking Plan
-
-## Overview
-- Tools: GA4, GTM
-- Last updated: [Date]
-- Owner: [Name]
-
-## Events
-
-### Marketing Events
-
-| Event Name | Description | Properties | Trigger |
-|------------|-------------|------------|---------|
-| signup_started | User initiates signup | source, page | Click signup CTA |
-| signup_completed | User completes signup | method, plan | Signup success page |
-
-### Product Events
-[Similar table]
-
-## Custom Dimensions
-
-| Name | Scope | Parameter | Description |
-|------|-------|-----------|-------------|
-| user_type | User | user_type | Free, trial, paid |
-
-## Conversions
-
-| Conversion | Event | Counting | Google Ads |
-|------------|-------|----------|------------|
-| Signup | signup_completed | Once per session | Yes |
-
-## UTM Convention
-
-[Guidelines]
-```
-
-### Implementation Code
-
-Provide ready-to-use code snippets
-
-### Testing Checklist
-
-Specific validation steps
-
----
-
-## Questions to Ask
-
-If you need more context:
-1. What tools are you using (GA4, Mixpanel, etc.)?
-2. What key actions do you want to track?
-3. What decisions will this data inform?
-4. Who implements - dev team or marketing?
-5. Are there privacy/consent requirements?
-6. What's already tracked?
-
----
-
-## Related Skills
-
-- **ab-test-setup**: For experiment tracking
-- **seo-audit**: For organic traffic analysis
-- **page-cro**: For conversion optimization (uses this data)
+## File Index
+
+| File | Purpose | When to Load |
+|---|---|---|
+| SKILL.md | Platform selection, measurement planning, event naming, GA4 gotchas, GTM architecture, UTM strategy, consent decisions, anti-patterns | Always (auto-loaded) |
+| ga4-bigquery-reference.md | BigQuery export configuration, event data schema (nested/repeated fields), essential query patterns (session reconstruction, attribution), cost optimization, common BigQuery + GA4 mistakes | When configuring BigQuery export, writing queries against GA4 data, debugging BigQuery results that don't match GA4 UI, or optimizing query costs |
+| consent-mode-implementation.md | Consent Mode v2 signal types, CMP integration patterns (OneTrust, Cookiebot, Didomi), implementation sequence, behavioral modeling accuracy thresholds, testing consent states, regional requirements | When implementing consent management, debugging consent-related tracking gaps, choosing a CMP, or evaluating modeling accuracy for low-consent-rate sites |
+| gtm-debugging-advanced.md | Debugging decision tree (symptom -> cause -> fix), data layer debugging, GTM server-side architecture and cost analysis, server-side gotchas, browser-specific tracking issues (Safari ITP, Firefox ETP, Brave) | When debugging complex tracking issues, evaluating server-side GTM, or troubleshooting browser-specific tracking failures |
+
+Do NOT load companion files for basic GA4 event setup, simple UTM tagging, or standard GTM tag configuration -- SKILL.md covers these decisions fully.
+
+## Scope Boundary
+
+| Area | This Skill | Other Skill |
+|---|---|---|
+| Measurement plan design and event taxonomy | YES | -- |
+| GA4 configuration and custom dimensions | YES | -- |
+| GTM container architecture and tag management | YES | -- |
+| Event naming conventions and data layer design | YES | -- |
+| UTM strategy and campaign tracking | YES | -- |
+| Conversion tracking setup | YES | -- |
+| Consent mode and privacy-compliant tracking | YES | -- |
+| Tracking debugging and validation | YES | -- |
+| A/B test experiment design | NO | ab-test-setup |
+| CRO recommendations from analytics data | NO | page-cro, form-cro |
+| SEO ranking and organic traffic analysis | NO | seo-optimizer |
+| Marketing attribution and channel ROI | NO | marketing-demand-acquisition |
+| Data warehouse and ETL pipeline design | NO | data engineering |
+
+## Analytics Platform Selection
+
+| Signal | Best Fit | Why | Gotcha |
+|---|---|---|---|
+| Need free, integrated with Google Ads | GA4 | Native Google Ads integration, free up to 10M events/month | GA4 samples data above ~500K rows in Explore reports. BigQuery export is the only way to get unsampled data -- requires GCP project and ~$5-50/month depending on volume |
+| Need user-level behavioral analytics (SaaS) | Mixpanel or Amplitude | Event-based models with user journey analysis, cohort retention, funnels | Both charge by tracked users (MTUs). Mixpanel free tier: 20M events. Amplitude: 10M events. At scale ($1K+/month), evaluate PostHog (self-hosted option) |
+| Need session recordings + analytics combined | Heap, PostHog, or FullStory | Auto-capture reduces implementation work. Session replay for qualitative analysis | Auto-capture creates massive event volume. Heap retroactive analysis only works for auto-captured events -- custom events still need implementation. PostHog self-hosted requires DevOps capacity |
+| Need customer data platform (CDP) + analytics | Segment + analytics tool | Segment routes events to multiple destinations from one implementation | Segment pricing jumps dramatically at scale (free: 1K MTUs, Team: $120/month for 10K). Consider RudderStack (open-source alternative) or Jitsu for cost-sensitive projects |
+| Enterprise with strict data residency requirements | Matomo (self-hosted) or Piwik PRO | Full data ownership, GDPR-compliant by default, no cookie consent needed for basic analytics (EU DPA rulings) | Self-hosted Matomo requires server maintenance. Cloud Matomo starts at ~$19/month. Feature gap vs GA4/Mixpanel in advanced analysis |
+
+**Default recommendation**: GA4 + GTM for most projects. Add Mixpanel/Amplitude only when you need user-level behavioral analysis that GA4 Explore reports can't provide.
+
+## Measurement Plan Framework
+
+Design tracking decisions-first, not tools-first. Every event must answer a question that leads to an action.
+
+| Step | Question | Output | Common Failure |
+|---|---|---|---|
+| 1. Business questions | What decisions will this data inform? | 5-10 specific questions ("Which landing pages convert best?", "Where do users drop off in onboarding?") | Tracking "everything" with no specific questions -- creates data graveyards where nobody looks at 90% of events |
+| 2. Key metrics | What numbers answer each question? | Metrics mapped to questions (conversion rate by landing page, onboarding completion rate by step) | Vanity metrics (pageviews, total signups) that don't inform decisions |
+| 3. Required events | What user actions produce those metrics? | Event list with properties, each tied to a metric | Tracking events you'll never query. Every event should map to at least one metric |
+| 4. Implementation plan | How will each event fire? | Technical spec: trigger mechanism, data layer structure, property sources | Implementing before documenting -- leads to inconsistent naming and missing properties discovered months later |
+| 5. Validation protocol | How will you verify correctness? | Test cases per event: expected trigger, expected properties, edge cases | "It fires" is not validation. Verify properties have correct values, events fire exactly once per action, and edge cases (back button, page refresh) don't create duplicates |
+
+## Event Naming Architecture
+
+| Decision | Recommendation | Why | Exception |
+|---|---|---|---|
+| Naming format | `object_action` (e.g., `signup_completed`, `cart_item_added`) | Reads naturally, groups by object in alphabetical event lists, matches GA4 recommended events | If team already uses `action_object` consistently -- consistency beats convention. Cost of migration > benefit of "correct" format |
+| Case convention | `snake_case` lowercase | GA4 treats `Signup` and `signup` as different events. Mixed case = duplicate events that split your data | Never. Even if a platform's UI shows Title Case, the underlying event name should be snake_case |
+| Property naming | Match event convention (`snake_case`) | Consistency across events and properties. GA4 custom dimensions reference property names exactly | GA4 has 50 event-scoped and 25 user-scoped custom dimension slots. Plan property names carefully -- you can't rename without losing historical data |
+| Namespace depth | 2-3 segments max (`category_object_action`) | Deeper namespaces (`checkout_payment_credit_card_submitted`) become unwieldy in queries and reports | Long namespaces acceptable for high-cardinality event types where filtering by prefix is the primary query pattern |
+
+**GA4 naming constraints**: Event names max 40 chars, property names max 40 chars, property values max 100 chars. These are HARD limits that silently truncate -- no error, just lost data.
+
+## GA4-Specific Gotchas
+
+| Gotcha | Impact | Fix |
+|---|---|---|
+| Data sampling in Explore reports | Above ~500K rows, GA4 applies sampling that can skew metrics by 10-30%. Standard reports are unsampled but limited in dimensions | Export to BigQuery for unsampled analysis. Free BigQuery export available in all GA4 properties (even free tier). First 1TB/month of queries free |
+| 14-month data retention default | Event-level data in Explore reports expires after 14 months. Aggregated data in standard reports persists. Users don't realize until they need year-over-year Explore analysis | Change to maximum retention (14 months is already max for free GA4). For longer retention, BigQuery export stores data indefinitely at your own storage cost |
+| Conversion counting change (2024+) | GA4 now defaults to "once per session" for most conversions. Previously "once per event." Switching changes historical metrics | Decide counting method at setup. "Once per session" for lead gen (form_submitted). "Every event" for e-commerce (purchase). Document the choice -- it affects conversion rate calculations retroactively |
+| Consent Mode v2 required (EU) | Google requires Consent Mode v2 for EU traffic as of March 2024. Without it, remarketing audiences and conversion data are incomplete | Implement `ad_storage`, `analytics_storage`, `ad_user_data`, `ad_personalization` consent signals. Google models unconsentented data but accuracy degrades below 70% consent rate |
+| Thresholding hides small-number data | GA4 applies thresholding when Google Signals is enabled -- removing rows where user count is too low to prevent re-identification. Appears as missing data in reports | Disable Google Signals if you don't need cross-device tracking. Or use BigQuery export where thresholding doesn't apply |
+| Custom dimension limits | 50 event-scoped, 25 user-scoped, 10 item-scoped custom dimensions. Once created, dimensions can be archived but the slot isn't freed for 48 hours | Plan custom dimensions carefully. Don't create dimensions for data you'll only query once. Use event parameters (which are unlimited) and query via BigQuery instead |
+| Attribution model default changed | GA4 switched default from last-click to data-driven attribution in 2023. Historical data retroactively recalculated | Choose attribution model explicitly. Data-driven requires sufficient conversion volume (typically 300+/month). Below that threshold, it falls back to last-click silently |
+
+## GTM Container Architecture
+
+| Pattern | When | Structure | Gotcha |
+|---|---|---|---|
+| Single container, tag-organized | Small-medium sites, one team manages | Folders by tag type (GA4, Ads, Meta). One GA4 config tag, event tags grouped | Works until 100+ tags. Then performance degrades -- every page loads all tag configurations even if most don't fire |
+| Single container, trigger-organized | Sites with complex trigger logic | Folders by page section or funnel stage. Tags grouped by where they fire | Better for debugging (find all tags that fire on checkout) but harder to audit all tags for one platform |
+| Multi-container (primary + secondary) | Large sites, multiple teams | Primary: core analytics (GA4, consent). Secondary: marketing tags (ads pixels, chat widgets) | Container load order matters. Primary must load first for consent management. Secondary containers add 50-100ms latency each |
+| Server-side GTM | Need first-party tracking, ad blocker bypass, or data processing before sending | Client container sends to server container (Cloud Run/App Engine). Server container routes to destinations | Requires GCP infrastructure ($50-500/month). Debugging is harder (two containers to inspect). But: first-party domain bypasses most ad blockers, and you control what data leaves your server |
+
+**Container hygiene**: GTM containers accumulate dead tags over time. Audit quarterly: check for tags with zero fires in 30 days, triggers that reference deleted variables, and workspace conflicts from team members who left.
+
+## UTM Architecture
+
+| Rule | Why | Violation Impact |
+|---|---|---|
+| Lowercase everything (`google` not `Google`) | GA4 is case-sensitive. `Google`, `google`, and `GOOGLE` create 3 separate source entries | Fragmented source/medium reports. Channel groupings break because default rules expect lowercase |
+| Standardize medium values to GA4 defaults | GA4 Default Channel Grouping uses specific medium values: `cpc`, `email`, `social`, `referral`, `organic`, `display` | Custom medium values (`paid-social`, `newsletter`, `sponsored`) fall into "(Other)" channel grouping. You must create custom channel groups to fix this |
+| Never put PII in UTM parameters | UTMs appear in GA4 as event parameters. PII in UTMs = PII in analytics = GDPR/CCPA violation | Compliance risk. Also: UTMs are visible in browser address bar and server logs |
+| Use utm_content for variant testing | Differentiate ad creative, CTA placement, or email version | Without it, you can't compare performance of different creatives within the same campaign |
+| Document all UTMs in a shared registry | Prevent duplicate/conflicting campaigns. Enable consistent reporting | Without registry: 5 team members create 5 different utm_source values for the same platform. Data is fragmented permanently |
+
+## Data Layer Anti-Patterns
+
+| Name | Pattern | Why It Fails | Fix |
+|---|---|---|---|
+| The Event Hoarder | Tracking 200+ events "because we might need the data" | 90% of events are never queried. Noise drowns signal. Implementation and maintenance cost scales linearly. GA4 has 500 distinct event name limit | Start with 15-25 events tied to specific business questions. Add events only when someone asks a question the current data can't answer |
+| The Vanity Dashboard | Tracking pageviews and total users as primary metrics | Pageviews don't inform decisions. "10K visits" tells you nothing about conversion, engagement, or revenue. Stakeholders feel informed but can't act | Replace with behavioral metrics: conversion rate by source, feature adoption rate, time-to-activation, revenue per user segment |
+| The PII Leaker | Passing email, name, or phone number as event properties | Violates GDPR/CCPA. GA4 Terms of Service prohibit PII. Google can terminate your property. Data is irrecoverable once sent | Hash user identifiers before sending. Use user_id (opaque identifier) instead of email. Audit data layer pushes for accidental PII (form field values, URL parameters with email) |
+| The Duplicate Trigger | Same event fires 2-3 times per action due to multiple GTM triggers or re-renders | Inflated event counts. Conversion numbers are wrong. Funnel analysis shows impossible completion rates (>100%) | Use event deduplication: transaction_id for purchases, form_id + timestamp for submissions. In GTM, use "once per page" trigger option or custom JavaScript variable to prevent re-fires |
+| The Consent Ignorer | Firing all tags before consent, then retroactively applying consent | GDPR/ePrivacy violation (max fine: 4% global revenue). Even with consent mode, tags that fire pre-consent send a network request | GTM consent mode must be the FIRST thing configured. Default state: denied. Tags fire only after explicit consent signal. Use consent initialization triggers |
+| The Silo Architect | GA4 for marketing, Mixpanel for product, Amplitude for data science -- no shared event taxonomy | Same user action has 3 different event names. Cross-team analysis impossible. "Conversion rate" means different things to different teams | Single event taxonomy documented in a tracking plan. Use Segment or GTM server-side to route one event definition to multiple destinations |
+
+## Debugging Procedure
+
+| Step | Tool | What to Check | Common Finding |
+|---|---|---|---|
+| 1. Verify tag fires | GTM Preview mode | Tag fires on correct trigger. Variables resolve to expected values | Trigger condition too broad (fires on every page) or too narrow (CSS selector changed after deploy) |
+| 2. Verify data layer | Browser console: `dataLayer` | Event object contains expected properties with correct values and types | Property value is `undefined` because data layer push happens before DOM element exists. Fix: use DOM Ready trigger instead of Page View |
+| 3. Verify GA4 receives | GA4 DebugView (Realtime > debug_mode=true) | Event appears with correct name and parameters | Event name exceeds 40 chars (silently truncated). Or: parameter name has spaces (replaced with underscores, breaking custom dimension mapping) |
+| 4. Verify reports populate | GA4 Explore (24-48 hour delay) | Custom dimensions show expected values. No unexpected (not set) values | Custom dimension not created in GA4 Admin, or parameter name in tag doesn't match dimension's "event parameter" field exactly |
+| 5. Verify cross-device | GA4 User Explorer | Same user_id appears across devices/sessions | user_id not set on all platforms. Or: user_id set before login (anonymous sessions create separate user records that never merge) |
+
+## Consent Implementation Decision
+
+| Scenario | Implementation | Key Requirement |
+|---|---|---|
+| EU/EEA visitors | Consent Mode v2 with CMP (OneTrust, Cookiebot, or similar) | Must collect explicit opt-in BEFORE firing analytics/ad tags. Default state: `denied` for all consent types. Google requires `ad_user_data` and `ad_personalization` signals |
+| US visitors (no state law applies) | Optional but recommended: basic cookie banner | California (CCPA), Colorado, Connecticut, Virginia, Utah all have different requirements. Safest: implement opt-out for all US visitors |
+| B2B SaaS (no cookies, server-side only) | May not need consent for basic analytics | If using first-party server-side tracking without cookies, many EU DPAs have ruled consent is not required. But: any Google or Meta tag requires consent regardless |
+| Global visitors, mixed regulation | Geo-targeted consent: full CMP for EU, opt-out for US, notice-only for others | CMP must detect user location (via IP) and apply correct consent flow. Test with VPN from different regions |
+
+## Rationalization Table
+
+| Rationalization | Why It Fails |
+|---|---|
+| "We'll figure out what to track after launch" | Post-launch tracking retrofitting means missing data for the most critical period (launch). Event taxonomy designed under pressure is inconsistent and hard to fix without losing historical continuity |
+| "Just track everything and filter later" | GA4 has 500 event name limit and 50 custom dimension slots. "Everything" hits limits fast. Plus: more events = more bugs, more maintenance, and more noise in every report |
+| "We don't need a tracking plan, the developer knows what to track" | Developers implement what they understand -- page loads and button clicks. Business context (which clicks matter, what conversion means, what segments are important) requires product/marketing input. The result is technically correct tracking that doesn't answer business questions |
+| "GA4 enhanced measurement handles everything" | Enhanced measurement captures 7 basic events (page_view, scroll, outbound_click, site_search, video_engagement, file_download, form_interaction). These cover <20% of typical measurement needs. Custom events are where actionable insights live |
+| "We'll add UTMs when we scale" | Retroactive UTM implementation means all historical campaign data is unattributed. Source/medium reports show "(direct) / (none)" for everything before UTMs were added. That data is permanently lost |
+
+## Red Flags
+
+- No tracking plan document -- events are added ad-hoc by whoever needs data, resulting in inconsistent naming and duplicate events
+- Event names with spaces or mixed case -- GA4 treats these as separate events, fragmenting data permanently
+- GA4 property with Google Signals enabled but no cross-device use case -- thresholding hides data for no benefit
+- UTM parameters with PII (email addresses, names) -- compliance violation that persists in analytics data indefinitely
+- GTM container with 100+ tags and no folder organization -- unmaintainable, impossible to audit which tags fire where
+- No consent management for EU visitors -- legal risk and incomplete data (Google rejects conversion data without Consent Mode v2)
+- Custom dimensions created for one-time analysis -- wastes scarce slots (50 event-scoped maximum) that can't be recovered for 48 hours after archiving
+- user_id set to email address instead of opaque identifier -- PII in analytics that violates GA4 Terms of Service
+
+## NEVER
+
+- Fire analytics tags before consent signal in EU/EEA -- this is a GDPR violation regardless of whether you later apply consent retroactively
+- Use mixed case or spaces in event names -- GA4 treats them as separate events and there is no way to merge them after the fact
+- Pass PII (email, name, phone, IP) as event properties to GA4 -- violates Terms of Service and GDPR. Google can terminate the property
+- Create custom dimensions without checking remaining slot count -- GA4's 50/25/10 limits are hard caps with no upgrade path
+- Implement tracking without a documented measurement plan -- ad-hoc tracking creates data debt that compounds with every new event and becomes impossible to untangle

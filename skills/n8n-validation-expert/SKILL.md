@@ -1,689 +1,165 @@
 ---
 name: n8n-validation-expert
-description: Interpret validation errors and guide fixing them. Use when encountering validation errors, validation warnings, false positives, operator structure issues, or need help understanding validation results. Also use when asking about validation profiles, error types, or the validation loop process.
+description: "Use when interpreting n8n validation errors, choosing validation profiles,
+  fixing operator structure issues, recognizing false positives, or recovering from
+  broken workflow states. NEVER for expression syntax errors (use n8n-expression-syntax)
+  or node configuration (use n8n-node-configuration)."
 ---
 
 # n8n Validation Expert
 
-Expert guide for interpreting and fixing n8n validation errors.
+## Validation Profiles
 
----
+ALWAYS specify a profile explicitly -- omitting it uses defaults that may not match intent.
 
-## Validation Philosophy
+| Profile | When to Use | What It Checks | Trade-off |
+|---------|-------------|----------------|-----------|
+| `minimal` | Quick checks during editing | Required fields, basic structure | Fast but misses real issues |
+| `runtime` | **RECOMMENDED** pre-deployment | Required fields, types, allowed values, dependencies | Balanced -- catches real errors without noise |
+| `ai-friendly` | AI-generated configurations | Same as runtime but reduces false positives by 60% | Less noisy, may allow questionable configs |
+| `strict` | Production deployment, critical workflows | Everything including best practices, performance, security | Maximum safety but many warnings |
 
-**Validate early, validate often**
-
-Validation is typically iterative:
-- Expect validation feedback loops
-- Usually 2-3 validate → fix cycles
-- Average: 23s thinking about errors, 58s fixing them
-
-**Key insight**: Validation is an iterative process, not one-shot!
-
----
-
-## Error Severity Levels
-
-### 1. Errors (Must Fix)
-**Blocks workflow execution** - Must be resolved before activation
-
-**Types**:
-- `missing_required` - Required field not provided
-- `invalid_value` - Value doesn't match allowed options
-- `type_mismatch` - Wrong data type (string instead of number)
-- `invalid_reference` - Referenced node doesn't exist
-- `invalid_expression` - Expression syntax error
-
-**Example**:
-```json
-{
-  "type": "missing_required",
-  "property": "channel",
-  "message": "Channel name is required",
-  "fix": "Provide a channel name (lowercase, no spaces, 1-80 characters)"
-}
-```
-
-### 2. Warnings (Should Fix)
-**Doesn't block execution** - Workflow can be activated but may have issues
-
-**Types**:
-- `best_practice` - Recommended but not required
-- `deprecated` - Using old API/feature
-- `performance` - Potential performance issue
-
-**Example**:
-```json
-{
-  "type": "best_practice",
-  "property": "errorHandling",
-  "message": "Slack API can have rate limits",
-  "suggestion": "Add onError: 'continueRegularOutput' with retryOnFail"
-}
-```
-
-### 3. Suggestions (Optional)
-**Nice to have** - Improvements that could enhance workflow
-
-**Types**:
-- `optimization` - Could be more efficient
-- `alternative` - Better way to achieve same result
-
----
+**Progressive strictness pattern:** Use `ai-friendly` during development, `runtime` for pre-production, `strict` for production deployment.
 
 ## The Validation Loop
 
-### Pattern from Telemetry
-**7,841 occurrences** of this pattern:
-
-```
-1. Configure node
-   ↓
-2. validate_node (23 seconds thinking about errors)
-   ↓
-3. Read error messages carefully
-   ↓
-4. Fix errors
-   ↓
-5. validate_node again (58 seconds fixing)
-   ↓
-6. Repeat until valid (usually 2-3 iterations)
-```
+Telemetry from 7,841 occurrences shows this is an iterative process:
+- Average 23 seconds analyzing errors, 58 seconds fixing
+- 2-3 validate-fix cycles is NORMAL -- do not expect first-pass success
+- This matters because without this knowledge, the instinct is to try fixing everything in one shot, which produces worse results than incremental fixing
 
-### Example
-```javascript
-// Iteration 1
-let config = {
-  resource: "channel",
-  operation: "create"
-};
+**The correct approach:** Configure -> validate -> read ONE error -> fix it -> validate again -> repeat. Fix errors one at a time, not all at once.
 
-const result1 = validate_node({
-  nodeType: "nodes-base.slack",
-  config,
-  profile: "runtime"
-});
-// → Error: Missing "name"
-
-// ⏱️  23 seconds thinking...
-
-// Iteration 2
-config.name = "general";
-
-const result2 = validate_node({
-  nodeType: "nodes-base.slack",
-  config,
-  profile: "runtime"
-});
-// → Error: Missing "text"
-
-// ⏱️  58 seconds fixing...
-
-// Iteration 3
-config.text = "Hello!";
-
-const result3 = validate_node({
-  nodeType: "nodes-base.slack",
-  config,
-  profile: "runtime"
-});
-// → Valid! ✅
-```
-
-**This is normal!** Don't be discouraged by multiple iterations.
-
----
-
-## Validation Profiles
-
-Choose the right profile for your stage:
-
-### minimal
-**Use when**: Quick checks during editing
-
-**Validates**:
-- Only required fields
-- Basic structure
-
-**Pros**: Fastest, most permissive
-**Cons**: May miss issues
-
-### runtime (RECOMMENDED)
-**Use when**: Pre-deployment validation
-
-**Validates**:
-- Required fields
-- Value types
-- Allowed values
-- Basic dependencies
-
-**Pros**: Balanced, catches real errors
-**Cons**: Some edge cases missed
-
-**This is the recommended profile for most use cases**
-
-### ai-friendly
-**Use when**: AI-generated configurations
-
-**Validates**:
-- Same as runtime
-- Reduces false positives
-- More tolerant of minor issues
-
-**Pros**: Less noisy for AI workflows
-**Cons**: May allow some questionable configs
-
-### strict
-**Use when**: Production deployment, critical workflows
-
-**Validates**:
-- Everything
-- Best practices
-- Performance concerns
-- Security issues
-
-**Pros**: Maximum safety
-**Cons**: Many warnings, some false positives
-
----
-
-## Common Error Types
-
-### 1. missing_required
-**What it means**: A required field is not provided
-
-**How to fix**:
-1. Use `get_node` to see required fields
-2. Add the missing field to your configuration
-3. Provide an appropriate value
-
-**Example**:
-```javascript
-// Error
-{
-  "type": "missing_required",
-  "property": "channel",
-  "message": "Channel name is required"
-}
-
-// Fix
-config.channel = "#general";
-```
-
-### 2. invalid_value
-**What it means**: Value doesn't match allowed options
-
-**How to fix**:
-1. Check error message for allowed values
-2. Use `get_node` to see options
-3. Update to a valid value
-
-**Example**:
-```javascript
-// Error
-{
-  "type": "invalid_value",
-  "property": "operation",
-  "message": "Operation must be one of: post, update, delete",
-  "current": "send"
-}
-
-// Fix
-config.operation = "post";  // Use valid operation
-```
-
-### 3. type_mismatch
-**What it means**: Wrong data type for field
-
-**How to fix**:
-1. Check expected type in error message
-2. Convert value to correct type
-
-**Example**:
-```javascript
-// Error
-{
-  "type": "type_mismatch",
-  "property": "limit",
-  "message": "Expected number, got string",
-  "current": "100"
-}
-
-// Fix
-config.limit = 100;  // Number, not string
-```
-
-### 4. invalid_expression
-**What it means**: Expression syntax error
-
-**How to fix**:
-1. Use n8n Expression Syntax skill
-2. Check for missing `{{}}` or typos
-3. Verify node/field references
-
-**Example**:
-```javascript
-// Error
-{
-  "type": "invalid_expression",
-  "property": "text",
-  "message": "Invalid expression: $json.name",
-  "current": "$json.name"
-}
-
-// Fix
-config.text = "={{$json.name}}";  // Add {{}}
-```
-
-### 5. invalid_reference
-**What it means**: Referenced node doesn't exist
-
-**How to fix**:
-1. Check node name spelling
-2. Verify node exists in workflow
-3. Update reference to correct name
-
-**Example**:
-```javascript
-// Error
-{
-  "type": "invalid_reference",
-  "property": "expression",
-  "message": "Node 'HTTP Requets' does not exist",
-  "current": "={{$node['HTTP Requets'].json.data}}"
-}
-
-// Fix - correct typo
-config.expression = "={{$node['HTTP Request'].json.data}}";
-```
-
----
-
-## Auto-Sanitization System
-
-### What It Does
-**Automatically fixes common operator structure issues** on ANY workflow update
-
-**Runs when**:
-- `n8n_create_workflow`
-- `n8n_update_partial_workflow`
-- Any workflow save operation
-
-### What It Fixes
-
-#### 1. Binary Operators (Two Values)
-**Operators**: equals, notEquals, contains, notContains, greaterThan, lessThan, startsWith, endsWith
-
-**Fix**: Removes `singleValue` property (binary operators compare two values)
-
-**Before**:
-```javascript
-{
-  "type": "boolean",
-  "operation": "equals",
-  "singleValue": true  // ❌ Wrong!
-}
-```
-
-**After** (automatic):
-```javascript
-{
-  "type": "boolean",
-  "operation": "equals"
-  // singleValue removed ✅
-}
-```
-
-#### 2. Unary Operators (One Value)
-**Operators**: isEmpty, isNotEmpty, true, false
-
-**Fix**: Adds `singleValue: true` (unary operators check single value)
-
-**Before**:
-```javascript
-{
-  "type": "boolean",
-  "operation": "isEmpty"
-  // Missing singleValue ❌
-}
-```
-
-**After** (automatic):
-```javascript
-{
-  "type": "boolean",
-  "operation": "isEmpty",
-  "singleValue": true  // ✅ Added
-}
-```
-
-#### 3. IF/Switch Metadata
-**Fix**: Adds complete `conditions.options` metadata for IF v2.2+ and Switch v3.2+
-
-### What It CANNOT Fix
-
-#### 1. Broken Connections
-References to non-existent nodes
-
-**Solution**: Use `cleanStaleConnections` operation in `n8n_update_partial_workflow`
-
-#### 2. Branch Count Mismatches
-3 Switch rules but only 2 output connections
-
-**Solution**: Add missing connections or remove extra rules
-
-#### 3. Paradoxical Corrupt States
-API returns corrupt data but rejects updates
-
-**Solution**: May require manual database intervention
-
----
-
-## False Positives
-
-### What Are They?
-Validation warnings that are technically "wrong" but acceptable in your use case
-
-### Common False Positives
-
-#### 1. "Missing error handling"
-**Warning**: No error handling configured
-
-**When acceptable**:
-- Simple workflows where failures are obvious
-- Testing/development workflows
-- Non-critical notifications
-
-**When to fix**: Production workflows handling important data
-
-#### 2. "No retry logic"
-**Warning**: Node doesn't retry on failure
-
-**When acceptable**:
-- APIs with their own retry logic
-- Idempotent operations
-- Manual trigger workflows
-
-**When to fix**: Flaky external services, production automation
-
-#### 3. "Missing rate limiting"
-**Warning**: No rate limiting for API calls
-
-**When acceptable**:
-- Internal APIs with no limits
-- Low-volume workflows
-- APIs with server-side rate limiting
-
-**When to fix**: Public APIs, high-volume workflows
-
-#### 4. "Unbounded query"
-**Warning**: SELECT without LIMIT
-
-**When acceptable**:
-- Small known datasets
-- Aggregation queries
-- Development/testing
-
-**When to fix**: Production queries on large tables
-
-### Reducing False Positives
-
-**Use `ai-friendly` profile**:
-```javascript
-validate_node({
-  nodeType: "nodes-base.slack",
-  config: {...},
-  profile: "ai-friendly"  // Fewer false positives
-})
-```
-
----
-
-## Validation Result Structure
-
-### Complete Response
-```javascript
-{
-  "valid": false,
-  "errors": [
-    {
-      "type": "missing_required",
-      "property": "channel",
-      "message": "Channel name is required",
-      "fix": "Provide a channel name (lowercase, no spaces)"
-    }
-  ],
-  "warnings": [
-    {
-      "type": "best_practice",
-      "property": "errorHandling",
-      "message": "Slack API can have rate limits",
-      "suggestion": "Add onError: 'continueRegularOutput'"
-    }
-  ],
-  "suggestions": [
-    {
-      "type": "optimization",
-      "message": "Consider using batch operations for multiple messages"
-    }
-  ],
-  "summary": {
-    "hasErrors": true,
-    "errorCount": 1,
-    "warningCount": 1,
-    "suggestionCount": 1
-  }
-}
-```
-
-### How to Read It
-
-#### 1. Check `valid` field
-```javascript
-if (result.valid) {
-  // ✅ Configuration is valid
-} else {
-  // ❌ Has errors - must fix before deployment
-}
-```
-
-#### 2. Fix errors first
-```javascript
-result.errors.forEach(error => {
-  console.log(`Error in ${error.property}: ${error.message}`);
-  console.log(`Fix: ${error.fix}`);
-});
-```
-
-#### 3. Review warnings
-```javascript
-result.warnings.forEach(warning => {
-  console.log(`Warning: ${warning.message}`);
-  console.log(`Suggestion: ${warning.suggestion}`);
-  // Decide if you need to address this
-});
-```
-
-#### 4. Consider suggestions
-```javascript
-// Optional improvements
-// Not required but may enhance workflow
-```
-
----
-
-## Workflow Validation
-
-### validate_workflow (Structure)
-**Validates entire workflow**, not just individual nodes
-
-**Checks**:
-1. **Node configurations** - Each node valid
-2. **Connections** - No broken references
-3. **Expressions** - Syntax and references valid
-4. **Flow** - Logical workflow structure
-
-**Example**:
-```javascript
-validate_workflow({
-  workflow: {
-    nodes: [...],
-    connections: {...}
-  },
-  options: {
-    validateNodes: true,
-    validateConnections: true,
-    validateExpressions: true,
-    profile: "runtime"
-  }
-})
-```
-
-### Common Workflow Errors
-
-#### 1. Broken Connections
-```json
-{
-  "error": "Connection from 'Transform' to 'NonExistent' - target node not found"
-}
-```
-
-**Fix**: Remove stale connection or create missing node
-
-#### 2. Circular Dependencies
-```json
-{
-  "error": "Circular dependency detected: Node A → Node B → Node A"
-}
-```
-
-**Fix**: Restructure workflow to remove loop
-
-#### 3. Multiple Start Nodes
-```json
-{
-  "warning": "Multiple trigger nodes found - only one will execute"
-}
-```
-
-**Fix**: Remove extra triggers or split into separate workflows
-
-#### 4. Disconnected Nodes
-```json
-{
-  "warning": "Node 'Transform' is not connected to workflow flow"
-}
-```
-
-**Fix**: Connect node or remove if unused
-
----
+## Error Type Taxonomy
+
+Frequency distribution from production telemetry:
+
+| Type | Frequency | Meaning | Fix Pattern |
+|------|-----------|---------|-------------|
+| `missing_required` | 45% | Required field not provided | Use `get_node` to discover required fields, then add them |
+| `invalid_value` | 28% | Value not in allowed set | Check error message for allowed values; enums are CASE-SENSITIVE |
+| `type_mismatch` | 12% | Wrong data type (string "100" vs number 100) | Match expected type exactly; "true" != true |
+| `invalid_expression` | 8% | Expression syntax error | Defer to n8n-expression-syntax skill |
+| `invalid_reference` | 5% | Referenced node does not exist | Check spelling, verify node exists, use cleanStaleConnections |
+| `operator_structure` | <2% | IF/Switch operator issues | Auto-fixed on save -- do nothing |
+
+**Conditional required fields trap:** Some fields are only required when another field is set. Example: `body` is required only when `sendBody: true`. The error message tells you which condition triggered the requirement -- read it.
+
+## Auto-Sanitization
+
+Runs automatically on every workflow create/update. Fixes operator structure issues without intervention.
+
+### What It Fixes (trust it, do not do manually)
+
+| Trigger | Operators | Action |
+|---------|-----------|--------|
+| Binary operators | equals, notEquals, contains, notContains, greaterThan, lessThan, startsWith, endsWith | REMOVES `singleValue` property (binary = two values) |
+| Unary operators | isEmpty, isNotEmpty, true, false | ADDS `singleValue: true` (unary = one value) |
+| IF v2.2+ / Switch v3.2+ | All conditional nodes at these versions | ADDS `conditions.options` metadata block |
+
+### What It CANNOT Fix (requires manual intervention)
+
+| Problem | Symptom | Solution |
+|---------|---------|----------|
+| Broken connections | References to deleted/renamed nodes | Use `cleanStaleConnections` operation |
+| Branch count mismatch | 3 Switch rules but 2 output connections | Add missing connections or remove extra rules |
+| Paradoxical corrupt state | API returns corrupt data but rejects updates | May require starting fresh or database intervention |
+
+**Rule of thumb:** If validation complains about singleValue or conditions.options, ignore it -- auto-sanitization handles it on save. If it complains about connections or references, you must fix manually.
+
+## False Positive Recognition
+
+Not all warnings need fixing. Context determines whether a warning is actionable.
+
+### When Warnings Are Acceptable
+
+| Warning | Acceptable When | Must Fix When |
+|---------|-----------------|---------------|
+| "Missing error handling" | Test/dev workflows, non-critical notifications, manual triggers | Production automation, critical data processing, payment flows |
+| "No retry logic" | Idempotent operations (GET), APIs with built-in retry (Stripe SDK), local/internal services | Flaky external APIs, non-idempotent POST to unreliable services |
+| "Missing rate limiting" | Internal APIs, low-volume workflows (daily cron), APIs with server-side 429 handling | High-volume loops hitting rate-limited public APIs (GitHub, Twitter) |
+| "Unbounded query" | Small known datasets (<100 rows), aggregation queries (COUNT/SUM), test databases | Production queries on tables that grow (users, orders, logs) |
+| "Missing input validation" | Internal webhooks (your backend already validates), cryptographically signed sources (Stripe webhooks) | Public-facing webhooks accepting untrusted input |
+
+### Known n8n False Positives (always ignore)
+
+| Issue | Warning Message | Why It Fires | Action |
+|-------|----------------|--------------|--------|
+| #304 | "IF node missing conditions.options metadata" | Validation runs before auto-sanitization adds metadata | Ignore -- fixed on save |
+| #306 | "Switch has N rules but N+1 output connections" | Fallback mode creates an extra output | Ignore if using fallback intentionally |
+| #338 | "Cannot validate credentials without execution context" | Credentials validated at runtime, not during static validation | Ignore -- checked when workflow executes |
+
+**Profile shortcut:** Switch to `ai-friendly` profile to suppress ~60% of false positives. Use this when building workflows to reduce noise, then validate with `runtime` or `strict` before deployment.
 
 ## Recovery Strategies
 
 ### Strategy 1: Start Fresh
-**When**: Configuration is severely broken
-
-**Steps**:
-1. Note required fields from `get_node`
-2. Create minimal valid configuration
-3. Add features incrementally
-4. Validate after each addition
+**When:** Configuration is severely broken with cascading errors.
+1. Use `get_node` to discover required fields for the node type
+2. Build minimal valid configuration (required fields only)
+3. Validate -> confirm clean
+4. Add features one at a time, validating after each addition
 
 ### Strategy 2: Binary Search
-**When**: Workflow validates but executes incorrectly
-
-**Steps**:
-1. Remove half the nodes
-2. Validate and test
-3. If works: problem is in removed nodes
-4. If fails: problem is in remaining nodes
-5. Repeat until problem isolated
+**When:** Workflow validates but executes incorrectly (the hardest bugs).
+1. Remove half the nodes from the workflow
+2. Validate and test execution
+3. If it works: problem is in the removed half
+4. If it fails: problem is in the remaining half
+5. Repeat until the broken node is isolated
 
 ### Strategy 3: Clean Stale Connections
-**When**: "Node not found" errors
+**When:** "Node not found" errors from deleted/renamed nodes.
+Use `n8n_update_partial_workflow` with `cleanStaleConnections` operation. This removes all connection references to non-existent nodes in one pass.
 
-**Steps**:
-```javascript
-n8n_update_partial_workflow({
-  id: "workflow-id",
-  operations: [{
-    type: "cleanStaleConnections"
-  }]
-})
+### Strategy 4: Autofix with Preview
+**When:** Operator structure errors persist despite auto-sanitization.
+1. Run `n8n_autofix_workflow` with `applyFixes: false` FIRST to preview what would change
+2. Review the proposed fixes
+3. If acceptable, run again with `applyFixes: true`
+Never apply autofix blindly -- preview mode exists for a reason.
+
+## NEVER
+
+1. **NEVER manually set `singleValue`** on operator conditions -- auto-sanitization manages this. Manual setting creates conflicts that produce worse errors than the original.
+2. **NEVER omit the `profile` parameter** from validation calls -- the default may not match your intent, leading to false confidence or unnecessary noise.
+3. **NEVER try to fix all validation errors at once** -- fix one, re-validate, fix next. Fixing multiple simultaneously often introduces new errors because fixes interact.
+4. **NEVER ignore error messages** and guess the fix -- the `message` and `fix` fields in validation results contain specific guidance. Read them.
+5. **NEVER use `strict` profile during development** -- the volume of warnings obscures real errors. Use `ai-friendly` or `runtime` until pre-deployment.
+6. **NEVER use `minimal` profile for pre-deployment validation** -- it only checks structure and misses value/type/reference errors that will fail at runtime.
+7. **NEVER assume validation passed without checking the `valid` field** -- a response with warnings but no errors is still valid:true, while even one error makes it valid:false.
+8. **NEVER manually add `conditions.options` metadata** to IF v2.2+ or Switch v3.2+ nodes -- auto-sanitization handles this. Manual additions may conflict with the auto-generated version.
+9. **NEVER apply `n8n_autofix_workflow` with `applyFixes: true` without previewing first** -- preview mode (applyFixes: false) shows what will change. Blind autofix can break working parts of the workflow.
+10. **NEVER ignore security warnings regardless of context** -- hardcoded credentials, SQL injection risks, and authentication bypasses must always be fixed, even in development.
+11. **NEVER treat warnings and errors the same** -- errors block execution (must fix), warnings are advisory (context-dependent). Treating all as blocking wastes effort; treating all as ignorable risks production failures.
+
+## Thinking Framework
+
+When encountering validation results:
+
 ```
+1. Is valid:true? -> Yes: review warnings by context, deploy if acceptable
+                  -> No: continue to step 2
 
-### Strategy 4: Use Auto-fix
-**When**: Operator structure errors
+2. How many errors? -> 1-2: fix directly using error message guidance
+                    -> 3+: consider Strategy 1 (start fresh with minimal config)
 
-**Steps**:
-```javascript
-n8n_autofix_workflow({
-  id: "workflow-id",
-  applyFixes: false  // Preview first
-})
+3. What error type?
+   - missing_required -> use get_node to find required fields
+   - invalid_value -> check allowed values in error message (case-sensitive!)
+   - type_mismatch -> match exact type (string vs number vs boolean)
+   - invalid_expression -> hand off to n8n-expression-syntax skill
+   - invalid_reference -> run cleanStaleConnections, then re-validate
+   - operator_structure -> ignore (auto-sanitization handles it)
 
-// Review fixes, then apply
-n8n_autofix_workflow({
-  id: "workflow-id",
-  applyFixes: true
-})
+4. After fixing, re-validate. Still failing?
+   - Same error -> re-read the error message more carefully
+   - New errors -> normal (fixing one can reveal others), continue iterating
+   - Paradoxical state -> try Strategy 4 (autofix preview) or Strategy 1 (start fresh)
+
+5. Warnings remaining after errors cleared?
+   - Security warnings -> always fix
+   - Known issues (#304, #306, #338) -> ignore
+   - Best practice warnings -> check false positive table for context
+   - Consider switching to ai-friendly profile if noise is overwhelming
 ```
-
----
-
-## Best Practices
-
-### ✅ Do
-
-- Validate after every significant change
-- Read error messages completely
-- Fix errors iteratively (one at a time)
-- Use `runtime` profile for pre-deployment
-- Check `valid` field before assuming success
-- Trust auto-sanitization for operator issues
-- Use `get_node` when unclear about requirements
-- Document false positives you accept
-
-### ❌ Don't
-
-- Skip validation before activation
-- Try to fix all errors at once
-- Ignore error messages
-- Use `strict` profile during development (too noisy)
-- Assume validation passed (always check result)
-- Manually fix auto-sanitization issues
-- Deploy with unresolved errors
-- Ignore all warnings (some are important!)
-
----
-
-## Detailed Guides
-
-For comprehensive error catalogs and false positive examples:
-
-- **[ERROR_CATALOG.md](ERROR_CATALOG.md)** - Complete list of error types with examples
-- **[FALSE_POSITIVES.md](FALSE_POSITIVES.md)** - When warnings are acceptable
-
----
-
-## Summary
-
-**Key Points**:
-1. **Validation is iterative** (avg 2-3 cycles, 23s + 58s)
-2. **Errors must be fixed**, warnings are optional
-3. **Auto-sanitization** fixes operator structures automatically
-4. **Use runtime profile** for balanced validation
-5. **False positives exist** - learn to recognize them
-6. **Read error messages** - they contain fix guidance
-
-**Validation Process**:
-1. Validate → Read errors → Fix → Validate again
-2. Repeat until valid (usually 2-3 iterations)
-3. Review warnings and decide if acceptable
-4. Deploy with confidence
-
-**Related Skills**:
-- n8n MCP Tools Expert - Use validation tools correctly
-- n8n Expression Syntax - Fix expression errors
-- n8n Node Configuration - Understand required fields

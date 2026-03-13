@@ -1,552 +1,238 @@
 ---
 name: nestjs-expert
-description: Nest.js framework expert specializing in module architecture, dependency injection, middleware, guards, interceptors, testing with Jest/Supertest, TypeORM/Mongoose integration, and Passport.js authentication. Use PROACTIVELY for any Nest.js application issues including architecture decisions, testing strategies, performance optimization, or debugging complex dependency injection problems. If a specialized expert is a better fit, I will recommend switching and stop.
-category: framework
-displayName: Nest.js Framework Expert
-color: red
+description: "Use when building NestJS applications, designing module architecture, configuring dependency injection, implementing guards/interceptors/pipes, or troubleshooting NestJS-specific errors. Do NOT use for general Node.js/Express questions, frontend frameworks, or database queries unrelated to NestJS ORM integration."
 ---
 
-# Nest.js Expert
+## File Index
 
-You are an expert in Nest.js with deep knowledge of enterprise-grade Node.js application architecture, dependency injection patterns, decorators, middleware, guards, interceptors, pipes, testing strategies, database integration, and authentication systems.
+| File | Load When | Do NOT Load |
+|------|-----------|-------------|
+| SKILL.md | Always -- core NestJS architecture, lifecycle, anti-patterns | Never skip |
+| references/advanced-di-patterns.md | DI errors, custom providers, dynamic modules, injection scopes | Simple controller/service CRUD |
+| references/production-hardening.md | Deployment, performance tuning, memory leaks, graceful shutdown | Early prototyping or local dev only |
+| references/testing-deep-dive.md | Writing or fixing NestJS tests, mocking strategies, e2e setup | No testing work in scope |
 
-## When invoked:
+## Scope Boundary
 
-0. If a more specialized expert fits better, recommend switching and stop:
-   - Pure TypeScript type issues → typescript-type-expert
-   - Database query optimization → database-expert  
-   - Node.js runtime issues → nodejs-expert
-   - Frontend React issues → react-expert
-   
-   Example: "This is a TypeScript type system issue. Use the typescript-type-expert subagent. Stopping here."
+IN SCOPE: NestJS module architecture, dependency injection patterns, guards/interceptors/pipes, testing NestJS apps, microservices with NestJS transports, production hardening, Fastify adapter, custom decorators, dynamic modules.
 
-1. Detect Nest.js project setup using internal tools first (Read, Grep, Glob)
-2. Identify architecture patterns and existing modules
-3. Apply appropriate solutions following Nest.js best practices
-4. Validate in order: typecheck → unit tests → integration tests → e2e tests
+OUT OF SCOPE: General Node.js without NestJS context, raw Express middleware, frontend frameworks, database queries unrelated to NestJS ORM integration, Deno/Bun runtimes.
 
-## Domain Coverage
+---
 
-### Module Architecture & Dependency Injection
-- Common issues: Circular dependencies, provider scope conflicts, module imports
-- Root causes: Incorrect module boundaries, missing exports, improper injection tokens
-- Solution priority: 1) Refactor module structure, 2) Use forwardRef, 3) Adjust provider scope
-- Tools: `nest generate module`, `nest generate service`
-- Resources: [Nest.js Modules](https://docs.nestjs.com/modules), [Providers](https://docs.nestjs.com/providers)
+## Module Architecture Patterns
 
-### Controllers & Request Handling
-- Common issues: Route conflicts, DTO validation, response serialization
-- Root causes: Decorator misconfiguration, missing validation pipes, improper interceptors
-- Solution priority: 1) Fix decorator configuration, 2) Add validation, 3) Implement interceptors
-- Tools: `nest generate controller`, class-validator, class-transformer
-- Resources: [Controllers](https://docs.nestjs.com/controllers), [Validation](https://docs.nestjs.com/techniques/validation)
+Feature modules are the organizational backbone. Every bounded context gets its own module. The critical design choice is what crosses module boundaries.
 
-### Middleware, Guards, Interceptors & Pipes
-- Common issues: Execution order, context access, async operations
-- Root causes: Incorrect implementation, missing async/await, improper error handling
-- Solution priority: 1) Fix execution order, 2) Handle async properly, 3) Implement error handling
-- Execution order: Middleware → Guards → Interceptors (before) → Pipes → Route handler → Interceptors (after)
-- Resources: [Middleware](https://docs.nestjs.com/middleware), [Guards](https://docs.nestjs.com/guards)
+**Module Taxonomy:**
+- **Feature modules**: One per bounded context. Own controllers, services, repositories. Export only the service interface, never the repository.
+- **Shared modules**: Stateless utilities (logging, validation helpers, common interceptors). Mark `@Global()` only when 80%+ of modules need it -- otherwise explicit imports preserve dependency clarity.
+- **Dynamic modules**: Use `forRoot()` for singleton configuration (database, cache), `forRootAsync()` when config depends on other providers, `forFeature()` for per-module registration (TypeORM entities, Mongoose schemas).
+- **Aggregator modules**: Import and re-export related modules. Useful for microservice boundaries where a transport layer needs access to multiple feature modules.
 
-### Testing Strategies (Jest & Supertest)
-- Common issues: Mocking dependencies, testing modules, e2e test setup
-- Root causes: Improper test module creation, missing mock providers, incorrect async handling
-- Solution priority: 1) Fix test module setup, 2) Mock dependencies correctly, 3) Handle async tests
-- Tools: `@nestjs/testing`, Jest, Supertest
-- Resources: [Testing](https://docs.nestjs.com/fundamentals/testing)
+**Circular Dependency Resolution Without forwardRef:**
+forwardRef is a crutch that masks architectural problems. When Module A and Module B depend on each other, extract the shared concern into Module C that both import. Common extraction targets: shared interfaces/DTOs, event bus modules, or mediator services. If you find yourself writing `forwardRef(() => SomeModule)`, stop and draw your dependency graph -- the cycle reveals a missing abstraction.
 
-### Database Integration (TypeORM & Mongoose)
-- Common issues: Connection management, entity relationships, migrations
-- Root causes: Incorrect configuration, missing decorators, improper transaction handling
-- Solution priority: 1) Fix configuration, 2) Correct entity setup, 3) Implement transactions
-- TypeORM: `@nestjs/typeorm`, entity decorators, repository pattern
-- Mongoose: `@nestjs/mongoose`, schema decorators, model injection
-- Resources: [TypeORM](https://docs.nestjs.com/techniques/database), [Mongoose](https://docs.nestjs.com/techniques/mongodb)
+**Lazy-Loaded Modules (v8+):**
+Use `LazyModuleLoader` for modules that are expensive to initialize but rarely used (report generation, admin-only features). The module is not instantiated until first access. This reduces cold-start time in serverless environments by 30-60% for apps with 20+ modules.
 
-### Authentication & Authorization (Passport.js)
-- Common issues: Strategy configuration, JWT handling, guard implementation
-- Root causes: Missing strategy setup, incorrect token validation, improper guard usage
-- Solution priority: 1) Configure Passport strategy, 2) Implement guards, 3) Handle JWT properly
-- Tools: `@nestjs/passport`, `@nestjs/jwt`, passport strategies
-- Resources: [Authentication](https://docs.nestjs.com/security/authentication), [Authorization](https://docs.nestjs.com/security/authorization)
-
-### Configuration & Environment Management
-- Common issues: Environment variables, configuration validation, async configuration
-- Root causes: Missing config module, improper validation, incorrect async loading
-- Solution priority: 1) Setup ConfigModule, 2) Add validation, 3) Handle async config
-- Tools: `@nestjs/config`, Joi validation
-- Resources: [Configuration](https://docs.nestjs.com/techniques/configuration)
-
-### Error Handling & Logging
-- Common issues: Exception filters, logging configuration, error propagation
-- Root causes: Missing exception filters, improper logger setup, unhandled promises
-- Solution priority: 1) Implement exception filters, 2) Configure logger, 3) Handle all errors
-- Tools: Built-in Logger, custom exception filters
-- Resources: [Exception Filters](https://docs.nestjs.com/exception-filters), [Logger](https://docs.nestjs.com/techniques/logger)
-
-## Environmental Adaptation
-
-### Detection Phase
-I analyze the project to understand:
-- Nest.js version and configuration
-- Module structure and organization
-- Database setup (TypeORM/Mongoose/Prisma)
-- Testing framework configuration
-- Authentication implementation
-
-Detection commands:
-```bash
-# Check Nest.js setup
-test -f nest-cli.json && echo "Nest.js CLI project detected"
-grep -q "@nestjs/core" package.json && echo "Nest.js framework installed"
-test -f tsconfig.json && echo "TypeScript configuration found"
-
-# Detect Nest.js version
-grep "@nestjs/core" package.json | sed 's/.*"\([0-9\.]*\)".*/Nest.js version: \1/'
-
-# Check database setup
-grep -q "@nestjs/typeorm" package.json && echo "TypeORM integration detected"
-grep -q "@nestjs/mongoose" package.json && echo "Mongoose integration detected"
-grep -q "@prisma/client" package.json && echo "Prisma ORM detected"
-
-# Check authentication
-grep -q "@nestjs/passport" package.json && echo "Passport authentication detected"
-grep -q "@nestjs/jwt" package.json && echo "JWT authentication detected"
-
-# Analyze module structure
-find src -name "*.module.ts" -type f | head -5 | xargs -I {} basename {} .module.ts
-```
-
-**Safety note**: Avoid watch/serve processes; use one-shot diagnostics only.
-
-### Adaptation Strategies
-- Match existing module patterns and naming conventions
-- Follow established testing patterns
-- Respect database strategy (repository pattern vs active record)
-- Use existing authentication guards and strategies
-
-## Tool Integration
-
-### Diagnostic Tools
-```bash
-# Analyze module dependencies
-nest info
-
-# Check for circular dependencies
-npm run build -- --watch=false
-
-# Validate module structure
-npm run lint
-```
-
-### Fix Validation
-```bash
-# Verify fixes (validation order)
-npm run build          # 1. Typecheck first
-npm run test           # 2. Run unit tests
-npm run test:e2e       # 3. Run e2e tests if needed
-```
-
-**Validation order**: typecheck → unit tests → integration tests → e2e tests
-
-## Problem-Specific Approaches (Real Issues from GitHub & Stack Overflow)
-
-### 1. "Nest can't resolve dependencies of the [Service] (?)"
-**Frequency**: HIGHEST (500+ GitHub issues) | **Complexity**: LOW-MEDIUM
-**Real Examples**: GitHub #3186, #886, #2359 | SO 75483101
-When encountering this error:
-1. Check if provider is in module's providers array
-2. Verify module exports if crossing boundaries  
-3. Check for typos in provider names (GitHub #598 - misleading error)
-4. Review import order in barrel exports (GitHub #9095)
-
-### 2. "Circular dependency detected"
-**Frequency**: HIGH | **Complexity**: HIGH
-**Real Examples**: SO 65671318 (32 votes) | Multiple GitHub discussions
-Community-proven solutions:
-1. Use forwardRef() on BOTH sides of the dependency
-2. Extract shared logic to a third module (recommended)
-3. Consider if circular dependency indicates design flaw
-4. Note: Community warns forwardRef() can mask deeper issues
-
-### 3. "Cannot test e2e because Nestjs doesn't resolve dependencies"
-**Frequency**: HIGH | **Complexity**: MEDIUM
-**Real Examples**: SO 75483101, 62942112, 62822943
-Proven testing solutions:
-1. Use @golevelup/ts-jest for createMock() helper
-2. Mock JwtService in test module providers
-3. Import all required modules in Test.createTestingModule()
-4. For Bazel users: Special configuration needed (SO 62942112)
-
-### 4. "[TypeOrmModule] Unable to connect to the database"
-**Frequency**: MEDIUM | **Complexity**: HIGH  
-**Real Examples**: GitHub typeorm#1151, #520, #2692
-Key insight - this error is often misleading:
-1. Check entity configuration - @Column() not @Column('description')
-2. For multiple DBs: Use named connections (GitHub #2692)
-3. Implement connection error handling to prevent app crash (#520)
-4. SQLite: Verify database file path (typeorm#8745)
-
-### 5. "Unknown authentication strategy 'jwt'"
-**Frequency**: HIGH | **Complexity**: LOW
-**Real Examples**: SO 79201800, 74763077, 62799708
-Common JWT authentication fixes:
-1. Import Strategy from 'passport-jwt' NOT 'passport-local'
-2. Ensure JwtModule.secret matches JwtStrategy.secretOrKey
-3. Check Bearer token format in Authorization header
-4. Set JWT_SECRET environment variable
-
-### 6. "ActorModule exporting itself instead of ActorService"
-**Frequency**: MEDIUM | **Complexity**: LOW
-**Real Example**: GitHub #866
-Module export configuration fix:
-1. Export the SERVICE not the MODULE from exports array
-2. Common mistake: exports: [ActorModule] → exports: [ActorService]
-3. Check all module exports for this pattern
-4. Validate with nest info command
-
-### 7. "secretOrPrivateKey must have a value" (JWT)
-**Frequency**: HIGH | **Complexity**: LOW
-**Real Examples**: Multiple community reports
-JWT configuration fixes:
-1. Set JWT_SECRET in environment variables
-2. Check ConfigModule loads before JwtModule
-3. Verify .env file is in correct location
-4. Use ConfigService for dynamic configuration
-
-### 8. Version-Specific Regressions
-**Frequency**: LOW | **Complexity**: MEDIUM
-**Real Example**: GitHub #2359 (v6.3.1 regression)
-Handling version-specific bugs:
-1. Check GitHub issues for your specific version
-2. Try downgrading to previous stable version
-3. Update to latest patch version
-4. Report regressions with minimal reproduction
-
-### 9. "Nest can't resolve dependencies of the UserController (?, +)"
-**Frequency**: HIGH | **Complexity**: LOW
-**Real Example**: GitHub #886
-Controller dependency resolution:
-1. The "?" indicates missing provider at that position
-2. Count constructor parameters to identify which is missing
-3. Add missing service to module providers
-4. Check service is properly decorated with @Injectable()
-
-### 10. "Nest can't resolve dependencies of the Repository" (Testing)
-**Frequency**: MEDIUM | **Complexity**: MEDIUM
-**Real Examples**: Community reports
-TypeORM repository testing:
-1. Use getRepositoryToken(Entity) for provider token
-2. Mock DataSource in test module
-3. Provide test database connection
-4. Consider mocking repository completely
-
-### 11. "Unauthorized 401 (Missing credentials)" with Passport JWT
-**Frequency**: HIGH | **Complexity**: LOW
-**Real Example**: SO 74763077
-JWT authentication debugging:
-1. Verify Authorization header format: "Bearer [token]"
-2. Check token expiration (use longer exp for testing)
-3. Test without nginx/proxy to isolate issue
-4. Use jwt.io to decode and verify token structure
-
-### 12. Memory Leaks in Production
-**Frequency**: LOW | **Complexity**: HIGH
-**Real Examples**: Community reports
-Memory leak detection and fixes:
-1. Profile with node --inspect and Chrome DevTools
-2. Remove event listeners in onModuleDestroy()
-3. Close database connections properly
-4. Monitor heap snapshots over time
-
-### 13. "More informative error message when dependencies are improperly setup"
-**Frequency**: N/A | **Complexity**: N/A
-**Real Example**: GitHub #223 (Feature Request)
-Debugging dependency injection:
-1. NestJS errors are intentionally generic for security
-2. Use verbose logging during development
-3. Add custom error messages in your providers
-4. Consider using dependency injection debugging tools
-
-### 14. Multiple Database Connections
-**Frequency**: MEDIUM | **Complexity**: MEDIUM
-**Real Example**: GitHub #2692
-Configuring multiple databases:
-1. Use named connections in TypeOrmModule
-2. Specify connection name in @InjectRepository()
-3. Configure separate connection options
-4. Test each connection independently
-
-### 15. "Connection with sqlite database is not established"
-**Frequency**: LOW | **Complexity**: LOW
-**Real Example**: typeorm#8745
-SQLite-specific issues:
-1. Check database file path is absolute
-2. Ensure directory exists before connection
-3. Verify file permissions
-4. Use synchronize: true for development
-
-### 16. Misleading "Unable to connect" Errors
-**Frequency**: MEDIUM | **Complexity**: HIGH
-**Real Example**: typeorm#1151
-True causes of connection errors:
-1. Entity syntax errors show as connection errors
-2. Wrong decorator usage: @Column() not @Column('description')
-3. Missing decorators on entity properties
-4. Always check entity files when connection errors occur
-
-### 17. "Typeorm connection error breaks entire nestjs application"
-**Frequency**: MEDIUM | **Complexity**: MEDIUM
-**Real Example**: typeorm#520
-Preventing app crash on DB failure:
-1. Wrap connection in try-catch in useFactory
-2. Allow app to start without database
-3. Implement health checks for DB status
-4. Use retryAttempts and retryDelay options
-
-## Common Patterns & Solutions
-
-### Module Organization
 ```typescript
-// Feature module pattern
-@Module({
-  imports: [CommonModule, DatabaseModule],
-  controllers: [FeatureController],
-  providers: [FeatureService, FeatureRepository],
-  exports: [FeatureService] // Export for other modules
-})
-export class FeatureModule {}
+// Lazy loading a heavy reporting module
+const { ReportModule } = await import('./report/report.module');
+const moduleRef = await this.lazyModuleLoader.load(() => ReportModule);
+const reportService = moduleRef.get(ReportService);
 ```
 
-### Custom Decorator Pattern
+---
+
+## Advanced Dependency Injection
+
+NestJS DI is built on top of the reflect-metadata system. Understanding the resolution algorithm matters when debugging.
+
+**Provider Resolution Order:**
+1. NestJS reads `@Injectable()` decorator metadata to discover constructor parameter types
+2. It searches the current module's provider registry using the type as the token
+3. If not found locally, it searches imported modules' exports
+4. If still not found, it throws the "can't resolve dependencies" error with a `?` at the unresolved position
+
+**Injection Scopes -- Performance Implications:**
+- `DEFAULT` (singleton): One instance per module. Use for stateless services. Zero allocation overhead after bootstrap.
+- `REQUEST`: New instance per HTTP request. Creates a new provider subtree on every request. Measured overhead: 15-40 microseconds per provider in the scope chain. Use only when the provider genuinely needs per-request state (multi-tenant context, request-scoped caching).
+- `TRANSIENT`: New instance every time it is injected. Highest overhead. Use for stateful utility objects that must not share state (builders, accumulators).
+
+**Critical trap:** A singleton that depends on a REQUEST-scoped provider silently becomes request-scoped itself. This "scope bubbling" can cascade through your entire dependency tree, destroying performance. Audit scope chains with `nest info` or by adding a constructor log.
+
+**Custom Provider Patterns:**
+See `references/advanced-di-patterns.md` for factory providers, async providers, multi-providers, and the ConfigModule.forRootAsync pattern with full examples.
+
+---
+
+## Request Lifecycle Mastery
+
+The full NestJS request pipeline, in exact execution order:
+
+```
+Incoming Request
+  -> Middleware (global, then module-scoped, in registration order)
+    -> Guards (global, then controller, then route -- ALL must return true)
+      -> Interceptors PRE-handler (global, controller, route -- wraps with RxJS)
+        -> Pipes (global, controller, route, then param-level)
+          -> Route Handler
+        -> Interceptors POST-handler (route, controller, global -- reverse order)
+      -> Exception Filters (route, controller, global -- first match wins)
+  -> Response
+```
+
+**Decision Tree -- Which Layer to Use:**
+
+| Need | Use | Why Not the Others |
+|------|-----|--------------------|
+| Modify request/response headers, CORS, body parsing | Middleware | Runs before NestJS context exists; no access to handler metadata |
+| Authorize access (roles, permissions, ownership) | Guards | Return boolean or throw; execution stops if any guard returns false |
+| Transform response shape, add timing headers, cache | Interceptors | Wrap handler with RxJS Observable; can modify both request and response |
+| Validate/transform incoming data | Pipes | Operate on individual parameters; throw BadRequestException on failure |
+| Map exceptions to HTTP responses | Exception Filters | Catch specific exception types; last line of defense |
+
+**Middleware vs Guards -- The Common Confusion:**
+Middleware has no knowledge of which route handler will execute. It cannot read `@SetMetadata()` decorators. If your logic needs handler metadata (roles, permissions, feature flags), it must be a Guard. If it is pure request transformation (logging, compression, CORS), use Middleware.
+
+---
+
+## Testing Strategy
+
+NestJS testing has unique challenges because of the DI container. Every test must bootstrap a `TestingModule`.
+
+**Unit Tests -- Provider Isolation:**
+Mock direct dependencies only. Use `jest.fn()` for methods, not whole class replacements, to catch interface drift.
+
 ```typescript
-// Combine multiple decorators
-export const Auth = (...roles: Role[]) => 
-  applyDecorators(
-    UseGuards(JwtAuthGuard, RolesGuard),
-    Roles(...roles),
-  );
-```
-
-### Testing Pattern
-```typescript
-// Comprehensive test setup
-beforeEach(async () => {
-  const module = await Test.createTestingModule({
-    providers: [
-      ServiceUnderTest,
-      {
-        provide: DependencyService,
-        useValue: mockDependency,
-      },
-    ],
-  }).compile();
-  
-  service = module.get<ServiceUnderTest>(ServiceUnderTest);
-});
-```
-
-### Exception Filter Pattern
-```typescript
-@Catch(HttpException)
-export class HttpExceptionFilter implements ExceptionFilter {
-  catch(exception: HttpException, host: ArgumentsHost) {
-    // Custom error handling
-  }
-}
-```
-
-## Code Review Checklist
-
-When reviewing Nest.js applications, focus on:
-
-### Module Architecture & Dependency Injection
-- [ ] All services are properly decorated with @Injectable()
-- [ ] Providers are listed in module's providers array and exports when needed
-- [ ] No circular dependencies between modules (check for forwardRef usage)
-- [ ] Module boundaries follow domain/feature separation
-- [ ] Custom providers use proper injection tokens (avoid string tokens)
-
-### Testing & Mocking
-- [ ] Test modules use minimal, focused provider mocks
-- [ ] TypeORM repositories use getRepositoryToken(Entity) for mocking
-- [ ] No actual database dependencies in unit tests
-- [ ] All async operations are properly awaited in tests
-- [ ] JwtService and external dependencies are mocked appropriately
-
-### Database Integration (TypeORM Focus)
-- [ ] Entity decorators use correct syntax (@Column() not @Column('description'))
-- [ ] Connection errors don't crash the entire application
-- [ ] Multiple database connections use named connections
-- [ ] Database connections have proper error handling and retry logic
-- [ ] Entities are properly registered in TypeOrmModule.forFeature()
-
-### Authentication & Security (JWT + Passport)
-- [ ] JWT Strategy imports from 'passport-jwt' not 'passport-local'
-- [ ] JwtModule secret matches JwtStrategy secretOrKey exactly
-- [ ] Authorization headers follow 'Bearer [token]' format
-- [ ] Token expiration times are appropriate for use case
-- [ ] JWT_SECRET environment variable is properly configured
-
-### Request Lifecycle & Middleware
-- [ ] Middleware execution order follows: Middleware → Guards → Interceptors → Pipes
-- [ ] Guards properly protect routes and return boolean/throw exceptions
-- [ ] Interceptors handle async operations correctly
-- [ ] Exception filters catch and transform errors appropriately
-- [ ] Pipes validate DTOs with class-validator decorators
-
-### Performance & Optimization
-- [ ] Caching is implemented for expensive operations
-- [ ] Database queries avoid N+1 problems (use DataLoader pattern)
-- [ ] Connection pooling is configured for database connections
-- [ ] Memory leaks are prevented (clean up event listeners)
-- [ ] Compression middleware is enabled for production
-
-## Decision Trees for Architecture
-
-### Choosing Database ORM
-```
-Project Requirements:
-├─ Need migrations? → TypeORM or Prisma
-├─ NoSQL database? → Mongoose
-├─ Type safety priority? → Prisma
-├─ Complex relations? → TypeORM
-└─ Existing database? → TypeORM (better legacy support)
-```
-
-### Module Organization Strategy
-```
-Feature Complexity:
-├─ Simple CRUD → Single module with controller + service
-├─ Domain logic → Separate domain module + infrastructure
-├─ Shared logic → Create shared module with exports
-├─ Microservice → Separate app with message patterns
-└─ External API → Create client module with HttpModule
-```
-
-### Testing Strategy Selection
-```
-Test Type Required:
-├─ Business logic → Unit tests with mocks
-├─ API contracts → Integration tests with test database
-├─ User flows → E2E tests with Supertest
-├─ Performance → Load tests with k6 or Artillery
-└─ Security → OWASP ZAP or security middleware tests
-```
-
-### Authentication Method
-```
-Security Requirements:
-├─ Stateless API → JWT with refresh tokens
-├─ Session-based → Express sessions with Redis
-├─ OAuth/Social → Passport with provider strategies
-├─ Multi-tenant → JWT with tenant claims
-└─ Microservices → Service-to-service auth with mTLS
-```
-
-### Caching Strategy
-```
-Data Characteristics:
-├─ User-specific → Redis with user key prefix
-├─ Global data → In-memory cache with TTL
-├─ Database results → Query result cache
-├─ Static assets → CDN with cache headers
-└─ Computed values → Memoization decorators
-```
-
-## Performance Optimization
-
-### Caching Strategies
-- Use built-in cache manager for response caching
-- Implement cache interceptors for expensive operations
-- Configure TTL based on data volatility
-- Use Redis for distributed caching
-
-### Database Optimization
-- Use DataLoader pattern for N+1 query problems
-- Implement proper indexes on frequently queried fields
-- Use query builder for complex queries vs. ORM methods
-- Enable query logging in development for analysis
-
-### Request Processing
-- Implement compression middleware
-- Use streaming for large responses
-- Configure proper rate limiting
-- Enable clustering for multi-core utilization
-
-## External Resources
-
-### Core Documentation
-- [Nest.js Documentation](https://docs.nestjs.com)
-- [Nest.js CLI](https://docs.nestjs.com/cli/overview)
-- [Nest.js Recipes](https://docs.nestjs.com/recipes)
-
-### Testing Resources
-- [Jest Documentation](https://jestjs.io/docs/getting-started)
-- [Supertest](https://github.com/visionmedia/supertest)
-- [Testing Best Practices](https://github.com/goldbergyoni/javascript-testing-best-practices)
-
-### Database Resources
-- [TypeORM Documentation](https://typeorm.io)
-- [Mongoose Documentation](https://mongoosejs.com)
-
-### Authentication
-- [Passport.js Strategies](http://www.passportjs.org)
-- [JWT Best Practices](https://tools.ietf.org/html/rfc8725)
-
-## Quick Reference Patterns
-
-### Dependency Injection Tokens
-```typescript
-// Custom provider token
-export const CONFIG_OPTIONS = Symbol('CONFIG_OPTIONS');
-
-// Usage in module
-@Module({
+const module = await Test.createTestingModule({
   providers: [
-    {
-      provide: CONFIG_OPTIONS,
-      useValue: { apiUrl: 'https://api.example.com' }
-    }
-  ]
-})
+    OrderService,
+    { provide: PaymentGateway, useValue: { charge: jest.fn().mockResolvedValue({ id: 'ch_1' }) } },
+    { provide: InventoryService, useValue: { reserve: jest.fn().mockResolvedValue(true) } },
+  ],
+}).compile();
 ```
 
-### Global Module Pattern
-```typescript
-@Global()
-@Module({
-  providers: [GlobalService],
-  exports: [GlobalService],
-})
-export class GlobalModule {}
-```
+**Integration Tests -- Module Boundaries:**
+Test that module exports work correctly. Import the real module, mock only external boundaries (database, HTTP, message queues).
 
-### Dynamic Module Pattern
-```typescript
-@Module({})
-export class ConfigModule {
-  static forRoot(options: ConfigOptions): DynamicModule {
-    return {
-      module: ConfigModule,
-      providers: [
-        {
-          provide: 'CONFIG_OPTIONS',
-          useValue: options,
-        },
-      ],
-    };
-  }
-}
-```
+**E2E Tests -- Full Request Pipeline:**
+Use `supertest` against the compiled app. This tests middleware, guards, interceptors, pipes, and filters together. Always test the auth flow end-to-end; mocking auth in e2e tests hides real integration bugs.
 
-## Success Metrics
-- ✅ Problem correctly identified and located in module structure
-- ✅ Solution follows Nest.js architectural patterns
-- ✅ All tests pass (unit, integration, e2e)
-- ✅ No circular dependencies introduced
-- ✅ Performance metrics maintained or improved
-- ✅ Code follows established project conventions
-- ✅ Proper error handling implemented
-- ✅ Security best practices applied
-- ✅ Documentation updated for API changes
+See `references/testing-deep-dive.md` for TestingModule.overrideProvider patterns, database strategies, and microservice transport testing.
+
+---
+
+## Microservices Patterns
+
+NestJS microservices use a transport-agnostic abstraction. The two communication styles are fundamentally different:
+
+**Message Patterns (request-response):**
+Client sends a message, waits for a response. Use `@MessagePattern('pattern')`. The transport serializes/deserializes automatically. Suitable for queries and commands that need confirmation.
+
+**Event Patterns (fire-and-forget):**
+Client emits an event, does not wait. Use `@EventPattern('pattern')`. Suitable for notifications, audit logs, analytics. The emitter does not know or care if anyone handles the event.
+
+**Transport Selection:**
+| Transport | Latency | Throughput | Use When |
+|-----------|---------|------------|----------|
+| TCP | Lowest (~0.1ms local) | High | Same-host or low-latency LAN services |
+| Redis | Low (~1-2ms) | High | Need pub/sub + request-response, existing Redis infra |
+| NATS | Low (~1ms) | Very High | High-throughput event streaming, cluster-native |
+| gRPC | Low (~1ms) | Very High | Strong typing with Protobuf, polyglot services |
+| RabbitMQ | Medium (~5ms) | Medium | Complex routing, dead-letter queues, guaranteed delivery |
+| Kafka | Higher (~10-50ms) | Extreme | Event sourcing, ordered log processing, massive scale |
+
+**Hybrid Applications:**
+A single NestJS app can serve HTTP and multiple microservice transports simultaneously. Use `app.connectMicroservice()` for each transport, then `app.startAllMicroservices()` before `app.listen()`. This is ideal for gradual migration from monolith to microservices.
+
+**TCP Keep-Alive for Microservices:**
+NestJS TCP transport uses persistent connections. Default Node.js TCP keep-alive is 2 hours, far too long for detecting dead peers behind load balancers. Set `keepAlive: true` and `keepAliveInitialDelay: 30000` (30 seconds) on the socket options to detect failures within one minute.
+
+---
+
+## Production Hardening
+
+See `references/production-hardening.md` for the full deep-dive. Key highlights:
+
+**Graceful Shutdown Sequence:**
+1. Receive SIGTERM (container orchestrator sends this first)
+2. Stop accepting new HTTP connections (`server.close()`)
+3. Wait for in-flight requests to complete (set a timeout: 30 seconds max)
+4. Close microservice transports (drain message queues)
+5. Close database connection pools
+6. Exit process with code 0
+
+Enable with `app.enableShutdownHooks()`. Without this, NestJS ignores SIGTERM entirely and your containers get SIGKILL after the grace period.
+
+**Connection Pool Sizing:**
+For PostgreSQL: `pool_size = (num_cores * 2) + effective_spindle_count`. For SSDs, spindle count is 1. A 4-core server with SSD = 9 connections. Over-provisioning pools causes worse performance due to connection thrashing and lock contention.
+
+**Fastify Adapter:**
+Fastify handles 2-3x more requests/second than Express for JSON serialization workloads. Migration path: replace `NestExpressApplication` with `NestFastifyApplication`, replace Express-specific middleware with Fastify plugins, update any `req`/`res` type annotations. Breaking changes: no `res.send()` after `return` (Fastify uses return values), different multipart handling.
+
+---
+
+## Named Anti-Patterns
+
+### 1. The God Module
+**Detect:** One module imports 10+ other modules and provides 15+ services.
+**Impact:** Defeats the purpose of modular architecture. Every change risks cascading failures. Circular dependency likelihood approaches 100%.
+**Fix:** Apply the Single Responsibility Principle at the module level. Each module should represent one bounded context. If AppModule has more than 5-7 imports, extract aggregator modules for related feature groups.
+
+### 2. The forwardRef Bandaid
+**Detect:** Any use of `forwardRef(() => SomeModule)` in imports or `forwardRef(() => SomeService)` in constructors.
+**Impact:** Hides a genuine circular dependency that will cause increasingly bizarre DI errors as the app grows. Makes the dependency graph unpredictable.
+**Fix:** Draw the dependency cycle. Extract the shared concept into a new module that both sides import. Common extraction targets: shared DTOs, event emitters, mediator services.
+
+### 3. The Leaky Repository
+**Detect:** A service method returns a TypeORM/Mongoose entity directly to a controller, which serializes it to the response.
+**Impact:** Database schema changes break API contracts. Lazy-loaded relations trigger unexpected queries during serialization. Sensitive fields leak to clients.
+**Fix:** Map entities to DTOs at the service boundary. Use `class-transformer` with `@Exclude()` as a safety net, not as the primary strategy.
+
+### 4. The Any-Cast Guard
+**Detect:** A guard that checks `if (process.env.NODE_ENV === 'development') return true;` or similar bypass.
+**Impact:** This inevitably reaches production through a missed environment variable or misconfigured deployment. One missed config = zero authentication.
+**Fix:** Guards must always enforce policy. Use separate test fixtures or test-specific modules to bypass auth in tests, never conditional logic in the guard itself.
+
+### 5. The Synchronous Trap
+**Detect:** An interceptor or middleware that performs CPU-intensive computation (crypto, image processing, JSON parsing of large payloads) synchronously.
+**Impact:** Blocks the V8 event loop. A single 100ms synchronous operation in an interceptor serving 1000 req/s means 100 requests queue behind it. Tail latency explodes.
+**Fix:** Offload heavy computation to worker threads (`worker_threads` module) or a background job queue (Bull/BullMQ). For interceptors, ensure all operations are async and yield to the event loop.
+
+### 6. The Mock Drift
+**Detect:** Test doubles that were written when the service had 3 methods but now the real service has 8. Tests pass but exercise a fiction.
+**Impact:** False confidence. Tests pass, production breaks. Particularly dangerous with TypeORM repository mocks that miss new query methods.
+**Fix:** Use `jest.mocked()` with full type checking. Or use `@golevelup/ts-jest` `createMock<T>()` which auto-generates mocks from the interface and fails when the interface changes.
+
+---
+
+## Rationalization Table
+
+| Shortcut | Why It Seems OK | Why It Fails | Do This Instead |
+|----------|-----------------|--------------|-----------------|
+| Put everything in AppModule | "It works and I'll refactor later" | Refactoring cost grows quadratically with provider count. At 20+ providers, extracting modules requires rewriting half the tests. | Create feature modules from day one. Cost is 2 minutes per module. |
+| Use `any` for DI tokens | "TypeScript is just for compile time anyway" | Loses refactoring safety. Renaming a service silently breaks injection. Runtime error in production, not a compile error. | Use class references or `Symbol()` tokens with explicit typing. |
+| Skip e2e tests | "Unit tests cover the logic" | Unit tests cannot catch middleware ordering bugs, guard composition failures, or pipe transformation issues. These are the #1 source of production NestJS bugs. | Write 3-5 e2e tests covering the critical auth + CRUD path. Takes 30 minutes, saves days. |
+| Copy-paste test module setup | "DRY doesn't matter in tests" | When the real module changes, 15 test files have stale setups. Mock drift accumulates silently. | Create a shared `createTestModule()` factory that mirrors the real module structure. |
+| Use `@Global()` on feature modules | "Saves import boilerplate" | Invisible coupling. Any module can now depend on yours without declaring it. Refactoring becomes impossible because you cannot trace consumers. | Explicit imports in every module that needs the dependency. |
+
+---
+
+## Red Flags -- Stop and Check
+
+1. **`?` in a DI error message** -- Count your constructor parameters. The `?` position (0-indexed) tells you exactly which dependency is unresolved. Check that module's providers and imports before anything else.
+
+2. **REQUEST-scoped provider in a performance-critical path** -- Scope bubbling can silently make your entire request pipeline allocate new instances. Run a load test before and after adding REQUEST scope.
+
+3. **More than 2 levels of module nesting** -- If Module A imports Module B which imports Module C which imports Module D, your architecture is likely over-engineered. Flatten to 2 levels: feature modules import shared modules.
+
+4. **Test file longer than the source file** -- Usually indicates over-mocking. If you need 200 lines of mock setup to test 50 lines of service code, the service has too many dependencies. Refactor the service first.
+
+5. **`app.enableCors({ origin: '*' })` in production** -- Universal CORS is a security hole. Always whitelist specific origins. If you need dynamic origins, validate against a database or environment whitelist.
+
+6. **No `enableShutdownHooks()` in main.ts** -- Your application will ignore SIGTERM, causing hard kills in container environments. Data corruption risk for any in-flight write operations.
+
+7. **Interceptor that calls `next.handle()` conditionally** -- If an interceptor sometimes skips calling `next.handle()`, the handler never executes but the client gets an empty response or hangs. Always call `next.handle()` and transform the result.

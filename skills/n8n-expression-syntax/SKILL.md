@@ -1,516 +1,320 @@
 ---
 name: n8n-expression-syntax
-description: Validate n8n expression syntax and fix common errors. Use when writing n8n expressions, using {{}} syntax, accessing $json/$node variables, troubleshooting expression errors, or working with webhook data in workflows.
+description: "Use when writing n8n expressions in node fields, using {{}} syntax with
+  $json/$node/$now variables, or troubleshooting expressions showing as literal text.
+  NEVER for Code node JavaScript (use n8n-code-javascript) or Python (use n8n-code-python)."
 ---
 
 # n8n Expression Syntax
 
-Expert guide for writing correct n8n expressions in workflows.
+## The Expression Model
 
----
+n8n has TWO field modes. Expressions behave differently in each.
 
-## Expression Format
-
-All dynamic content in n8n uses **double curly braces**:
-
+### Text Mode Fields (message bodies, descriptions, rich text)
+Expressions go inline. No prefix needed.
 ```
-{{expression}}
+Hello {{$json.body.name}}, your order is confirmed.
 ```
+Adjacent text and expressions auto-concatenate. No JS template literals, no + operator.
 
-**Examples**:
+### JSON Mode Fields (parameter inputs, property values)
+The `=` prefix is REQUIRED before the opening braces:
+```json
+{
+  "email": "={{$json.body.email}}",
+  "name": "={{$json.body.name}}",
+  "timestamp": "={{$now.toISO()}}"
+}
 ```
-✅ {{$json.email}}
-✅ {{$json.body.name}}
-✅ {{$node["HTTP Request"].json.data}}
-❌ $json.email  (no braces - treated as literal text)
-❌ {$json.email}  (single braces - invalid)
-```
+Without `=`, the value `{{$json.body.email}}` is treated as a literal string.
+With `=` in a text mode field, a literal `=` appears in the output.
+
+### The Universal Rule
+ALL expressions require double curly braces: `{{expression}}`.
+Without them, text is literal. `$json.email` in a field renders as the string "$json.email".
 
 ---
 
 ## Core Variables
 
-### $json - Current Node Output
-
-Access data from the current node:
-
-```javascript
+### $json -- Current Node Output
+Access output data of the immediately preceding node:
+```
 {{$json.fieldName}}
-{{$json['field with spaces']}}
 {{$json.nested.property}}
+{{$json['field with spaces']}}
 {{$json.items[0].name}}
 ```
+After a Webhook node, $json contains headers, params, query, AND body (see Webhook Gotcha below).
+After an HTTP Request node, $json contains the response body directly.
 
-### $node - Reference Other Nodes
-
-Access data from any previous node:
-
-```javascript
-{{$node["Node Name"].json.fieldName}}
+### $node["Name"] -- Cross-Node Reference
+Access any previous node's output by exact name:
+```
 {{$node["HTTP Request"].json.data}}
 {{$node["Webhook"].json.body.email}}
 ```
+CRITICAL rules:
+- Name MUST be in quotes inside brackets
+- Name is CASE-SENSITIVE: `$node["HTTP Request"]` works, `$node["http request"]` fails silently
+- The `.json` segment is MANDATORY: `$node["Set"].json.value` not `$node["Set"].value`
+- Name must match the node label in the workflow editor exactly
 
-**Important**:
-- Node names **must** be in quotes
-- Node names are **case-sensitive**
-- Must match exact node name from workflow
-
-### $now - Current Timestamp
-
-Access current date/time:
-
-```javascript
-{{$now}}
+### $now -- Luxon DateTime (NOT JS Date)
+Returns a Luxon DateTime object. Use Luxon methods only:
+```
 {{$now.toFormat('yyyy-MM-dd')}}
 {{$now.toFormat('HH:mm:ss')}}
-{{$now.plus({days: 7})}}
+{{$now.plus({days: 7}).toFormat('yyyy-MM-dd')}}
+{{$now.minus({hours: 24}).toISO()}}
 ```
+Standard JS `new Date()` methods do NOT work on $now.
+`DateTime.fromISO()` is available for parsing date strings.
 
-### $env - Environment Variables
-
-Access environment variables:
-
-```javascript
+### $env -- Environment Variables
+Access server-configured environment variables:
+```
 {{$env.API_KEY}}
 {{$env.DATABASE_URL}}
 ```
 
 ---
 
-## 🚨 CRITICAL: Webhook Data Structure
+## The 3 Critical Gotchas
 
-**Most Common Mistake**: Webhook data is **NOT** at the root!
+### Gotcha 1: Webhook .body Nesting
 
-### Webhook Node Output Structure
-
-```javascript
+Webhook node output wraps POST data under `.body`:
+```
+Webhook $json structure:
 {
   "headers": {...},
   "params": {...},
   "query": {...},
-  "body": {           // ⚠️ USER DATA IS HERE!
+  "body": {              <-- POST data lives HERE
     "name": "John",
-    "email": "john@example.com",
-    "message": "Hello"
+    "email": "john@example.com"
   }
 }
 ```
 
-### Correct Webhook Data Access
+WRONG: `{{$json.name}}` -- returns undefined
+RIGHT: `{{$json.body.name}}` -- returns "John"
 
+This applies everywhere webhook data flows downstream:
+- Direct access: `{{$json.body.email}}`
+- Cross-node: `{{$node["Webhook"].json.body.email}}`
+- In URLs: `https://api.example.com/users/{{$json.body.user_id}}`
+
+Query parameters are at `{{$json.query.paramName}}`, not under body.
+
+### Gotcha 2: No {{}} in Code Nodes
+
+Code nodes execute JavaScript/Python directly. Expression braces are WRONG here.
+
+WRONG (in Code node):
 ```javascript
-❌ WRONG: {{$json.name}}
-❌ WRONG: {{$json.email}}
-
-✅ CORRECT: {{$json.body.name}}
-✅ CORRECT: {{$json.body.email}}
-✅ CORRECT: {{$json.body.message}}
+const email = '{{$json.email}}';
+const name = '={{$json.body.name}}';
 ```
+These produce literal strings "{{$json.email}}" and "={{$json.body.name}}".
 
-**Why**: Webhook node wraps incoming data under `.body` property to preserve headers, params, and query parameters.
-
----
-
-## Common Patterns
-
-### Access Nested Fields
-
+RIGHT (in Code node):
 ```javascript
-// Simple nesting
-{{$json.user.email}}
-
-// Array access
-{{$json.data[0].name}}
-{{$json.items[0].id}}
-
-// Bracket notation for spaces
-{{$json['field name']}}
-{{$json['user data']['first name']}}
-```
-
-### Reference Other Nodes
-
-```javascript
-// Node without spaces
-{{$node["Set"].json.value}}
-
-// Node with spaces (common!)
-{{$node["HTTP Request"].json.data}}
-{{$node["Respond to Webhook"].json.message}}
-
-// Webhook node
-{{$node["Webhook"].json.body.email}}
-```
-
-### Combine Variables
-
-```javascript
-// Concatenation (automatic)
-Hello {{$json.body.name}}!
-
-// In URLs
-https://api.example.com/users/{{$json.body.user_id}}
-
-// In object properties
-{
-  "name": "={{$json.body.name}}",
-  "email": "={{$json.body.email}}"
-}
-```
-
----
-
-## When NOT to Use Expressions
-
-### ❌ Code Nodes
-
-Code nodes use **direct JavaScript access**, NOT expressions!
-
-```javascript
-// ❌ WRONG in Code node
-const email = '={{$json.email}}';
-const name = '{{$json.body.name}}';
-
-// ✅ CORRECT in Code node
 const email = $json.email;
 const name = $json.body.name;
-
-// Or using Code node API
+// Or via Code node API:
 const email = $input.item.json.email;
 const allItems = $input.all();
 ```
 
-### ❌ Webhook Paths
+### Gotcha 3: The = Prefix Rule
 
-```javascript
-// ❌ WRONG
-path: "{{$json.user_id}}/webhook"
+JSON mode fields: `=` REQUIRED --> `"={{$json.body.email}}"`
+Text mode fields: `=` FORBIDDEN --> `{{$json.body.email}}`
 
-// ✅ CORRECT
-path: "user-webhook"  // Static paths only
-```
-
-### ❌ Credential Fields
-
-```javascript
-// ❌ WRONG
-apiKey: "={{$env.API_KEY}}"
-
-// ✅ CORRECT
-Use n8n credential system, not expressions
-```
+Wrong prefix direction:
+- Missing `=` in JSON mode: expression treated as literal string
+- Extra `=` in text mode: literal "=" prepended to output ("=john@example.com")
 
 ---
 
-## Validation Rules
+## Where Expressions Work and Don't
 
-### 1. Always Use {{}}
-
-Expressions **must** be wrapped in double curly braces.
-
-```javascript
-❌ $json.field
-✅ {{$json.field}}
-```
-
-### 2. Use Quotes for Spaces
-
-Field or node names with spaces require **bracket notation**:
-
-```javascript
-❌ {{$json.field name}}
-✅ {{$json['field name']}}
-
-❌ {{$node.HTTP Request.json}}
-✅ {{$node["HTTP Request"].json}}
-```
-
-### 3. Match Exact Node Names
-
-Node references are **case-sensitive**:
-
-```javascript
-❌ {{$node["http request"].json}}  // lowercase
-❌ {{$node["Http Request"].json}}  // wrong case
-✅ {{$node["HTTP Request"].json}}  // exact match
-```
-
-### 4. No Nested {{}}
-
-Don't double-wrap expressions:
-
-```javascript
-❌ {{{$json.field}}}
-✅ {{$json.field}}
-```
+| Field Type                  | Expressions? | Syntax                        |
+|-----------------------------|-------------|-------------------------------|
+| Text/message fields         | YES         | {{$json.field}}               |
+| JSON/parameter fields       | YES         | ={{$json.field}}              |
+| URL fields                  | YES         | https://api.com/{{$json.id}}  |
+| Header values               | YES         | Bearer {{$env.API_KEY}}       |
+| Code node body              | NO          | Use direct JS: $json.field    |
+| Webhook path field          | NO          | Static string only            |
+| Credential fields           | NO          | Use n8n credential system     |
+| Workflow/node name fields   | NO          | Static string only            |
 
 ---
 
-## Common Mistakes
+## Common Failure Patterns
 
-For complete error catalog with fixes, see [COMMON_MISTAKES.md](COMMON_MISTAKES.md)
+### "Expression shows as literal text"
+CAUSE: Missing `{{}}` braces, or missing `=` prefix in JSON mode.
+FIX: Wrap in `{{}}`. In JSON mode, add `=` prefix: `"={{$json.field}}"`.
 
-### Quick Fixes
+### "Cannot read property 'X' of undefined"
+CAUSE: Wrong data path. Parent object does not exist.
+COMMON: Accessing `$json.name` instead of `$json.body.name` after webhook.
+FIX: Verify actual data structure in the expression editor preview. Add missing path segments.
 
-| Mistake | Fix |
-|---------|-----|
-| `$json.field` | `{{$json.field}}` |
-| `{{$json.field name}}` | `{{$json['field name']}}` |
-| `{{$node.HTTP Request}}` | `{{$node["HTTP Request"]}}` |
-| `{{{$json.field}}}` | `{{$json.field}}` |
-| `{{$json.name}}` (webhook) | `{{$json.body.name}}` |
-| `'={{$json.email}}'` (Code node) | `$json.email` |
+### "Undefined" for $node reference
+THREE possible causes:
+1. Node name case mismatch: `$node["http request"]` vs `$node["HTTP Request"]`
+2. Missing `.json` segment: `$node["Set"].value` vs `$node["Set"].json.value`
+3. Node name doesn't match: check workflow editor for exact label
+
+### Literal "={{...}}" in output
+CAUSE: Using `=` prefix in a text mode field.
+FIX: Remove the `=`. Text mode auto-evaluates `{{}}` without it.
+
+### Literal curly braces in output
+CAUSE: Triple braces `{{{$json.field}}}` or empty braces `{{}}`.
+FIX: Use exactly two braces: `{{$json.field}}`.
 
 ---
 
-## Working Examples
+## $node Reference Checklist
 
-For real workflow examples, see [EXAMPLES.md](EXAMPLES.md)
+Every $node reference must have ALL of these:
+```
+{{$node["Exact Name"].json.fieldPath}}
+       ^             ^     ^
+       |             |     +-- data path
+       |             +-- MANDATORY (always .json for data, .binary for files)
+       +-- quotes required, case-sensitive, exact match
+```
 
-### Example 1: Webhook to Slack
+Missing any one of these causes silent failure (undefined, not an error).
 
-**Webhook receives**:
+---
+
+## Bracket Notation Rules
+
+Dot notation works for simple names: `{{$json.email}}`
+Bracket notation REQUIRED when names contain:
+- Spaces: `{{$json['first name']}}`
+- Special characters: `{{$json['user-id']}}`
+- Numbers at start: `{{$json['123field']}}`
+
+Node names always use brackets: `{{$node["Any Name"].json.field}}`
+
+For arrays, use numeric brackets: `{{$json.items[0].name}}`
+WRONG: `{{$json.items.0.name}}` -- dot notation with numbers fails.
+
+---
+
+## Text Mode Concatenation
+
+In text mode fields, expressions auto-concatenate with surrounding text:
+```
+Hello {{$json.body.name}}, your order #{{$json.body.order_id}} is ready.
+```
+
+WRONG approaches (do not use):
+- JS template literals: `` `Hello ${$json.name}` ``
+- String concatenation: `"Hello " + $json.name`
+- These produce literal text, not evaluated expressions.
+
+---
+
+## Defensive Expressions (Handling Missing Data)
+
+Production workflows receive incomplete data. Fields may be undefined, null, or empty. Unguarded expressions crash the workflow or produce silent "undefined" strings in output.
+
+### Optional Chaining -- Prevent "Cannot read property" Errors
+When the parent object might not exist:
+```
+UNSAFE:  {{$json.body.user.address.city}}
+         -- crashes if body, user, or address is undefined
+
+SAFE:    {{$json.body?.user?.address?.city}}
+         -- returns undefined (not an error) if any segment is missing
+```
+
+Use `?.` at every uncertain nesting level. After a Webhook, `$json.body` usually exists but inner fields may not.
+
+### Default Values -- Ternary Guard
+When a field might be missing and you need a fallback:
+```
+{{$json.body?.name ? $json.body.name : 'Unknown'}}
+{{$json.body?.email ? $json.body.email : 'no-reply@example.com'}}
+{{$json.status ? $json.status : 'pending'}}
+```
+
+### Default Values -- OR Operator (Short Form)
+The `||` operator returns the right side if the left is falsy (undefined, null, empty string, 0):
+```
+{{$json.body?.name || 'Unknown'}}
+{{$json.body?.phone || 'Not provided'}}
+```
+WARNING: `||` treats `0`, `""`, and `false` as falsy. If those are valid values, use `??` instead.
+
+### Nullish Coalescing -- Preserve 0 and Empty String
+The `??` operator returns the right side ONLY if the left is null or undefined (not 0 or ""):
+```
+{{$json.count ?? 0}}             -- preserves count=0 from API
+{{$json.body?.discount ?? 0}}    -- preserves 0% discount
+{{$json.body?.notes ?? ''}}      -- preserves empty string
+```
+Use `??` for numeric fields and boolean-adjacent values. Use `||` for string fields where empty = missing.
+
+### Debugging Undefined Expressions
+When an expression returns "undefined" or blank in the output:
+
+**Step 1:** Check the expression editor preview. Click the field and look at the resolved value.
+**Step 2:** Simplify to find the break point:
+```
+Try:     {{$json}}                    -- does the whole object exist?
+Then:    {{$json.body}}               -- does body exist?
+Then:    {{$json.body.user}}          -- does user exist?
+Then:    {{$json.body.user.email}}    -- found the missing level
+```
+**Step 3:** Fix with optional chaining + default: `{{$json.body?.user?.email || 'missing'}}`
+
+### Combining Guards in JSON Mode
+Remember the `=` prefix applies to the whole value:
 ```json
 {
-  "body": {
-    "name": "John Doe",
-    "email": "john@example.com",
-    "message": "Hello!"
-  }
+  "email": "={{$json.body?.email || 'fallback@example.com'}}",
+  "name": "={{$json.body?.first_name || 'Customer'}}",
+  "amount": "={{$json.body?.total ?? 0}}"
 }
 ```
 
-**In Slack node text field**:
-```
-New form submission!
+---
 
-Name: {{$json.body.name}}
-Email: {{$json.body.email}}
-Message: {{$json.body.message}}
-```
+## NEVER
 
-### Example 2: HTTP Request to Email
-
-**HTTP Request returns**:
-```json
-{
-  "data": {
-    "items": [
-      {"name": "Product 1", "price": 29.99}
-    ]
-  }
-}
-```
-
-**In Email node** (reference HTTP Request):
-```
-Product: {{$node["HTTP Request"].json.data.items[0].name}}
-Price: ${{$node["HTTP Request"].json.data.items[0].price}}
-```
-
-### Example 3: Format Timestamp
-
-```javascript
-// Current date
-{{$now.toFormat('yyyy-MM-dd')}}
-// Result: 2025-10-20
-
-// Time
-{{$now.toFormat('HH:mm:ss')}}
-// Result: 14:30:45
-
-// Full datetime
-{{$now.toFormat('yyyy-MM-dd HH:mm')}}
-// Result: 2025-10-20 14:30
-```
+- NEVER use `{{}}` in Code nodes -- Code nodes use direct JS/Python. `"{{$json.field}}"` becomes literal text
+- NEVER omit `{{}}` in expression fields -- `$json.field` without braces is treated as literal text
+- NEVER forget `=` prefix in JSON mode -- `={{$json.field}}` not `{{$json.field}}` in parameter fields
+- NEVER access webhook data at root -- it is `{{$json.body.field}}`, not `{{$json.field}}`
+- NEVER use wrong case for node names -- `$node["HTTP Request"]` works, `$node["http request"]` fails silently
+- NEVER nest curly braces -- `{{{$json.field}}}` is invalid, use `{{$json.field}}`
+- NEVER use expressions in credential fields -- use n8n credential system instead
+- NEVER use expressions in webhook path -- must be static string
+- NEVER omit `.json` in $node references -- `$node["Name"].json.field` not `$node["Name"].field`
+- NEVER use JS Date methods on $now -- it is Luxon DateTime, use .toFormat(), .plus(), .minus()
 
 ---
 
-## Data Type Handling
+## Thinking Framework
 
-### Arrays
+Before writing any n8n expression:
 
-```javascript
-// First item
-{{$json.users[0].email}}
-
-// Array length
-{{$json.users.length}}
-
-// Last item
-{{$json.users[$json.users.length - 1].name}}
-```
-
-### Objects
-
-```javascript
-// Dot notation (no spaces)
-{{$json.user.email}}
-
-// Bracket notation (with spaces or dynamic)
-{{$json['user data'].email}}
-```
-
-### Strings
-
-```javascript
-// Concatenation (automatic)
-Hello {{$json.name}}!
-
-// String methods
-{{$json.email.toLowerCase()}}
-{{$json.name.toUpperCase()}}
-```
-
-### Numbers
-
-```javascript
-// Direct use
-{{$json.price}}
-
-// Math operations
-{{$json.price * 1.1}}  // Add 10%
-{{$json.quantity + 5}}
-```
-
----
-
-## Advanced Patterns
-
-### Conditional Content
-
-```javascript
-// Ternary operator
-{{$json.status === 'active' ? 'Active User' : 'Inactive User'}}
-
-// Default values
-{{$json.email || 'no-email@example.com'}}
-```
-
-### Date Manipulation
-
-```javascript
-// Add days
-{{$now.plus({days: 7}).toFormat('yyyy-MM-dd')}}
-
-// Subtract hours
-{{$now.minus({hours: 24}).toISO()}}
-
-// Set specific date
-{{DateTime.fromISO('2025-12-25').toFormat('MMMM dd, yyyy')}}
-```
-
-### String Manipulation
-
-```javascript
-// Substring
-{{$json.email.substring(0, 5)}}
-
-// Replace
-{{$json.message.replace('old', 'new')}}
-
-// Split and join
-{{$json.tags.split(',').join(', ')}}
-```
-
----
-
-## Debugging Expressions
-
-### Test in Expression Editor
-
-1. Click field with expression
-2. Open expression editor (click "fx" icon)
-3. See live preview of result
-4. Check for errors highlighted in red
-
-### Common Error Messages
-
-**"Cannot read property 'X' of undefined"**
-→ Parent object doesn't exist
-→ Check your data path
-
-**"X is not a function"**
-→ Trying to call method on non-function
-→ Check variable type
-
-**Expression shows as literal text**
-→ Missing {{ }}
-→ Add curly braces
-
----
-
-## Expression Helpers
-
-### Available Methods
-
-**String**:
-- `.toLowerCase()`, `.toUpperCase()`
-- `.trim()`, `.replace()`, `.substring()`
-- `.split()`, `.includes()`
-
-**Array**:
-- `.length`, `.map()`, `.filter()`
-- `.find()`, `.join()`, `.slice()`
-
-**DateTime** (Luxon):
-- `.toFormat()`, `.toISO()`, `.toLocal()`
-- `.plus()`, `.minus()`, `.set()`
-
-**Number**:
-- `.toFixed()`, `.toString()`
-- Math operations: `+`, `-`, `*`, `/`, `%`
-
----
-
-## Best Practices
-
-### ✅ Do
-
-- Always use {{ }} for dynamic content
-- Use bracket notation for field names with spaces
-- Reference webhook data from `.body`
-- Use $node for data from other nodes
-- Test expressions in expression editor
-
-### ❌ Don't
-
-- Don't use expressions in Code nodes
-- Don't forget quotes around node names with spaces
-- Don't double-wrap with extra {{ }}
-- Don't assume webhook data is at root (it's under .body!)
-- Don't use expressions in webhook paths or credentials
-
----
-
-## Related Skills
-
-- **n8n MCP Tools Expert**: Learn how to validate expressions using MCP tools
-- **n8n Workflow Patterns**: See expressions in real workflow examples
-- **n8n Node Configuration**: Understand when expressions are needed
-
----
-
-## Summary
-
-**Essential Rules**:
-1. Wrap expressions in {{ }}
-2. Webhook data is under `.body`
-3. No {{ }} in Code nodes
-4. Quote node names with spaces
-5. Node names are case-sensitive
-
-**Most Common Mistakes**:
-- Missing {{ }} → Add braces
-- `{{$json.name}}` in webhooks → Use `{{$json.body.name}}`
-- `{{$json.email}}` in Code → Use `$json.email`
-- `{{$node.HTTP Request}}` → Use `{{$node["HTTP Request"]}}`
-
-For more details, see:
-- [COMMON_MISTAKES.md](COMMON_MISTAKES.md) - Complete error catalog
-- [EXAMPLES.md](EXAMPLES.md) - Real workflow examples
-
----
-
-**Need Help?** Reference the n8n expression documentation or use n8n-mcp validation tools to check your expressions.
+1. **What field type?** Text mode = no prefix. JSON mode = needs `=` prefix.
+2. **Am I in a Code node?** If yes, use direct JS: `$json.field`. No braces.
+3. **Is this webhook data?** If yes, data is under `.body`: `$json.body.field`.
+4. **Am I referencing another node?** Use `$node["Exact Name"].json.field` -- case-sensitive, with `.json`.
+5. **Do any names have spaces?** Use bracket notation: `$json['field name']`, `$node["Node Name"]`.
+6. **Could any field be missing?** Add `?.` for uncertain paths, `|| 'default'` for required output, `?? 0` for numeric fields.
+7. **Is this a restricted field?** Webhook paths, credentials, node names = no expressions allowed.

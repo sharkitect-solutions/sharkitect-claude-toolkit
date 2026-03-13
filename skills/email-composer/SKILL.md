@@ -1,317 +1,158 @@
 ---
 name: Email Composer
-description: Draft professional emails for various contexts including business, technical, and customer communication. Use when the user needs help writing emails or composing professional messages.
+description: "Use when composing a NEW email from scratch (any type: business, technical, customer, personal-professional). NEVER for editing/polishing existing drafts (email-draft-polish), multi-email sequences or drip campaigns (email-sequence), email infrastructure/deliverability/SPF/DKIM (email-systems), cold sales outreach (cold-email), internal company announcements/memos (internal-comms), general text editing (copy-editing), or non-email professional writing (professional-communication)."
+version: 2
+optimized: true
+optimized_date: 2026-03-11
 ---
 
 # Email Composer
 
-## Quick start
+## File Index
 
-Provide context and purpose, and I'll draft an appropriate email.
+| File | Purpose | Load When |
+|------|---------|-----------|
+| SKILL.md | Tone calibration matrix, subject line engineering, structural anti-patterns (8), recipient psychology (4 types + cross-cultural), email failure checklist | Always (auto-loaded) |
+| scenario-frameworks.md | Structural frameworks for 8 email scenarios: meeting request, follow-up (5 types), introduction (3 types), feedback request, status update, decline/say-no, decision request, apology, vendor negotiation | When composing an email for a specific scenario that needs structural guidance |
+| difficult-emails-guide.md | Bad news delivery (3 severity levels + medium decision), negative feedback by email (when appropriate vs dangerous), escalation emails (pre-checklist + structure), declining without burning bridges, expectation management, conflict de-escalation (5-step + escalating vs de-escalating words), legal-sensitive communications | When the email involves sensitive, high-stakes, or emotionally charged content |
+| email-timing-and-follow-up.md | Optimal send times (6 recipient types), follow-up timing and cadence (5 urgency levels), timezone management (5 scenarios), email vs other medium decision tree (8 message types), email chain management (6 situations), read receipt ethics, inbox management for recipients | When timing matters, planning follow-ups, or deciding whether email is the right medium |
 
-**What I need:**
-- Purpose of email (request, follow-up, announcement, etc.)
-- Recipient relationship (colleague, customer, manager, vendor)
-- Key points to include
-- Desired tone (formal, casual, urgent, friendly)
+## Scope Boundary
 
-## Email structure
+| Need | Use This Skill? | Use Instead |
+|---|---|---|
+| Compose a new email from scratch | YES | -- |
+| Edit/polish an existing draft | NO | email-draft-polish |
+| Multi-email sequences or drip campaigns | NO | email-sequence |
+| Email infrastructure, deliverability, SPF/DKIM | NO | email-systems |
+| Cold sales outreach to strangers | NO | cold-email |
+| Internal memos, announcements, org comms | NO | internal-comms |
+| General text editing (not email) | NO | copy-editing |
+| Non-email professional writing | NO | professional-communication |
 
-Standard professional email format:
+## Tone Calibration Matrix
 
-```
-Subject: [Clear, specific subject line]
+Select tone parameters by crossing recipient relationship with purpose. Do NOT default to "professional" -- calibrate precisely.
 
-[Greeting],
+| Recipient | Request | Update/FYI | Bad News | Escalation | Appreciation |
+|---|---|---|---|---|---|
+| C-suite | BLUF, 0 contractions, no exclamation, "Regards" | 3 sentences max, bullet data, "Best" | Lead with impact number, then cause, then fix, "Regards" | State risk in dollars/days, 1 clear ask, "Respectfully" | 1 sentence specific praise, tie to metric, "Best" |
+| Direct manager | Light contractions OK, 1 exclamation max, "Thanks" | Bullet-heavy, include your interpretation, "Best" | Own it first sentence, corrective action second, "Thanks" | Frame as blocker to shared goal, propose options, "Thanks" | Genuine, specific, skip superlatives, "Thanks" |
+| Peer/colleague | Contractions normal, casual sign-off, "Cheers"/"Thanks" | Conversational, skip preamble, "Thanks" | Direct but empathetic, offer help, "Thanks" | Name the impact on your work, no blame, "Thanks" | Informal, can use humor if relationship supports it, "Cheers" |
+| Direct report | Warm but clear, contractions OK, "Thanks" | Add context on WHY, not just what, "Best" | Private, specific, forward-looking, "Thanks" | Be direct about gap, ask for their plan, "Thanks" | Public when possible, name specific behavior, "Great work" |
+| External client | 0 contractions, 0 exclamations, "Kind regards" | Lead with value to THEM, "Best regards" | Acknowledge impact first, solution second, timeline third, "Sincerely" | Restate SLA/agreement, document facts, "Regards" | Tie to business outcome, "Best regards" |
+| Vendor/partner | Direct, transactional, "Best" | Brief, action-oriented, "Thanks" | State terms, cite agreement, "Regards" | Quote contract clause, escalation path, "Regards" | Brief acknowledgment, "Thanks" |
 
-[Opening - context/purpose]
+**Sentence length**: C-suite/client = 12-18 words avg. Peers = 8-15 words. Technical audiences = whatever clarity requires.
+**Emoji policy**: Never in first email to someone. Never to C-suite/clients. Peers only after they use emoji first.
 
-[Body - main points]
+## Subject Line Engineering
 
-[Closing - call to action]
+**Mobile preview truncates at 30 characters.** Front-load the essential word.
 
-[Sign-off]
-[Your name]
-```
+| Pattern | When to Use | Example |
+|---|---|---|
+| `[ACTION REQUIRED]` prefix | Recipient must do something by a date | `[ACTION REQUIRED] Approve budget by Fri` |
+| `[FYI]` prefix | No action needed, awareness only | `[FYI] API latency spike resolved` |
+| `[DECISION NEEDED]` prefix | Binary/ternary choice required | `[DECISION NEEDED] Vendor A or B for Q3` |
+| Naked subject (no prefix) | Standard correspondence | `Database migration timeline update` |
+| `Re:` chain continuation | Same thread, same topic | Keep existing subject |
+| Break `Re:` chain when | Topic shifted, new decision needed, or chain > 5 deep | New subject referencing old thread |
 
-## Common email types
+**Internal vs external**: Internal subjects can use prefixes and abbreviations. External subjects to clients must read as complete, professional phrases -- no brackets, no abbreviations.
 
-### Request for information
+**Never**: Single-word subjects ("Update", "Question", "Hello"). Clickbait urgency when not urgent. ALL CAPS words.
 
-```
-Subject: Question about Q4 project timeline
+## Structural Anti-Patterns
 
-Hi [Name],
+These patterns cause emails to fail (no response, wrong action, confusion). Detect and fix before output.
 
-I hope this email finds you well. I'm reaching out regarding the Q4 product launch timeline.
+**1. Buried Lede** -- Action item appears in paragraph 3+.
+Fix: First sentence = what you need. Second sentence = by when. Context follows.
 
-Could you provide an update on:
-- Current progress on feature development
-- Expected completion date for testing phase
-- Any blockers or dependencies we should be aware of
+**2. Essay Email** -- >150 words for a request that needs <40.
+Fix: If the ask fits in 2 sentences, the email is 2 sentences + sign-off. Permission to be brief.
 
-This will help us coordinate with the marketing team for the launch materials.
+**3. Passive Ask** -- "It would be great if someone could look into this."
+Fix: Name the person. Name the action. Name the date. "Alex, please review the PR by Thursday EOD."
 
-Thanks in advance for your help!
+**4. Premature Apology** -- "Sorry to bother you" / "I know you're busy" as openers.
+Fix: Delete. These phrases signal low status and prime the reader to deprioritize. Just make the ask.
 
-Best regards,
-[Your name]
-```
+**5. Wall of Context** -- 5 paragraphs of background before revealing the ask.
+Fix: BLUF (Bottom Line Up Front). Ask first, context second, detail in attachment if needed.
 
-### Follow-up email
+**6. Multi-Ask Sprawl** -- 3+ unrelated requests in one email.
+Fix: One email = one ask. Completion rate drops ~50% per additional ask. Send separate emails or use numbered list with explicit "I need responses to all 3."
 
-```
-Subject: Following up: Proposal for new payment system
+**7. Ambiguous Deadline** -- "When you get a chance" / "at your earliest convenience."
+Fix: Specific date and time. "By Wednesday 3 PM ET" or "No rush -- next week is fine" (at least anchors expectation).
 
-Hi [Name],
+**8. Attachment Phantom** -- "See attached" but no attachment; or attachment not referenced in body.
+Fix: Always verify attachment is present. Reference it by name: "See the attached Q4-forecast.xlsx for details."
 
-I wanted to follow up on the payment system proposal I sent last week. I understand you're busy, so I wanted to make sure it didn't get lost in your inbox.
+## Recipient Psychology
 
-To recap, the proposed system would:
-- Reduce transaction fees by 30%
-- Integrate with existing accounting software
-- Improve customer checkout experience
+### C-Suite
+Structure: BLUF, then 3 bullets max, then "Happy to provide detail." Attach the detail doc -- never paste it inline. They scan, they don't read. Make scanning productive. Every sentence must either state the ask, quantify impact, or propose a decision.
 
-I'd be happy to schedule a brief call to discuss any questions you might have.
+### Engineers/Technical
+Skip pleasantries. Lead with the technical context they need to evaluate the request. Include version numbers, error codes, links to logs. "Hi, hope you're well" wastes their time and yours. Bullet points > paragraphs. Code blocks welcome.
 
-Looking forward to hearing from you.
+### Clients
+First sentence acknowledges their world ("I know launch week is intense"). Quantify value to THEM, not to you. Every email ends with an explicit next step that includes a date: "I'll send the revised mockups by Thursday. If I don't hear back by Friday, I'll proceed with version B." Never leave next steps ambiguous.
 
-Best,
-[Your name]
-```
+### Vendors
+Be transactional. State what you need, when, and the terms. Document agreements in email even if discussed on a call ("Per our call today, confirming: ..."). Friendly but not warm -- warmth gets exploited in negotiations.
 
-### Technical update
-
-```
-Subject: API Maintenance Window - [Date]
-
-Team,
-
-This is a reminder that we'll be performing scheduled maintenance on our API infrastructure on [Date] from [Time] to [Time] [Timezone].
-
-During this window:
-- API endpoints will be unavailable
-- Database will be upgraded to v14
-- SSL certificates will be renewed
-
-Expected downtime: 2 hours
-
-What you need to do:
-- Notify your users of the planned downtime
-- Ensure retry logic is in place for API calls
-- Monitor your application after maintenance completes
-
-If you have any concerns or conflicts with this schedule, please let me know by [Date].
-
-Technical details available in our status page: [link]
-
-Thanks,
-[Your name]
-```
-
-### Customer support
-
-```
-Subject: Re: Issue with order #12345
-
-Hi [Customer name],
-
-Thank you for reaching out about your order. I'm sorry to hear you're experiencing this issue.
-
-I've looked into your order (#12345) and found the following:
-
-[Explanation of the issue]
-
-To resolve this, I've:
-- [Action taken 1]
-- [Action taken 2]
-
-You should see [expected outcome] within [timeframe].
-
-If you continue to experience any problems, please don't hesitate to reply to this email or call us at [phone number].
-
-We appreciate your patience and understanding.
-
-Best regards,
-[Your name]
-Customer Support Team
-```
-
-### Meeting request
-
-```
-Subject: Meeting request: Discuss database migration strategy
-
-Hi [Name],
-
-I'd like to schedule a meeting to discuss our approach for the upcoming database migration.
-
-Agenda items:
-- Review migration timeline and milestones
-- Discuss rollback strategy
-- Identify potential risks and mitigation plans
-- Assign team responsibilities
-
-Estimated duration: 45 minutes
-
-I'm available:
-- Monday 2-4 PM
-- Wednesday 10 AM - 12 PM
-- Friday 1-3 PM
-
-Please let me know what works best for you, or feel free to suggest alternative times.
-
-Best,
-[Your name]
-```
-
-## Tone guidelines
-
-### Formal tone
-- Use complete sentences
-- Avoid contractions
-- Professional language
-- Proper titles (Dr., Mr., Ms.)
-
-### Casual tone
-- Contractions acceptable
-- Conversational language
-- Still professional
-- First names
-
-### Urgent tone
-- Clear subject line with [URGENT] or [ACTION REQUIRED]
-- Bold key points
-- Explicit deadline
-- Direct call to action
-
-## Subject line best practices
-
-**Good subject lines:**
-- "Action required: Submit timesheet by Friday"
-- "Q4 Sales Report - Review needed"
-- "Meeting rescheduled: Project kickoff now Thursday"
-- "Quick question about deployment process"
-
-**Bad subject lines:**
-- "Update"
-- "Question"
-- "Hello"
-- "Following up"
-
-## Email etiquette
-
-**DO:**
-- Respond within 24 hours (even if just to acknowledge)
-- Use clear, specific subject lines
-- Keep it concise
-- Proofread before sending
-- Include relevant context
-- Use bullet points for multiple items
-- End with clear call to action
-
-**DON'T:**
-- Use ALL CAPS
-- Over-use exclamation marks!!!
-- Mark everything as urgent
-- Reply all unless necessary
-- Send when emotional
-- Include unnecessary recipients
-- Forget attachments mentioned in email
-
-## Templates by scenario
-
-### Decline request politely
-
-```
-Subject: Re: [Original subject]
-
-Hi [Name],
-
-Thank you for thinking of me for [request/opportunity].
-
-Unfortunately, I won't be able to [participate/help/attend] due to [brief reason - optional]. However, I'd recommend [alternative suggestion if applicable].
-
-I appreciate your understanding, and I hope we can collaborate on future opportunities.
-
-Best regards,
-[Your name]
-```
-
-### Apologize for mistake
-
-```
-Subject: Apology and correction: [Issue]
-
-Hi [Name],
-
-I'm writing to apologize for [specific mistake]. This was an error on my part, and I take full responsibility.
-
-To correct this:
-- [Action 1 already taken]
-- [Action 2 in progress]
-- [Preventive measure for future]
-
-I understand this may have caused [impact], and I'm committed to ensuring it doesn't happen again.
-
-If you have any concerns or questions, please don't hesitate to reach out.
-
-Sincerely,
-[Your name]
-```
-
-### Share good news
-
-```
-Subject: Great news: [Achievement/milestone]
-
-Team,
-
-I'm excited to share that we've [accomplished goal]!
-
-This success is thanks to:
-- [Team/person contribution 1]
-- [Team/person contribution 2]
-
-Impact:
-- [Metric improvement]
-- [Business benefit]
-
-Thank you all for your hard work and dedication. Let's keep up the momentum!
-
-Cheers,
-[Your name]
-```
-
-## Closing phrases by context
-
-**Formal:**
-- Sincerely
-- Best regards
-- Respectfully
-- Cordially
-
-**Professional:**
-- Best
-- Thanks
-- Kind regards
-- Regards
-
-**Casual:**
-- Cheers
-- Thanks!
-- Talk soon
-- Best
-
-## Email composition checklist
-
-- [ ] Clear, specific subject line
-- [ ] Appropriate greeting
-- [ ] Purpose stated upfront
-- [ ] Key points organized with bullets/numbers
-- [ ] Clear call to action or next steps
-- [ ] Appropriate tone for audience
-- [ ] Proofread for typos
-- [ ] Attachments included (if mentioned)
-- [ ] Recipients correct (To, CC, BCC)
-- [ ] Professional signature
+### Cross-Cultural Calibration
+| Culture | Directness | Formality | Preamble | "No" Style |
+|---|---|---|---|---|
+| US | Direct ask OK | Medium | Brief | "Unfortunately, we can't" |
+| UK | Slightly indirect | Medium-high | Polite buffer | "I'm afraid that won't be possible" |
+| Japan | Indirect, consensus-seeking | High | Seasonal greeting expected | Imply difficulty, never blunt refusal |
+| Germany | Very direct, expected | High initially | Minimal | Direct "no" is professional, not rude |
+| Latin America | Relationship-first | Medium | Personal warmth expected | Soft decline with alternative |
+
+## Email Failure Mode Checklist
+
+Before outputting any composed email, verify against these failure modes:
+
+- [ ] **CTA exists**: Reader knows exactly what to do after reading
+- [ ] **Single primary ask**: If multiple asks, they're numbered and reader is told to respond to all
+- [ ] **Active voice**: "Please approve" not "Approval is needed"
+- [ ] **Right medium**: If the email requires back-and-forth discussion, suggest a call instead
+- [ ] **Deadline specified**: Concrete date/time, not "when convenient"
+- [ ] **Correct audience**: No one is CC'd who shouldn't see this; no one missing who should
+- [ ] **Scannability**: Key info in first 3 lines, bullets for lists, bold for critical items
+- [ ] **No premature apology**: Opener doesn't undermine the ask
+
+## Rationalization Table
+
+| Temptation | Why It Fails | Do Instead |
+|---|---|---|
+| "I'll add context so they understand fully" | Reader skips long emails. Understanding != reading. | BLUF + "Details below if needed" with a visual break |
+| "I should soften this with hedging language" | "Maybe we could possibly consider" = no one acts | State the ask directly. Politeness is in tone, not hedging. |
+| "I'll CC the whole team for visibility" | Diffusion of responsibility. Everyone assumes someone else will act. | TO: the person who must act. CC: only those who must know. |
+| "The formal template will look more professional" | Generic templates read as generic. | Match the relationship. Forced formality to a peer feels cold. |
+| "I'll include all the background they might need" | Information overload kills action. | Include only what's needed to decide. Link or attach the rest. |
+| "I should follow up same-day to show urgency" | Reads as impatient or aggressive. | Wait 2-3 business days. Then follow up with new value, not "just checking in." |
+
+## Red Flags
+
+1. Email exceeds 200 words for a simple request -- compress or split
+2. No verb in the call-to-action -- "Thoughts?" is not a CTA; "Please confirm by Friday" is
+3. Opening with apology or self-deprecation -- delete the throat-clearing
+4. Using "ASAP" without a real deadline -- pick a date or admit it's not urgent
+5. Passive voice hiding who must act -- find the actor, name them
+6. Reply-all on a thread where your response only matters to the sender
+7. Sending bad news or criticism over email when a call would be more humane
+8. Writing the email at all when Slack/chat would get a faster response for a quick question
+
+## NEVER
+
+1. Never output template emails with `[bracketed placeholders]` -- ask for the missing information, then compose a complete email
+2. Never use "I hope this email finds you well" -- it's filler that signals a mass email
+3. Never compose an email longer than 300 words without explicitly asking if the user wants a shorter version
+4. Never include emoji in emails to people the user hasn't previously emailed
+5. Never default to formal tone -- calibrate to the actual recipient relationship using the Tone Calibration Matrix

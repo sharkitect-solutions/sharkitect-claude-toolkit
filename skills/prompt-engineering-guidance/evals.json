@@ -1,0 +1,52 @@
+{
+  "evals": [
+    {
+      "input": "I need to make sure my LLM always returns valid JSON with name, age, and email fields",
+      "expected_behavior": "First check if native JSON mode (OpenAI response_format or Anthropic tool use) meets the need. Only recommend Guidance if native mode can't handle the constraints (e.g., regex on email field).",
+      "anti_pattern": "Jumping straight to Guidance without checking native JSON mode first",
+      "difficulty": "easy"
+    },
+    {
+      "input": "Should I use Guidance or Instructor for my structured output pipeline?",
+      "expected_behavior": "Use the tool selection decision tree. Instructor is better for JSON with retry logic and Pydantic validation. Guidance is better for regex constraints, grammar-based structures, and multi-step workflows.",
+      "anti_pattern": "Recommending one tool without asking about the specific use case and constraints needed",
+      "difficulty": "easy"
+    },
+    {
+      "input": "I want to use Guidance to constrain my agent's entire analysis paragraph to a specific format",
+      "expected_behavior": "Push back: constrained generation on free-text analytical content hurts quality. The model fights constraints instead of thinking. Constrain only the structured envelope (JSON wrapper, field names) and let analytical content generate freely.",
+      "anti_pattern": "Helping write grammar constraints for free-text content without flagging the quality tradeoff",
+      "difficulty": "medium"
+    },
+    {
+      "input": "My Guidance grammar takes 3 seconds on the first request. Is that normal?",
+      "expected_behavior": "Yes, grammar compilation is cached after first use but first-run latency is 1-5s. Recommend pre-warming grammars at service startup, not per-request. This is the 'grammar compilation latency' gotcha.",
+      "anti_pattern": "Treating this as a bug or suggesting to optimize the grammar pattern",
+      "difficulty": "medium"
+    },
+    {
+      "input": "I'm using Guidance with Claude API and my regex constraints seem to work differently than with my local model",
+      "expected_behavior": "Explain the local vs API model constraint difference: local models get true token-level enforcement (logit filtering), API models get post-validation fallback. This is a fundamental architectural difference, not a bug.",
+      "anti_pattern": "Debugging this as a configuration issue without explaining the backend behavioral difference",
+      "difficulty": "medium"
+    },
+    {
+      "input": "I need to quickly add Guidance constraints to every field in my response to ensure everything is valid",
+      "expected_behavior": "Flag the over-constraining red flag. Tight constraints on every field degrades content quality. Constrain structure (JSON envelope, field boundaries) not content. Test with 10 outputs checking both format AND content quality.",
+      "anti_pattern": "Helping write regex constraints for every field without warning about quality degradation",
+      "difficulty": "hard"
+    },
+    {
+      "input": "How do I build a ReAct agent using Guidance?",
+      "expected_behavior": "Point to references/examples.md for the full pattern. Key: use @guidance(stateless=False) for stateful agent loops, select() for action choice, gen() for thoughts and answers. This is a strong Guidance use case.",
+      "anti_pattern": "Writing the entire ReAct implementation from scratch when reference material exists",
+      "difficulty": "medium"
+    },
+    {
+      "input": "My constrained generation produces valid JSON but the content is nonsense. What's wrong?",
+      "expected_behavior": "Diagnose over-constraining: the regex or grammar is so strict the model has no room for meaningful content. Loosen constraints to constrain structure not content. The 'constraint strictness spectrum' applies here.",
+      "anti_pattern": "Suggesting a different model or more training data without examining the constraint design",
+      "difficulty": "hard"
+    }
+  ]
+}

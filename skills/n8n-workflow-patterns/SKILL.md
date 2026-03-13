@@ -1,411 +1,380 @@
 ---
 name: n8n-workflow-patterns
-description: Proven workflow architectural patterns from real n8n workflows. Use when building new workflows, designing workflow structure, choosing workflow patterns, planning workflow architecture, or asking about webhook processing, HTTP API integration, database operations, AI agent workflows, or scheduled tasks.
+description: "Use when designing n8n workflow architecture, choosing between webhook/API/database/AI/scheduled
+  patterns, configuring AI agent sub-nodes, or troubleshooting responseMode and execution
+  order issues. NEVER for individual node configuration (use n8n-node-configuration)
+  or MCP tool usage (use n8n-mcp-tools-expert)."
 ---
 
 # n8n Workflow Patterns
 
-Proven architectural patterns for building n8n workflows.
+## Pattern Selection Decision Tree
 
----
+**Start here: What triggers the workflow?**
 
-## The 5 Core Patterns
-
-Based on analysis of real workflow usage:
-
-1. **[Webhook Processing](webhook_processing.md)** (Most Common)
-   - Receive HTTP requests → Process → Output
-   - Pattern: Webhook → Validate → Transform → Respond/Notify
-
-2. **[HTTP API Integration](http_api_integration.md)**
-   - Fetch from REST APIs → Transform → Store/Use
-   - Pattern: Trigger → HTTP Request → Transform → Action → Error Handler
-
-3. **[Database Operations](database_operations.md)**
-   - Read/Write/Sync database data
-   - Pattern: Schedule → Query → Transform → Write → Verify
-
-4. **[AI Agent Workflow](ai_agent_workflow.md)**
-   - AI agents with tools and memory
-   - Pattern: Trigger → AI Agent (Model + Tools + Memory) → Output
-
-5. **[Scheduled Tasks](scheduled_tasks.md)**
-   - Recurring automation workflows
-   - Pattern: Schedule → Fetch → Process → Deliver → Log
-
----
-
-## Pattern Selection Guide
-
-### When to use each pattern:
-
-**Webhook Processing** - Use when:
-- Receiving data from external systems
-- Building integrations (Slack commands, form submissions, GitHub webhooks)
-- Need instant response to events
-- Example: "Receive Stripe payment webhook → Update database → Send confirmation"
-
-**HTTP API Integration** - Use when:
-- Fetching data from external APIs
-- Synchronizing with third-party services
-- Building data pipelines
-- Example: "Fetch GitHub issues → Transform → Create Jira tickets"
-
-**Database Operations** - Use when:
-- Syncing between databases
-- Running database queries on schedule
-- ETL workflows
-- Example: "Read Postgres records → Transform → Write to MySQL"
-
-**AI Agent Workflow** - Use when:
-- Building conversational AI
-- Need AI with tool access
-- Multi-step reasoning tasks
-- Example: "Chat with AI that can search docs, query database, send emails"
-
-**Scheduled Tasks** - Use when:
-- Recurring reports or summaries
-- Periodic data fetching
-- Maintenance tasks
-- Example: "Daily: Fetch analytics → Generate report → Email team"
-
----
-
-## Common Workflow Components
-
-All patterns share these building blocks:
-
-### 1. Triggers
-- **Webhook** - HTTP endpoint (instant)
-- **Schedule** - Cron-based timing (periodic)
-- **Manual** - Click to execute (testing)
-- **Polling** - Check for changes (intervals)
-
-### 2. Data Sources
-- **HTTP Request** - REST APIs
-- **Database nodes** - Postgres, MySQL, MongoDB
-- **Service nodes** - Slack, Google Sheets, etc.
-- **Code** - Custom JavaScript/Python
-
-### 3. Transformation
-- **Set** - Map/transform fields
-- **Code** - Complex logic
-- **IF/Switch** - Conditional routing
-- **Merge** - Combine data streams
-
-### 4. Outputs
-- **HTTP Request** - Call APIs
-- **Database** - Write data
-- **Communication** - Email, Slack, Discord
-- **Storage** - Files, cloud storage
-
-### 5. Error Handling
-- **Error Trigger** - Catch workflow errors
-- **IF** - Check for error conditions
-- **Stop and Error** - Explicit failure
-- **Continue On Fail** - Per-node setting
-
----
-
-## Workflow Creation Checklist
-
-When building ANY workflow, follow this checklist:
-
-### Planning Phase
-- [ ] Identify the pattern (webhook, API, database, AI, scheduled)
-- [ ] List required nodes (use search_nodes)
-- [ ] Understand data flow (input → transform → output)
-- [ ] Plan error handling strategy
-
-### Implementation Phase
-- [ ] Create workflow with appropriate trigger
-- [ ] Add data source nodes
-- [ ] Configure authentication/credentials
-- [ ] Add transformation nodes (Set, Code, IF)
-- [ ] Add output/action nodes
-- [ ] Configure error handling
-
-### Validation Phase
-- [ ] Validate each node configuration (validate_node)
-- [ ] Validate complete workflow (validate_workflow)
-- [ ] Test with sample data
-- [ ] Handle edge cases (empty data, errors)
-
-### Deployment Phase
-- [ ] Review workflow settings (execution order, timeout, error handling)
-- [ ] Activate workflow using `activateWorkflow` operation
-- [ ] Monitor first executions
-- [ ] Document workflow purpose and data flow
-
----
-
-## Data Flow Patterns
-
-### Linear Flow
 ```
-Trigger → Transform → Action → End
-```
-**Use when**: Simple workflows with single path
-
-### Branching Flow
-```
-Trigger → IF → [True Path]
-             └→ [False Path]
-```
-**Use when**: Different actions based on conditions
-
-### Parallel Processing
-```
-Trigger → [Branch 1] → Merge
-       └→ [Branch 2] ↗
-```
-**Use when**: Independent operations that can run simultaneously
-
-### Loop Pattern
-```
-Trigger → Split in Batches → Process → Loop (until done)
-```
-**Use when**: Processing large datasets in chunks
-
-### Error Handler Pattern
-```
-Main Flow → [Success Path]
-         └→ [Error Trigger → Error Handler]
-```
-**Use when**: Need separate error handling workflow
-
----
-
-## Common Gotchas
-
-### 1. Webhook Data Structure
-**Problem**: Can't access webhook payload data
-
-**Solution**: Data is nested under `$json.body`
-```javascript
-❌ {{$json.email}}
-✅ {{$json.body.email}}
-```
-See: n8n Expression Syntax skill
-
-### 2. Multiple Input Items
-**Problem**: Node processes all input items, but I only want one
-
-**Solution**: Use "Execute Once" mode or process first item only
-```javascript
-{{$json[0].field}}  // First item only
+External system sends data to you?     --> Webhook Processing (35% of workflows)
+You need to fetch from an external API? --> HTTP API Integration
+Reading/writing/syncing databases?      --> Database Operations
+AI needs to reason, use tools, or chat? --> AI Agent Workflow
+Runs on a timer or recurring schedule?  --> Scheduled Tasks
 ```
 
-### 3. Authentication Issues
-**Problem**: API calls failing with 401/403
+**Hybrid patterns:** Most real workflows combine 2-3 patterns. A scheduled task that fetches an API and writes to a database uses patterns 2, 3, and 5. Start with the trigger pattern, layer in others.
 
-**Solution**:
-- Configure credentials properly
-- Use the "Credentials" section, not parameters
-- Test credentials before workflow activation
-
-### 4. Node Execution Order
-**Problem**: Nodes executing in unexpected order
-
-**Solution**: Check workflow settings → Execution Order
-- v0: Top-to-bottom (legacy)
-- v1: Connection-based (recommended)
-
-### 5. Expression Errors
-**Problem**: Expressions showing as literal text
-
-**Solution**: Use {{}} around expressions
-- See n8n Expression Syntax skill for details
-
----
-
-## Integration with Other Skills
-
-These skills work together with Workflow Patterns:
-
-**n8n MCP Tools Expert** - Use to:
-- Find nodes for your pattern (search_nodes)
-- Understand node operations (get_node)
-- Create workflows (n8n_create_workflow)
-- Deploy templates (n8n_deploy_template)
-- Use ai_agents_guide for AI pattern guidance
-
-**n8n Expression Syntax** - Use to:
-- Write expressions in transformation nodes
-- Access webhook data correctly ({{$json.body.field}})
-- Reference previous nodes ({{$node["Node Name"].json.field}})
-
-**n8n Node Configuration** - Use to:
-- Configure specific operations for pattern nodes
-- Understand node-specific requirements
-
-**n8n Validation Expert** - Use to:
-- Validate workflow structure
-- Fix validation errors
-- Ensure workflow correctness before deployment
-
----
-
-## Pattern Statistics
-
-Common workflow patterns:
-
-**Most Common Triggers**:
-1. Webhook - 35%
-2. Schedule (periodic tasks) - 28%
-3. Manual (testing/admin) - 22%
-4. Service triggers (Slack, email, etc.) - 15%
-
-**Most Common Transformations**:
-1. Set (field mapping) - 68%
-2. Code (custom logic) - 42%
-3. IF (conditional routing) - 38%
-4. Switch (multi-condition) - 18%
-
-**Most Common Outputs**:
-1. HTTP Request (APIs) - 45%
-2. Slack - 32%
-3. Database writes - 28%
-4. Email - 24%
-
-**Average Workflow Complexity**:
-- Simple (3-5 nodes): 42%
+**Complexity guide from telemetry:**
+- Simple (3-5 nodes): 42% of workflows
 - Medium (6-10 nodes): 38%
 - Complex (11+ nodes): 20%
 
----
+## Before/After: Webhook with Custom Response
 
-## Quick Start Examples
+**BROKEN (common first attempt):**
+```
+Webhook (default responseMode: onReceived)
+  --> Set node (transform data)
+  --> Postgres (insert record)
+  --> Webhook Response (return {id: record_id, status: "created"})
+```
+Result: Caller gets immediate 200 OK with empty body. Webhook Response node is ignored. Data IS processed, but caller never gets confirmation.
 
-### Example 1: Simple Webhook → Slack
+**WORKING (correct configuration):**
 ```
-1. Webhook (path: "form-submit", POST)
-2. Set (map form fields)
-3. Slack (post message to #notifications)
+Webhook (responseMode: lastNode)
+  --> Set node (transform data)
+  --> Postgres (insert record)
+  --> Webhook Response (statusCode: 201, body: {id: record_id, status: "created"})
 ```
+Result: Caller waits until workflow finishes, gets 201 with the record ID. The only change: `responseMode: "lastNode"`.
 
-### Example 2: Scheduled Report
-```
-1. Schedule (daily at 9 AM)
-2. HTTP Request (fetch analytics)
-3. Code (aggregate data)
-4. Email (send formatted report)
-5. Error Trigger → Slack (notify on failure)
-```
+**Why this matters:** This is the #1 webhook debugging issue. The Webhook Response node doesn't error or warn when responseMode is wrong -- it silently does nothing. You'll spend hours debugging why your caller gets no data.
 
-### Example 3: Database Sync
-```
-1. Schedule (every 15 minutes)
-2. Postgres (query new records)
-3. IF (check if records exist)
-4. MySQL (insert records)
-5. Postgres (update sync timestamp)
-```
+## Pattern 1: Webhook Processing
 
-### Example 4: AI Assistant
-```
-1. Webhook (receive chat message)
-2. AI Agent
-   ├─ OpenAI Chat Model (ai_languageModel)
-   ├─ HTTP Request Tool (ai_tool)
-   ├─ Database Tool (ai_tool)
-   └─ Window Buffer Memory (ai_memory)
-3. Webhook Response (send AI reply)
-```
+### responseMode -- The Critical Choice
 
-### Example 5: API Integration
+| Mode | Behavior | Use When |
+|------|----------|----------|
+| `onReceived` (default) | Immediate 200 OK, workflow runs in background | Long-running workflows, fire-and-forget |
+| `lastNode` | Waits for workflow to finish, sends custom response | Caller needs data back, form confirmations |
+
+**The trap:** Webhook Response node is IGNORED when responseMode is `onReceived`. You must set `lastNode` for custom responses to work.
+
+### Webhook Data Nesting
+
+Data is NOT at `$json` -- it's nested one level deeper:
+
 ```
-1. Manual Trigger (for testing)
-2. HTTP Request (GET /api/users)
-3. Split In Batches (process 100 at a time)
-4. Set (transform user data)
-5. Postgres (upsert users)
-6. Loop (back to step 3 until done)
+$json.headers    --> request headers (e.g., $json.headers['x-api-key'])
+$json.params     --> URL path parameters (e.g., /webhook/form/:id)
+$json.query      --> query string parameters (e.g., ?token=abc)
+$json.body       --> YOUR ACTUAL PAYLOAD DATA
 ```
 
----
+Common mistake: `{{$json.email}}` returns undefined. Correct: `{{$json.body.email}}`
 
-## Detailed Pattern Files
+### Webhook Response Node
 
-For comprehensive guidance on each pattern:
+Required ONLY when responseMode = `lastNode`. Configuration:
 
-- **[webhook_processing.md](webhook_processing.md)** - Webhook patterns, data structure, response handling
-- **[http_api_integration.md](http_api_integration.md)** - REST APIs, authentication, pagination, retries
-- **[database_operations.md](database_operations.md)** - Queries, sync, transactions, batch processing
-- **[ai_agent_workflow.md](ai_agent_workflow.md)** - AI agents, tools, memory, langchain nodes
-- **[scheduled_tasks.md](scheduled_tasks.md)** - Cron schedules, reports, maintenance tasks
+```javascript
+{
+  statusCode: 200,
+  headers: { "Content-Type": "application/json" },
+  body: { "id": "={{$json.record_id}}", "status": "success" }
+}
+```
 
----
+For error branches, return 400/500 with error details on the false path of validation.
 
-## Real Template Examples
+### Webhook Auth and Limits
 
-From n8n template library:
+- **Query token:** `{{$json.query.token}} equals "secret"` -- simple, least secure
+- **Header auth:** `{{$json.headers['x-api-key']}}` -- better
+- **Signature verification:** Code node with `crypto.createHmac('sha256', secret)` for Stripe/GitHub
+- **Environment paths:** `{{$env.WEBHOOK_PATH_PREFIX}}/form-submit` -- never hardcode
 
-**Template #2947**: Weather to Slack
-- Pattern: Scheduled Task
-- Nodes: Schedule → HTTP Request (weather API) → Set → Slack
-- Complexity: Simple (4 nodes)
+Webhook timeout: 120 seconds. For long processing, queue to DB and respond immediately, then process via a separate scheduled workflow.
 
-**Webhook Processing**: Most common pattern
-- Most common: Form submissions, payment webhooks, chat integrations
+## Pattern 2: HTTP API Integration
 
-**HTTP API**: Common pattern
-- Most common: Data fetching, third-party integrations
+### Pagination Patterns
 
-**Database Operations**: Common pattern
-- Most common: ETL, data sync, backup workflows
+Three approaches, all using loop-back connections:
+- **Offset-based:** Set page=1 --> HTTP Request --> IF has_more --> increment page --> loop
+- **Cursor-based** (better for large sets): Extract `next_cursor` from response, loop until null
+- **Link header** (GitHub-style): Parse `Link` header for `rel="next"`, loop until absent
 
-**AI Agents**: Growing in usage
-- Most common: Chatbots, content generation, data analysis
+### Rate Limit Handling
 
-Use `search_templates` and `get_template` from n8n-mcp tools to find examples!
+- **Fixed delay:** Split In Batches (1 item) --> HTTP Request --> Wait (1s) --> Loop
+- **Exponential backoff:** `Math.pow(2, retryCount) * 1000` (1s, 2s, 4s)
+- **Header-based:** Parse `x-ratelimit-remaining` and `x-ratelimit-reset`, wait when remaining < 10
 
----
+### HTTP Error Handling
 
-## Best Practices
+Two settings work together: `continueOnFail: true` (don't stop) + `ignoreResponseCode: true` (get body on 4xx/5xx). Then branch with `IF ({{$json.statusCode}} < 400)`.
 
-### ✅ Do
+**Fallback API pattern:** Primary (continueOnFail) --> IF (failed) --> Secondary API
 
-- Start with the simplest pattern that solves your problem
-- Plan your workflow structure before building
-- Use error handling on all workflows
-- Test with sample data before activation
-- Follow the workflow creation checklist
-- Use descriptive node names
-- Document complex workflows (notes field)
-- Monitor workflow executions after deployment
+### Binary Downloads and Auth
 
-### ❌ Don't
+Binary: `{ responseFormat: "file", outputPropertyName: "data" }`
 
-- Build workflows in one shot (iterate! avg 56s between edits)
-- Skip validation before activation
-- Ignore error scenarios
-- Use complex patterns when simple ones suffice
-- Hardcode credentials in parameters
-- Forget to handle empty data cases
-- Mix multiple patterns without clear boundaries
-- Deploy without testing
+Authentication -- always use credentials system, never parameters:
+- `nodeCredentialType: "httpHeaderAuth"` for Bearer/API key
+- `nodeCredentialType: "httpBasicAuth"` for Basic
+- `nodeCredentialType: "oAuth2Api"` for OAuth2
 
----
+## Pattern 3: Database Operations
 
-## Summary
+### Batch Processing with Split In Batches
 
-**Key Points**:
-1. **5 core patterns** cover 90%+ of workflow use cases
-2. **Webhook processing** is the most common pattern
-3. Use the **workflow creation checklist** for every workflow
-4. **Plan pattern** → **Select nodes** → **Build** → **Validate** → **Deploy**
-5. Integrate with other skills for complete workflow development
+For large datasets, NEVER select unbounded:
 
-**Next Steps**:
-1. Identify your use case pattern
-2. Read the detailed pattern file
-3. Use n8n MCP Tools Expert to find nodes
-4. Follow the workflow creation checklist
-5. Use n8n Validation Expert to validate
+```
+Query (LIMIT 10000) --> Split In Batches (100) --> Transform --> Write --> Loop
+```
 
-**Related Skills**:
-- n8n MCP Tools Expert - Find and configure nodes
-- n8n Expression Syntax - Write expressions correctly
-- n8n Validation Expert - Validate and fix errors
-- n8n Node Configuration - Configure specific operations
+**Cursor-based pagination** (better than OFFSET for millions of rows):
+```sql
+SELECT * FROM table WHERE id > $1 ORDER BY id ASC LIMIT 1000
+```
+Track `last_id` from each batch, loop until no records returned.
+
+### Transaction Pattern
+
+n8n has no native transaction support. Use executeQuery:
+
+```javascript
+// Node 1: BEGIN
+{ operation: "executeQuery", query: "BEGIN" }
+
+// Nodes 2-N: Operations (with continueOnFail: true)
+{ operation: "executeQuery", query: "INSERT INTO ..." }
+
+// Final node: Commit or Rollback based on error
+{ operation: "executeQuery", query: "={{$node['Operation'].json.error ? 'ROLLBACK' : 'COMMIT'}}" }
+```
+
+### Upsert Pattern (Postgres)
+
+```sql
+INSERT INTO users (id, name, email)
+VALUES ($1, $2, $3)
+ON CONFLICT (id)
+DO UPDATE SET name = $2, email = $3, updated_at = NOW()
+```
+
+### Connection Pooling
+
+Configured in credentials, not in nodes:
+```javascript
+{ host: "db.example.com", database: "mydb", min: 2, max: 10, idleTimeoutMillis: 30000 }
+```
+
+### Parameterized Queries
+
+Always use `$1, $2` placeholders with parameters array. NEVER string-concatenate:
+```javascript
+// CORRECT
+{ query: "SELECT * FROM users WHERE id = $1", parameters: ["={{$json.id}}"] }
+// WRONG (SQL injection risk)
+{ query: "SELECT * FROM users WHERE id = '={{$json.id}}'" }
+```
+
+MySQL uses `?` instead of `$1`.
+
+## Pattern 4: AI Agent Workflow
+
+### The 8 AI Connection Types
+
+| Type | Purpose | Required? |
+|------|---------|-----------|
+| `ai_languageModel` | The LLM (OpenAI, Anthropic, etc.) | YES |
+| `ai_tool` | Functions the agent can call | Recommended |
+| `ai_memory` | Conversation context persistence | Recommended |
+| `ai_outputParser` | Parse structured output from LLM | Optional |
+| `ai_embedding` | Vector embeddings for RAG | For RAG only |
+| `ai_vectorStore` | Vector database connection | For RAG only |
+| `ai_document` | Document loaders | For RAG only |
+| `ai_textSplitter` | Text chunking for documents | For RAG only |
+
+### Sub-Node Connection Model
+
+Tools, memory, and models connect TO the agent as sub-nodes -- they do NOT go after the agent in the flow:
+
+```
+OpenAI Chat Model  --[ai_languageModel]--> AI Agent --> Output
+HTTP Request Tool  --[ai_tool]----------->
+Database Tool      --[ai_tool]----------->
+Window Buffer Mem  --[ai_memory]--------->
+```
+
+**Critical:** Connect tools via `ai_tool` port, NOT the main output port. A node connected to the main port feeds data into the agent as input, not as a callable tool.
+
+### Agent Type Selection
+
+| Agent | Best For | Key Trait |
+|-------|----------|-----------|
+| `conversationalAgent` | General chat, support | Natural flow, most common |
+| `openAIFunctionsAgent` | Tool-heavy, structured output | Better tool selection, reliable calling |
+| `ReAct` | Complex multi-step reasoning | Think-Act-Observe loop, visible reasoning |
+
+### Memory Types
+
+| Type | Behavior | Config Key |
+|------|----------|------------|
+| Buffer Memory | Stores ALL messages until cleared | `sessionKey` per user |
+| Window Buffer Memory | Last N messages (recommended) | `contextWindowLength: 10` |
+| Summary Memory | Summarizes old messages via LLM | `maxTokenLimit: 2000` |
+
+All memory types use `sessionKey` for per-user/per-session isolation: `={{$json.body.session_id}}`
+
+### Tool Configuration
+
+ANY n8n node becomes a tool by connecting via `ai_tool` port. The agent sees:
+1. Tool `name` and `description` (used to decide WHEN to call it)
+2. Input schema (optional, helps the agent know what parameters to pass)
+3. The agent generates parameters, n8n executes the node, results return to agent
+
+**Tool descriptions must be specific.** Vague = agent won't know when to call it:
+- BAD: `"Get data"`
+- GOOD: `"Query customer orders by email address. Returns order ID, status, and shipping info."`
+
+### Safety for Database Tools
+
+Create read-only DB user: `GRANT SELECT ON customers, orders TO ai_readonly;` -- NO write access. AI can generate arbitrary SQL.
+
+## Pattern 5: Scheduled Tasks
+
+### Schedule Modes
+
+**Interval:** `{ mode: "interval", interval: 15, unit: "minutes" }`
+
+**Days & Hours:** `{ mode: "daysAndHours", days: ["monday","wednesday","friday"], hour: 9, minute: 0 }`
+
+**Cron** (format: `minute hour day month weekday`):
+```
+0 9 * * 1-5          Weekdays at 9 AM
+0 0 1 * *            First of month at midnight
+*/15 9-17 * * 1-5    Every 15 min during business hours on weekdays
+0 */6 * * *          Every 6 hours
+0 9,17 * * *         At 9 AM and 5 PM daily
+```
+
+### Timezone Handling
+
+Set in workflow settings: `{ timezone: "America/New_York" }`
+
+**DST trap:** A UTC-based schedule for "9 AM local" shifts by 1 hour during DST transitions. Always set the workflow timezone explicitly -- n8n handles DST automatically when timezone is set.
+
+### Overlap Prevention
+
+Long-running tasks can overlap the next scheduled execution. Use a Redis lock:
+
+```
+Schedule --> Redis (GET lock) --> IF (lock exists) --> End (skip)
+                              --> ELSE --> Redis (SET lock, TTL 30min)
+                                      --> Execute workflow
+                                      --> Redis (DELETE lock)
+```
+
+### Activation Caveat
+
+Workflows must be activated manually in the n8n UI. The API/MCP `activateWorkflow` operation is not available -- schedule won't fire until manually activated.
+
+## Data Flow Patterns
+
+| Pattern | Structure | Use When |
+|---------|-----------|----------|
+| Linear | Trigger --> Transform --> Action | Single processing path |
+| Branching | IF --> True path / False path | Conditional logic |
+| Parallel | Trigger --> Branch 1 + Branch 2 --> Merge | Independent operations |
+| Loop | Split In Batches --> Process --> Loop back | Large dataset processing |
+| Error Handler | Main flow + Error Trigger --> separate error flow | Need dedicated error handling |
+
+**Parallel branch caveat:** Execution order matters. Check workflow settings.
+
+## Execution Order
+
+| Version | Behavior | Use |
+|---------|----------|-----|
+| v0 | Top-to-bottom (legacy) | Existing old workflows |
+| v1 | Connection-based (recommended) | All new workflows |
+
+v0 executes nodes based on vertical position in the canvas. v1 follows connection wires. This ONLY matters when you have parallel branches -- v0 may execute them in unexpected order. Always use v1 for new workflows.
+
+## Pattern Statistics (Telemetry Data)
+
+**Trigger distribution:** Webhook 35%, Schedule 28%, Manual 22%, Service 15%
+
+**Transformation nodes:** Set 68%, Code 42%, IF 38%, Switch 18%
+
+**Output destinations:** HTTP Request 45%, Slack 32%, DB writes 28%, Email 24%
+
+## Rationalizations That Break Workflows
+
+| Rationalization | When It Appears | Why It's Wrong |
+|---|---|---|
+| "I'll just use onReceived and add a Webhook Response anyway" | Building webhook that needs to return data | Webhook Response is silently ignored with onReceived -- you'll debug for hours wondering why the caller gets 200 OK with no body |
+| "The data is at $json.email, I checked" | Accessing webhook payload directly | Webhook nests your payload under body -- $json.email returns undefined, $json.body.email is correct |
+| "I'll connect this tool to the agent's output" | Wiring AI agent workflows | Output port = data flow. ai_tool port = callable function. Wrong port means the agent can't call the tool |
+| "I don't need LIMIT, the table is small" | Writing a SELECT query | Tables grow. "Small" table today is 10M rows next quarter. Always LIMIT, always use Split In Batches for large results |
+| "I'll hardcode the API key for now and fix later" | Quick prototyping | Hardcoded secrets survive in workflow exports and version history. Use credentials system from the start |
+| "Execution order doesn't matter for my workflow" | Building parallel branches | v0 executes by canvas position -- moving a node changes execution order. Always use v1 for predictable parallel behavior |
+| "The schedule will just work in the right timezone" | Not setting timezone explicitly | Default timezone varies by install. DST transitions silently shift times by 1 hour. Always set timezone. |
+
+## NEVER
+
+1. **NEVER access webhook data at `$json.email`** -- it's always `$json.body.email`. The top-level `$json` contains headers, params, query, and body.
+2. **NEVER use Webhook Response node with `responseMode: "onReceived"`** -- it's silently ignored. Switch to `lastNode` first.
+3. **NEVER connect tool nodes to AI Agent's main output port** -- use the `ai_tool` connection type. Main port = data input, ai_tool port = callable function.
+4. **NEVER run unbounded SELECT queries** -- always use LIMIT. `SELECT * FROM large_table` can return millions of rows and crash the workflow.
+5. **NEVER string-concatenate values into SQL** -- use parameterized queries (`$1` for Postgres, `?` for MySQL) to prevent injection.
+6. **NEVER hardcode credentials in HTTP Request parameters** -- use the credentials system. Hardcoded secrets are visible in workflow exports.
+7. **NEVER skip timezone setting on scheduled workflows** -- the default may not match your intent, and DST transitions will cause silent timing shifts.
+8. **NEVER run long tasks on tight schedules without overlap prevention** -- a 10-minute task on a 5-minute schedule causes parallel execution and resource contention.
+9. **NEVER give AI agent tools write access to databases** -- create a read-only user. The agent generates arbitrary SQL and can DELETE or DROP tables.
+10. **NEVER use execution order v0 for new workflows** -- v0's top-to-bottom order causes unpredictable behavior with parallel branches. Always use v1.
+11. **NEVER assume API/MCP can activate scheduled workflows** -- activation must be done manually in the n8n UI.
+12. **NEVER process all items at once for large datasets** -- use Split In Batches to avoid out-of-memory errors.
+
+## Thinking Framework
+
+When designing a new n8n workflow:
+
+```
+1. TRIGGER: What starts this workflow?
+   - External event = Webhook
+   - Timer = Schedule (set timezone!)
+   - Manual = for testing only
+
+2. PATTERN: Which core pattern(s) apply?
+   - Match to the 5 patterns above
+   - Most workflows combine 2-3 patterns
+
+3. DATA FLOW: Linear, branching, parallel, or loop?
+   - Large datasets --> Split In Batches + Loop
+   - Conditional logic --> IF/Switch branching
+   - Independent operations --> Parallel branches (use v1 execution order)
+
+4. AI INVOLVED? If yes:
+   - Choose agent type (conversational vs openAIFunctions vs ReAct)
+   - Connect model via ai_languageModel
+   - Connect tools via ai_tool (NOT main port)
+   - Add memory via ai_memory with sessionKey
+   - Write specific tool descriptions
+
+5. ERROR HANDLING:
+   - HTTP calls: continueOnFail + IF check
+   - Scheduled: Error Trigger workflow + alerting
+   - Database: Transaction pattern (BEGIN/COMMIT/ROLLBACK)
+   - Rate limits: Wait node or exponential backoff
+
+6. PRODUCTION READINESS:
+   - Webhook: set responseMode, add auth
+   - Schedule: set timezone, add overlap prevention
+   - Database: parameterized queries, LIMIT on all SELECTs
+   - AI: read-only DB user, limit tool output size
+```

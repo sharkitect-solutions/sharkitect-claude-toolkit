@@ -1,295 +1,171 @@
 ---
 name: twilio-communications
-description: "Build communication features with Twilio: SMS messaging, voice calls, WhatsApp Business API, and user verification (2FA). Covers the full spectrum from simple notifications to complex IVR systems and multi-channel authentication. Critical focus on compliance, rate limits, and error handling. Use when: twilio, send SMS, text message, voice call, phone verification."
-source: vibeship-spawner-skills (Apache 2.0)
+description: "Use when building SMS messaging, voice calls, WhatsApp Business API, or phone verification features with Twilio. Also use when the user mentions Twilio, send SMS, text message, voice call IVR, phone verification, 2FA/OTP via phone, or TwiML. NEVER use for email sending (use email-systems), push notifications, non-Twilio communication APIs, or general authentication without phone verification."
+version: "2.0"
+optimized: true
+optimized_date: "2026-03-11"
 ---
 
 # Twilio Communications
 
-## Patterns
+## File Index
 
-### SMS Sending Pattern
+| File | Purpose | When to Load |
+|---|---|---|
+| SKILL.md | Channel selection, compliance requirements, rate limits, error handling, webhook security, cost control, TwiML reference | Always (auto-loaded) |
+| messaging-patterns-guide.md | SMS segment optimization (GSM-7 vs UCS-2), WhatsApp Business API templates/sessions, delivery status handling, number management, A2P 10DLC trust scores | When implementing SMS/MMS/WhatsApp messaging features or optimizing message delivery |
+| voice-ivr-patterns.md | IVR architecture (auto-attendant, speech recognition, queue-based), TwiML deep patterns, conference calls, call recording compliance, voice quality troubleshooting, STIR/SHAKEN | When building voice features, IVR flows, or troubleshooting call quality issues |
+| verification-security-guide.md | Verify API channels and gotchas, fraud prevention (SMS pumping, toll fraud, SIM swap), credential security, webhook signature validation, MFA architecture | When implementing phone verification, 2FA, or securing Twilio integrations |
 
-Basic pattern for sending SMS messages with Twilio.
-Handles the fundamentals: phone number formatting, message delivery,
-and delivery status callbacks.
+## Scope Boundary
 
-Key considerations:
-- Phone numbers must be in E.164 format (+1234567890)
-- Default rate limit: 80 messages per second (MPS)
-- Messages over 160 characters are split (and cost more)
-- Carrier filtering can block messages (especially to US numbers)
+| This Skill Handles | Defer To |
+|---|---|
+| SMS, voice, WhatsApp messaging with Twilio | email-systems (email infrastructure and deliverability) |
+| Phone verification and 2FA via Twilio Verify | security-best-practices (general authentication patterns) |
+| TwiML IVR design and voice call routing | voice-agents (AI-powered voice conversation agents) |
+| A2P 10DLC registration and carrier compliance | data-privacy-compliance (general GDPR/privacy compliance) |
+| Twilio webhook security and credential management | senior-backend (general API security patterns) |
+| Twilio-specific cost optimization | app-builder (full application architecture decisions) |
 
+Builds SMS, voice, WhatsApp, and phone verification features with Twilio, with critical focus on compliance requirements, rate limits, error handling, and cost control.
 
-**When to use**: ['Sending notifications to users', 'Transactional messages (order confirmations, shipping)', 'Alerts and reminders']
+## Channel Selection Guide
 
-```python
-from twilio.rest import Client
-from twilio.base.exceptions import TwilioRestException
-import os
-import re
+Choose the right Twilio product for the communication need.
 
-class TwilioSMS:
-    """
-    SMS sending with proper error handling and validation.
-    """
+| Need | Twilio Product | Key Constraint | Cost Model |
+|---|---|---|---|
+| Transactional SMS (OTP, alerts, confirmations) | Messaging API + Messaging Service | A2P 10DLC registration required for US; 160-char segments | Per segment sent |
+| Marketing SMS (promotions, campaigns) | Messaging API + Messaging Service | Requires explicit opt-in; TCPA compliance mandatory | Per segment + carrier fees |
+| Phone verification / 2FA | Verify API | Use Verify, never DIY OTP -- built-in fraud prevention saved $82M+ blocking 747M attempts | Per verification attempt |
+| Voice IVR / phone menus | Programmable Voice + TwiML | Stateless -- each webhook is independent; use URL params or session store for state | Per minute |
+| Voice calls (connect users) | Programmable Voice | Use `<Dial>` verb; handle busy/no-answer with fallback | Per minute both legs |
+| WhatsApp notifications | WhatsApp Business API | Must use pre-approved templates for business-initiated messages; 24-hour session window for free-form replies | Per message + Meta fees |
+| Multi-channel (SMS + Voice + Email fallback) | Verify API with channel routing | Verify handles fallback automatically; configure channel priority | Per verification |
 
-    def __init__(self):
-        self.client = Client(
-            os.environ["TWILIO_ACCOUNT_SID"],
-            os.environ["TWILIO_AUTH_TOKEN"]
-        )
-        self.from_number = os.environ["TWILIO_PHONE_NUMBER"]
+## Compliance Requirements
 
-    def validate_e164(self, phone: str) -> bool:
-        """Validate phone number is in E.164 format."""
-        pattern = r'^\+[1-9]\d{1,14}$'
-        return bool(re.match(pattern, phone))
+Non-compliance leads to number suspension, fines, or account termination. These are not optional.
 
-    def send_sms(
-        self,
-        to: str,
-        body: str,
-        status_callback: str = None
-    ) -> dict:
-        """
-        Send an SMS message.
+| Requirement | Applies To | What You Must Do |
+|---|---|---|
+| A2P 10DLC registration | All US SMS (application-to-person) | Register brand and campaign with The Campaign Registry (TCR) via Twilio Console before sending any messages |
+| TCPA compliance | US SMS and voice | Obtain prior express written consent before sending; honor STOP/opt-out immediately; maintain opt-out records |
+| GDPR | EU recipients | Lawful basis for processing phone numbers; honor deletion requests; data processing agreement with Twilio |
+| Opt-out handling | All SMS | Respond to STOP, UNSUBSCRIBE, CANCEL automatically; remove from send lists within 10 days; track opt-out status in your database |
+| Sender ID registration | Some countries (UK, Australia, India) | Register alphanumeric sender IDs before sending; unregistered messages are blocked |
 
-        Args:
-            to: Recipient phone number in E.164 format
-            body: Message text (160 chars = 1 segment)
-            status_callback: URL for delivery status webhooks
+**Critical**: Failing to register for A2P 10DLC results in message filtering rates of 80%+ for US numbers. Registration takes 2-4 weeks -- start before development.
 
-        Returns:
-            Message SID and status
-        """
-        # Validate phone number format
-        if not self.validate_e164(to):
-            return {
-                "success": False,
-                "error": "Phone number must be in E.164 format (+1234567890)"
-            }
+## Rate Limits and Throttling
 
-        # Check message length (warn about segmentation)
-        segment_count = (len(body) + 159) // 160
-        if segment_count > 1:
-            print(f"Warning: Message will be sent as {segment_count} segments")
+| Product | Default Limit | How to Handle |
+|---|---|---|
+| SMS (10DLC registered) | Varies by trust score: 15-75 MPS per campaign | Queue messages; implement exponential backoff on 429 errors |
+| SMS (toll-free) | 25 MPS | Use Messaging Service with multiple numbers for higher throughput |
+| SMS (short code) | 100+ MPS | Apply for short code (6-12 week approval); highest throughput |
+| Voice (outbound) | 1 CPS (calls per second) per number | Use multiple numbers via Connection Policies for higher concurrency |
+| Verify | 5 verification attempts per phone number per 10 minutes | Implement cooldown in your UI; show "try again in X minutes" |
+| WhatsApp | 80 MPS per sender | Queue messages; monitor 429 responses |
 
-        try:
-            message = self.client.messages.create(
-                to=to,
-                from_=self.from_number,
-                body=body,
-                status_callback=status_callback
-            )
+**Application-level throttling**: For production volume (>1k messages/day), implement your own rate limiting in addition to Twilio's. For low-volume applications (<100 messages/day), handling 429 errors with exponential backoff is sufficient without a dedicated rate limiter. At medium volume (100-1k/day), a simple sliding window counter in Redis or memory is adequate -- no need for a token bucket.
 
-            return {
-                "success": True,
-                "message_sid": message.sid,
-                "status": message.status,
-                "segments": segment_count
-            }
+## Error Handling Strategy
 
-        except TwilioRestException as e:
-            return self._handle_error(e)
+| Error Code | Meaning | Action |
+|---|---|---|
+| 20003 | Authentication failure | Check ACCOUNT_SID and AUTH_TOKEN; rotate if compromised |
+| 20429 | Too many requests | Implement exponential backoff: wait 1s, 2s, 4s, 8s, max 60s |
+| 21211 | Invalid phone number | Validate E.164 format before API call; use Lookup API for verification |
+| 21408 | Permission not enabled | Enable the required permission in Console (e.g., international SMS) |
+| 21610 | Recipient unsubscribed | Respect opt-out; do NOT retry; update your opt-out database |
+| 21614 | Invalid mobile number | Not a mobile number; cannot receive SMS -- fall back to voice |
+| 30003 | Unreachable destination | Retry once after 5 minutes; if still fails, try alternate channel |
+| 30004 | Message blocked by carrier | Check A2P 10DLC registration; review message content for spam triggers |
+| 30005 | Unknown destination | Number doesn't exist; remove from contact list |
+| 30006 | Landline or unreachable | Cannot receive SMS; fall back to voice channel |
+| 63016 | WhatsApp session expired | 24-hour window closed; must use approved template to re-initiate |
 
-    def _handle_error(self, error: Twilio
-```
+**Error handling rule**: Validate phone numbers with E.164 regex (`^\+[1-9]\d{1,14}$`) before any API call. For high-value flows (OTP, payment confirmations), also use the Lookup API for real-time carrier validation. For bulk messaging, regex-only validation is sufficient -- Lookup API costs $0.01/call.
 
-### Twilio Verify Pattern (2FA/OTP)
+## Cost Quick Reference
 
-Use Twilio Verify for phone number verification and 2FA.
-Handles code generation, delivery, rate limiting, and fraud prevention.
+| Product | Unit | Cost Range | Watch Out For |
+|---|---|---|---|
+| SMS (US) | Per segment | $0.0079 outbound, $0.0075 inbound | UCS-2 encoding triples segment count |
+| SMS (international) | Per segment | $0.01-$0.14 depending on country | Check country-specific pricing before bulk sends |
+| MMS (US) | Per message | $0.02 outbound | 3-5x more than SMS; disable MMS fallback unless needed |
+| Voice (US) | Per minute | $0.014 outbound, $0.0085 inbound | Both legs billed on `<Dial>` calls |
+| WhatsApp (utility) | Per message | $0.005-$0.03 by country | Cheapest for transactional outside US |
+| WhatsApp (marketing) | Per message | $0.02-$0.08 by country | 3-10x more than utility; avoid promo in transactional |
+| Verify | Per attempt | $0.05 (SMS), $0.10 (voice), $0.01 (email) | Rapid retries waste money; implement UI cooldown |
+| Phone number (US local) | Per month | $1.15 | Audit and release unused numbers monthly |
+| Lookup API | Per lookup | $0.01 | Only use on high-value flows; skip for bulk |
 
-Key benefits over DIY OTP:
-- Twilio manages code generation and expiration
-- Built-in fraud prevention (saved customers $82M+ blocking 747M attempts)
-- Handles rate limiting automatically
-- Multi-channel: SMS, Voice, Email, Push, WhatsApp
+## Webhook Security
 
-Google found SMS 2FA blocks "100% of automated bots, 96% of bulk
-phishing attacks, and 76% of targeted attacks."
+Every Twilio webhook endpoint MUST validate the `X-Twilio-Signature` header to prevent request forgery.
 
+| Security Measure | Implementation |
+|---|---|
+| Signature validation | Use `RequestValidator` from the Twilio SDK; compare against `X-Twilio-Signature` header |
+| HTTPS required | Twilio sends webhooks over HTTPS only; your endpoint must have a valid TLS certificate |
+| URL consistency | The URL you configure in Console must exactly match the URL seen by your server (including protocol, host, port, path) |
+| Behind a proxy | If behind a reverse proxy, ensure `X-Forwarded-Proto` and `X-Forwarded-Host` are forwarded correctly for signature validation |
 
-**When to use**: ['User phone number verification at signup', 'Two-factor authentication (2FA)', 'Password reset verification', 'High-value transaction confirmation']
+**Critical**: Skipping signature validation allows anyone to trigger your webhook endpoints by sending fake requests. This is an exploitable vulnerability for any endpoint that processes payments, sends messages, or modifies data.
 
-```python
-from twilio.rest import Client
-from twilio.base.exceptions import TwilioRestException
-import os
-from enum import Enum
-from typing import Optional
+## Cost Control Patterns
 
-class VerifyChannel(Enum):
-    SMS = "sms"
-    CALL = "call"
-    EMAIL = "email"
-    WHATSAPP = "whatsapp"
+| Cost Driver | Mitigation |
+|---|---|
+| Long SMS (>160 chars) | Count segments before sending: `segments = ceil(len(body) / 160)`. Each segment is billed separately. Optimize message copy to fit in 1 segment |
+| International SMS | Use country-specific pricing lookup before sending; some countries cost 10x US rates. Consider WhatsApp for international (cheaper) |
+| Voice minutes | Set `timeout` on `<Dial>` to avoid billing for unanswered calls. Use `<Gather>` with short timeout instead of `<Pause>` |
+| Verify API | Each attempt costs; implement UI cooldown to prevent rapid retries. Use silent network auth (SNA) where available for zero-cost verification |
+| Unused numbers | Audit monthly; release numbers not actively used -- each costs $1-2/month |
 
-class TwilioVerify:
-    """
-    Phone verification with Twilio Verify.
-    Never store OTP codes - Twilio handles it.
-    """
+## TwiML Quick Reference
 
-    def __init__(self, verify_service_sid: str = None):
-        self.client = Client(
-            os.environ["TWILIO_ACCOUNT_SID"],
-            os.environ["TWILIO_AUTH_TOKEN"]
-        )
-        # Create a Verify Service in Twilio Console first
-        self.service_sid = verify_service_sid or os.environ["TWILIO_VERIFY_SID"]
+| Verb | Purpose | Key Attributes |
+|---|---|---|
+| `<Say>` | Text-to-speech | `voice` (alice, man, woman), `language`, `loop` |
+| `<Play>` | Play audio URL | `loop`, `digits` (DTMF tones) |
+| `<Gather>` | Collect keypad/speech input | `numDigits`, `action` (webhook URL), `timeout`, `input` (dtmf/speech) |
+| `<Dial>` | Connect to another number | `timeout`, `callerId`, `record`, `action` |
+| `<Record>` | Record caller | `maxLength`, `action`, `transcribe` |
+| `<Redirect>` | Move to another TwiML endpoint | URL of next TwiML document |
+| `<Hangup>` | End the call | -- |
 
-    def send_verification(
-        self,
-        to: str,
-        channel: VerifyChannel = VerifyChannel.SMS,
-        locale: str = "en"
-    ) -> dict:
-        """
-        Send verification code to phone/email.
+**Stateless rule**: Twilio makes a new HTTP request for each TwiML interaction. Your application must manage state externally (database, session store, URL parameters) -- there is no built-in session between TwiML requests.
 
-        Args:
-            to: Phone number (E.164) or email
-            channel: SMS, call, email, or whatsapp
-            locale: Language code for message
+## Rationalization Table
 
-        Returns:
-            Verification status
-        """
-        try:
-            verification = self.client.verify \
-                .v2 \
-                .services(self.service_sid) \
-                .verifications \
-                .create(
-                    to=to,
-                    channel=channel.value,
-                    locale=locale
-                )
+| Rationalization | Why It Fails |
+|---|---|
+| "I'll build my own OTP system instead of using Verify" | DIY OTP requires you to handle code generation, expiration, rate limiting, and fraud prevention; Twilio Verify handles all of this and blocked 747M fraudulent attempts -- your custom solution won't match that |
+| "A2P 10DLC registration can wait until we scale" | Unregistered messages are filtered at 80%+ rates for US numbers; registration takes 2-4 weeks, so delaying means your first users get unreliable SMS |
+| "We don't need to validate webhook signatures in development" | Development patterns become production patterns; skipping validation in dev means it's often forgotten in production, creating an exploitable endpoint |
+| "SMS is always the right channel for notifications" | SMS costs per message and has regulatory overhead; for users with your app installed, push notifications are free and have higher engagement -- use SMS only when push isn't available |
+| "Phone number format validation is unnecessary -- Twilio will reject invalid numbers" | Each invalid API call costs latency and counts against rate limits; validating E.164 format client-side prevents wasted calls and improves user experience |
+| "Opt-out handling is a nice-to-have" | TCPA violations carry fines of $500-$1,500 per message; opt-out handling is a legal requirement, not a feature |
 
-            return {
-                "success": True,
-                "status": verification.status,  # "pending"
-                "channel": channel.value,
-                "valid": verification.valid
-            }
+## Red Flags
 
-        except TwilioRestException as e:
-            return self._handle_verify_error(e)
+- Sending SMS to US numbers without A2P 10DLC registration -- messages will be filtered by carriers
+- No webhook signature validation on any Twilio endpoint
+- Hardcoded ACCOUNT_SID or AUTH_TOKEN in source code instead of environment variables
+- Building custom OTP instead of using Twilio Verify API
+- No opt-out handling -- STOP messages not processed or not removing users from send lists
+- Sending SMS without E.164 phone number validation
+- No rate limiting in application code -- relying entirely on Twilio's 429 responses
+- WhatsApp business-initiated messages sent without approved templates (will be rejected)
 
-    def check_verification(self, to: str, code: str) -> dict:
-        """
-        Check if verification code is correct.
+## NEVER
 
-        Args:
-            to: Phone number or email that received code
-            code: The code entered by user
-
-        R
-```
-
-### TwiML IVR Pattern
-
-Build Interactive Voice Response (IVR) systems using TwiML.
-TwiML (Twilio Markup Language) is XML that tells Twilio what to do
-when receiving calls.
-
-Core TwiML verbs:
-- <Say>: Text-to-speech
-- <Play>: Play audio file
-- <Gather>: Collect keypad/speech input
-- <Dial>: Connect to another number
-- <Record>: Record caller's voice
-- <Redirect>: Move to another TwiML endpoint
-
-Key insight: Twilio makes HTTP request to your webhook, you return
-TwiML, Twilio executes it. Stateless, so use URL params or sessions.
-
-
-**When to use**: ['Phone menu systems (press 1 for sales...)', 'Automated customer support', 'Appointment reminders with confirmation', 'Voicemail systems']
-
-```python
-from flask import Flask, request, Response
-from twilio.twiml.voice_response import VoiceResponse, Gather
-from twilio.request_validator import RequestValidator
-import os
-
-app = Flask(__name__)
-
-def validate_twilio_request(f):
-    """Decorator to validate requests are from Twilio."""
-    def wrapper(*args, **kwargs):
-        validator = RequestValidator(os.environ["TWILIO_AUTH_TOKEN"])
-
-        # Get request details
-        url = request.url
-        params = request.form.to_dict()
-        signature = request.headers.get("X-Twilio-Signature", "")
-
-        if not validator.validate(url, params, signature):
-            return "Invalid request", 403
-
-        return f(*args, **kwargs)
-    wrapper.__name__ = f.__name__
-    return wrapper
-
-@app.route("/voice/incoming", methods=["POST"])
-@validate_twilio_request
-def incoming_call():
-    """Handle incoming call with IVR menu."""
-    response = VoiceResponse()
-
-    # Gather digits with timeout
-    gather = Gather(
-        num_digits=1,
-        action="/voice/menu-selection",
-        method="POST",
-        timeout=5
-    )
-    gather.say(
-        "Welcome to Acme Corp. "
-        "Press 1 for sales. "
-        "Press 2 for support. "
-        "Press 3 to leave a message."
-    )
-    response.append(gather)
-
-    # If no input, repeat
-    response.redirect("/voice/incoming")
-
-    return Response(str(response), mimetype="text/xml")
-
-@app.route("/voice/menu-selection", methods=["POST"])
-@validate_twilio_request
-def menu_selection():
-    """Route based on menu selection."""
-    response = VoiceResponse()
-    digit = request.form.get("Digits", "")
-
-    if digit == "1":
-        # Transfer to sales
-        response.say("Connecting you to sales.")
-        response.dial(os.environ["SALES_PHONE"])
-
-    elif digit == "2":
-        # Transfer to support
-        response.say("Connecting you to support.")
-        response.dial(os.environ["SUPPORT_PHONE"])
-
-    elif digit == "3":
-        # Voicemail
-        response.say("Please leave a message after 
-```
-
-## ⚠️ Sharp Edges
-
-| Issue | Severity | Solution |
-|-------|----------|----------|
-| Issue | high | ## Track opt-out status in your database |
-| Issue | medium | ## Implement retry logic for transient failures |
-| Issue | high | ## Register for A2P 10DLC (US requirement) |
-| Issue | critical | ## ALWAYS validate the signature |
-| Issue | high | ## Track session windows per user |
-| Issue | critical | ## Never hardcode credentials |
-| Issue | medium | ## Implement application-level rate limiting too |
+- Hardcode Twilio credentials in source code or commit them to version control -- use environment variables or a secrets manager; exposed credentials enable account takeover and toll fraud
+- Skip A2P 10DLC registration for US SMS -- carrier filtering makes unregistered messages unreliable, and Twilio may suspend non-compliant accounts
+- Store OTP codes in your own database when using Verify -- Twilio manages code lifecycle; storing codes creates a security liability with no benefit
+- Ignore the 24-hour WhatsApp session window -- business-initiated messages outside the window must use pre-approved templates or they will be rejected
+- Send SMS without checking opt-out status -- each message sent after opt-out is a potential TCPA violation with statutory damages

@@ -1,0 +1,72 @@
+[
+  {
+    "input": "I need to create a page comparing our project management tool to Asana. We want to rank for 'Asana alternative' searches.",
+    "expected_output": "Should trigger competitor-alternatives skill. Singular alternative page format. Covers page architecture, trust engineering, CTA placement, and keyword intent mapping for switching-intent searches.",
+    "should_trigger": true
+  },
+  {
+    "input": "Write a 'best Notion alternatives' roundup page that lists 5-7 tools including ours.",
+    "expected_output": "Should trigger competitor-alternatives skill. Plural alternatives page format. Covers choice overload prevention (max 5-7), curator stance, decoy effect application, and email capture optimization for research-stage visitors.",
+    "should_trigger": true
+  },
+  {
+    "input": "Create a comparison page: our CRM vs HubSpot vs Salesforce. We want to show why we're the better choice for small businesses.",
+    "expected_output": "Should trigger competitor-alternatives skill. Combines you-vs-them and them-vs-them formats. Covers feature parity matrix, honest competitor strength acknowledgment, and audience segmentation by business size.",
+    "should_trigger": true
+  },
+  {
+    "input": "We need competitive battle cards for our sales team to use when going head-to-head against Zendesk in deals.",
+    "expected_output": "Should trigger competitor-alternatives skill. Battle card creation with landmine questions, trap handling, pricing counter arguments. References competitive-intelligence-methods.md companion.",
+    "should_trigger": true
+  },
+  {
+    "input": "Help me set up a competitive intelligence monitoring system to track when our competitors change their pricing or launch new features.",
+    "expected_output": "Should trigger competitor-alternatives skill. Covers competitive signal monitoring (pricing page changes, job postings, review sentiment). References competitive-intelligence-methods.md for CI tool comparison.",
+    "should_trigger": true
+  },
+  {
+    "input": "I want to do win/loss analysis interviews with customers who chose our competitor over us. What questions should I ask?",
+    "expected_output": "Should trigger competitor-alternatives skill. Win/loss analysis framework with 4-phase interview structure, sample size requirements (min 20 per competitor), bias mitigation techniques.",
+    "should_trigger": true
+  },
+  {
+    "input": "Our competitor comparison pages are 2 years old and our competitor has completely changed their pricing. How do we fix this?",
+    "expected_output": "Should trigger competitor-alternatives skill. Addresses The Set-and-Forget anti-pattern. Covers freshness signals, 90-day verification cycles, automated staleness alerts, and legal risk of outdated pricing claims.",
+    "should_trigger": true
+  },
+  {
+    "input": "We want to make claims about our competitor's product on our comparison page but we're worried about legal issues. What can we safely say?",
+    "expected_output": "Should trigger competitor-alternatives skill. References legal-compliance.md companion. Covers Lanham Act requirements, safe harbor language patterns, claim substantiation requirements, trademark usage rules.",
+    "should_trigger": true
+  },
+  {
+    "input": "Our comparison page has a feature table but it's not converting. How do I optimize the page layout for better conversions?",
+    "expected_output": "Should trigger competitor-alternatives skill. References conversion-optimization.md companion. Covers verdict-first hierarchy, CTA placement after self-selection sections, The Checkbox Fallacy anti-pattern, and comparison page CVR benchmarks.",
+    "should_trigger": true
+  },
+  {
+    "input": "We need to build 50+ competitor comparison pages programmatically. How should we structure the data and templates?",
+    "expected_output": "Should trigger competitor-alternatives skill. Covers programmatic competitive content section: data layer (centralized competitor profiles), template layer, editorial layer. Freshness signals and automated staleness alerts.",
+    "should_trigger": true
+  },
+  {
+    "input": "Create a competitor vs competitor page comparing Slack vs Microsoft Teams where we can introduce our product as a third option.",
+    "expected_output": "Should trigger competitor-alternatives skill. Them-vs-them format with neutral analyst stance. Covers trust engineering through fairness, converting brand-unaware visitors (1-2% CVR), and the soft introduction technique.",
+    "should_trigger": true
+  },
+  {
+    "input": "Our competitor just sent us a cease and desist letter about our comparison page. What should we do?",
+    "expected_output": "Should trigger competitor-alternatives skill. References legal-compliance.md companion. Covers competitor response playbook, documentation protocol, nominative fair use defense, and escalation to legal counsel.",
+    "should_trigger": true
+  },
+  {
+    "input": "Write a blog post about productivity tips for remote teams.",
+    "expected_output": "Should NOT trigger competitor-alternatives skill. This is general content marketing, not competitive comparison content. Use content-research-writer or copywriting skill instead.",
+    "should_trigger": false
+  },
+  {
+    "input": "Help me decide our product pricing strategy and what tiers to offer.",
+    "expected_output": "Should NOT trigger competitor-alternatives skill. This is pricing strategy, not competitive comparison page creation. Use pricing-strategy skill instead.",
+    "should_trigger": false
+  }
+]

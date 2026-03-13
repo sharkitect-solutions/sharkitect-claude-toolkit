@@ -1,0 +1,64 @@
+{
+  "evals": [
+    {
+      "input": "I need to test my chatbot before deploying it to production",
+      "expected_behavior": "Ask the four pre-eval questions (what measuring, consequence of failure, who judges quality, handling non-determinism). Recommend building a regression suite of 30-50 test cases with statistical running (5+ runs each).",
+      "anti_pattern": "Suggesting to 'try it out manually' or write a few unit tests with exact string matching",
+      "difficulty": "easy"
+    },
+    {
+      "input": "How do I use GPT-4 to automatically score my agent's outputs?",
+      "expected_behavior": "Explain LLM-as-judge approach with the 5 biases (position, verbosity, self-enhancement, sycophancy, format). Recommend calibration protocol: 20 human-scored examples, target Spearman rho > 0.8.",
+      "anti_pattern": "Just showing how to call GPT-4 as a judge without mentioning biases or calibration requirements",
+      "difficulty": "easy"
+    },
+    {
+      "input": "My agent's tests sometimes pass and sometimes fail with the same input. Are the tests broken?",
+      "expected_behavior": "Explain non-determinism is expected with LLM agents. Use the flaky test triage: 40-60% pass rate = unreliable behavior, 80-95% = genuine flakiness, 95-99% = edge case. Recommend running N=5+ times and reporting pass rates instead of pass/fail.",
+      "anti_pattern": "Treating this as a bug to fix or suggesting to increase temperature to 0",
+      "difficulty": "medium"
+    },
+    {
+      "input": "Our agent scores 95% on our benchmark but users are complaining about quality. What's happening?",
+      "expected_behavior": "Diagnose benchmark-production gap. Check for: benchmark contamination (training data leak), Goodhart's Law (optimized for metric, not task), distribution mismatch (benchmark doesn't represent real user inputs). Recommend adding out-of-distribution test cases and production monitoring.",
+      "anti_pattern": "Dismissing user complaints because the benchmark score is high",
+      "difficulty": "medium"
+    },
+    {
+      "input": "We need to quickly test our agent. Just run it once on each test case, that's fine right?",
+      "expected_behavior": "Push back firmly: single-run testing is explicitly in the NEVER list. A test that passes once might fail 40% of the time. Minimum 5 runs per test case. The rationalization table addresses this exact scenario.",
+      "anti_pattern": "Accepting single-run testing because the user said 'quickly'",
+      "difficulty": "hard"
+    },
+    {
+      "input": "We want to evaluate our agent but our team can't agree on what 'good' means",
+      "expected_behavior": "This is the right starting point. Recommend creating a rubric with scored criteria FIRST, before writing any tests. Have team score 20 examples independently, compare scores, iterate on rubric until inter-rater agreement is high.",
+      "anti_pattern": "Skipping the 'define quality' step and jumping to test case creation",
+      "difficulty": "hard"
+    },
+    {
+      "input": "How do I set up adversarial testing for my customer support agent?",
+      "expected_behavior": "Cover prompt injection attempts, off-topic requests, emotional manipulation, requests for PII, attempts to override instructions. Frame as behavioral invariant tests (binary pass/fail). Include specific adversarial input examples.",
+      "anti_pattern": "Only testing happy-path scenarios or suggesting generic 'edge case testing'",
+      "difficulty": "medium"
+    },
+    {
+      "input": "We improved our agent's prompts but I'm not sure if it's actually better. How do I compare?",
+      "expected_behavior": "Recommend comparative evaluation: same test set, both versions, LLM-as-judge with calibrated rubric. Minimum 50 test cases. Run both versions 5+ times each. Use statistical significance testing before declaring a winner.",
+      "anti_pattern": "Suggesting to 'try both and see which feels better' without structured comparison",
+      "difficulty": "medium"
+    },
+    {
+      "input": "I want to use the same test cases I used to tune my prompts to evaluate the final agent",
+      "expected_behavior": "Flag this as data leakage - explicitly in the NEVER list. Test cases used during prompt engineering will produce inflated scores. Need a held-out evaluation set that was never seen during development.",
+      "anti_pattern": "Allowing the same data for tuning and evaluation without flagging the contamination risk",
+      "difficulty": "hard"
+    },
+    {
+      "input": "My team says the agent 'feels worse' after the last update but our metrics look the same. Who's right?",
+      "expected_behavior": "Take the team's perception seriously - this is the 'vibes problem' red flag. Likely the metrics don't capture what changed. Investigate: are metrics measuring the right thing? Are there failure modes not covered by current tests? Do a targeted human eval on the changed behaviors.",
+      "anti_pattern": "Dismissing team perception because metrics haven't changed",
+      "difficulty": "hard"
+    }
+  ]
+}

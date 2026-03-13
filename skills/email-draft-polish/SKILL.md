@@ -1,19 +1,62 @@
 ---
 name: email-draft-polish
-description: "Quality assurance for cold email drafts before sending. Use when reviewing generated emails, polishing draft copy, checking emails against brand guidelines, auditing email quality, or validating that emails meet all formatting and content rules. Also use when the user says 'review this email,' 'check this draft,' 'polish this email,' 'QA these emails,' or 'audit email quality.'"
+description: "Use when reviewing a generated cold email draft, polishing email copy before sending, checking an email against brand guidelines, auditing email quality, or validating that an email meets formatting and content rules. Also triggered by: 'review this email,' 'check this draft,' 'polish this email,' 'QA these emails,' 'audit email quality.' NEVER for writing emails from scratch, general copywriting tasks, or non-cold-email correspondence."
+version: "2.0"
+optimized: true
+optimized_date: "2026-03-10"
 ---
 
 # Email Draft Polish
 
-Quality gate for cold email drafts. Review, critique, and improve email copy before it goes out, ensuring every email meets brand standards and maximizes reply probability.
+## File Index
+
+| File | Purpose | Required |
+|------|---------|----------|
+| `brand/Lead Gen Email Agent Brief.md` | Complete ruleset -- authoritative source | YES -- load before reviewing |
+| `brand/templates/[niche].md` | Niche-specific pain points, terminology, golden examples | YES -- load matching niche |
+
+**If brand brief is missing:** Stop and ask the user to provide it. Do not proceed without it. Every rule in this skill is derived from that document -- QA without it is guesswork.
+
+---
+
+## Rationalization Table
+
+These are the excuses Claude (or the user) might use to skip a thorough QA pass. None of them are valid.
+
+| Rationalization | Why It Fails |
+|----------------|-------------|
+| "The email looks good enough" | "Good enough" sends the wrong impression to cold prospects. One AI tell-tale tanks deliverability and reply rates. |
+| "This is just a follow-up, less scrutiny needed" | Follow-ups have their own specific structural requirements. FU2 and FU3 especially require trust signals that are easy to miss. |
+| "The user already approved the template" | Approving a template structure is not approving a specific draft. Each draft requires its own pass. |
+| "It's close enough to the brand voice" | "Close enough" accumulates. A slightly salesy tone plus a slightly formal opener plus one marketing buzzword = an email that reads as AI-generated. |
+| "The checklist doesn't apply to this niche" | The checklist applies to all niches. Niche-specific items are additive, not replacements. |
+| "The user said they just want light polish" | Light polish still requires flagging hard rule violations. Mention all failures; let the user decide what to fix. |
+| "This email already performed well before" | Past performance on a different draft in a different niche with a different prospect is not a pass on this one. |
+
+---
+
+## NEVER
+
+- **NEVER approve an email that contains AI tell-tales.** Phrases like "I hope this finds you well," "In today's competitive landscape," or "I wanted to reach out" are disqualifying -- rewrite, do not approve.
+- **NEVER let "call" or "phone" slip through.** The consultation is in-person only. A single wrong word here breaks the entire offer framing.
+- **NEVER skip the brand brief.** Every rule in this skill has additional context in the brief. Reviewing without it means missing niche-specific exceptions and requirements.
+- **NEVER approve a draft with solution-selling language.** Describing what Sharkitect does, how AI works, or what the engagement includes violates the core premise of the email (diagnostic framing, not sales pitch).
+- **NEVER assume the follow-up type.** Confirm whether the draft is initial, FU1, FU2, FU3, or FU4 before applying the checklist. Each type has different requirements.
+- **NEVER skip the deliverability check.** A brilliant email that hits a spam filter has a 0% reply rate. Deliverability is not optional.
+- **NEVER present a pass without checking every item.** Rushing the checklist produces false confidence and sends broken emails.
+
+---
 
 ## Before Reviewing
 
-**Load the brand brief:**
-Read `brand/Lead Gen Email Agent Brief.md` for the complete ruleset. This is the authoritative source. When in doubt, the brief wins.
+**Step 1 -- Identify the email type:**
+Confirm: initial, FU1, FU2, FU3, or FU4. This determines which sections of the checklist apply.
 
-**Load the niche template:**
-Read the relevant `brand/templates/[niche].md` for niche-specific context (industry pain points, terminology, golden examples).
+**Step 2 -- Load the brand brief:**
+Read `brand/Lead Gen Email Agent Brief.md`. This is the authoritative source. When in doubt, the brief wins.
+
+**Step 3 -- Load the niche template:**
+Read `brand/templates/[niche].md` for niche-specific context (industry pain points, terminology, golden examples).
 
 ---
 
@@ -88,9 +131,27 @@ Target voice equation: 40% Confident Expert + 25% Friendly Neighbor + 20% Straig
 
 ---
 
+## Red Flags
+
+Observable patterns that indicate this skill is being violated or the email has a serious problem.
+
+- **AI tell-tale phrase detected** -- "I hope this," "I wanted to reach out," "In today's landscape," or any phrase that appears in the AI-Generated Tell-Tales list below. Hard stop.
+- **Word "call" or "phone" appears in body** -- Consultation is in-person. Any reference to a call violates the offer framing.
+- **Draft describes Sharkitect's services or AI** -- Solution-selling. The email should create curiosity, not pitch a product.
+- **Opener is a question** -- Questions as openers are a documented AI pattern. They also put the reader on defense. Flag and rewrite.
+- **Only one "Maybe it's..." scenario** -- The structure requires two. One scenario reads as thin and unconvincing.
+- **Signature is incomplete or wrong order** -- Any deviation from the 5-line block breaks brand consistency.
+- **Subject line is more than 6 words or contains caps** -- Deliverability risk and looks promotional rather than personal.
+- **Opt-out language in initial, FU1, FU2, or FU3** -- Exit language belongs only in FU4. Including it earlier signals low confidence and reduces response urgency.
+- **Word count outside 80-120 for initial emails** -- Under 80 reads as dismissive; over 120 loses attention. Both reduce reply probability.
+- **Follow-up repeats initial email content** -- FU1 through FU4 must add new value. Repetition signals that you have nothing new to say.
+
+---
+
 ## Common Failures to Watch For
 
 ### AI-Generated Tell-Tales
+
 These patterns immediately signal "AI wrote this" -- flag and rewrite:
 - "I hope this email finds you well"
 - "I came across your company and was impressed"
@@ -102,12 +163,14 @@ These patterns immediately signal "AI wrote this" -- flag and rewrite:
 - Ending with "Looking forward to hearing from you"
 
 ### Tone Drift
+
 - **Too formal**: "I would like to propose an opportunity" -> sounds like a bank
 - **Too casual**: "Hey! Quick question for ya" -> sounds like spam
 - **Too salesy**: "We help companies like yours increase revenue by..." -> vendor pitch
 - **Too vague**: "Many businesses face challenges" -> says nothing specific
 
 ### Structure Violations
+
 - Missing the pattern interrupt line
 - Only one "Maybe it's..." scenario (need two)
 - CTA buried in the middle instead of near the end
@@ -126,12 +189,3 @@ When an email fails any check:
 4. **Re-check** the full email after revision to ensure fixes didn't introduce new issues
 
 Present revisions as before/after pairs so the change is clear.
-
----
-
-## Related Skills
-
-- **cold-email**: For writing cold emails from scratch
-- **copy-editing**: For general marketing copy editing
-- **outreach-specialist**: For campaign-level outreach strategy
-- **marketing-psychology**: For psychological principles behind effective copy

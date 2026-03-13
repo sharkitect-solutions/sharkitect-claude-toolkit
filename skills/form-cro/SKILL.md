@@ -1,425 +1,205 @@
 ---
 name: form-cro
-description: When the user wants to optimize any form that is NOT signup/registration — including lead capture forms, contact forms, demo request forms, application forms, survey forms, or checkout forms. Also use when the user mentions "form optimization," "lead form conversions," "form friction," "form fields," "form completion rate," or "contact form." For signup/registration forms, see signup-flow-cro. For popups containing forms, see popup-cro.
+description: "Use when optimizing non-signup forms for conversion: lead capture forms, contact forms, demo request forms, application forms, survey forms, quote request forms, or checkout forms. Also for form field reduction decisions, multi-step form design, form error handling optimization, or form abandonment diagnosis. NEVER for signup/registration forms (use signup-flow-cro), popups containing forms (use popup-cro), page-level conversion optimization beyond the form (use page-cro), A/B test statistical setup (use ab-test-setup)."
+version: 2
+optimized: true
+optimized_date: 2026-03-11
 ---
 
 # Form CRO
 
-You are an expert in form optimization. Your goal is to maximize form completion rates while capturing the data that matters.
-
-## Initial Assessment
-
-Before providing recommendations, identify:
-
-1. **Form Type**
-   - Lead capture (gated content, newsletter)
-   - Contact form
-   - Demo/sales request
-   - Application form
-   - Survey/feedback
-   - Checkout form
-   - Quote request
-
-2. **Current State**
-   - How many fields?
-   - What's the current completion rate?
-   - Mobile vs. desktop split?
-   - Where do users abandon?
-
-3. **Business Context**
-   - What happens with form submissions?
-   - Which fields are actually used in follow-up?
-   - Are there compliance/legal requirements?
-
----
-
-## Core Principles
-
-### 1. Every Field Has a Cost
-Each field reduces completion rate. Rule of thumb:
-- 3 fields: Baseline
-- 4-6 fields: 10-25% reduction
-- 7+ fields: 25-50%+ reduction
-
-For each field, ask:
-- Is this absolutely necessary before we can help them?
-- Can we get this information another way?
-- Can we ask this later?
-
-### 2. Value Must Exceed Effort
-- Clear value proposition above form
-- Make what they get obvious
-- Reduce perceived effort (field count, labels)
-
-### 3. Reduce Cognitive Load
-- One question per field
-- Clear, conversational labels
-- Logical grouping and order
-- Smart defaults where possible
-
----
-
-## Field-by-Field Optimization
-
-### Email Field
-- Single field, no confirmation
-- Inline validation
-- Typo detection (did you mean gmail.com?)
-- Proper mobile keyboard
-
-### Name Fields
-- Single "Name" vs. First/Last — test this
-- Single field reduces friction
-- Split needed only if personalization requires it
-
-### Phone Number
-- Make optional if possible
-- If required, explain why
-- Auto-format as they type
-- Country code handling
-
-### Company/Organization
-- Auto-suggest for faster entry
-- Enrichment after submission (Clearbit, etc.)
-- Consider inferring from email domain
-
-### Job Title/Role
-- Dropdown if categories matter
-- Free text if wide variation
-- Consider making optional
-
-### Message/Comments (Free Text)
-- Make optional
-- Reasonable character guidance
-- Expand on focus
-
-### Dropdown Selects
-- "Select one..." placeholder
-- Searchable if many options
-- Consider radio buttons if < 5 options
-- "Other" option with text field
-
-### Checkboxes (Multi-select)
-- Clear, parallel labels
-- Reasonable number of options
-- Consider "Select all that apply" instruction
-
----
-
-## Form Layout Optimization
-
-### Field Order
-1. Start with easiest fields (name, email)
-2. Build commitment before asking more
-3. Sensitive fields last (phone, company size)
-4. Logical grouping if many fields
-
-### Labels and Placeholders
-- Labels: Always visible (not just placeholder)
-- Placeholders: Examples, not labels
-- Help text: Only when genuinely helpful
-
-**Good:**
-```
-Email
-[name@company.com]
-```
-
-**Bad:**
-```
-[Enter your email address]  ← Disappears on focus
-```
-
-### Visual Design
-- Sufficient spacing between fields
-- Clear visual hierarchy
-- CTA button stands out
-- Mobile-friendly tap targets (44px+)
-
-### Single Column vs. Multi-Column
-- Single column: Higher completion, mobile-friendly
-- Multi-column: Only for short related fields (First/Last name)
-- When in doubt, single column
-
----
-
-## Multi-Step Forms
-
-### When to Use Multi-Step
-- More than 5-6 fields
-- Logically distinct sections
-- Conditional paths based on answers
-- Complex forms (applications, quotes)
-
-### Multi-Step Best Practices
-- Progress indicator (step X of Y)
-- Start with easy, end with sensitive
-- One topic per step
-- Allow back navigation
-- Save progress (don't lose data on refresh)
-- Clear indication of required vs. optional
-
-### Progressive Commitment Pattern
-1. Low-friction start (just email)
-2. More detail (name, company)
-3. Qualifying questions
-4. Contact preferences
-
----
-
-## Error Handling
-
-### Inline Validation
-- Validate as they move to next field
-- Don't validate too aggressively while typing
-- Clear visual indicators (green check, red border)
-
-### Error Messages
-- Specific to the problem
-- Suggest how to fix
-- Positioned near the field
-- Don't clear their input
-
-**Good:** "Please enter a valid email address (e.g., name@company.com)"
-**Bad:** "Invalid input"
-
-### On Submit
-- Focus on first error field
-- Summarize errors if multiple
-- Preserve all entered data
-- Don't clear form on error
-
----
-
-## Submit Button Optimization
-
-### Button Copy
-Weak: "Submit" | "Send"
-Strong: "[Action] + [What they get]"
-
-Examples:
-- "Get My Free Quote"
-- "Download the Guide"
-- "Request Demo"
-- "Send Message"
-- "Start Free Trial"
-
-### Button Placement
-- Immediately after last field
-- Left-aligned with fields
-- Sufficient size and contrast
-- Mobile: Sticky or clearly visible
-
-### Post-Submit States
-- Loading state (disable button, show spinner)
-- Success confirmation (clear next steps)
-- Error handling (clear message, focus on issue)
-
----
-
-## Trust and Friction Reduction
-
-### Near the Form
-- Privacy statement: "We'll never share your info"
-- Security badges if collecting sensitive data
-- Testimonial or social proof
-- Expected response time
-
-### Reducing Perceived Effort
-- "Takes 30 seconds"
-- Field count indicator
-- Remove visual clutter
-- Generous white space
-
-### Addressing Objections
-- "No spam, unsubscribe anytime"
-- "We won't share your number"
-- "No credit card required"
-
----
-
-## Form Types: Specific Guidance
-
-### Lead Capture (Gated Content)
-- Minimum viable fields (often just email)
-- Clear value proposition for what they get
-- Consider asking enrichment questions post-download
-- Test email-only vs. email + name
-
-### Contact Form
-- Essential: Email/Name + Message
-- Phone optional
-- Set response time expectations
-- Offer alternatives (chat, phone)
-
-### Demo Request
-- Name, Email, Company required
-- Phone: Optional with "preferred contact" choice
-- Use case/goal question helps personalize
-- Calendar embed can increase show rate
-
-### Quote/Estimate Request
-- Multi-step often works well
-- Start with easy questions
-- Technical details later
-- Save progress for complex forms
-
-### Survey Forms
-- Progress bar essential
-- One question per screen for engagement
-- Skip logic for relevance
-- Consider incentive for completion
-
----
-
-## Mobile Optimization
-
-- Larger touch targets (44px minimum height)
-- Appropriate keyboard types (email, tel, number)
-- Autofill support
-- Single column only
-- Sticky submit button
-- Minimal typing (dropdowns, buttons)
-
----
-
-## Measurement
-
-### Key Metrics
-- **Form start rate**: Page views → Started form
-- **Completion rate**: Started → Submitted
-- **Field drop-off**: Which fields lose people
-- **Error rate**: By field
-- **Time to complete**: Total and by field
-- **Mobile vs. desktop**: Completion by device
-
-### What to Track
-- Form views
-- First field focus
-- Each field completion
-- Errors by field
-- Submit attempts
-- Successful submissions
-
----
-
-## Output Format
-
-### Form Audit
-For each issue:
-- **Issue**: What's wrong
-- **Impact**: Estimated effect on conversions
-- **Fix**: Specific recommendation
-- **Priority**: High/Medium/Low
-
-### Recommended Form Design
-- **Required fields**: Justified list
-- **Optional fields**: With rationale
-- **Field order**: Recommended sequence
-- **Copy**: Labels, placeholders, button
-- **Error messages**: For each field
-- **Layout**: Visual guidance
-
-### Test Hypotheses
-Ideas to A/B test with expected outcomes
-
----
-
-## Experiment Ideas
-
-### Form Structure Experiments
-
-**Layout & Flow**
-- Single-step form vs. multi-step with progress bar
-- 1-column vs. 2-column field layout
-- Form embedded on page vs. separate page
-- Vertical vs. horizontal field alignment
-- Form above fold vs. after content
-
-**Field Optimization**
-- Reduce to minimum viable fields
-- Add or remove phone number field
-- Add or remove company/organization field
-- Test required vs. optional field balance
-- Use field enrichment to auto-fill known data
-- Hide fields for returning/known visitors
-
-**Smart Forms**
-- Add real-time validation for emails and phone numbers
-- Progressive profiling (ask more over time)
-- Conditional fields based on earlier answers
-- Auto-suggest for company names
-
----
-
-### Copy & Design Experiments
-
-**Labels & Microcopy**
-- Test field label clarity and length
-- Placeholder text optimization
-- Help text: show vs. hide vs. on-hover
-- Error message tone (friendly vs. direct)
-
-**CTAs & Buttons**
-- Button text variations ("Submit" vs. "Get My Quote" vs. specific action)
-- Button color and size testing
-- Button placement relative to fields
-
-**Trust Elements**
-- Add privacy assurance near form
-- Show trust badges next to submit
-- Add testimonial near form
-- Display expected response time
-
----
-
-### Form Type-Specific Experiments
-
-**Demo Request Forms**
-- Test with/without phone number requirement
-- Add "preferred contact method" choice
-- Include "What's your biggest challenge?" question
-- Test calendar embed vs. form submission
-
-**Lead Capture Forms**
-- Email-only vs. email + name
-- Test value proposition messaging above form
-- Gated vs. ungated content strategies
-- Post-submission enrichment questions
-
-**Contact Forms**
-- Add department/topic routing dropdown
-- Test with/without message field requirement
-- Show alternative contact methods (chat, phone)
-- Expected response time messaging
-
----
-
-### Mobile & UX Experiments
-
-- Larger touch targets for mobile
-- Test appropriate keyboard types by field
-- Sticky submit button on mobile
-- Auto-focus first field on page load
-- Test form container styling (card vs. minimal)
-
----
-
-## Questions to Ask
-
-If you need more context:
-1. What's your current form completion rate?
-2. Do you have field-level analytics?
-3. What happens with the data after submission?
-4. Which fields are actually used in follow-up?
-5. Are there compliance/legal requirements?
-6. What's the mobile vs. desktop split?
-
----
-
-## Related Skills
-
-- **signup-flow-cro**: For account creation forms
-- **popup-cro**: For forms inside popups/modals
-- **page-cro**: For the page containing the form
-- **ab-test-setup**: For testing form changes
+## File Index
+
+| File | Purpose | When to Load |
+|---|---|---|
+| SKILL.md | Form type diagnosis, field reduction, multi-step decisions, error handling, CTA psychology, abandonment diagnosis, mobile optimization | Always (auto-loaded) |
+| browser-form-api-internals.md | Constraint Validation API, ValidityState properties, submit() vs requestSubmit(), autocomplete values for non-signup forms, address autofill specifics, FormData for multi-step state, input event timing | When form validation behaves unexpectedly, autofill isn't working on contact/quote/checkout forms, multi-step forms lose data between steps, or form submission handling breaks |
+| form-accessibility-compliance.md | WCAG 2.2 form criteria, label association patterns, error announcement (aria-live, aria-invalid, aria-describedby), custom control accessibility (dropdown, checkbox, file upload), GDPR/CCPA/TCPA consent requirements | When auditing form accessibility, fixing screen reader issues, ensuring WCAG compliance, or implementing consent checkboxes for legal compliance |
+| form-analytics-recovery.md | Field-level event taxonomy, form visibility tracking, input method detection, abandonment attribution algorithm, funnel decomposition, partial submission capture, email recovery sequences, re-engagement tactics, sample size requirements | When setting up form tracking, diagnosing form performance, building abandonment recovery flows, or determining statistical validity for form tests |
+
+## Scope Boundary
+
+| Area | This Skill | Other Skill |
+|------|-----------|-------------|
+| Lead capture, contact, demo, quote, application, survey, checkout forms | YES | -- |
+| Signup / registration / account creation forms | NO | signup-flow-cro |
+| Forms inside popups or modals | NO | popup-cro |
+| Page-level conversion (hero, layout, trust sections) | NO | page-cro |
+| A/B test sample size, duration, statistical significance | NO | ab-test-setup |
+| Form field UX within a checkout flow | YES (field-level) | page-cro (flow-level) |
+
+## Assessment Procedure
+
+Before optimizing any form, work through this sequence. Skipping steps leads to prescribing solutions for the wrong problem.
+
+1. **Classify the form type** using the Form Type Diagnosis table below. The form type determines which optimization lever matters most -- a lead capture form and a quote request form have fundamentally different constraints.
+2. **Check if field-level analytics exist.** If no field-level data: instrument first, optimize second. Optimizing without knowing where users quit is guessing. Load `form-analytics-recovery.md` for implementation.
+3. **Identify the highest-abandonment field.** This is your #1 fix target, not the first field in the form. A phone field with 30% drop-off matters more than a headline change.
+4. **Run the enrichment-vs-ask analysis** for every field beyond email. Most qualifying data (company size, industry, revenue) can be obtained post-submit through enrichment APIs.
+5. **Audit mobile separately.** Mobile form problems are different from desktop problems. Check input types, touch targets, autocomplete attributes, and keyboard behavior on actual devices.
+6. **Check downstream dependencies** before removing any field. The form serves a business process (CRM routing, lead scoring, compliance). Confirm no automation breaks.
+
+## Form Type Diagnosis
+
+Match form type to primary optimization lever before doing anything else.
+
+| Form Type | Primary Lever | Field Target | Key Tactic |
+|-----------|--------------|-------------|------------|
+| Lead capture (gated content) | Minimize fields | 1-2 (email default) | Value > effort -- the asset must justify every field |
+| Contact form | Set expectations | 3-4 (name, email, message) | Show response time + offer alternatives (chat, phone) |
+| Demo request | Qualify without killing conversion | 3-5 | Company size/role fields trade conversion for lead quality -- test the tradeoff |
+| Quote/estimate | Reduce perceived complexity | 5-10 via multi-step | Start with easy fields, technical details in later steps |
+| Application | Enable completion | 8-20+ via multi-step | Save progress mandatory, allow partial submit |
+| Survey/feedback | Maintain engagement | Varies | One question per screen, decide incentive upfront |
+| Checkout | Remove doubt | Minimal + payment | Trust signals critical, autofill everything, guest checkout default |
+
+## Field Reduction Decision Framework
+
+For each field on the form, classify it into one of four tiers:
+
+| Tier | Definition | Action | Example |
+|------|-----------|--------|---------|
+| Must-have | Cannot fulfill form purpose without it | Keep | Email on a lead form |
+| Nice-to-have | Improves follow-up quality | Make optional or move to step 2 | Company name on a content download |
+| Enrichable | Obtainable from email domain, IP, Clearbit, ZoomInfo | Remove and enrich post-submit | Company size, industry, location |
+| Vanity | Collected but never used in follow-up | Delete immediately | "How did you hear about us?" on a demo form |
+
+**Quantified field cost:**
+- Each field beyond 3 reduces completion by ~5-10%
+- Phone number specifically costs 10-25% completion depending on form type (highest cost on lead capture, lowest on quote request)
+- "Required" phone is 2-3x more damaging than "optional" phone
+
+**Enrichment vs. ask decision:** If the field is available through enrichment APIs (Clearbit, ZoomInfo, IP geolocation) AND the form is top-of-funnel (lead capture, content download), enrich instead of asking. Exception: if enrichment data quality for your segment is below 70% accuracy, ask the field but make it optional.
+
+## Single-Step vs Multi-Step Decision
+
+| Field Count | Recommendation | Notes |
+|-------------|---------------|-------|
+| 1-4 fields | Single step always | Multi-step adds friction on short forms |
+| 5-8 fields | Test both -- multi-step wins ~60% of the time | Split by topic (identity, then qualifying, then preferences) |
+| 9+ fields | Multi-step mandatory | Single step with 9+ visible fields triggers immediate abandonment |
+
+**Multi-step rules when splitting:**
+- One topic per step (never mix contact info with qualifying questions)
+- Progress indicator showing current step and total (step 2 of 3)
+- Save state on each step advance (never lose data on back-navigation or refresh)
+- Allow back navigation without data loss
+- Easy fields first, sensitive/complex fields last
+
+**Progressive commitment pattern:**
+1. Low-friction entry: email only (or email + first name)
+2. Qualifying: company, role, use case
+3. Contact preferences: phone, preferred time, notes
+
+This works because micro-commitments at step 1 create psychological investment. Completion rates for step 2+ are typically 60-80% once step 1 is submitted.
+
+## Error Handling That Converts
+
+| Pattern | Rule | Why |
+|---------|------|-----|
+| Validation timing | On blur (when user leaves field) | On-keystroke is aggressive and distracting. On-submit-only delays feedback too long |
+| Error positioning | Inline, directly below the errored field | Summary banners at top are missed -- users scroll past them |
+| Field preservation | NEVER clear valid fields when one field errors | Clearing the form is the #1 rage-quit trigger |
+| Email typo detection | Suggest corrections for common misspellings: gmial.com, gmali.com, outlok.com, yaho.com | Catches 2-5% of submissions that would otherwise bounce |
+| Phone formatting | Auto-format as user types, accept any reasonable input (spaces, dashes, dots, parens) | Rigid format requirements ("must be XXX-XXX-XXXX") cause 5-15% abandonment on phone fields |
+| Required field indicator | Mark required fields with asterisk, OR mark optional fields with "(optional)" -- never both | Dual marking creates confusion about which convention applies |
+
+## CTA Psychology for Forms
+
+The submit button is the conversion moment. Generic "Submit" is the weakest possible CTA.
+
+**Pattern: [Action verb] + [What they get]**
+
+| Form Type | Weak CTA | Strong CTA |
+|-----------|----------|------------|
+| Lead capture | Submit | Get My Free Guide |
+| Contact | Send | Send Message -- We Reply in 4 Hours |
+| Demo request | Submit | Book My Demo |
+| Quote | Submit Form | Get My Custom Quote |
+| Application | Submit Application | Start My Application |
+
+**Friction reducers near the button** -- place 1-2 of these directly below or beside the CTA:
+- "No spam -- unsubscribe anytime" (lead capture)
+- "Takes 30 seconds" (short forms)
+- "No credit card required" (trial/demo)
+- "We respond within [X] hours" (contact)
+- Privacy link (not full policy text -- just the link)
+
+**Loading state:** Disable button + show spinner on click. Prevents double-submit (which causes duplicate leads and confuses users).
+
+## Form Abandonment Diagnosis
+
+When a form underperforms, diagnose WHERE users quit before guessing WHY.
+
+**Step 1 -- Get field-level data:**
+- Which field has the highest exit rate? (This is your #1 fix target)
+- What % start the form vs. submit? (Form start rate vs. completion rate)
+- Desktop vs. mobile split? (Mobile forms fail differently)
+
+**Common abandonment triggers by field position:**
+
+| Quit Point | Likely Cause | Fix |
+|-----------|-------------|-----|
+| Before first field | Value proposition unclear or form looks too long | Reduce visible fields, strengthen headline above form |
+| At phone number | Users don't want calls | Make optional, add "We won't call unless you ask" |
+| At company/role fields | Feels like sales qualification | Move to step 2 or enrich post-submit |
+| At free-text (message/comments) | Typing effort too high | Make optional, reduce character expectation |
+| At submit button | Last-second trust doubt | Add trust signals, privacy note, expected response time |
+
+**Fix priority:** Always fix the highest-abandonment field first, not the first field in the form. A phone field with 30% drop-off matters more than a name field with 2% drop-off.
+
+## Mobile Form Optimization
+
+These are not generic "responsive" rules -- they are specific decisions that affect conversion.
+
+| Decision | Rule | Detail |
+|----------|------|--------|
+| Input types | Set correct HTML type for every field | type="email" triggers @ keyboard on iOS/Android. type="tel" triggers number pad. type="text" for names. Wrong type = extra taps |
+| Touch targets | 48px minimum height (not 44px) | Google's updated recommendation is 48px. 44px is outdated Material Design v1 |
+| Autocomplete attributes | Set on every applicable field | given-name, family-name, email, tel, organization, street-address. Browser autofill can complete forms in 2 taps |
+| Layout | Single column only -- no exceptions | Two-column forms on mobile cause horizontal scroll or cramped fields. Both kill conversion |
+| Sticky CTA | Pin submit button to bottom of viewport on long forms | Prevents users from not seeing the submit button after scrolling through fields |
+| Keyboard management | Ensure form doesn't jump/resize when virtual keyboard appears | Test on iOS Safari specifically -- viewport behavior differs from Android Chrome |
+
+## Recommendation Confidence
+
+Not all guidance above carries equal certainty. Override when your specific context demands it.
+
+| Area | Confidence | Override When |
+|---|---|---|
+| Field reduction (fewer fields = higher completion) | HIGH | Compliance requires fields at submission (HIPAA intake, financial KYC, government applications). Even then, separate required-by-law from required-by-policy -- policy fields can be deferred. |
+| Error handling patterns (inline, preserve data, specific messages) | HIGH | No known context where these hurt conversion. The only variable is validation timing (blur vs submit) which can be tested. |
+| Phone number cost (10-25% completion drop) | HIGH | Exception: outbound sales teams that call within 5 minutes of submission see 3-5x higher contact rates with phone. Run the math: does the higher contact rate offset the lost leads? |
+| Single vs multi-step threshold | MEDIUM | Multi-step can outperform single-step even at 3-4 fields if the fields are psychologically different (email vs file upload vs scheduling). Test if traffic allows 1,400+ submissions per variant. |
+| CTA copy recommendations | MEDIUM | CTA effectiveness varies by audience sophistication. Enterprise buyers may find "Get My Free Guide" too casual. Match tone to brand voice. The principle (verb + benefit) holds; the specific words don't. |
+| Enrichment vs ask | LOW | Enrichment data quality varies dramatically by segment. B2B tech: 80-90% accuracy (Clearbit, ZoomInfo). B2B manufacturing: 40-60%. Local businesses: often <30%. Always validate enrichment accuracy for YOUR segment before removing fields. |
+
+## Rationalization
+
+| When the user says... | They actually need... |
+|----------------------|----------------------|
+| "Our form conversion rate is low" | Field-level abandonment data first, then targeted fixes -- not a form redesign |
+| "We need to add more fields for lead quality" | Enrichment-vs-ask analysis -- most qualifying data can be obtained post-submit |
+| "Let's make it multi-step" | Field count check first -- multi-step under 5 fields adds friction, not reduces it |
+| "Phone number should be required" | Cost-benefit: required phone costs 10-25% completion. Is the phone call worth losing 1 in 5 leads? |
+| "We want to A/B test the form" | One variable at a time. Field reduction first (highest impact), then CTA, then layout |
+| "The form works fine on desktop" | Mobile audit -- mobile form completion rates are typically 30-50% lower than desktop |
+
+## Red Flags
+
+1. Form has 8+ visible fields on a single step with no multi-step split
+2. Phone number is required on a top-of-funnel lead capture form
+3. Submit button says "Submit" with no value-oriented CTA
+4. No field-level analytics -- optimizing blind without knowing where users quit
+5. Error messages clear the entire form or only appear in a top-of-page summary
+6. Form asks for data that could be enriched (company size, industry, revenue) on a lead capture form
+7. Mobile form has no autocomplete attributes set on any fields
+8. "Required" and "optional" markers are both absent -- users guess which fields they can skip
+
+## NEVER
+
+1. NEVER remove a required field without confirming it is not used in downstream automation (CRM routing, lead scoring, compliance)
+2. NEVER recommend CAPTCHA on a lead capture form without noting the 10-20% conversion cost -- use honeypot or invisible reCAPTCHA instead
+3. NEVER suggest "just remove fields" without the enrichment-vs-ask analysis -- some removed fields destroy lead quality
+4. NEVER prescribe a specific tool or platform (Typeform, HubSpot, Gravity Forms) -- recommend patterns, not products
+5. NEVER optimize form fields without asking what happens to submissions downstream -- the form serves a business process, not itself

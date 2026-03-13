@@ -1,0 +1,77 @@
+[
+  {
+    "input": "I need to accept credit card payments on my website using Stripe",
+    "expected_output": "skill_triggered",
+    "type": "trigger"
+  },
+  {
+    "input": "Help me set up a subscription billing system with Stripe for my SaaS app",
+    "expected_output": "skill_triggered",
+    "type": "trigger"
+  },
+  {
+    "input": "I want to build a marketplace with Stripe Connect where sellers receive payouts",
+    "expected_output": "skill_triggered",
+    "type": "trigger"
+  },
+  {
+    "input": "How do I handle Stripe webhooks for payment_intent.succeeded events?",
+    "expected_output": "skill_triggered",
+    "type": "trigger"
+  },
+  {
+    "input": "What PCI compliance requirements do I need to meet when using Stripe?",
+    "expected_output": "skill_triggered",
+    "type": "trigger"
+  },
+  {
+    "input": "Create a Stripe Checkout session for a one-time product purchase",
+    "expected_output": "skill_triggered",
+    "type": "trigger"
+  },
+  {
+    "input": "Implement the Stripe Payment Element in my React app with custom styling",
+    "expected_output": "skill_triggered",
+    "type": "trigger"
+  },
+  {
+    "input": "Set up a Stripe billing portal so customers can manage their subscriptions",
+    "expected_output": "skill_triggered",
+    "type": "trigger"
+  },
+  {
+    "input": "I need to create Stripe Treasury financial accounts for my platform users",
+    "expected_output": "skill_triggered",
+    "type": "trigger"
+  },
+  {
+    "input": "Help me migrate from the deprecated Stripe Charges API to PaymentIntents",
+    "expected_output": "skill_triggered",
+    "type": "trigger"
+  },
+  {
+    "input": "How do I integrate PayPal checkout into my e-commerce store?",
+    "expected_output": "skill_not_triggered",
+    "type": "not-trigger"
+  },
+  {
+    "input": "Explain the difference between payment gateways and payment processors in general",
+    "expected_output": "skill_not_triggered",
+    "type": "not-trigger"
+  },
+  {
+    "input": "How do I set up the Stripe CLI on my local machine?",
+    "expected_output": "skill_not_triggered",
+    "type": "not-trigger"
+  },
+  {
+    "input": "Help me design a database schema to track payment history",
+    "expected_output": "skill_not_triggered",
+    "type": "not-trigger"
+  },
+  {
+    "input": "What's the best way to process credit card payments in general?",
+    "expected_output": "skill_not_triggered",
+    "type": "not-trigger"
+  }
+]

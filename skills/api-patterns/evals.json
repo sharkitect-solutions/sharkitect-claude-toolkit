@@ -1,0 +1,72 @@
+[
+  {
+    "input": "I'm building a new REST API for our e-commerce platform. How should I structure the product endpoints?",
+    "expected_output": "Skill should trigger. Covers REST resource modeling, URL structure, HTTP method selection.",
+    "should_trigger": true
+  },
+  {
+    "input": "Should we use REST or GraphQL for our mobile app that has complex nested data requirements?",
+    "expected_output": "Skill should trigger. Direct API style selection decision between REST and GraphQL.",
+    "should_trigger": true
+  },
+  {
+    "input": "How should I implement rate limiting for our public API? We get bursty traffic.",
+    "expected_output": "Skill should trigger. Rate limiting algorithm selection, specifically token bucket for bursty traffic.",
+    "should_trigger": true
+  },
+  {
+    "input": "We need to add authentication to our API. What are the options for a B2B SaaS product?",
+    "expected_output": "Skill should trigger. Authentication pattern selection: OAuth2, API keys, JWT decision criteria.",
+    "should_trigger": true
+  },
+  {
+    "input": "Our API needs to support versioning. We're about to release a breaking change to the users endpoint.",
+    "expected_output": "Skill should trigger. API versioning strategy and breaking change management.",
+    "should_trigger": true
+  },
+  {
+    "input": "How should I design error responses for my API? Currently we just return 500 for everything.",
+    "expected_output": "Skill should trigger. Error design, RFC 7807, status code selection tree.",
+    "should_trigger": true
+  },
+  {
+    "input": "We're choosing between gRPC and REST for communication between our microservices.",
+    "expected_output": "Skill should trigger. API style selection for inter-service communication.",
+    "should_trigger": true
+  },
+  {
+    "input": "I need to implement cursor-based pagination for a large dataset endpoint.",
+    "expected_output": "Skill should trigger. Pagination patterns: cursor vs offset, keyset pagination.",
+    "should_trigger": true
+  },
+  {
+    "input": "Review our API architecture. We have a single /api endpoint that handles all requests via query parameters.",
+    "expected_output": "Skill should trigger. Should identify The God Endpoint anti-pattern.",
+    "should_trigger": true
+  },
+  {
+    "input": "Should I use tRPC for our new TypeScript monorepo project that only has a web client?",
+    "expected_output": "Skill should trigger. tRPC evaluation for monorepo with single TS client.",
+    "should_trigger": true
+  },
+  {
+    "input": "How do I implement webhook signature verification for our API callbacks?",
+    "expected_output": "Skill should trigger. HMAC webhook signing is covered in authentication deep-dive.",
+    "should_trigger": true
+  },
+  {
+    "input": "We need to sunset our v1 API. How long should we keep it running?",
+    "expected_output": "Skill should trigger. API lifecycle management, sunset policy design.",
+    "should_trigger": true
+  },
+  {
+    "input": "How do I integrate Stripe payment processing into my checkout flow?",
+    "expected_output": "Skill should NOT trigger. Stripe-specific integration should use stripe-best-practices skill.",
+    "should_trigger": false
+  },
+  {
+    "input": "How do I fetch data from my API using React Query with caching and optimistic updates?",
+    "expected_output": "Skill should NOT trigger. Frontend data fetching patterns are out of scope.",
+    "should_trigger": false
+  }
+]

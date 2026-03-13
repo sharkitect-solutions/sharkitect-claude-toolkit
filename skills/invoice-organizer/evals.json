@@ -1,0 +1,58 @@
+[
+  {
+    "input": "I have a messy folder with 200+ invoices from the past 3 years. Can you help me organize them into a proper filing system with consistent naming?",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "I need to extract the vendor name, date, and total amount from this PDF invoice and rename the file properly.",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "Help me set up a filing system for my business invoices that my accountant can easily navigate during tax season.",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "I need to prepare all my invoices for my CPA. Can you organize them by IRS expense category and generate a CSV summary?",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "Help me categorize these receipts and invoices into business expense categories like software, travel, office supplies, and contractor payments.",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "I think I have duplicate invoices in my folder from downloading the same ones multiple times. Can you find and handle the duplicates?",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "I have invoices from European vendors with VAT charges in euros. Help me process these foreign invoices and convert the amounts for my US tax filing.",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "Create a standard naming convention for my invoice files that includes the date, vendor, invoice number, and amount.",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "I need to batch process about 50 receipt images from my phone and extract the expense data from each one.",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "Export my organized invoices into a format that QuickBooks Online can import directly, with the right column headers and date format.",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "Set up an automated workflow that watches my Downloads folder for new invoices and automatically files them into the right category.",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "I need to match my filed invoices against my bank statement to see which ones have been paid and which are still outstanding.",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "Create the journal entries for these invoices in my general ledger with the proper debits and credits.",
+    "expected_output": "should not trigger"
+  },
+  {
+    "input": "Help me file my quarterly estimated tax payments and calculate how much I owe for Q2.",
+    "expected_output": "should not trigger"
+  }
+]

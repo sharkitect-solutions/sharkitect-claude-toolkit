@@ -1,292 +1,155 @@
 ---
 name: feedback-mastery
-description: Navigate difficult conversations and deliver constructive feedback using structured frameworks. Covers the Preparation-Delivery-Follow-up model and Situation-Behavior-Impact (SBI) feedback technique. Use when preparing for difficult conversations, giving feedback, or managing conflicts.
-allowed-tools: Read, Glob, Grep
+description: >
+  Use when the user needs to prepare for a difficult conversation, give constructive
+  feedback, navigate workplace conflict, or design a feedback system. Covers framework
+  selection, timing decisions, power dynamics, and cultural adaptation. Do NOT use for:
+  email composition or tone (use email-composer), internal team announcements (use
+  internal-comms), professional writing style (use professional-communication), or
+  meeting facilitation (use daily-meeting-update).
 ---
 
-# Feedback Conversations
-
-## Overview
-
-This skill provides frameworks for navigating difficult workplace conversations and delivering effective feedback. Whether you're addressing performance issues, resolving conflicts, or giving constructive feedback, these structured approaches lead to better outcomes.
-
-**Core insight:** Research shows that employees who approach difficult conversations with preparation and a clear framework are **60% more likely to reach a positive resolution** than those who engage without a plan.
-
-## When to Use This Skill
-
-Use this skill when:
-
-- Preparing to give feedback to a colleague or direct report
-- Addressing performance issues or missed expectations
-- Navigating conflict between team members
-- Having 1:1 conversations about sensitive topics
-- Receiving feedback and wanting to respond constructively
-- Managing expectations with stakeholders
-
-**Keywords**: feedback, difficult conversation, 1:1, one-on-one, performance, conflict, expectations, behavior, confrontation
-
-## Core Frameworks
-
-### The Preparation-Delivery-Follow-up Model
-
-A three-part structure for difficult conversations:
-
-| Phase | Focus | Key Questions |
-| --- | --- | --- |
-| **Preparation** | Understand the issue, define goals, manage emotions | What's the problem? What outcome do I want? Am I calm? |
-| **Delivery** | Open neutrally, use facts not blame, encourage dialogue | How do I start? What evidence do I have? How do I involve them? |
-| **Follow-up** | Document actions, set check-ins, provide support | What did we agree to? When will we check in? How do I support? |
-
-### The SBI Feedback Model
-
-**Situation-Behavior-Impact (SBI)** structures feedback to be specific, objective, and actionable:
-
-| Component | Description | Example |
-| --- | --- | --- |
-| **Situation** | Describe the specific context | "During yesterday's code review..." |
-| **Behavior** | State the observable action (not interpretation) | "...you interrupted Sarah three times while she was explaining her approach..." |
-| **Impact** | Explain the effect on team/project/person | "...which made her hesitate to share ideas and slowed down our discussion." |
-
-**Why it works:** SBI removes assumptions and focuses on observable facts, reducing defensiveness.
-
-## Preparation Phase
-
-### Step 1: Understand the Issue
-
-Ask yourself:
-
-- **What exactly is the problem?** (Be specific, not vague)
-- **How does it impact the team, project, or company?**
-- **Have I gathered all relevant facts?**
-- **Is this a pattern or a one-time event?**
-
-### Step 2: Define Your Goals
-
-Before the conversation, clarify what you're seeking:
-
-| Goal Type | Example |
-| --- | --- |
-| Behavior change | "I want them to submit code reviews on time" |
-| Mutual understanding | "I want to understand what's blocking them" |
-| Expectation setting | "I want to clarify what 'done' means for features" |
-| Problem solving | "I want to find a solution together" |
-
-**Tip:** Use if-then statements to clarify stakes:
-> "If this behavior continues, then the project timeline will suffer, leading to missed deliverables."
-
-### Step 3: Manage Your Emotions
-
-High emotional intensity reduces cognitive processing by 30%. Before the conversation:
-
-- [ ] Am I calm and in control?
-- [ ] Have I separated facts from personal frustrations?
-- [ ] Have I considered their perspective?
-- [ ] Can I present this without accusation?
-
-**Reframing technique:**
-
-| Accusatory | Constructive |
-| --- | --- |
-| "You always miss deadlines and it slows everyone down" | "I've noticed some recent delays and want to understand any challenges you're facing" |
-| "You never test your code properly" | "I've seen a few bugs slip through recently. Let's talk about our testing process" |
-
-## Delivery Phase
-
-### The Three-Step Delivery Formula
-
-1. **Open with neutrality and intent**
-2. **Present the issue using facts, not blame**
-3. **Encourage dialogue and solutions**
-
-### Opening Lines That Work
-
-| Context | Opening |
-| --- | --- |
-| General | "I want to talk about something important to our team's success, and I'd love to hear your perspective." |
-| Performance | "I've noticed some patterns I'd like to discuss. My goal is to support you, not criticize." |
-| Conflict | "I sense there might be some tension, and I'd like to understand what's happening from your side." |
-| Expectations | "I want to make sure we're aligned on expectations. Can we talk through how this project is going?" |
-
-### Facts, Not Blame
-
-| Blaming | Factual |
-| --- | --- |
-| "You're not committed to this project" | "I've noticed your updates have been brief in our last three meetings. Is something affecting your workload?" |
-| "You don't care about code quality" | "This PR had 12 bugs caught in QA. Let's talk about what happened and how we can improve" |
-| "You're always late" | "The standup started at 9:00 and you joined at 9:15 the last three days. What's going on?" |
-
-**Key principles:**
-
-- Use specific examples, not generalizations ("always," "never")
-- Stick to observable behaviors, not assumptions about motives
-- Focus on impact, not character
-
-### Encouraging Dialogue
-
-After stating your observation, shift to collaboration:
-
-| Situation | Dialogue Prompt |
-| --- | --- |
-| Understanding barriers | "What's been challenging about this?" |
-| Seeking their view | "How do you see the situation?" |
-| Finding solutions | "What would help you succeed here?" |
-| Checking alignment | "Does this match your understanding of what happened?" |
-
-## Follow-up Phase
-
-Even successful conversations need follow-through to create lasting change.
-
-### Follow-up Checklist
-
-- [ ] **Document agreed-upon action items** - What specifically will change?
-- [ ] **Set check-in dates** - When will you revisit this?
-- [ ] **Provide ongoing support** - How will you help them succeed?
-- [ ] **Celebrate progress** - Recognize improvements when they happen
-
-### Sample Follow-up Message
-
-```markdown
-Hi [Name],
-
-Thanks for the conversation yesterday. I appreciated your openness.
-
-**What we agreed to:**
-- [Action item 1] - [Timeline]
-- [Action item 2] - [Timeline]
-
-**Check-in:** Let's reconnect [date] to see how things are going.
-
-I'm here if you need any support. Thanks for working through this with me.
-
-Best,
-[Your name]
-```
-
-## SBI Examples for Software Teams
-
-### Positive Feedback
-
-**Code Review:**
-> **Situation:** "During Tuesday's code review for the authentication module..."
-> **Behavior:** "...you provided detailed comments on potential security vulnerabilities and suggested efficient fixes..."
-> **Impact:** "...which strengthened our security posture and saved the team hours of debugging later."
-
-**Collaboration:**
-> **Situation:** "In yesterday's architecture discussion..."
-> **Behavior:** "...you asked clarifying questions and built on others' ideas instead of pushing your own solution..."
-> **Impact:** "...which helped us reach consensus faster and made everyone feel heard."
-
-### Constructive Feedback
-
-**Missed Deadlines:**
-> **Situation:** "When we were finalizing the API deployment last Thursday..."
-> **Behavior:** "...your testing results came in two hours after our agreed cutoff..."
-> **Impact:** "...which delayed the release, risked our SLA, and caused the QA team to work overtime."
-
-**Meeting Behavior:**
-> **Situation:** "In our sprint planning yesterday..."
-> **Behavior:** "...you were on your phone for most of the discussion and didn't contribute when we asked for estimates..."
-> **Impact:** "...which left the team without your expertise on the backend stories and made others feel their time wasn't valued."
-
-**For more examples:** See `references/feedback-sbi-model.md`
-
-## Common Difficult Scenarios
-
-### Scenario: Performance Issue
-
-**Situation:** A developer consistently delivers code with bugs.
-
-**Approach:**
-
-1. **Prepare:** Gather specific examples (PRs, bug counts, timelines)
-2. **Deliver:** "I've noticed [X bugs in last Y PRs]. I want to understand what's happening and how I can support you."
-3. **Explore:** Ask about workload, clarity of requirements, testing confidence
-4. **Collaborate:** "What would help you feel more confident about code quality?"
-5. **Follow-up:** Check in after agreed changes, recognize improvements
-
-### Scenario: Conflict Between Team Members
-
-**Situation:** Two engineers disagree on technical approach and it's affecting the team.
-
-**Approach:**
-
-1. **Meet separately first:** Understand each perspective
-2. **Find common ground:** What do they both want? (Working product, good code, etc.)
-3. **Facilitate together:** Focus on facts and trade-offs, not personalities
-4. **Establish decision process:** How will the team decide when there's disagreement?
-5. **Follow-up:** Check that the solution is working
-
-### Scenario: Unrealistic Expectations
-
-**Situation:** Leadership wants a feature in half the time needed.
-
-**Approach:**
-
-1. **Prepare:** Data on similar past work, breakdown of required tasks
-2. **Deliver:** "I want to make sure we're aligned on what's realistic. Here's what I'm seeing..."
-3. **Present trade-offs:** "We can hit that date if we [reduce scope/add people/accept risk]"
-4. **Collaborate:** "What's most important here - the date or the full feature set?"
-5. **Document:** Get agreement in writing to avoid future misalignment
-
-**For detailed scripts:** See `references/difficult-conversation-scripts.md`
-
-## Receiving Feedback Well
-
-When you're on the receiving end:
-
-### During the Conversation
-
-1. **Listen fully** - Don't prepare your defense while they're talking
-2. **Ask clarifying questions** - "Can you give me a specific example?"
-3. **Paraphrase to confirm** - "So what you're saying is..."
-4. **Acknowledge impact** - Even if intent was different: "I can see how that affected you"
-5. **Don't get defensive** - Thank them for raising it
-
-### After the Conversation
-
-1. **Reflect honestly** - Is there truth in the feedback?
-2. **Identify actions** - What will you do differently?
-3. **Follow up** - Let them know what you're changing
-4. **Ask for ongoing feedback** - Show you're committed to growth
-
-## Quick Reference: Difficult Conversation Checklist
-
-### Before
-
-- [ ] I understand the specific issue
-- [ ] I have concrete examples
-- [ ] I've defined my goal for the conversation
-- [ ] I'm emotionally regulated
-- [ ] I've considered their perspective
-
-### During
-
-- [ ] I opened with neutrality and intent
-- [ ] I stated facts, not blame
-- [ ] I used SBI for specific feedback
-- [ ] I asked for their perspective
-- [ ] I focused on solutions, not just problems
-- [ ] I documented agreed actions
-
-### After
-
-- [ ] I sent a follow-up summary
-- [ ] I scheduled a check-in
-- [ ] I'm providing ongoing support
-- [ ] I'm recognizing progress
-
-## Companion Resources
-
-- `references/feedback-sbi-model.md` - Full SBI framework with more examples
-- `references/difficult-conversation-scripts.md` - Opening lines and responses
-- `references/expectation-alignment.md` - Managing stakeholder expectations
-
-
-## Recommended Reading
-
-- "Crucial Conversations" by Kerry Patterson & Joseph Grenny
-- "Difficult Conversations" by Stone, Patton, Heen
-- "Radical Candor" by Kim Scott
-- Amy Edmondson's research on psychological safety
+# Feedback and Difficult Conversations
+
+## File Index
+
+| File | Load When | Do NOT Load |
+|---|---|---|
+| `framework-selection.md` | User asks which feedback framework to use, or is giving feedback and needs a structure beyond basic SBI | User already knows their framework and needs execution help |
+| `conversation-dynamics.md` | User is preparing for a difficult conversation, anticipating resistance, or dealing with emotional reactions | User needs quick feedback phrasing, not conversation strategy |
+| `organizational-feedback-systems.md` | User is designing a team feedback culture, 360 review process, or feedback cadence for an organization | User needs to give one specific piece of feedback to one person |
+
+## Scope Boundary
+
+| Topic | This Skill | Other Skill |
+|---|---|---|
+| Preparing difficult 1:1 conversations | YES | - |
+| Choosing feedback frameworks (SBI, COIN, DESC) | YES | - |
+| Navigating defensive reactions | YES | - |
+| Power dynamics in feedback (upward, downward, peer) | YES | - |
+| Cultural adaptation of feedback style | YES | - |
+| Designing organizational feedback systems | YES | - |
+| Writing feedback emails | Mention only | email-composer |
+| Professional tone and communication style | NO | professional-communication |
+| Internal announcements and comms | NO | internal-comms |
+| Meeting facilitation and standups | NO | daily-meeting-update |
+| Performance review documentation | NO | - (HR domain) |
+| Conflict resolution in negotiations | NO | - (negotiation domain) |
+| Customer complaint handling | NO | customer-support |
 
 ---
+
+## Feedback Timing Decision
+
+Not all feedback should be given immediately. Timing determines whether feedback lands or backfires.
+
+| Signal | Action | Why |
+|---|---|---|
+| **Safety issue or ethical violation** | Give feedback NOW, even if imperfect | Delayed feedback = complicity. Document immediately |
+| **Behavior happened <48 hours ago, you're calm** | Give feedback within 24 hours | Memory is fresh for both parties. Specificity is highest |
+| **Behavior happened <48 hours ago, you're emotional** | Wait until calm (max 72 hours) | Amygdala hijack lasts 18-20 minutes (Goleman 1995), but residual cortisol elevation persists 2-4 hours. Feedback given while cortisol-elevated is 3x more likely to escalate (Baumeister 2007) |
+| **Pattern behavior (3+ occurrences)** | Schedule a dedicated conversation | Pattern feedback requires examples and data. Ambushing someone with accumulated complaints backfires |
+| **The person is in crisis (personal, project, health)** | Defer non-urgent feedback 1-2 weeks | Cognitive load theory: people in crisis have reduced processing capacity. Feedback won't land |
+| **You're uncertain if it's a pattern or one-off** | Wait for second occurrence | Single-instance feedback risks being perceived as nitpicking. Exception: if impact was severe |
+| **Public setting** | NEVER give corrective feedback publicly | Public correction triggers shame response (Tangney 1995). Praise publicly, correct privately. Zero exceptions |
+
+**The 48-hour rule**: Feedback given >48 hours after the event loses 40-60% of its impact (Hillman 2019). The recipient's memory of the situation diverges from yours. If you can't give feedback within 48 hours, write down the specific SBI details immediately and use those notes when you do give it.
+
+---
+
+## Framework Quick Selection
+
+| Your Situation | Use This Framework | Why |
+|---|---|---|
+| Simple behavioral feedback (one specific incident) | **SBI** (Situation-Behavior-Impact) | Minimizes defensiveness. Observable facts only |
+| Need to connect feedback to organizational context | **COIN** (Context-Observation-Impact-Next steps) | Adds organizational "why" that SBI lacks |
+| Addressing a pattern, need to describe feelings | **DESC** (Describe-Express-Specify-Consequences) | Allows emotional expression that SBI deliberately excludes |
+| Giving upward feedback to your manager | **SBI + permission opening** | "I have an observation. Would you be open to hearing it?" reduces power asymmetry threat |
+| Cross-cultural feedback (high power distance) | **Indirect SBI** -- soften with questions | "I noticed X. What was your thinking?" instead of stating impact directly |
+| Performance improvement conversation | **GROW** (Goal-Reality-Options-Will) as wrapper, SBI for specifics | GROW provides coaching structure. SBI provides evidence |
+
+**When SBI fails**: SBI assumes the recipient values observable facts and logical impact chains. It fails with (1) highly emotional people who need feelings acknowledged before facts, (2) cultures where direct behavioral descriptions feel accusatory, and (3) situations where the "impact" is your feelings, not a business outcome. In these cases, DESC or relationship-first approaches work better.
+
+---
+
+## Power Dynamics Assessment
+
+Feedback flows differently depending on power relationships. Ignoring this is the #1 source of feedback failure.
+
+| Direction | Key Challenge | Adaptation |
+|---|---|---|
+| **Manager -> Direct report** | Power amplifies every word. A "minor suggestion" lands as a "serious criticism." Managers consistently underestimate their impact by 2-3x (Kluger & DeNisi 1996) | Soften opening, ask questions first, emphasize support. One critical feedback point per conversation max |
+| **Peer -> Peer** | No formal authority. Feedback can feel like overstepping. Risk of damaging collaborative relationship | Frame as shared problem. "I noticed something that's affecting our work. Can I share?" Not "you did X wrong" |
+| **Direct report -> Manager** | Highest-risk feedback direction. 60% of upward feedback is either not given or softened to meaninglessness (Tourish & Robson 2006) | Request permission explicitly. Focus on impact on YOU, not their behavior. "When X happens, I find it hard to Y" |
+| **Skip-level (to their boss)** | Perceived as going over someone's head. Damages trust with immediate manager | Exhaust direct feedback first. Document attempts. Only escalate for safety, ethics, or persistent pattern after 3+ direct attempts |
+| **Cross-functional** | Different team norms, no shared context, no relationship bank | Build relationship first. Feedback without relationship = criticism from a stranger. Minimum 3 positive interactions before first corrective feedback |
+
+**The 5:1 ratio** (Gottman 1994, validated in workplace by Losada & Heaphy 2004): Relationships that sustain honest feedback maintain a minimum 5:1 ratio of positive to negative interactions. Below 3:1, corrective feedback damages the relationship more than it improves behavior. Track your ratio before giving difficult feedback.
+
+---
+
+## Psychological Safety Gauge
+
+Before giving feedback, assess the environment. Feedback in a psychologically unsafe environment does more harm than silence.
+
+| Level (Edmondson 2018) | Signals You'll See | Feedback Approach |
+|---|---|---|
+| **Stage 1: Inclusion safety** | People participate in meetings, share personal stories, new members feel welcomed | Basic feedback possible. Keep it positive-heavy (8:1 ratio) |
+| **Stage 2: Learner safety** | People ask questions without ridicule, admit mistakes, seek help openly | Constructive feedback possible in private. Growth-framed: "here's how to improve" |
+| **Stage 3: Contributor safety** | People volunteer ideas, challenge status quo, take initiative | Regular feedback in both directions. SBI works well here |
+| **Stage 4: Challenger safety** | People disagree openly with leaders, point out problems, propose changes without fear | Full honest feedback culture. Direct, specific, frequent. "Radical Candor" is possible HERE and only here |
+
+**The Radical Candor trap**: Kim Scott's framework requires Stage 4 psychological safety to work. Applied at Stage 1-2, "Challenge Directly" is perceived as aggression, not candor. Most teams are at Stage 2. Assess before prescribing.
+
+---
+
+## When NOT to Give Feedback
+
+| Situation | Why Skip It | Do This Instead |
+|---|---|---|
+| **The behavior is preference, not performance** | Your way isn't the only way. Code style, meeting style, communication style differences are not feedback-worthy unless they cause measurable impact | Ask yourself: "Is this a problem, or is it just different from how I'd do it?" |
+| **You have <3 interactions with this person** | No relationship bank. Feedback without relationship = unwelcome criticism | Build 3-5 positive interactions first. Then you've earned the right to be honest |
+| **The person already knows** | They missed the deadline. They know. Telling them adds shame without information | Ask: "What happened? How can I help?" Information > judgment |
+| **You're the wrong person** | Feedback about someone's relationship with their manager should come from their manager, not you | Redirect to the right person or encourage them to seek feedback from the right source |
+| **It won't change** | Deeply ingrained personality traits, physical characteristics, things outside their control | Accept, adapt, or escalate to HR if it's a performance issue. Don't give feedback on who someone IS |
+
+---
+
+## Anti-Patterns
+
+| Name | What Happens | Why It Fails |
+|---|---|---|
+| **Feedback Sandwich** | Positive-Negative-Positive ("You're great, BUT..., and also great") | Recipients learn to ignore positives and brace for the "but." Dilutes both the praise and the criticism. 78% of recipients report the sandwich feels insincere (Schwartz 2019) |
+| **Drive-By Feedback** | Quick critical comment in passing, no context, no follow-up | Recipient has no opportunity to respond, clarify, or act. Creates anxiety and resentment. The feedback-giver feels relieved; the recipient feels ambushed |
+| **Delayed Dump** | Saving up 6 months of feedback for the annual review | Recipient can't improve what they don't know about. Each item loses specificity over time. The conversation becomes overwhelming and unactionable |
+| **Proxy Feedback** | "Several people have told me that you..." without naming sources | Feels like a conspiracy. Unverifiable claims can't be addressed. The recipient trusts no one. Either own the feedback yourself or bring specific people into the conversation |
+| **Therapy Feedback** | Psychoanalyzing motives: "I think you do this because of your need for control..." | You're not their therapist. Stick to observable behaviors and their impact. Motive-guessing triggers maximum defensiveness |
+| **Scorekeeping** | Keeping a mental tally: "Last month you did X, and before that Y, and also Z..." | Feels like prosecution, not feedback. Address issues as they arise. Accumulated lists signal you've been withholding, which breaks trust |
+
+---
+
+## Rationalizations
+
+1. "They should already know" -- If they knew and could change, they would have. Knowledge of a problem is not the same as awareness of impact
+2. "It's not my place" -- If the behavior affects your work, it IS your place. Silence is complicity with the status quo
+3. "I'll mention it at the next review" -- Reviews are for patterns and growth trajectories, not first-time feedback. The incident will be stale by review time
+4. "They're too sensitive" -- Everyone can receive feedback. The framework and delivery need to match the person, not the other way around
+5. "I don't want to damage the relationship" -- Unspoken resentment damages relationships more than honest feedback. The relationship is already being damaged by silence
+
+## Red Flags
+
+1. Giving feedback in a public setting (Slack channel, team meeting, group email)
+2. Using "always" or "never" in feedback statements
+3. Giving feedback about personality traits rather than observable behaviors
+4. No specific example -- just a general feeling or impression
+5. Feedback given while angry (cortisol-elevated, amygdala-hijacked)
+6. Skipping the other person's perspective entirely (monologue, not dialogue)
+7. Giving corrective feedback to someone you've never praised
+
+## NEVERs
+
+1. NEVER give corrective feedback publicly -- praise publicly, correct privately, zero exceptions
+2. NEVER attribute motives ("you did this because you don't care") -- describe behavior and impact only
+3. NEVER use accumulated feedback as leverage ("I've been meaning to tell you for months...")
+4. NEVER give feedback through a third party when you can give it directly
+5. NEVER skip asking for the other person's perspective -- feedback is dialogue, not monologue

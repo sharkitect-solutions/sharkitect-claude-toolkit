@@ -1,180 +1,118 @@
 ---
 name: dispatching-parallel-agents
-description: Use when facing 2+ independent tasks that can be worked on without shared state or sequential dependencies
+description: "Use when facing 2+ independent tasks that can run concurrently without shared state. Use when multiple test files fail with different root causes. Use when independent subsystems need investigation simultaneously. Use when parallel code generation, research, or analysis would save time. NEVER when tasks share state, edit the same files, or have sequential dependencies."
+version: "2.0"
+optimized: true
+optimized_date: "2026-03-10"
 ---
 
 # Dispatching Parallel Agents
 
-## Overview
+Think like someone who has dispatched 100 parallel agent batches and learned that the decision to parallelize matters more than the parallelization itself. Most failures come from dispatching tasks that AREN'T truly independent — agents edit the same files, need the same context, or produce conflicting changes.
 
-When you have multiple unrelated failures (different test files, different subsystems, different bugs), investigating them sequentially wastes time. Each investigation is independent and can happen in parallel.
+## The Independence Test (Before Dispatching)
 
-**Core principle:** Dispatch one agent per independent problem domain. Let them work concurrently.
+Every parallel dispatch must pass this test:
 
-## When to Use
-
-```dot
-digraph when_to_use {
-    "Multiple failures?" [shape=diamond];
-    "Are they independent?" [shape=diamond];
-    "Single agent investigates all" [shape=box];
-    "One agent per problem domain" [shape=box];
-    "Can they work in parallel?" [shape=diamond];
-    "Sequential agents" [shape=box];
-    "Parallel dispatch" [shape=box];
-
-    "Multiple failures?" -> "Are they independent?" [label="yes"];
-    "Are they independent?" -> "Single agent investigates all" [label="no - related"];
-    "Are they independent?" -> "Can they work in parallel?" [label="yes"];
-    "Can they work in parallel?" -> "Parallel dispatch" [label="yes"];
-    "Can they work in parallel?" -> "Sequential agents" [label="no - shared state"];
-}
+```
+For each pair of tasks, ask:
+│
+├─ Do they touch the SAME files?
+│  └─ YES → NOT independent. Merge into one agent or sequence them.
+│
+├─ Does Task B need Task A's OUTPUT?
+│  └─ YES → NOT independent. Must run sequentially.
+│
+├─ Do they need the SAME shared resource?
+│  (same database, same API with rate limits, same lock)
+│  └─ YES → NOT independent. Will conflict.
+│
+└─ Can each agent solve its task with ONLY its own context?
+   └─ NO → NOT independent. Agents will miss cross-cutting issues.
 ```
 
-**Use when:**
-- 3+ test files failing with different root causes
-- Multiple subsystems broken independently
-- Each problem can be understood without context from others
-- No shared state between investigations
+**If any pair fails this test, don't parallelize those tasks.** You can still parallelize the independent subset.
 
-**Don't use when:**
-- Failures are related (fix one might fix others)
-- Need to understand full system state
-- Agents would interfere with each other
+## When to Dispatch (Beyond Test Fixing)
 
-## The Pattern
+| Scenario | Independent? | Why |
+|----------|-------------|-----|
+| 3 test files failing with different root causes | Yes | Each file tests different subsystem |
+| Research on 4 unrelated topics | Yes | No shared context needed |
+| Generating code for 3 unrelated features | Usually yes | Unless features share interfaces |
+| Fixing bug A and refactoring module B | Only if B doesn't contain A | Check for file overlap |
+| Reviewing 5 independent PRs | Yes | Each PR is self-contained |
+| Investigating frontend + backend + database issues | Maybe | Check if they share the same root cause |
 
-### 1. Identify Independent Domains
+## Agent Prompt Engineering for Parallel Dispatch
 
-Group failures by what's broken:
-- File A tests: Tool approval flow
-- File B tests: Batch completion behavior
-- File C tests: Abort functionality
+Each agent prompt must be **self-contained** — the agent can't ask you or other agents for clarification mid-run.
 
-Each domain is independent - fixing tool approval doesn't affect abort tests.
+### The SCCO Framework
 
-### 2. Create Focused Agent Tasks
+Every parallel agent prompt needs:
 
-Each agent gets:
-- **Specific scope:** One test file or subsystem
-- **Clear goal:** Make these tests pass
-- **Constraints:** Don't change other code
-- **Expected output:** Summary of what you found and fixed
+| Element | What It Does | Bad Example | Good Example |
+|---------|-------------|-------------|-------------|
+| **S**cope | What files/area to focus on | "Fix the tests" | "Fix 3 failures in agent-tool-abort.test.ts" |
+| **C**ontext | Error messages, relevant code paths | "There's a bug" | Paste exact error messages and test names |
+| **C**onstraints | What NOT to touch | (nothing) | "Do NOT modify production code, only test files" |
+| **O**utput | What to return | "Fix it" | "Return: root cause, changes made, tests passing" |
 
-### 3. Dispatch in Parallel
+### Scope Sizing
 
-```typescript
-// In Claude Code / AI environment
-Task("Fix agent-tool-abort.test.ts failures")
-Task("Fix batch-completion-behavior.test.ts failures")
-Task("Fix tool-approval-race-conditions.test.ts failures")
-// All three run concurrently
-```
+| Scope Size | Agent Count | Works Well? |
+|------------|-------------|-------------|
+| 1 test file per agent | 3-5 agents | Best — focused, fast |
+| 1 subsystem per agent | 2-4 agents | Good — clear boundaries |
+| 1 feature per agent | 2-3 agents | Good if features are independent |
+| Half the codebase per agent | 2 agents | Risky — too broad, agents get lost |
 
-### 4. Review and Integrate
+**Diminishing returns:** Beyond 5-6 parallel agents, the integration overhead (reviewing, merging, conflict checking) outweighs the time savings. Aim for 2-5 agents per dispatch.
 
-When agents return:
-- Read each summary
-- Verify fixes don't conflict
-- Run full test suite
-- Integrate all changes
+## What Happens When Things Go Wrong
 
-## Agent Prompt Structure
+| Problem | How You'll Know | Fix |
+|---------|----------------|-----|
+| **Agents edit same file** | Merge conflicts when integrating | Should have been caught by independence test. Resolve manually. |
+| **One agent fails** | Returns error or incomplete results | Don't let one failure block others. Review successful agents' work, re-dispatch failed task. |
+| **Agents make contradictory fixes** | Tests pass individually but fail together | Run full suite after integration. Root cause was hidden dependency — investigate together. |
+| **Agent scope too broad** | Agent takes too long, returns shallow results | Re-dispatch with narrower scope. Split into 2 focused agents. |
+| **Agent makes systematic error** | Same wrong pattern in all changes | Spot-check before accepting. Add constraints to prevent the pattern. |
 
-Good agent prompts are:
-1. **Focused** - One clear problem domain
-2. **Self-contained** - All context needed to understand the problem
-3. **Specific about output** - What should the agent return?
+### The Integration Protocol
 
-```markdown
-Fix the 3 failing tests in src/agents/agent-tool-abort.test.ts:
+After all agents return:
 
-1. "should abort tool with partial output capture" - expects 'interrupted at' in message
-2. "should handle mixed completed and aborted tools" - fast tool aborted instead of completed
-3. "should properly track pendingToolCount" - expects 3 results but gets 0
+1. **Read each summary** — understand what changed and why
+2. **Check for file overlap** — did any agents touch the same files? If yes, merge carefully
+3. **Apply changes one at a time** — don't blindly merge everything
+4. **Run full test suite** — individual agent fixes may conflict
+5. **Spot-check agent reasoning** — agents can confidently make wrong assumptions
 
-These are timing/race condition issues. Your task:
+## Rationalization Table
 
-1. Read the test file and understand what each test verifies
-2. Identify root cause - timing issues or actual bugs?
-3. Fix by:
-   - Replacing arbitrary timeouts with event-based waiting
-   - Fixing bugs in abort implementation if found
-   - Adjusting test expectations if testing changed behavior
+| Rationalization | When It Appears | Why It's Wrong |
+|----------------|-----------------|----------------|
+| "Let me dispatch an agent for each test" | Seeing many test failures | Failures may share a root cause. Investigate first — fixing one may fix 10 others. |
+| "I'll dispatch 8 agents to go faster" | Lots of independent work | Beyond 5-6 agents, integration overhead exceeds time savings. Batch into 3-5 focused groups. |
+| "They're probably independent" | Haven't verified independence | "Probably" means you haven't checked. Run the independence test. Conflicting agents waste more time than sequential work. |
+| "The agent can figure out the scope" | Writing broad agent prompts | Broad scope = shallow results. Agents work best with narrow, specific tasks and all context included. |
 
-Do NOT just increase timeouts - find the real issue.
+## NEVER
 
-Return: Summary of what you found and what you fixed.
-```
+- NEVER dispatch parallel agents that will edit the same files — merge conflicts waste more time than sequential execution saves
+- NEVER skip the independence test because tasks "look" independent — hidden dependencies produce conflicting changes that are harder to debug than the original problem
+- NEVER dispatch more than 5-6 agents at once — integration overhead (reviewing, merging, conflict-checking) grows quadratically; batch into smaller groups
+- NEVER write agent prompts without pasting the actual error messages or context — agents can't ask for clarification mid-run; missing context = wrong fixes
+- NEVER accept agent results without running the full test suite — individual fixes may pass in isolation but conflict when combined
+- NEVER parallelize exploratory debugging — if you don't know what's broken yet, you can't create focused agent scopes; investigate first, parallelize second
 
-## Common Mistakes
+## Red Flags
 
-**❌ Too broad:** "Fix all the tests" - agent gets lost
-**✅ Specific:** "Fix agent-tool-abort.test.ts" - focused scope
-
-**❌ No context:** "Fix the race condition" - agent doesn't know where
-**✅ Context:** Paste the error messages and test names
-
-**❌ No constraints:** Agent might refactor everything
-**✅ Constraints:** "Do NOT change production code" or "Fix tests only"
-
-**❌ Vague output:** "Fix it" - you don't know what changed
-**✅ Specific:** "Return summary of root cause and changes"
-
-## When NOT to Use
-
-**Related failures:** Fixing one might fix others - investigate together first
-**Need full context:** Understanding requires seeing entire system
-**Exploratory debugging:** You don't know what's broken yet
-**Shared state:** Agents would interfere (editing same files, using same resources)
-
-## Real Example from Session
-
-**Scenario:** 6 test failures across 3 files after major refactoring
-
-**Failures:**
-- agent-tool-abort.test.ts: 3 failures (timing issues)
-- batch-completion-behavior.test.ts: 2 failures (tools not executing)
-- tool-approval-race-conditions.test.ts: 1 failure (execution count = 0)
-
-**Decision:** Independent domains - abort logic separate from batch completion separate from race conditions
-
-**Dispatch:**
-```
-Agent 1 → Fix agent-tool-abort.test.ts
-Agent 2 → Fix batch-completion-behavior.test.ts
-Agent 3 → Fix tool-approval-race-conditions.test.ts
-```
-
-**Results:**
-- Agent 1: Replaced timeouts with event-based waiting
-- Agent 2: Fixed event structure bug (threadId in wrong place)
-- Agent 3: Added wait for async tool execution to complete
-
-**Integration:** All fixes independent, no conflicts, full suite green
-
-**Time saved:** 3 problems solved in parallel vs sequentially
-
-## Key Benefits
-
-1. **Parallelization** - Multiple investigations happen simultaneously
-2. **Focus** - Each agent has narrow scope, less context to track
-3. **Independence** - Agents don't interfere with each other
-4. **Speed** - 3 problems solved in time of 1
-
-## Verification
-
-After agents return:
-1. **Review each summary** - Understand what changed
-2. **Check for conflicts** - Did agents edit same code?
-3. **Run full suite** - Verify all fixes work together
-4. **Spot check** - Agents can make systematic errors
-
-## Real-World Impact
-
-From debugging session (2025-10-03):
-- 6 failures across 3 files
-- 3 agents dispatched in parallel
-- All investigations completed concurrently
-- All fixes integrated successfully
-- Zero conflicts between agent changes
+- [ ] Dispatching agents for failures you haven't investigated at all — may share a root cause that one fix would solve
+- [ ] Agent prompt says "fix the tests" without listing specific test names and errors — scope too vague
+- [ ] Multiple agents assigned to the same module or file — will conflict
+- [ ] No constraints in agent prompts — agents may refactor unrelated code
+- [ ] Accepting all agent results without running full test suite — hidden conflicts
+- [ ] Dispatching 7+ agents simultaneously — integration overhead exceeds benefit

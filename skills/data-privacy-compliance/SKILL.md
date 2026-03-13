@@ -1,614 +1,299 @@
 ---
 name: Data Privacy Compliance
-description: Data privacy and regulatory compliance specialist for GDPR, CCPA, HIPAA, and international data protection laws. Use when implementing privacy controls, conducting data protection impact assessments, ensuring regulatory compliance, or managing data subject rights. Expert in consent management, data minimization, and privacy-by-design principles.
+description: >
+  Use when building systems that collect, store, or process personal data and the user
+  needs to determine which regulations apply, choose a lawful basis for processing,
+  structure data processing agreements, handle cross-border transfers, or respond to
+  data breaches. Use when privacy architecture decisions have enforcement consequences.
+  NEVER for general security hardening without a privacy component. NEVER for
+  cookie banner HTML/CSS implementation (use frontend skills). NEVER for HIPAA
+  clinical workflow design (use healthcare-specific skills).
 ---
 
 # Data Privacy Compliance
 
-Comprehensive guidance for implementing data privacy compliance across GDPR, CCPA, HIPAA, and other global data protection regulations.
+Expert decision layer for privacy regulation applicability, lawful basis selection,
+enforcement risk assessment, and compliance architecture. This skill provides the
+judgment Claude lacks by default -- what regulators actually enforce, where companies
+actually get fined, and which compliance choices create real protection vs privacy theater.
 
-## When to Use This Skill
+## Regulation Applicability Decision Tree
 
-Use this skill when:
-- Implementing GDPR, CCPA, or HIPAA compliance
-- Conducting Data Protection Impact Assessments (DPIA)
-- Managing data subject rights (access, deletion, portability)
-- Implementing consent management systems
-- Drafting privacy policies and notices
-- Handling data breaches and incident response
-- Designing privacy-by-design systems
-- Conducting privacy audits and assessments
+Work through these questions IN ORDER. Stop at the first regulation that applies.
+Multiple regulations often apply simultaneously -- do not stop after finding one.
 
-## Key Regulations Overview
+```
+Q1: Does the system process data about people in the EU/EEA/UK?
+  YES --> GDPR applies (regardless of where your company is located)
+  NO  --> Continue
 
-### GDPR (General Data Protection Regulation)
-**Scope:** EU residents' data, regardless of where company is located
-**Key Requirements:**
-- Lawful basis for processing (consent, contract, legitimate interest, etc.)
-- Data subject rights (access, deletion, portability, objection)
-- Data Protection Impact Assessments for high-risk processing
-- 72-hour breach notification requirement
-- Records of processing activities
-- Privacy by design and by default
+Q2: Does the system process data about California residents AND does the
+    business meet ANY threshold: $25M+ revenue, 100K+ consumers/households,
+    OR 50%+ revenue from selling/sharing personal information?
+  YES --> CCPA/CPRA applies
+  NO  --> Continue
 
-**Penalties:** Up to €20M or 4% of global annual revenue
+Q3: Does the system handle Protected Health Information AND is the entity
+    a covered entity or business associate under US law?
+  YES --> HIPAA applies
+  NO  --> Continue
 
-### CCPA/CPRA (California Consumer Privacy Act)
-**Scope:** California residents' data
-**Key Requirements:**
-- Right to know what data is collected
-- Right to delete personal information
-- Right to opt-out of sale/sharing
-- Right to correct inaccurate information
-- Right to limit use of sensitive personal information
+Q4: Does the system process data about residents of Brazil, Canada,
+    Australia, Japan, South Korea, or other countries with data protection laws?
+  YES --> Check country-specific regulation (LGPD, PIPEDA, APPs, APPI, PIPA)
+  NO  --> No specific regulation, but apply privacy-by-design principles anyway
 
-**Penalties:** Up to $7,500 per intentional violation
-
-### HIPAA (Health Insurance Portability and Accountability Act)
-**Scope:** Protected Health Information (PHI) in the US
-**Key Requirements:**
-- Privacy Rule (patient rights and information uses)
-- Security Rule (safeguards for ePHI)
-- Breach Notification Rule (60-day notification)
-- Business Associate Agreements (BAAs)
-
-**Penalties:** Up to $1.5M per violation category per year
-
-## Data Subject Rights Implementation
-
-### 1. Right to Access (GDPR Art. 15 / CCPA § 1798.100)
-
-**Request Handler:**
-```javascript
-async function handleAccessRequest(userId, email) {
-  // Verify identity
-  const verified = await verifyIdentity(email);
-  if (!verified) throw new Error('Identity verification failed');
-
-  // Collect all personal data
-  const userData = await collectUserData(userId);
-
-  // Format for readability
-  const report = {
-    personalInfo: userData.profile,
-    activityLogs: userData.activities,
-    preferences: userData.settings,
-    thirdPartySharing: userData.dataSharing,
-    retentionPeriod: '2 years from last activity',
-    dataProtectionOfficer: 'dpo@company.com'
-  };
-
-  // Generate downloadable report
-  const pdf = await generatePDFReport(report);
-
-  // Log request for compliance
-  await logAccessRequest(userId, 'completed');
-
-  return pdf;
-}
+CRITICAL: If you answered YES to Q1, also check Q2-Q4. A SaaS company with
+EU and California users is subject to BOTH GDPR and CCPA simultaneously.
+The stricter requirement wins for overlapping obligations.
 ```
 
-**Response Timeline:**
-- GDPR: 1 month (extendable to 3 months)
-- CCPA: 45 days (extendable to 90 days)
+## Lawful Basis Selection (The Decision That Determines Everything)
 
-### 2. Right to Deletion (GDPR Art. 17 / CCPA § 1798.105)
+Choosing the wrong lawful basis is the #1 GDPR mistake. It cannot be changed
+retroactively. Choose BEFORE processing begins.
 
-**Deletion Handler:**
-```javascript
-async function handleDeletionRequest(userId, email) {
-  // Verify identity
-  const verified = await verifyIdentity(email);
-  if (!verified) throw new Error('Identity verification failed');
+```
+CONSENT
+  Use when: User has genuine free choice, can refuse without consequence,
+            and you can implement easy withdrawal
+  Classic fit: Marketing emails, analytics cookies, newsletter signup
+  Trap: If the user MUST consent to use your service, consent is not freely
+        given and is INVALID. Use "contract" instead.
+  Enforcement reality: Irish DPC fined Meta EUR 390M (Jan 2023) for claiming
+        consent when users had no real choice
 
-  // Check for legal obligations to retain
-  const mustRetain = await checkRetentionRequirements(userId);
-  if (mustRetain.required) {
-    return {
-      status: 'partial_deletion',
-      retained: mustRetain.data,
-      reason: mustRetain.legalBasis,
-      retentionPeriod: mustRetain.period
-    };
-  }
+CONTRACT
+  Use when: Processing is genuinely necessary to deliver the service the
+            user signed up for
+  Classic fit: Processing shipping address to deliver an order, storing
+               login credentials for account access
+  Trap: "Necessary" means the contract literally cannot be performed without
+        this processing. Targeted ads are NOT necessary for social media.
 
-  // Delete from all systems
-  await Promise.all([
-    deleteFromDatabase(userId),
-    deleteFromBackups(userId), // Mark for deletion in next backup cycle
-    deleteFromAnalytics(userId),
-    deleteFromThirdPartyServices(userId),
-    revokeAPIKeys(userId),
-    anonymizeHistoricalRecords(userId)
-  ]);
+LEGITIMATE INTEREST
+  Use when: You have a real business need, impact on individuals is minimal,
+            and they would reasonably expect the processing
+  Classic fit: Fraud detection, network security, internal analytics
+  REQUIRES: Documented Legitimate Interest Assessment (LIA) with three-part test:
+    1. Purpose test: Is the interest real and lawful?
+    2. Necessity test: Is this processing actually needed for that interest?
+    3. Balancing test: Do individual rights override your interest?
+  Trap: Companies use legitimate interest as a lazy alternative to consent.
+        Regulators see right through this. If you skip the LIA, expect fines.
+  Enforcement reality: Norwegian DPA fined Grindr EUR 6.5M for claiming
+        legitimate interest for ad tracking without a proper LIA
 
-  // Confirm deletion
-  await sendDeletionConfirmation(email);
-  await logDeletionRequest(userId, 'completed');
+LEGAL OBLIGATION
+  Use when: A law requires you to process this data
+  Classic fit: Tax records, anti-money-laundering checks, employment law
+  Trap: Must cite the SPECIFIC law. "Regulatory compliance" is not specific enough.
 
-  return { status: 'deleted', timestamp: new Date() };
-}
+PUBLIC INTEREST / VITAL INTEREST
+  Use when: Government functions, medical emergencies
+  Almost never applies to commercial software. Do not use as a shortcut.
 ```
 
-**Exceptions (when deletion can be refused):**
-- Legal obligations (tax records, contracts)
-- Public interest/scientific research
-- Defense of legal claims
-- Exercise of freedom of expression
+## Rationalization Table
 
-### 3. Right to Data Portability (GDPR Art. 20)
+| What teams say | What is actually true | Correct approach |
+|---|---|---|
+| "We need all this data for analytics" | Data minimization requires collecting only what is necessary for the stated purpose. "Analytics" is not a purpose -- name the specific business question. | Define exact metrics needed. Collect only the fields those metrics require. Aggregate or anonymize within 30 days. |
+| "Legitimate interest covers our tracking" | Without a documented LIA, legitimate interest claims fail enforcement. Tracking across sites almost never passes the balancing test. | Conduct a formal three-part LIA. If tracking is cross-site or involves profiling, use consent instead. |
+| "Our privacy policy covers us" | A privacy policy is a disclosure document, not a legal shield. It does not create consent or establish a lawful basis. | Privacy policy PLUS a lawful basis for each processing activity PLUS proper consent mechanisms where consent is the basis. |
+| "We anonymize the data so GDPR does not apply" | Pseudonymization is not anonymization. If data can be re-identified with reasonable effort, it is still personal data. True anonymization is irreversible. | Use k-anonymity testing: if any combination of quasi-identifiers maps to fewer than 5 individuals, it is not anonymous. |
+| "Users agreed to our Terms of Service" | ToS acceptance is not GDPR consent. Consent must be specific, informed, freely given, and withdrawable. Bundled consent in ToS is invalid. | Separate consent from ToS. Each processing purpose gets its own opt-in. Never gate service access on non-essential consent. |
+| "We are a US company so GDPR does not apply" | GDPR applies based on WHERE THE DATA SUBJECTS ARE, not where the company is. Processing EU resident data triggers GDPR regardless of company location. | If you have EU users, you are subject to GDPR. Appoint an EU representative (Art. 27) if you have no EU establishment. |
+| "Our vendor handles compliance for us" | Data controllers cannot delegate compliance responsibility. You remain liable for your processors' failures. | Execute a proper DPA with every vendor. Audit their compliance. You are jointly liable if they breach. |
+| "We only need a cookie banner" | Cookie consent is one small piece. Without lawful basis documentation, processing records, DSAR procedures, and breach response plans, you are exposed. | Cookie consent is step 1 of approximately 40. Build the full compliance program. |
 
-**Export Handler:**
-```javascript
-async function handlePortabilityRequest(userId, format = 'json') {
-  const userData = await collectUserData(userId);
+## NEVER List
 
-  // Structure in machine-readable format
-  const portableData = {
-    exportDate: new Date().toISOString(),
-    userId: userId,
-    data: {
-      profile: userData.profile,
-      content: userData.userGeneratedContent,
-      settings: userData.preferences,
-      history: userData.activityHistory
-    }
-  };
+1. NEVER use pre-ticked checkboxes for consent -- this violates GDPR Art. 7 and was explicitly ruled invalid by the CJEU in Planet49 (Case C-673/17)
+2. NEVER bundle consent for multiple purposes into a single checkbox -- each purpose requires separate, granular consent
+3. NEVER treat cookie walls ("accept all or leave") as valid consent in the EU -- French CNIL and Austrian DSB have fined for this pattern repeatedly
+4. NEVER store raw consent timestamps without the full consent record (what was shown, what was selected, version of notice) -- you must prove WHAT was consented to, not just WHEN
+5. NEVER assume "delete" means only the primary database -- deletion requests require removing data from backups, analytics pipelines, third-party processors, CDNs, logs, and data warehouses
+6. NEVER send a data subject access request response containing OTHER people's data -- redact third-party personal data before sending. This is a common breach source.
+7. NEVER rely on Privacy Shield for EU-US transfers -- it was invalidated by Schrems II (July 2020). Use the EU-US Data Privacy Framework (adopted July 2023) only if your organization is certified, otherwise use SCCs.
+8. NEVER start processing before documenting the lawful basis -- GDPR requires this determination BEFORE processing begins. Retroactive basis selection is explicitly prohibited.
+9. NEVER use "we take your privacy seriously" as a substitute for specific disclosures -- regulators treat vague language as a transparency violation
+10. NEVER assume encryption alone satisfies GDPR security requirements -- Art. 32 requires appropriate technical AND organizational measures, including access controls, regular testing, and staff training
 
-  // Support multiple formats
-  if (format === 'csv') {
-    return convertToCSV(portableData);
-  } else if (format === 'xml') {
-    return convertToXML(portableData);
-  }
+## Enforcement Reality Table
 
-  return portableData; // JSON by default
-}
+What regulators actually fine for vs what companies spend their compliance budget on.
+
+| What companies worry about | Fine frequency | What regulators actually fine for | Fine severity |
+|---|---|---|---|
+| Cookie banner design | LOW | Insufficient lawful basis for processing | VERY HIGH (Meta EUR 1.2B, Amazon EUR 746M) |
+| Privacy policy wording | LOW | Lack of transparency in actual data practices | HIGH (Google EUR 150M by French CNIL) |
+| Data breach technical details | MEDIUM | Late or incomplete breach notification | HIGH (British Airways GBP 20M, Marriott GBP 18.4M) |
+| DSAR response format | LOW | Failure to respond to DSARs within deadline | MEDIUM |
+| Employee training records | LOW | No lawful basis documented for processing activities | VERY HIGH |
+| Consent banner UX | MEDIUM | Dark patterns that manipulate consent | HIGH (Epic Games USD 520M FTC, though not GDPR) |
+| Vendor security audits | LOW | Missing or inadequate Data Processing Agreements | MEDIUM-HIGH |
+| Data retention schedules | LOW | Processing data beyond stated retention period | MEDIUM |
+
+Key insight: 80% of major GDPR fines stem from just two issues -- insufficient lawful
+basis and lack of transparency. Companies over-invest in cookie banners and
+under-invest in lawful basis documentation and processing records.
+
+## Data Processing Agreements: The 5 Clauses Vendors Get Wrong
+
+When reviewing or drafting DPAs, focus on these failure points:
+
+1. **Sub-processor notification**: The DPA must require the processor to notify you
+   BEFORE engaging new sub-processors, not after. Many vendor templates say "we may
+   use sub-processors" with no notification mechanism. This fails Art. 28(2).
+
+2. **Audit rights**: "We will provide a SOC 2 report annually" is NOT sufficient audit
+   rights. The controller must have the right to conduct or commission audits of the
+   processor's facilities and practices. Accept SOC 2 as a practical alternative, but
+   the CONTRACT must preserve direct audit rights.
+
+3. **Data return/deletion on termination**: The DPA must specify BOTH return and deletion
+   of data after the contract ends, with a specific timeline (30 days is standard).
+   Many vendor DPAs say "data will be deleted in accordance with our retention policy"
+   which gives the vendor unilateral control.
+
+4. **International transfer mechanisms**: If the processor operates outside the EU, the
+   DPA must specify the transfer mechanism (SCCs, adequacy decision, or BCRs). "Data
+   may be processed globally" without specifying safeguards violates Chapter V GDPR.
+
+5. **Breach notification timeline**: The processor must notify the controller "without
+   undue delay" after becoming aware of a breach. Many vendor DPAs say "within 72
+   hours" -- but that is the controller's deadline to notify the DPA, not the
+   processor's deadline to notify the controller. Processors should notify within
+   24-48 hours to give the controller time to assess and report.
+
+## Cross-Border Data Transfers Post-Schrems II
+
+Decision framework for transferring personal data outside the EU/EEA:
+
+```
+Is the destination country on the EU adequacy list?
+  YES --> Transfer permitted without additional safeguards
+          Adequate countries (as of 2024): Andorra, Argentina, Canada (PIPEDA),
+          Faroe Islands, Guernsey, Israel, Isle of Man, Japan, Jersey,
+          New Zealand, Republic of Korea, Switzerland, UK, Uruguay,
+          EU-US Data Privacy Framework (for certified US companies only)
+  NO  --> Continue
+
+Is the US recipient certified under the EU-US Data Privacy Framework?
+  YES --> Transfer permitted (replaces Privacy Shield, adopted July 2023)
+          VERIFY certification at dataprivacyframework.gov before relying on this
+  NO  --> Continue
+
+Can you implement Standard Contractual Clauses (SCCs)?
+  YES --> Use the June 2021 SCCs (old 2010 SCCs are expired)
+          You MUST also conduct a Transfer Impact Assessment (TIA):
+          - Does destination country law allow government access to data?
+          - Are supplementary measures needed? (encryption, pseudonymization)
+          - Document the assessment even if risk is low
+  NO  --> Continue
+
+Does the recipient have approved Binding Corporate Rules?
+  YES --> Transfer permitted within the corporate group covered by BCRs
+  NO  --> Transfer is likely not permissible. Consider data localization.
 ```
 
-**Requirements:**
-- Structured, commonly used, machine-readable format
-- Ability to transmit directly to another controller
-- Only applies to data provided by data subject
-- Only for automated processing based on consent or contract
+## The 72-Hour Breach Response Decision Tree
 
-### 4. Right to Object (GDPR Art. 21)
+When a breach is detected, work through this immediately:
 
-**Objection Handler:**
-```javascript
-async function handleObjectionRequest(userId, processingType) {
-  switch (processingType) {
-    case 'direct_marketing':
-      // Must stop immediately
-      await disableMarketing(userId);
-      await updateConsent(userId, 'marketing', false);
-      break;
+```
+HOUR 0-4: CONTAIN AND CLASSIFY
+  1. Stop the breach (isolate systems, revoke credentials, block access)
+  2. Classify: Does the breach involve personal data?
+     NO  --> Security incident, not a data breach. Handle via security procedures.
+     YES --> Continue
 
-    case 'legitimate_interest':
-      // Assess if we have compelling grounds
-      const assessment = await assessLegitimateInterest(userId);
-      if (!assessment.compelling) {
-        await stopProcessing(userId, processingType);
-      }
-      return assessment;
+HOUR 4-24: ASSESS RISK
+  3. What type of data? (Names, emails, financial, health, children's data, ID numbers)
+  4. How many individuals affected?
+  5. Was the data encrypted? Was the key also compromised?
+  6. Can affected individuals be identified?
+  7. Is there evidence of actual access/exfiltration, or just exposure?
 
-    case 'profiling':
-      await disableProfiling(userId);
-      await updateConsent(userId, 'profiling', false);
-      break;
+RISK ASSESSMENT:
+  Data was encrypted AND key was NOT compromised
+    --> Likely NO notification required (recital 87: unintelligible data)
+  Data is low-sensitivity AND small number of people AND no evidence of access
+    --> Document internally, likely no DPA notification required
+  ANY sensitive data (health, financial, children, ID numbers) OR large scale
+    --> Notify supervisory authority within 72 hours
+  HIGH risk to individuals (identity theft likely, financial data exposed)
+    --> Notify BOTH supervisory authority AND affected individuals directly
 
-    default:
-      throw new Error('Invalid processing type');
-  }
+HOUR 24-72: NOTIFY IF REQUIRED
+  Notification to supervisory authority must include:
+  - Nature of breach and categories of data
+  - Approximate number of individuals affected
+  - Name and contact details of DPO
+  - Likely consequences
+  - Measures taken or proposed
 
-  await logObjectionRequest(userId, processingType, 'granted');
-}
+  If you cannot gather all information within 72 hours, submit what you have
+  and provide remaining information in phases. Late complete notification is
+  better than no notification, but worse than timely partial notification.
 ```
 
-## Consent Management
-
-### Consent Requirements (GDPR)
-
-**Valid Consent Must Be:**
-1. Freely given (no coercion)
-2. Specific (for each purpose)
-3. Informed (clear language)
-4. Unambiguous (clear affirmative action)
-5. Withdrawable (as easy to withdraw as to give)
-
-**Consent Implementation:**
-```html
-<!-- Good: Granular consent -->
-<form>
-  <h3>Privacy Preferences</h3>
-
-  <label>
-    <input type="checkbox" name="essential" checked disabled>
-    <strong>Essential cookies (Required)</strong>
-    <p>Necessary for website functionality</p>
-  </label>
-
-  <label>
-    <input type="checkbox" name="analytics" value="analytics">
-    <strong>Analytics cookies</strong>
-    <p>Help us improve our website by collecting usage data</p>
-  </label>
-
-  <label>
-    <input type="checkbox" name="marketing" value="marketing">
-    <strong>Marketing cookies</strong>
-    <p>Show you personalized ads based on your interests</p>
-  </label>
-
-  <button type="submit">Save Preferences</button>
-  <a href="/privacy-policy">Learn More</a>
-</form>
-```
-
-**Consent Record Storage:**
-```javascript
-const consentRecord = {
-  userId: 'user123',
-  timestamp: new Date().toISOString(),
-  consentVersion: '2.0',
-  purposes: {
-    essential: { granted: true, required: true },
-    analytics: { granted: true, purpose: 'Website improvement' },
-    marketing: { granted: false, purpose: 'Personalized advertising' }
-  },
-  ipAddress: '192.168.1.1', // For proof
-  userAgent: 'Mozilla/5.0...', // For context
-  method: 'explicit_opt_in' // or 'implicit', 'presumed'
-};
-
-await saveConsentRecord(consentRecord);
-```
-
-### Cookie Banner (GDPR Compliant)
-
-```html
-<div id="cookie-banner" role="dialog" aria-labelledby="cookie-title">
-  <h2 id="cookie-title">Cookie Preferences</h2>
-  <p>
-    We use cookies to enhance your experience. Choose which cookies you
-    allow us to use. You can change your preferences at any time.
-  </p>
-
-  <button onclick="acceptAll()">Accept All</button>
-  <button onclick="rejectNonEssential()">Reject Non-Essential</button>
-  <button onclick="showPreferences()">Manage Preferences</button>
-</div>
-
-<script>
-// Must not load non-essential cookies until consent given
-function acceptAll() {
-  setConsent({ analytics: true, marketing: true });
-  loadAnalyticsCookies();
-  loadMarketingCookies();
-  hideBanner();
-}
-
-function rejectNonEssential() {
-  setConsent({ analytics: false, marketing: false });
-  hideBanner();
-}
-</script>
-```
-
-## Privacy by Design Principles
-
-### 1. Data Minimization
-
-**Principle:** Collect only data necessary for specified purpose
-
-**Implementation:**
-```javascript
-// ❌ Bad: Collecting unnecessary data
-const userRegistration = {
-  email: req.body.email,
-  password: req.body.password,
-  fullName: req.body.fullName,
-  phoneNumber: req.body.phoneNumber, // Not needed
-  dateOfBirth: req.body.dateOfBirth, // Not needed
-  address: req.body.address, // Not needed
-  socialSecurityNumber: req.body.ssn // Definitely not needed!
-};
-
-// ✅ Good: Only essential data
-const userRegistration = {
-  email: req.body.email,
-  password: hashPassword(req.body.password),
-  displayName: req.body.displayName // Optional
-};
-```
-
-### 2. Purpose Limitation
-
-**Principle:** Use data only for specified, explicit purposes
-
-**Implementation:**
-```javascript
-// Document and enforce purpose
-const dataProcessingPurpose = {
-  email: [
-    'account_authentication',
-    'order_confirmations',
-    'password_reset'
-  ],
-  phoneNumber: [
-    'order_delivery_notifications'
-    // NOT: 'marketing_calls' (requires separate consent)
-  ],
-  purchaseHistory: [
-    'order_fulfillment',
-    'customer_support'
-    // NOT: 'targeted_advertising' (requires separate consent)
-  ]
-};
-
-async function processData(data, purpose) {
-  if (!isAllowedPurpose(data.type, purpose)) {
-    throw new Error('Purpose not authorized for this data');
-  }
-  // Proceed with processing
-}
-```
-
-### 3. Storage Limitation
-
-**Principle:** Retain data only as long as necessary
-
-**Implementation:**
-```javascript
-const retentionPolicy = {
-  userAccounts: {
-    active: 'indefinite',
-    inactive: '2 years',
-    deleted: '30 days grace period'
-  },
-  orderRecords: '7 years', // Legal requirement
-  supportTickets: '3 years',
-  analytics: '26 months',
-  marketingData: '1 year or until consent withdrawn'
-};
-
-// Automated data deletion
-async function enforceRetentionPolicy() {
-  const now = new Date();
-
-  // Delete inactive accounts
-  await User.deleteMany({
-    lastActive: { $lt: subYears(now, 2) },
-    status: 'inactive'
-  });
-
-  // Anonymize old analytics
-  await Analytics.updateMany(
-    { createdAt: { $lt: subMonths(now, 26) } },
-    { $unset: { userId: 1, ipAddress: 1 } }
-  );
-
-  // Delete expired marketing consent
-  await MarketingConsent.deleteMany({
-    $or: [
-      { expiresAt: { $lt: now } },
-      { withdrawnAt: { $lt: subDays(now, 30) } }
-    ]
-  });
-}
-
-// Schedule daily
-cron.schedule('0 2 * * *', enforceRetentionPolicy);
-```
-
-## Data Protection Impact Assessment (DPIA)
-
-**When Required (GDPR Art. 35):**
-- Systematic and extensive profiling
-- Large-scale processing of sensitive data
-- Systematic monitoring of publicly accessible areas
-- New technologies with high privacy risks
-
-**DPIA Template:**
-```markdown
-# Data Protection Impact Assessment
-
-## Processing Overview
-- **Purpose**: [Describe the processing activity]
-- **Data Types**: [Personal data categories]
-- **Data Subjects**: [Who is affected]
-- **Recipients**: [Who receives the data]
-
-## Necessity Assessment
-- [ ] Is processing necessary for the stated purpose?
-- [ ] Could the purpose be achieved with less data?
-- [ ] Is the retention period justified?
-
-## Risk Assessment
-| Risk | Likelihood | Severity | Mitigation |
-|------|------------|----------|------------|
-| Data breach | Medium | High | Encryption, access controls |
-| Unauthorized access | Low | High | 2FA, audit logs |
-| Purpose creep | Medium | Medium | Purpose documentation, training |
-
-## Safeguards
-- [ ] Encryption at rest and in transit
-- [ ] Access controls and authentication
-- [ ] Regular security audits
-- [ ] Data minimization applied
-- [ ] Retention policies enforced
-- [ ] DPO consulted
-- [ ] Data subject rights mechanism in place
-
-## Conclusion
-Processing is/is not acceptable with proposed safeguards.
-
-Signed: [Data Protection Officer]
-Date: [Assessment Date]
-```
-
-## Privacy Policy Requirements
-
-**Essential Elements:**
-```markdown
-# Privacy Policy
-
-## 1. Identity of Controller
-Company Name, Address, Contact Information
-Data Protection Officer: dpo@company.com
-
-## 2. Data We Collect
-- Account data: email, name
-- Usage data: pages visited, features used
-- Technical data: IP address, browser type
-
-## 3. Legal Basis for Processing
-- **Consent**: Marketing communications
-- **Contract**: Order fulfillment
-- **Legitimate Interest**: Fraud prevention
-- **Legal Obligation**: Tax records
-
-## 4. How We Use Your Data
-- Provide services you requested
-- Improve our products
-- Send important updates
-- [Be specific, avoid vague statements]
-
-## 5. Data Sharing
-- Payment processors (Stripe, PayPal)
-- Shipping providers (FedEx, UPS)
-- Analytics (Google Analytics)
-
-We do NOT sell your personal data.
-
-## 6. Your Rights
-- Right to access your data
-- Right to correct inaccuracies
-- Right to delete your data
-- Right to object to processing
-- Right to data portability
-- Right to withdraw consent
-
-Contact: privacy@company.com
-
-## 7. Data Retention
-- Account data: Until account deletion + 30 days
-- Order history: 7 years (legal requirement)
-- Marketing data: 1 year or until opt-out
-
-## 8. Security
-We use industry-standard security measures including
-encryption, secure servers, and regular security audits.
-
-## 9. International Transfers
-Data may be transferred to US servers. We use Standard
-Contractual Clauses approved by the EU Commission.
-
-## 10. Changes to Policy
-Last updated: [Date]
-We will notify you of material changes via email.
-
-## 11. Contact
-Questions? Contact our Data Protection Officer at dpo@company.com
-```
-
-## Incident Response
-
-### Data Breach Response Plan
-
-**Within 72 Hours (GDPR):**
-```markdown
-1. **Detect & Contain** (0-4 hours)
-   - Identify scope of breach
-   - Isolate affected systems
-   - Prevent further data loss
-
-2. **Assess** (4-24 hours)
-   - Determine data types affected
-   - Identify number of individuals
-   - Assess risk to rights and freedoms
-   - Document everything
-
-3. **Notify Authority** (24-72 hours)
-   - Report to supervisory authority
-   - Include: nature, categories, approximate numbers,
-     likely consequences, measures taken
-
-4. **Notify Data Subjects** (ASAP if high risk)
-   - Direct communication required
-   - Describe breach in clear language
-   - Provide recommendations for protection
-```
-
-**Breach Notification Template:**
-```
-Subject: Important Security Notice
-
-Dear [Name],
-
-We are writing to inform you of a data security incident that may
-have affected your personal information.
-
-WHAT HAPPENED:
-On [date], we discovered that [brief description].
-
-WHAT INFORMATION WAS INVOLVED:
-[List specific data types: name, email, etc.]
-[List what was NOT involved]
-
-WHAT WE ARE DOING:
-- [Immediate actions taken]
-- [Ongoing security enhancements]
-- [Resources provided to affected individuals]
-
-WHAT YOU CAN DO:
-- Change your password immediately
-- Monitor your accounts for suspicious activity
-- [Specific recommendations]
-
-FOR MORE INFORMATION:
-Contact our dedicated hotline: [phone]
-Email: security@company.com
-
-We sincerely apologize for this incident and the inconvenience
-it may cause.
-
-Sincerely,
-[Name, Title]
-```
-
-## Compliance Checklist
-
-### GDPR Compliance
-- [ ] Lawful basis documented for all processing
-- [ ] Privacy policy published and accessible
-- [ ] Consent mechanism implements granular controls
-- [ ] Data subject rights request process established
-- [ ] Records of processing activities maintained
-- [ ] Data Protection Officer appointed (if required)
-- [ ] DPIA conducted for high-risk processing
-- [ ] Data breach notification procedure in place
-- [ ] Vendor contracts include data processing agreements
-- [ ] International data transfer safeguards implemented
-- [ ] Staff training on data protection completed
-
-### CCPA Compliance
-- [ ] "Do Not Sell My Personal Information" link on homepage
-- [ ] Privacy policy discloses data collection and sales
-- [ ] Mechanisms for verifiable consumer requests
-- [ ] Process for opt-out requests (48-hour response)
-- [ ] Annual report on requests and compliance
-- [ ] Service provider agreements updated
-- [ ] Notice at collection provided
-
-### HIPAA Compliance
-- [ ] Risk assessment completed
-- [ ] Security policies and procedures documented
-- [ ] Workforce trained on HIPAA requirements
-- [ ] Business Associate Agreements signed
-- [ ] Access controls and audit trails implemented
-- [ ] Encryption for ePHI
-- [ ] Breach notification procedures established
-- [ ] Contingency plan and disaster recovery
-
-Privacy compliance is an ongoing process, not a one-time checklist. Regularly review and update practices as regulations evolve and your data processing changes.
+## CCPA vs GDPR: The Differences That Trip Up Dual-Jurisdiction Companies
+
+| Area | GDPR | CCPA/CPRA | Trap |
+|---|---|---|---|
+| Opt-in vs opt-out | Opt-IN for most processing (consent required first) | Opt-OUT model (processing allowed until consumer objects) | Building a GDPR-compliant opt-in system satisfies CCPA, but a CCPA opt-out system does NOT satisfy GDPR |
+| Right to delete exceptions | Narrow exceptions (legal obligation, public interest, legal claims) | Broader exceptions (includes transaction completion, security, internal use compatible with expectations) | CCPA allows more reasons to refuse deletion. Do not assume GDPR exceptions are the same. |
+| Private right of action | No direct private action under GDPR (only through supervisory authorities) | Private right of action for data breaches (statutory damages $100-$750 per consumer per incident) | CCPA class actions are a real financial threat. A breach affecting 100K Californians = $10M-$75M exposure |
+| Sensitive data | Special categories require explicit consent (Art. 9) | "Sensitive personal information" -- consumers can limit USE, but collection may still occur | GDPR blocks collection entirely without explicit consent. CCPA only gives opt-out of use. |
+| Data sales | No specific "sale" concept -- all processing needs a lawful basis | Specific "sale" and "sharing" definitions with dedicated opt-out rights | CCPA "sale" includes exchanging data for ANY valuable consideration, not just money. Ad tracking often qualifies. |
+
+## Privacy Engineering in Practice
+
+### Data Classification (Do This First)
+
+Before any privacy architecture, classify ALL data fields:
+
+- **P1 - Direct identifiers**: Name, email, phone, SSN, passport. Highest protection. Encrypt at rest and in transit. Strict access controls.
+- **P2 - Indirect identifiers**: IP address, device ID, cookie ID, location. Can identify with combination. Pseudonymize where possible.
+- **P3 - Sensitive**: Health, financial, biometric, political, sexual orientation, union membership, criminal records. Requires explicit consent under GDPR Art. 9.
+- **P4 - Non-personal**: Truly anonymized aggregates, public information. No privacy restrictions, but verify anonymization is irreversible.
+
+### Retention Automation
+
+Do not rely on manual deletion. Automate retention with these rules:
+
+- Every data field must have a documented retention period BEFORE collection begins
+- Retention clock starts at the trigger event (account closure, last activity, contract end), not at collection time
+- "Indefinite" is not a valid retention period. If you truly need data forever, document the specific legal or business justification
+- Legal hold overrides must be trackable and auditable
+- Backup deletion lags primary deletion -- document the maximum lag and ensure it is reasonable (30 days is standard)
+
+## Before/After Example
+
+**BEFORE (Privacy Theater):**
+A SaaS company adds a cookie banner, writes a privacy policy, and considers themselves
+GDPR compliant. They use legitimate interest for analytics and marketing. No LIA
+documented. Vendors have standard terms but no DPAs. Data retention is "we delete it
+when we get around to it." They collect full name, email, phone, company, job title,
+IP address, and browsing history for a B2B lead generation tool.
+
+**Risk exposure:** No lawful basis documentation means every processing activity is
+a violation. Each undocumented legitimate interest claim is a separate infringement.
+Missing DPAs mean joint liability for every vendor's data handling. No retention
+schedule means indefinite storage in violation of storage limitation principle.
+
+**AFTER (Expert Approach):**
+Same company, restructured:
+1. Mapped every data field to a specific, documented purpose
+2. Conducted LIA for analytics (passed -- minimal data, reasonable expectation, low impact). Result documented.
+3. Switched marketing to consent basis with granular opt-ins
+4. Executed DPAs with all 12 vendors, negotiating sub-processor notification and 24-hour breach notification
+5. Removed phone number and job title from mandatory fields (not necessary for service delivery)
+6. Set retention: active account data kept during subscription + 90 days, marketing consent reviewed annually, analytics aggregated after 26 months
+7. Documented Records of Processing Activities (RoPA) covering all 8 processing activities
+8. Established DSAR response process with 25-day internal deadline (leaving 5-day buffer before 30-day GDPR deadline)
+
+**Result:** Actual compliance vs compliance theater. The company can demonstrate
+accountability under Art. 5(2) because every decision is documented with reasoning.

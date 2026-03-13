@@ -1,0 +1,72 @@
+[
+  {
+    "input": "I need to design a Supabase database schema for a multi-tenant SaaS app with users, teams, and projects tables",
+    "expected_output": "should trigger",
+    "category": "schema-design"
+  },
+  {
+    "input": "My Supabase query on the orders table is taking 3 seconds. The table has 2 million rows and I'm filtering by customer_id",
+    "expected_output": "should trigger",
+    "category": "query-optimization"
+  },
+  {
+    "input": "How do I write RLS policies so users can only see their own data and team admins can see all team data?",
+    "expected_output": "should trigger",
+    "category": "rls-policy"
+  },
+  {
+    "input": "My Supabase Edge Functions keep getting 'too many connections' errors when traffic spikes",
+    "expected_output": "should trigger",
+    "category": "connection-pooling"
+  },
+  {
+    "input": "I need to add a NOT NULL column with a default value to a production Supabase table without downtime",
+    "expected_output": "should trigger",
+    "category": "migration"
+  },
+  {
+    "input": "Which index type should I use for a JSONB column where I query by nested key values using the @> operator?",
+    "expected_output": "should trigger",
+    "category": "indexing"
+  },
+  {
+    "input": "EXPLAIN ANALYZE shows a Seq Scan on my 5 million row table even though I have an index on the WHERE clause column",
+    "expected_output": "should trigger",
+    "category": "explain-analysis"
+  },
+  {
+    "input": "My events table has 200 million rows and queries are getting slower every month. Should I partition it?",
+    "expected_output": "should trigger",
+    "category": "partitioning"
+  },
+  {
+    "input": "Should I use transaction mode or session mode for Supavisor when connecting from Vercel serverless functions?",
+    "expected_output": "should trigger",
+    "category": "supavisor-config"
+  },
+  {
+    "input": "How do I monitor which queries are using the most resources in my Supabase Postgres database?",
+    "expected_output": "should trigger",
+    "category": "performance-monitoring"
+  },
+  {
+    "input": "My auth.uid() calls in RLS policies are making queries very slow on large tables. How do I optimize this?",
+    "expected_output": "should trigger",
+    "category": "rls-performance"
+  },
+  {
+    "input": "I need to set up a Supabase Edge Function that writes to the database and also triggers a Realtime event for connected clients",
+    "expected_output": "should trigger",
+    "category": "supabase-specific"
+  },
+  {
+    "input": "How do I configure Supabase Auth with Google OAuth and magic link sign-in for my React app?",
+    "expected_output": "should not trigger",
+    "category": "not-trigger-auth-ui"
+  },
+  {
+    "input": "I need help managing React state with Zustand and connecting it to my API endpoints",
+    "expected_output": "should not trigger",
+    "category": "not-trigger-frontend-state"
+  }
+]

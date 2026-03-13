@@ -1,0 +1,72 @@
+[
+  {
+    "input": "I need to design a database schema for a multi-tenant SaaS application with users, organizations, and billing",
+    "expected_skill": "database",
+    "should_trigger": true
+  },
+  {
+    "input": "My query is taking 3 seconds, how do I add the right indexes to speed it up?",
+    "expected_skill": "database",
+    "should_trigger": true
+  },
+  {
+    "input": "Should I use Postgres or MongoDB for my e-commerce product catalog?",
+    "expected_skill": "database",
+    "should_trigger": true
+  },
+  {
+    "input": "I need to add a NOT NULL column to a production table with 50 million rows without downtime",
+    "expected_skill": "database",
+    "should_trigger": true
+  },
+  {
+    "input": "Help me optimize this SQL query that has an N+1 problem when loading orders with their items",
+    "expected_skill": "database",
+    "should_trigger": true
+  },
+  {
+    "input": "What connection pool size should I use for my Postgres database on an 8-core server?",
+    "expected_skill": "database",
+    "should_trigger": true
+  },
+  {
+    "input": "How do I detect N+1 queries in my application's database calls?",
+    "expected_skill": "database",
+    "should_trigger": true
+  },
+  {
+    "input": "Should I normalize this data to 3NF or keep it denormalized for read performance?",
+    "expected_skill": "database",
+    "should_trigger": true
+  },
+  {
+    "input": "When should I use a JSONB column versus creating a separate relational table?",
+    "expected_skill": "database",
+    "should_trigger": true
+  },
+  {
+    "input": "My users table has 200 million rows and queries are slowing down. Should I partition it?",
+    "expected_skill": "database",
+    "should_trigger": true
+  },
+  {
+    "input": "Help me set up automated database backups with point-in-time recovery",
+    "expected_skill": "database",
+    "should_trigger": true
+  },
+  {
+    "input": "EXPLAIN ANALYZE shows a sequential scan on my orders table even though I have an index. What's wrong?",
+    "expected_skill": "database",
+    "should_trigger": true
+  },
+  {
+    "input": "Help me configure Supabase Row Level Security policies for my multi-tenant app",
+    "expected_skill": "supabase-postgres-best-practices",
+    "should_trigger": false
+  },
+  {
+    "input": "How should I manage React component state for my shopping cart UI?",
+    "expected_skill": "frontend-design",
+    "should_trigger": false
+  }
+]

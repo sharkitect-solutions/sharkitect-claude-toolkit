@@ -1,626 +1,192 @@
 ---
 name: statistical-analysis
-description: "Statistical analysis toolkit. Hypothesis tests (t-test, ANOVA, chi-square), regression, correlation, Bayesian stats, power analysis, assumption checks, APA reporting, for academic research."
+description: "Use when conducting statistical hypothesis tests (t-test, ANOVA, chi-square, non-parametric), regression, correlation, or Bayesian analyses on research data. Also use when selecting appropriate statistical tests, checking and recovering from assumption violations, calculating effect sizes, conducting power analyses, or formatting results in APA style. NEVER use for machine learning model evaluation or hyperparameter tuning, A/B test design for product experiments (use ab-test-setup), data visualization without statistical inference, or exploratory data analysis without hypothesis testing."
+version: "2.0"
+optimized: true
+optimized_date: "2026-03-12"
 ---
 
 # Statistical Analysis
 
-## Overview
-
-Statistical analysis is a systematic process for testing hypotheses and quantifying relationships. Conduct hypothesis tests (t-test, ANOVA, chi-square), regression, correlation, and Bayesian analyses with assumption checks and APA reporting. Apply this skill for academic research.
-
-## When to Use This Skill
-
-This skill should be used when:
-- Conducting statistical hypothesis tests (t-tests, ANOVA, chi-square)
-- Performing regression or correlation analyses
-- Running Bayesian statistical analyses
-- Checking statistical assumptions and diagnostics
-- Calculating effect sizes and conducting power analyses
-- Reporting statistical results in APA format
-- Analyzing experimental or observational data for research
-
----
-
-## Core Capabilities
-
-### 1. Test Selection and Planning
-- Choose appropriate statistical tests based on research questions and data characteristics
-- Conduct a priori power analyses to determine required sample sizes
-- Plan analysis strategies including multiple comparison corrections
-
-### 2. Assumption Checking
-- Automatically verify all relevant assumptions before running tests
-- Provide diagnostic visualizations (Q-Q plots, residual plots, box plots)
-- Recommend remedial actions when assumptions are violated
-
-### 3. Statistical Testing
-- Hypothesis testing: t-tests, ANOVA, chi-square, non-parametric alternatives
-- Regression: linear, multiple, logistic, with diagnostics
-- Correlations: Pearson, Spearman, with confidence intervals
-- Bayesian alternatives: Bayesian t-tests, ANOVA, regression with Bayes Factors
-
-### 4. Effect Sizes and Interpretation
-- Calculate and interpret appropriate effect sizes for all analyses
-- Provide confidence intervals for effect estimates
-- Distinguish statistical from practical significance
-
-### 5. Professional Reporting
-- Generate APA-style statistical reports
-- Create publication-ready figures and tables
-- Provide complete interpretation with all required statistics
-
----
-
-## Workflow Decision Tree
-
-Use this decision tree to determine your analysis path:
-
-```
-START
-│
-├─ Need to SELECT a statistical test?
-│  └─ YES → See "Test Selection Guide"
-│  └─ NO → Continue
-│
-├─ Ready to check ASSUMPTIONS?
-│  └─ YES → See "Assumption Checking"
-│  └─ NO → Continue
-│
-├─ Ready to run ANALYSIS?
-│  └─ YES → See "Running Statistical Tests"
-│  └─ NO → Continue
-│
-└─ Need to REPORT results?
-   └─ YES → See "Reporting Results"
-```
-
----
-
-## Test Selection Guide
-
-### Quick Reference: Choosing the Right Test
-
-Use `references/test_selection_guide.md` for comprehensive guidance. Quick reference:
-
-**Comparing Two Groups:**
-- Independent, continuous, normal → Independent t-test
-- Independent, continuous, non-normal → Mann-Whitney U test
-- Paired, continuous, normal → Paired t-test
-- Paired, continuous, non-normal → Wilcoxon signed-rank test
-- Binary outcome → Chi-square or Fisher's exact test
-
-**Comparing 3+ Groups:**
-- Independent, continuous, normal → One-way ANOVA
-- Independent, continuous, non-normal → Kruskal-Wallis test
-- Paired, continuous, normal → Repeated measures ANOVA
-- Paired, continuous, non-normal → Friedman test
-
-**Relationships:**
-- Two continuous variables → Pearson (normal) or Spearman correlation (non-normal)
-- Continuous outcome with predictor(s) → Linear regression
-- Binary outcome with predictor(s) → Logistic regression
-
-**Bayesian Alternatives:**
-All tests have Bayesian versions that provide:
-- Direct probability statements about hypotheses
-- Bayes Factors quantifying evidence
-- Ability to support null hypothesis
-- See `references/bayesian_statistics.md`
-
----
-
-## Assumption Checking
-
-### Systematic Assumption Verification
-
-**ALWAYS check assumptions before interpreting test results.**
-
-Use the provided `scripts/assumption_checks.py` module for automated checking:
-
-```python
-from scripts.assumption_checks import comprehensive_assumption_check
-
-# Comprehensive check with visualizations
-results = comprehensive_assumption_check(
-    data=df,
-    value_col='score',
-    group_col='group',  # Optional: for group comparisons
-    alpha=0.05
-)
-```
-
-This performs:
-1. **Outlier detection** (IQR and z-score methods)
-2. **Normality testing** (Shapiro-Wilk test + Q-Q plots)
-3. **Homogeneity of variance** (Levene's test + box plots)
-4. **Interpretation and recommendations**
-
-### Individual Assumption Checks
-
-For targeted checks, use individual functions:
-
-```python
-from scripts.assumption_checks import (
-    check_normality,
-    check_normality_per_group,
-    check_homogeneity_of_variance,
-    check_linearity,
-    detect_outliers
-)
-
-# Example: Check normality with visualization
-result = check_normality(
-    data=df['score'],
-    name='Test Score',
-    alpha=0.05,
-    plot=True
-)
-print(result['interpretation'])
-print(result['recommendation'])
-```
-
-### What to Do When Assumptions Are Violated
-
-**Normality violated:**
-- Mild violation + n > 30 per group → Proceed with parametric test (robust)
-- Moderate violation → Use non-parametric alternative
-- Severe violation → Transform data or use non-parametric test
-
-**Homogeneity of variance violated:**
-- For t-test → Use Welch's t-test
-- For ANOVA → Use Welch's ANOVA or Brown-Forsythe ANOVA
-- For regression → Use robust standard errors or weighted least squares
-
-**Linearity violated (regression):**
-- Add polynomial terms
-- Transform variables
-- Use non-linear models or GAM
-
-See `references/assumptions_and_diagnostics.md` for comprehensive guidance.
-
----
-
-## Running Statistical Tests
-
-### Python Libraries
-
-Primary libraries for statistical analysis:
-- **scipy.stats**: Core statistical tests
-- **statsmodels**: Advanced regression and diagnostics
-- **pingouin**: User-friendly statistical testing with effect sizes
-- **pymc**: Bayesian statistical modeling
-- **arviz**: Bayesian visualization and diagnostics
-
-### Example Analyses
-
-#### T-Test with Complete Reporting
-
-```python
-import pingouin as pg
-import numpy as np
-
-# Run independent t-test
-result = pg.ttest(group_a, group_b, correction='auto')
-
-# Extract results
-t_stat = result['T'].values[0]
-df = result['dof'].values[0]
-p_value = result['p-val'].values[0]
-cohens_d = result['cohen-d'].values[0]
-ci_lower = result['CI95%'].values[0][0]
-ci_upper = result['CI95%'].values[0][1]
-
-# Report
-print(f"t({df:.0f}) = {t_stat:.2f}, p = {p_value:.3f}")
-print(f"Cohen's d = {cohens_d:.2f}, 95% CI [{ci_lower:.2f}, {ci_upper:.2f}]")
-```
-
-#### ANOVA with Post-Hoc Tests
-
-```python
-import pingouin as pg
-
-# One-way ANOVA
-aov = pg.anova(dv='score', between='group', data=df, detailed=True)
-print(aov)
-
-# If significant, conduct post-hoc tests
-if aov['p-unc'].values[0] < 0.05:
-    posthoc = pg.pairwise_tukey(dv='score', between='group', data=df)
-    print(posthoc)
-
-# Effect size
-eta_squared = aov['np2'].values[0]  # Partial eta-squared
-print(f"Partial η² = {eta_squared:.3f}")
-```
-
-#### Linear Regression with Diagnostics
-
-```python
-import statsmodels.api as sm
-from statsmodels.stats.outliers_influence import variance_inflation_factor
-
-# Fit model
-X = sm.add_constant(X_predictors)  # Add intercept
-model = sm.OLS(y, X).fit()
-
-# Summary
-print(model.summary())
-
-# Check multicollinearity (VIF)
-vif_data = pd.DataFrame()
-vif_data["Variable"] = X.columns
-vif_data["VIF"] = [variance_inflation_factor(X.values, i) for i in range(X.shape[1])]
-print(vif_data)
-
-# Check assumptions
-residuals = model.resid
-fitted = model.fittedvalues
-
-# Residual plots
-import matplotlib.pyplot as plt
-fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-
-# Residuals vs fitted
-axes[0, 0].scatter(fitted, residuals, alpha=0.6)
-axes[0, 0].axhline(y=0, color='r', linestyle='--')
-axes[0, 0].set_xlabel('Fitted values')
-axes[0, 0].set_ylabel('Residuals')
-axes[0, 0].set_title('Residuals vs Fitted')
-
-# Q-Q plot
-from scipy import stats
-stats.probplot(residuals, dist="norm", plot=axes[0, 1])
-axes[0, 1].set_title('Normal Q-Q')
-
-# Scale-Location
-axes[1, 0].scatter(fitted, np.sqrt(np.abs(residuals / residuals.std())), alpha=0.6)
-axes[1, 0].set_xlabel('Fitted values')
-axes[1, 0].set_ylabel('√|Standardized residuals|')
-axes[1, 0].set_title('Scale-Location')
-
-# Residuals histogram
-axes[1, 1].hist(residuals, bins=20, edgecolor='black', alpha=0.7)
-axes[1, 1].set_xlabel('Residuals')
-axes[1, 1].set_ylabel('Frequency')
-axes[1, 1].set_title('Histogram of Residuals')
-
-plt.tight_layout()
-plt.show()
-```
-
-#### Bayesian T-Test
-
-```python
-import pymc as pm
-import arviz as az
-import numpy as np
-
-with pm.Model() as model:
-    # Priors
-    mu1 = pm.Normal('mu_group1', mu=0, sigma=10)
-    mu2 = pm.Normal('mu_group2', mu=0, sigma=10)
-    sigma = pm.HalfNormal('sigma', sigma=10)
-
-    # Likelihood
-    y1 = pm.Normal('y1', mu=mu1, sigma=sigma, observed=group_a)
-    y2 = pm.Normal('y2', mu=mu2, sigma=sigma, observed=group_b)
-
-    # Derived quantity
-    diff = pm.Deterministic('difference', mu1 - mu2)
-
-    # Sample
-    trace = pm.sample(2000, tune=1000, return_inferencedata=True)
-
-# Summarize
-print(az.summary(trace, var_names=['difference']))
-
-# Probability that group1 > group2
-prob_greater = np.mean(trace.posterior['difference'].values > 0)
-print(f"P(μ₁ > μ₂ | data) = {prob_greater:.3f}")
-
-# Plot posterior
-az.plot_posterior(trace, var_names=['difference'], ref_val=0)
-```
-
----
-
-## Effect Sizes
-
-### Always Calculate Effect Sizes
-
-**Effect sizes quantify magnitude, while p-values only indicate existence of an effect.**
-
-See `references/effect_sizes_and_power.md` for comprehensive guidance.
-
-### Quick Reference: Common Effect Sizes
-
-| Test | Effect Size | Small | Medium | Large |
-|------|-------------|-------|--------|-------|
-| T-test | Cohen's d | 0.20 | 0.50 | 0.80 |
-| ANOVA | η²_p | 0.01 | 0.06 | 0.14 |
-| Correlation | r | 0.10 | 0.30 | 0.50 |
-| Regression | R² | 0.02 | 0.13 | 0.26 |
-| Chi-square | Cramér's V | 0.07 | 0.21 | 0.35 |
-
-**Important**: Benchmarks are guidelines. Context matters!
-
-### Calculating Effect Sizes
-
-Most effect sizes are automatically calculated by pingouin:
-
-```python
-# T-test returns Cohen's d
-result = pg.ttest(x, y)
-d = result['cohen-d'].values[0]
-
-# ANOVA returns partial eta-squared
-aov = pg.anova(dv='score', between='group', data=df)
-eta_p2 = aov['np2'].values[0]
-
-# Correlation: r is already an effect size
-corr = pg.corr(x, y)
-r = corr['r'].values[0]
-```
-
-### Confidence Intervals for Effect Sizes
-
-Always report CIs to show precision:
-
-```python
-from pingouin import compute_effsize_from_t
-
-# For t-test
-d, ci = compute_effsize_from_t(
-    t_statistic,
-    nx=len(group1),
-    ny=len(group2),
-    eftype='cohen'
-)
-print(f"d = {d:.2f}, 95% CI [{ci[0]:.2f}, {ci[1]:.2f}]")
-```
-
----
-
-## Power Analysis
-
-### A Priori Power Analysis (Study Planning)
-
-Determine required sample size before data collection:
-
-```python
-from statsmodels.stats.power import (
-    tt_ind_solve_power,
-    FTestAnovaPower
-)
-
-# T-test: What n is needed to detect d = 0.5?
-n_required = tt_ind_solve_power(
-    effect_size=0.5,
-    alpha=0.05,
-    power=0.80,
-    ratio=1.0,
-    alternative='two-sided'
-)
-print(f"Required n per group: {n_required:.0f}")
-
-# ANOVA: What n is needed to detect f = 0.25?
-anova_power = FTestAnovaPower()
-n_per_group = anova_power.solve_power(
-    effect_size=0.25,
-    ngroups=3,
-    alpha=0.05,
-    power=0.80
-)
-print(f"Required n per group: {n_per_group:.0f}")
-```
-
-### Sensitivity Analysis (Post-Study)
-
-Determine what effect size you could detect:
-
-```python
-# With n=50 per group, what effect could we detect?
-detectable_d = tt_ind_solve_power(
-    effect_size=None,  # Solve for this
-    nobs1=50,
-    alpha=0.05,
-    power=0.80,
-    ratio=1.0,
-    alternative='two-sided'
-)
-print(f"Study could detect d ≥ {detectable_d:.2f}")
-```
-
-**Note**: Post-hoc power analysis (calculating power after study) is generally not recommended. Use sensitivity analysis instead.
-
-See `references/effect_sizes_and_power.md` for detailed guidance.
-
----
-
-## Reporting Results
-
-### APA Style Statistical Reporting
-
-Follow guidelines in `references/reporting_standards.md`.
-
-### Essential Reporting Elements
-
-1. **Descriptive statistics**: M, SD, n for all groups/variables
-2. **Test statistics**: Test name, statistic, df, exact p-value
-3. **Effect sizes**: With confidence intervals
-4. **Assumption checks**: Which tests were done, results, actions taken
-5. **All planned analyses**: Including non-significant findings
-
-### Example Report Templates
-
-#### Independent T-Test
-
-```
-Group A (n = 48, M = 75.2, SD = 8.5) scored significantly higher than
-Group B (n = 52, M = 68.3, SD = 9.2), t(98) = 3.82, p < .001, d = 0.77,
-95% CI [0.36, 1.18], two-tailed. Assumptions of normality (Shapiro-Wilk:
-Group A W = 0.97, p = .18; Group B W = 0.96, p = .12) and homogeneity
-of variance (Levene's F(1, 98) = 1.23, p = .27) were satisfied.
-```
-
-#### One-Way ANOVA
-
-```
-A one-way ANOVA revealed a significant main effect of treatment condition
-on test scores, F(2, 147) = 8.45, p < .001, η²_p = .10. Post hoc
-comparisons using Tukey's HSD indicated that Condition A (M = 78.2,
-SD = 7.3) scored significantly higher than Condition B (M = 71.5,
-SD = 8.1, p = .002, d = 0.87) and Condition C (M = 70.1, SD = 7.9,
-p < .001, d = 1.07). Conditions B and C did not differ significantly
-(p = .52, d = 0.18).
-```
-
-#### Multiple Regression
-
-```
-Multiple linear regression was conducted to predict exam scores from
-study hours, prior GPA, and attendance. The overall model was significant,
-F(3, 146) = 45.2, p < .001, R² = .48, adjusted R² = .47. Study hours
-(B = 1.80, SE = 0.31, β = .35, t = 5.78, p < .001, 95% CI [1.18, 2.42])
-and prior GPA (B = 8.52, SE = 1.95, β = .28, t = 4.37, p < .001,
-95% CI [4.66, 12.38]) were significant predictors, while attendance was
-not (B = 0.15, SE = 0.12, β = .08, t = 1.25, p = .21, 95% CI [-0.09, 0.39]).
-Multicollinearity was not a concern (all VIF < 1.5).
-```
-
-#### Bayesian Analysis
-
-```
-A Bayesian independent samples t-test was conducted using weakly
-informative priors (Normal(0, 1) for mean difference). The posterior
-distribution indicated that Group A scored higher than Group B
-(M_diff = 6.8, 95% credible interval [3.2, 10.4]). The Bayes Factor
-BF₁₀ = 45.3 provided very strong evidence for a difference between
-groups, with a 99.8% posterior probability that Group A's mean exceeded
-Group B's mean. Convergence diagnostics were satisfactory (all R̂ < 1.01,
-ESS > 1000).
-```
-
----
-
-## Bayesian Statistics
-
-### When to Use Bayesian Methods
-
-Consider Bayesian approaches when:
-- You have prior information to incorporate
-- You want direct probability statements about hypotheses
-- Sample size is small or planning sequential data collection
-- You need to quantify evidence for the null hypothesis
-- The model is complex (hierarchical, missing data)
-
-See `references/bayesian_statistics.md` for comprehensive guidance on:
-- Bayes' theorem and interpretation
-- Prior specification (informative, weakly informative, non-informative)
-- Bayesian hypothesis testing with Bayes Factors
-- Credible intervals vs. confidence intervals
-- Bayesian t-tests, ANOVA, regression, and hierarchical models
-- Model convergence checking and posterior predictive checks
-
-### Key Advantages
-
-1. **Intuitive interpretation**: "Given the data, there is a 95% probability the parameter is in this interval"
-2. **Evidence for null**: Can quantify support for no effect
-3. **Flexible**: No p-hacking concerns; can analyze data as it arrives
-4. **Uncertainty quantification**: Full posterior distribution
-
----
-
-## Resources
-
-This skill includes comprehensive reference materials:
-
-### References Directory
-
-- **test_selection_guide.md**: Decision tree for choosing appropriate statistical tests
-- **assumptions_and_diagnostics.md**: Detailed guidance on checking and handling assumption violations
-- **effect_sizes_and_power.md**: Calculating, interpreting, and reporting effect sizes; conducting power analyses
-- **bayesian_statistics.md**: Complete guide to Bayesian analysis methods
-- **reporting_standards.md**: APA-style reporting guidelines with examples
-
-### Scripts Directory
-
-- **assumption_checks.py**: Automated assumption checking with visualizations
-  - `comprehensive_assumption_check()`: Complete workflow
-  - `check_normality()`: Normality testing with Q-Q plots
-  - `check_homogeneity_of_variance()`: Levene's test with box plots
-  - `check_linearity()`: Regression linearity checks
-  - `detect_outliers()`: IQR and z-score outlier detection
-
----
-
-## Best Practices
-
-1. **Pre-register analyses** when possible to distinguish confirmatory from exploratory
-2. **Always check assumptions** before interpreting results
-3. **Report effect sizes** with confidence intervals
-4. **Report all planned analyses** including non-significant results
-5. **Distinguish statistical from practical significance**
-6. **Visualize data** before and after analysis
-7. **Check diagnostics** for regression/ANOVA (residual plots, VIF, etc.)
-8. **Conduct sensitivity analyses** to assess robustness
-9. **Share data and code** for reproducibility
-10. **Be transparent** about violations, transformations, and decisions
-
----
-
-## Common Pitfalls to Avoid
-
-1. **P-hacking**: Don't test multiple ways until something is significant
-2. **HARKing**: Don't present exploratory findings as confirmatory
-3. **Ignoring assumptions**: Check them and report violations
-4. **Confusing significance with importance**: p < .05 ≠ meaningful effect
-5. **Not reporting effect sizes**: Essential for interpretation
-6. **Cherry-picking results**: Report all planned analyses
-7. **Misinterpreting p-values**: They're NOT probability that hypothesis is true
-8. **Multiple comparisons**: Correct for family-wise error when appropriate
-9. **Ignoring missing data**: Understand mechanism (MCAR, MAR, MNAR)
-10. **Overinterpreting non-significant results**: Absence of evidence ≠ evidence of absence
-
----
-
-## Getting Started Checklist
-
-When beginning a statistical analysis:
-
-- [ ] Define research question and hypotheses
-- [ ] Determine appropriate statistical test (use test_selection_guide.md)
-- [ ] Conduct power analysis to determine sample size
-- [ ] Load and inspect data
-- [ ] Check for missing data and outliers
-- [ ] Verify assumptions using assumption_checks.py
-- [ ] Run primary analysis
-- [ ] Calculate effect sizes with confidence intervals
-- [ ] Conduct post-hoc tests if needed (with corrections)
-- [ ] Create visualizations
-- [ ] Write results following reporting_standards.md
-- [ ] Conduct sensitivity analyses
-- [ ] Share data and code
-
----
-
-## Support and Further Reading
-
-For questions about:
-- **Test selection**: See references/test_selection_guide.md
-- **Assumptions**: See references/assumptions_and_diagnostics.md
-- **Effect sizes**: See references/effect_sizes_and_power.md
-- **Bayesian methods**: See references/bayesian_statistics.md
-- **Reporting**: See references/reporting_standards.md
-
-**Key textbooks**:
-- Cohen, J. (1988). *Statistical Power Analysis for the Behavioral Sciences*
-- Field, A. (2013). *Discovering Statistics Using IBM SPSS Statistics*
-- Gelman, A., & Hill, J. (2006). *Data Analysis Using Regression and Multilevel/Hierarchical Models*
-- Kruschke, J. K. (2014). *Doing Bayesian Data Analysis*
-
-**Online resources**:
-- APA Style Guide: https://apastyle.apa.org/
-- Statistical Consulting: Cross Validated (stats.stackexchange.com)
+## File Index
+
+| File | Purpose | When to Load |
+|---|---|---|
+| SKILL.md | Test selection, assumption violation recovery, common mistakes, effect size reference, power analysis, reporting essentials, anti-patterns | Always (auto-loaded) |
+| references/test_selection_guide.md | Comprehensive decision tree for choosing tests by research design, variable types, sample size, and distribution shape | When the Test Selection Decision Matrix in SKILL.md doesn't cover the specific research design, or when dealing with unusual variable combinations (ordinal DV with continuous IV, repeated measures with missing cells) |
+| references/assumptions_and_diagnostics.md | Detailed assumption checking procedures, diagnostic visualization interpretation, remedial action protocols for each violation type | When assumption checks fail and SKILL.md's Assumption Violation Recovery table needs more detailed guidance on transformation choices, robust alternatives, or diagnostic plot interpretation |
+| references/effect_sizes_and_power.md | Effect size calculation formulas, conversion between effect size families, power analysis for complex designs (factorial ANOVA, mixed models, mediation), sensitivity analysis procedures | When conducting power analysis for non-standard designs, converting between effect size metrics (d to r to eta-squared), or planning multi-study research programs |
+| references/bayesian_statistics.md | Prior specification guidance, Bayes Factor interpretation, MCMC diagnostics, posterior predictive checks, Bayesian model comparison, hierarchical model setup | When conducting Bayesian analyses beyond basic Bayesian t-tests, specifying informative priors, diagnosing convergence issues, or comparing Bayesian and frequentist results |
+| references/reporting_standards.md | APA 7th edition statistical reporting templates for every test type, table/figure formatting, results section structure, common reporting errors | When writing up results for publication, formatting statistical tables, or ensuring APA compliance for specific test types not covered in SKILL.md's quick templates |
+| scripts/assumption_checks.py | Automated assumption checking: normality (Shapiro-Wilk + Q-Q), homogeneity (Levene's), outliers (IQR + z-score), linearity checks with visualization | When running assumption checks programmatically. Provides comprehensive_assumption_check() for full workflow or individual functions for targeted checks |
+
+Do NOT load companion files for basic test selection using the decision matrix, standard APA reporting of t-tests/ANOVA/regression, or simple effect size interpretation -- SKILL.md covers these fully.
+
+## Scope Boundary
+
+| Area | This Skill | Other Skill |
+|---|---|---|
+| Hypothesis testing (t-test, ANOVA, chi-square, non-parametric) | YES | -- |
+| Regression analysis (linear, multiple, logistic) with diagnostics | YES | -- |
+| Bayesian hypothesis testing and model comparison | YES | -- |
+| Power analysis and sample size planning | YES | -- |
+| Effect size calculation and interpretation | YES | -- |
+| APA-style statistical reporting | YES | -- |
+| Assumption checking and violation recovery | YES | -- |
+| A/B test design for product experiments | NO | ab-test-setup |
+| Machine learning model training and evaluation | NO | data science tooling |
+| Survey design and questionnaire validation | NO | research methodology |
+| Data cleaning and preprocessing | NO | data engineering |
+| Exploratory data visualization without inference | NO | analytics-tracking |
+
+## Analysis Planning Framework
+
+Before choosing ANY test, answer these five questions. They determine everything downstream.
+
+| Question | Why It Matters | If You Skip It |
+|---|---|---|
+| 1. Is this analysis confirmatory or exploratory? | Confirmatory requires pre-registration and strict multiple comparison control. Exploratory allows flexibility but results must be labeled as hypothesis-generating, not hypothesis-confirming | You'll present exploratory findings as confirmatory (HARKing), inflating false-positive rate |
+| 2. What is the smallest effect size of practical importance? | This determines your target power and required sample size. A "statistically significant" d = 0.05 with n = 10,000 is meaningless if d = 0.30 is the minimum meaningful effect | You'll either miss real effects (underpowered) or detect trivially small effects (overpowered) |
+| 3. What assumptions does your intended test require? | Check BEFORE collecting data if possible. Severe violations require different tests, larger samples, or different study designs | You'll discover violations after data collection and face painful choices (transform data, switch tests, lose interpretability) |
+| 4. How many tests will you run in total? | This determines your multiple comparison strategy (none, Holm-Bonferroni, FDR, or pre-registered contrasts) | You'll inflate your family-wise error rate without realizing it |
+| 5. How will you handle missing data? | Missing mechanism (MCAR, MAR, MNAR) determines appropriate treatment. Listwise deletion is rarely the best option -- it wastes data and can introduce bias | You'll lose statistical power (listwise deletion can discard 30-60% of rows if multiple variables have missingness) or introduce bias (MAR/MNAR treated as MCAR) |
+
+## Test Selection Decision Matrix
+
+| Research Question | Variables | Assumptions Met? | Test | Non-Parametric Alternative |
+|---|---|---|---|---|
+| Two independent groups differ? | 1 continuous DV, 1 binary IV | Normal + equal variance | Independent t-test | Mann-Whitney U |
+| Two related measurements differ? | 1 continuous DV, 2 time points | Normal differences | Paired t-test | Wilcoxon signed-rank |
+| 3+ independent groups differ? | 1 continuous DV, 1 categorical IV (3+ levels) | Normal + equal variance | One-way ANOVA | Kruskal-Wallis |
+| 3+ related measurements differ? | 1 continuous DV, 3+ repeated measures | Normal + sphericity | Repeated measures ANOVA | Friedman |
+| Two categorical variables associated? | 2 categorical variables | Expected freq >= 5 | Chi-square test | Fisher's exact (small n) |
+| Predict continuous outcome? | 1+ continuous/categorical IVs, 1 continuous DV | Linearity, normality of residuals, homoscedasticity | Linear regression | -- |
+| Predict binary outcome? | 1+ continuous/categorical IVs, 1 binary DV | Linearity of logit, no multicollinearity | Logistic regression | -- |
+| Two continuous variables related? | 2 continuous variables | Bivariate normality | Pearson r | Spearman rho |
+| Multiple factors and their interaction? | 1 continuous DV, 2+ categorical IVs | Normal + equal variance + no interaction if unbalanced | Factorial ANOVA | Aligned rank transform |
+
+**Critical decision point**: When n > 30 per group AND distributions are only mildly non-normal (skewness < |2|, kurtosis < |7|), parametric tests are robust enough to use. The Central Limit Theorem makes the t-test and ANOVA more robust than textbooks suggest. Switch to non-parametric only for severe violations, small samples, or ordinal data.
+
+## Assumption Violation Recovery
+
+| Assumption | Test to Check | Threshold | Mild Violation | Severe Violation |
+|---|---|---|---|---|
+| Normality | Shapiro-Wilk (n < 50), K-S with Lilliefors (n >= 50) | p < .05 | Proceed if n > 30 per group (CLT). Report violation | Transform (log, sqrt, Box-Cox) or switch to non-parametric |
+| Homogeneity of variance | Levene's test (median-based, more robust than mean-based) | p < .05 | Use Welch's t-test or Welch's ANOVA (default in many packages) | Use Welch's + report. For regression: robust standard errors (HC3) or WLS |
+| Sphericity (repeated measures) | Mauchly's test | p < .05 | Greenhouse-Geisser correction if epsilon < .75 | Huynh-Feldt if epsilon >= .75, or switch to mixed-effects model |
+| Linearity (regression) | Residuals vs fitted plot | Pattern in residuals | Add polynomial term (quadratic) | Transform DV, use GAM, or model non-linearity explicitly |
+| No multicollinearity | VIF (Variance Inflation Factor) | VIF > 5 (conservative: > 10) | Center predictors if VIF is from interaction terms | Remove redundant predictor, combine via PCA, or use ridge regression |
+| Independence | Study design (not testable post-hoc) | Durbin-Watson < 1.5 or > 2.5 (time series) | Use clustered standard errors | Use mixed-effects model with random effects for the clustering variable |
+| No influential outliers | Cook's distance | Cook's D > 4/n | Report with and without outlier, compare results | Winsorize, use robust regression (M-estimation), or report both analyses |
+
+**Welch's by default**: Always use Welch's t-test and Welch's ANOVA unless you have a specific reason not to. They perform identically to Student's when variances are equal, and protect you when they aren't. There is no downside.
+
+## Named Statistical Mistakes
+
+| Name | Mistake | Impact | Fix |
+|---|---|---|---|
+| The p-Hack | Testing multiple DVs/subgroups until p < .05, then reporting only the significant result | Simmons et al. (2011): researcher degrees of freedom can push false-positive rate from 5% to >60% | Pre-register analyses. Report ALL planned tests. Apply Holm-Bonferroni correction for multiple comparisons |
+| The HARKer | Hypothesizing After Results are Known -- presenting exploratory findings as confirmatory | Destroys the confirmatory-exploratory distinction. Published "predictions" that were actually post-hoc have inflated Type I error rates | Label exploratory analyses explicitly. Pre-register hypotheses. Separate confirmatory and exploratory sections in paper |
+| The Power Handwave | Skipping a priori power analysis, then running study with n = 15 per group | With n = 15 and d = 0.5, power = 0.34. You have a 66% chance of missing a real medium effect. Non-significant results are uninterpretable | Run G*Power or statsmodels power analysis BEFORE data collection. Target power >= .80 (ideally .90) for the smallest effect of interest |
+| The Post-Hoc Power Fallacy | Computing "observed power" after a non-significant result to explain why | Post-hoc power is a direct mathematical transformation of the p-value (Hoenig & Heisey 2001). It adds zero new information. If p = .40, observed power will always be low | Use sensitivity analysis instead: "With our n, we could detect d >= X at 80% power." This tells you about detectable effects, not about the null result |
+| The Significance Worship | Treating p = .049 as fundamentally different from p = .051 | The .05 threshold is arbitrary (Fisher suggested it as a "convenient" guideline). A p-value of .051 is not "no effect" and .049 is not "definitely real" | Report exact p-values. Emphasize effect sizes and confidence intervals. Consider Bayesian analysis for evidence quantification |
+| The Assumption Ignorer | Running parametric tests without checking assumptions | Violated homogeneity of variance inflates Type I error for t-tests (can double false-positive rate with 4:1 variance ratio). Non-normality affects small-sample CI coverage | Check assumptions systematically using scripts/assumption_checks.py. Report which checks were done and what was found |
+| The Multiple Comparison Dodge | Running 10 post-hoc t-tests after ANOVA without correction | Family-wise error rate: 1 - (1-.05)^10 = 40% chance of at least one false positive | Use Tukey's HSD (all pairwise), Holm-Bonferroni (ordered), or FDR (Benjamini-Hochberg) for exploratory. Match correction to research question |
+| The Correlation Causalist | Interpreting r = .65 as evidence that X causes Y | Correlation cannot establish causation (third variables, reverse causation, shared method variance). Even r = .90 may be entirely spurious | Use experimental designs for causal claims. For observational data, discuss alternative explanations. Use mediation/moderation analysis for mechanism testing |
+| The Garden of Forking Paths | Making data-contingent analysis decisions (transform this variable, exclude that outlier, use this subgroup) without acknowledging that each choice inflated degrees of freedom | Gelman & Loken (2013): even without conscious p-hacking, the "garden of forking paths" of analytic choices inflates false positives. Each decision point doubles the implicit comparison space | Document ALL analysis decisions and their alternatives. Run multiverse analysis (Steegen et al. 2016) for key decisions: run all reasonable analysis variants and report the distribution of results |
+
+## Multiple Comparison Correction Decision
+
+| Situation | Correction | Why |
+|---|---|---|
+| Small number of planned comparisons (2-3) | Bonferroni or Holm-Bonferroni | Conservative, easy to justify. Holm is uniformly more powerful than Bonferroni with no downside |
+| All pairwise comparisons after ANOVA | Tukey's HSD | Designed specifically for this. Controls family-wise error while maximizing power for pairwise |
+| Many tests, exploratory analysis | FDR (Benjamini-Hochberg) | Controls false discovery rate (proportion of false positives among rejections) instead of family-wise error. More powerful when many tests are truly significant |
+| Only one pre-planned comparison | No correction needed | If you pre-registered one specific comparison, it stands alone. The issue is only when you test many and report selectively |
+| Testing against control only (Dunnett's) | Dunnett's test | More powerful than Tukey when you only care about comparisons to one reference group |
+
+**Never use Bonferroni for >10 comparisons** -- it becomes so conservative that you can't detect real effects. Switch to FDR (Benjamini-Hochberg) which adapts to the number of true effects.
+
+## Effect Size Quick Reference
+
+| Test | Effect Size | Small | Medium | Large | Interpretation Caveat |
+|---|---|---|---|---|---|
+| t-test | Cohen's d | 0.20 | 0.50 | 0.80 | Cohen's benchmarks are for behavioral science. In clinical trials, d = 0.20 may be huge. Context-dependent |
+| ANOVA | Partial eta-squared | 0.01 | 0.06 | 0.14 | Inflated in designs with many factors. Omega-squared or generalized eta-squared preferred for between-subjects |
+| Correlation | r | 0.10 | 0.30 | 0.50 | r = .10 explains 1% of variance. r = .30 explains 9%. The "small" threshold is barely distinguishable from noise in most contexts |
+| Regression | R-squared | 0.02 | 0.13 | 0.26 | Adjusted R-squared for multiple predictors. In social science, R-squared = .20 is often considered good. In physics, R-squared < .99 is often bad |
+| Chi-square | Cramer's V | 0.10 | 0.30 | 0.50 | Depends on df. For 2x2: V = phi. For larger tables, V is deflated. Use odds ratio for 2x2 tables instead |
+| Non-parametric | r = Z / sqrt(N) | 0.10 | 0.30 | 0.50 | For Mann-Whitney U and Wilcoxon. Less intuitive than d -- convert if audience expects Cohen's d |
+
+**Always report effect sizes with confidence intervals.** A point estimate of d = 0.50 with CI [0.05, 0.95] tells a very different story than d = 0.50 with CI [0.35, 0.65].
+
+## APA Reporting Quick Templates
+
+**t-test**: t(df) = X.XX, p = .XXX, d = X.XX, 95% CI [X.XX, X.XX]
+**ANOVA**: F(df_between, df_within) = X.XX, p = .XXX, eta-p-squared = .XX
+**Correlation**: r(df) = .XX, p = .XXX, 95% CI [.XX, .XX]
+**Regression**: F(df_model, df_residual) = X.XX, p = .XXX, R-squared = .XX, adj. R-squared = .XX
+**Chi-square**: chi-squared(df, N = XX) = X.XX, p = .XXX, V = .XX
+**Bayesian**: BF10 = X.XX, posterior median = X.XX, 95% CrI [X.XX, X.XX]
+
+**Reporting rules**:
+- Exact p-values to 3 decimal places (p = .032, not p < .05). Exception: p < .001 when p is very small
+- Always include df, test statistic, p-value, effect size, and CI
+- Report assumption checks: which tests were run, results, any remedial actions taken
+- Non-significant results: report them fully (no "n.s." without numbers)
+- Bayesian: report BF with Jeffreys (1961) scale interpretation (BF > 3 = moderate, > 10 = strong, > 30 = very strong, > 100 = extreme)
+
+## Software Implementation Gotchas
+
+Library-specific behaviors that produce different results from the same data. These trip up even experienced analysts.
+
+| Library Behavior | What Happens | Impact |
+|---|---|---|
+| scipy `ttest_ind` defaults to Student's t-test; pingouin `ttest` defaults to Welch's | Same data, same function name, different p-values when variances are unequal | Student's has inflated Type I error with unequal variances. Always specify `equal_var=False` in scipy or use pingouin which defaults correctly |
+| scipy `chi2_contingency` applies Yates' continuity correction by default | Results differ from R's `chisq.test` (which also applies Yates by default) vs Python `statsmodels` (which does NOT) | For 2x2 tables, Yates correction is conservative. With n > 40 and no expected cell < 5, disable it: `correction=False` |
+| statsmodels `OLS` does NOT include intercept by default | Must call `sm.add_constant(X)`. Forgetting this fits regression through the origin, producing inflated R-squared and biased coefficients | pingouin `linear_regression` and R's `lm()` include intercept by default. This is the #1 statsmodels beginner error |
+| Shapiro-Wilk becomes oversensitive at n > 200 | Almost always rejects normality for large samples, even when the departure is trivially small and irrelevant to the test | For n > 200, use Anderson-Darling test or rely on Q-Q plot visual inspection + skewness/kurtosis thresholds (|skew| < 2, |kurt| < 7) instead of hypothesis-testing normality |
+| SPSS uses Type III sums of squares by default; R `aov()` uses Type I | Type I SS results depend on the ORDER variables enter the model. Type III does not. Same data, same model, different F-values and p-values | For unbalanced designs, always use Type III (statsmodels: `sm.stats.anova_lm(model, typ=3)`). For balanced designs, all three types give identical results |
+| pingouin reports partial eta-squared for ANOVA; SPSS can report either; R `effectsize` package reports generalized eta-squared by default | Three different effect size metrics for the same analysis, all called "eta-squared" in casual discussion | Specify which eta-squared you're reporting. Partial eta-squared is inflated with many factors. Omega-squared is less biased for small samples. Generalized eta-squared is most comparable across designs |
+| Levene's test: scipy uses mean by default; the robust version uses median | Mean-based Levene's is sensitive to non-normality. Median-based (Brown-Forsythe test) is more robust | Always use `center='median'` in scipy.stats.levene() unless you have a specific reason not to |
+
+## Bayesian vs Frequentist Decision
+
+| Situation | Recommended Approach | Why |
+|---|---|---|
+| Standard group comparison, large n, no prior info | Frequentist | Simpler, reviewers expect it, results will align with Bayesian anyway |
+| Need to quantify evidence FOR null hypothesis | Bayesian (Bayes Factor) | Frequentist can't distinguish "no evidence of effect" from "evidence of no effect." BF01 > 3 = moderate support for null |
+| Small sample, strong prior information | Bayesian with informative priors | Priors regularize estimates in small samples. But you must justify prior choice |
+| Sequential data collection (interim analyses) | Bayesian | No alpha-spending required. Posterior updates continuously. Stop when evidence is sufficient |
+| Hierarchical/multilevel data with complex structure | Bayesian (via PyMC, Stan) | Flexible specification of random effects, crossed random factors, non-standard distributions |
+| Publication in traditional journal | Both (frequentist primary, Bayesian supplementary) | Reviewers expect p-values. Bayesian results add interpretive depth. Report both for maximum impact |
+
+## Rationalization Table
+
+| Rationalization | Why It Fails |
+|---|---|
+| "p < .05 means the effect is real" | p < .05 means "data this extreme would occur <5% of the time if H0 is true." It does NOT mean H1 is 95% likely. With low prior probability, most p < .05 results are false positives (Ioannidis 2005) |
+| "The effect was non-significant so there's no effect" | Absence of evidence is not evidence of absence. With low power, you'd miss real effects most of the time. Report effect size + CI to show what you can and can't rule out |
+| "We don't need power analysis, we'll just collect as much data as we can" | Without knowing required n, you risk two failures: underpowered study (wastes participants' time) or overpowered study (wastes resources detecting trivially small effects) |
+| "Our sample is too small for Bayesian analysis" | Bayesian methods work BETTER with small samples than frequentist (priors regularize). The opposite of the intuition. Small n is when Bayesian shines |
+| "We'll just Bonferroni-correct everything" | Bonferroni with 20+ tests is so conservative that true effects become undetectable. Use FDR (Benjamini-Hochberg) for large test families |
+| "Normality doesn't matter because of the Central Limit Theorem" | CLT makes the SAMPLING DISTRIBUTION of the mean approximately normal. It does not fix outlier influence, variance heterogeneity, or non-linear relationships. It's a robustness argument for moderate non-normality only |
+
+## Red Flags
+
+- Running parametric tests without any assumption checks -- homogeneity violations can double the false-positive rate
+- Reporting p < .05 or "n.s." without exact p-values, test statistics, or effect sizes -- impossible to meta-analyze or interpret
+- Power analysis conducted AFTER data collection ("observed power") -- it's a mathematical transformation of p, adds nothing
+- Multiple comparisons without correction -- 10 uncorrected tests give 40% family-wise error rate
+- Effect size reported without confidence interval -- a point estimate without precision is incomplete
+- Interpreting correlation as causation without discussing confounds, reverse causation, or shared method variance
+- Using one-tailed test without pre-registered directional hypothesis -- post-hoc one-tailing is p-hacking
+- Removing outliers without transparent criteria or reporting both with-and-without analyses
+
+## NEVER
+
+- Report "observed power" or "post-hoc power" -- it's a discredited practice that adds no information beyond the p-value itself (Hoenig & Heisey 2001)
+- Use one-tailed tests without a pre-registered directional hypothesis -- switching from two-tailed to one-tailed after seeing the direction halves your p-value, which is p-hacking
+- Discard outliers without documenting the criteria, the number removed, and the impact on results -- unreported outlier removal is a form of data manipulation
+- Apply Bonferroni correction to more than 10 tests -- use FDR (Benjamini-Hochberg) instead, which controls false discovery rate without sacrificing power to detect real effects
+- Interpret a non-significant Bayesian result as "supporting the null" without checking BF01 -- a BF01 of 1.2 is inconclusive, not evidence for the null. Requires BF01 > 3 for moderate support

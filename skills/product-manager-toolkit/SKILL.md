@@ -1,351 +1,172 @@
 ---
 name: product-manager-toolkit
-description: Comprehensive toolkit for product managers including RICE prioritization, customer interview analysis, PRD templates, discovery frameworks, and go-to-market strategies. Use for feature prioritization, user research synthesis, requirement documentation, and product strategy development.
+description: >
+  Use when the user needs feature prioritization (RICE scoring, backlog ranking, capacity planning),
+  customer interview analysis (transcript parsing, insight extraction, cross-interview synthesis),
+  PRD writing or review, or product discovery frameworks (opportunity mapping, hypothesis testing).
+  NEVER use for marketing strategy or go-to-market campaigns (use marketing-strategy-pmm).
+  NEVER use for project execution, sprint planning, or delivery tracking (use executing-plans).
+  NEVER use for standalone user research methodology beyond interview transcript analysis.
+version: 2.0
+optimized: true
+optimized_date: 2026-03-11
 ---
 
 # Product Manager Toolkit
 
-Essential tools and frameworks for modern product management, from discovery to delivery.
-
-## Quick Start
-
-### For Feature Prioritization
-```bash
-python scripts/rice_prioritizer.py sample  # Create sample CSV
-python scripts/rice_prioritizer.py sample_features.csv --capacity 15
-```
-
-### For Interview Analysis
-```bash
-python scripts/customer_interview_analyzer.py interview_transcript.txt
-```
-
-### For PRD Creation
-1. Choose template from `references/prd_templates.md`
-2. Fill in sections based on discovery work
-3. Review with stakeholders
-4. Version control in your PM tool
-
-## Core Workflows
-
-### Feature Prioritization Process
-
-1. **Gather Feature Requests**
-   - Customer feedback
-   - Sales requests
-   - Technical debt
-   - Strategic initiatives
-
-2. **Score with RICE**
-   ```bash
-   # Create CSV with: name,reach,impact,confidence,effort
-   python scripts/rice_prioritizer.py features.csv
-   ```
-   - **Reach**: Users affected per quarter
-   - **Impact**: massive/high/medium/low/minimal
-   - **Confidence**: high/medium/low
-   - **Effort**: xl/l/m/s/xs (person-months)
-
-3. **Analyze Portfolio**
-   - Review quick wins vs big bets
-   - Check effort distribution
-   - Validate against strategy
-
-4. **Generate Roadmap**
-   - Quarterly capacity planning
-   - Dependency mapping
-   - Stakeholder alignment
-
-### Customer Discovery Process
-
-1. **Conduct Interviews**
-   - Use semi-structured format
-   - Focus on problems, not solutions
-   - Record with permission
-
-2. **Analyze Insights**
-   ```bash
-   python scripts/customer_interview_analyzer.py transcript.txt
-   ```
-   Extracts:
-   - Pain points with severity
-   - Feature requests with priority
-   - Jobs to be done
-   - Sentiment analysis
-   - Key themes and quotes
-
-3. **Synthesize Findings**
-   - Group similar pain points
-   - Identify patterns across interviews
-   - Map to opportunity areas
-
-4. **Validate Solutions**
-   - Create solution hypotheses
-   - Test with prototypes
-   - Measure actual vs expected behavior
-
-### PRD Development Process
-
-1. **Choose Template**
-   - **Standard PRD**: Complex features (6-8 weeks)
-   - **One-Page PRD**: Simple features (2-4 weeks)
-   - **Feature Brief**: Exploration phase (1 week)
-   - **Agile Epic**: Sprint-based delivery
-
-2. **Structure Content**
-   - Problem → Solution → Success Metrics
-   - Always include out-of-scope
-   - Clear acceptance criteria
-
-3. **Collaborate**
-   - Engineering for feasibility
-   - Design for experience
-   - Sales for market validation
-   - Support for operational impact
-
-## Key Scripts
-
-### rice_prioritizer.py
-Advanced RICE framework implementation with portfolio analysis.
-
-**Features**:
-- RICE score calculation
-- Portfolio balance analysis (quick wins vs big bets)
-- Quarterly roadmap generation
-- Team capacity planning
-- Multiple output formats (text/json/csv)
-
-**Usage Examples**:
-```bash
-# Basic prioritization
-python scripts/rice_prioritizer.py features.csv
-
-# With custom team capacity (person-months per quarter)
-python scripts/rice_prioritizer.py features.csv --capacity 20
-
-# Output as JSON for integration
-python scripts/rice_prioritizer.py features.csv --output json
-```
-
-### customer_interview_analyzer.py
-NLP-based interview analysis for extracting actionable insights.
-
-**Capabilities**:
-- Pain point extraction with severity assessment
-- Feature request identification and classification
-- Jobs-to-be-done pattern recognition
-- Sentiment analysis
-- Theme extraction
-- Competitor mentions
-- Key quotes identification
-
-**Usage Examples**:
-```bash
-# Analyze single interview
-python scripts/customer_interview_analyzer.py interview.txt
-
-# Output as JSON for aggregation
-python scripts/customer_interview_analyzer.py interview.txt json
-```
-
-## Reference Documents
-
-### prd_templates.md
-Multiple PRD formats for different contexts:
-
-1. **Standard PRD Template**
-   - Comprehensive 11-section format
-   - Best for major features
-   - Includes technical specs
-
-2. **One-Page PRD**
-   - Concise format for quick alignment
-   - Focus on problem/solution/metrics
-   - Good for smaller features
-
-3. **Agile Epic Template**
-   - Sprint-based delivery
-   - User story mapping
-   - Acceptance criteria focus
-
-4. **Feature Brief**
-   - Lightweight exploration
-   - Hypothesis-driven
-   - Pre-PRD phase
-
-## Prioritization Frameworks
-
-### RICE Framework
-```
-Score = (Reach × Impact × Confidence) / Effort
-
-Reach: # of users/quarter
-Impact: 
-  - Massive = 3x
-  - High = 2x
-  - Medium = 1x
-  - Low = 0.5x
-  - Minimal = 0.25x
-Confidence:
-  - High = 100%
-  - Medium = 80%
-  - Low = 50%
-Effort: Person-months
-```
-
-### Value vs Effort Matrix
-```
-         Low Effort    High Effort
-         
-High     QUICK WINS    BIG BETS
-Value    [Prioritize]   [Strategic]
-         
-Low      FILL-INS      TIME SINKS
-Value    [Maybe]       [Avoid]
-```
-
-### MoSCoW Method
-- **Must Have**: Critical for launch
-- **Should Have**: Important but not critical
-- **Could Have**: Nice to have
-- **Won't Have**: Out of scope
-
-## Discovery Frameworks
-
-### Customer Interview Guide
-```
-1. Context Questions (5 min)
-   - Role and responsibilities
-   - Current workflow
-   - Tools used
-
-2. Problem Exploration (15 min)
-   - Pain points
-   - Frequency and impact
-   - Current workarounds
-
-3. Solution Validation (10 min)
-   - Reaction to concepts
-   - Value perception
-   - Willingness to pay
-
-4. Wrap-up (5 min)
-   - Other thoughts
-   - Referrals
-   - Follow-up permission
-```
-
-### Hypothesis Template
-```
-We believe that [building this feature]
-For [these users]
-Will [achieve this outcome]
-We'll know we're right when [metric]
-```
-
-### Opportunity Solution Tree
-```
-Outcome
-├── Opportunity 1
-│   ├── Solution A
-│   └── Solution B
-└── Opportunity 2
-    ├── Solution C
-    └── Solution D
-```
-
-## Metrics & Analytics
-
-### North Star Metric Framework
-1. **Identify Core Value**: What's the #1 value to users?
-2. **Make it Measurable**: Quantifiable and trackable
-3. **Ensure It's Actionable**: Teams can influence it
-4. **Check Leading Indicator**: Predicts business success
-
-### Funnel Analysis Template
-```
-Acquisition → Activation → Retention → Revenue → Referral
-
-Key Metrics:
-- Conversion rate at each step
-- Drop-off points
-- Time between steps
-- Cohort variations
-```
-
-### Feature Success Metrics
-- **Adoption**: % of users using feature
-- **Frequency**: Usage per user per time period
-- **Depth**: % of feature capability used
-- **Retention**: Continued usage over time
-- **Satisfaction**: NPS/CSAT for feature
-
-## Best Practices
-
-### Writing Great PRDs
-1. Start with the problem, not solution
-2. Include clear success metrics upfront
-3. Explicitly state what's out of scope
-4. Use visuals (wireframes, flows)
-5. Keep technical details in appendix
-6. Version control changes
-
-### Effective Prioritization
-1. Mix quick wins with strategic bets
-2. Consider opportunity cost
-3. Account for dependencies
-4. Buffer for unexpected work (20%)
-5. Revisit quarterly
-6. Communicate decisions clearly
-
-### Customer Discovery Tips
-1. Ask "why" 5 times
-2. Focus on past behavior, not future intentions
-3. Avoid leading questions
-4. Interview in their environment
-5. Look for emotional reactions
-6. Validate with data
-
-### Stakeholder Management
-1. Identify RACI for decisions
-2. Regular async updates
-3. Demo over documentation
-4. Address concerns early
-5. Celebrate wins publicly
-6. Learn from failures openly
-
-## Common Pitfalls to Avoid
-
-1. **Solution-First Thinking**: Jumping to features before understanding problems
-2. **Analysis Paralysis**: Over-researching without shipping
-3. **Feature Factory**: Shipping features without measuring impact
-4. **Ignoring Technical Debt**: Not allocating time for platform health
-5. **Stakeholder Surprise**: Not communicating early and often
-6. **Metric Theater**: Optimizing vanity metrics over real value
-
-## Integration Points
-
-This toolkit integrates with:
-- **Analytics**: Amplitude, Mixpanel, Google Analytics
-- **Roadmapping**: ProductBoard, Aha!, Roadmunk
-- **Design**: Figma, Sketch, Miro
-- **Development**: Jira, Linear, GitHub
-- **Research**: Dovetail, UserVoice, Pendo
-- **Communication**: Slack, Notion, Confluence
-
-## Quick Commands Cheat Sheet
-
-```bash
-# Prioritization
-python scripts/rice_prioritizer.py features.csv --capacity 15
-
-# Interview Analysis
-python scripts/customer_interview_analyzer.py interview.txt
-
-# Create sample data
-python scripts/rice_prioritizer.py sample
-
-# JSON outputs for integration
-python scripts/rice_prioritizer.py features.csv --output json
-python scripts/customer_interview_analyzer.py interview.txt json
-```
+## File Index
+
+| File | Purpose | When to use |
+|------|---------|-------------|
+| `scripts/rice_prioritizer.py` | RICE scoring, portfolio analysis, roadmap generation | Feature prioritization with CSV input, capacity planning |
+| `scripts/customer_interview_analyzer.py` | NLP-based transcript analysis: pain points, JTBD, sentiment, themes | Single interview analysis or multi-interview aggregation |
+| `references/prd_templates.md` | 4 PRD formats: Standard (11-section), One-Page, Agile Epic, Feature Brief | Any requirements documentation task |
+
+## Scope Boundary
+
+| This skill handles | Defer to |
+|--------------------|----------|
+| Feature prioritization (RICE, scoring, ranking) | -- |
+| Customer interview transcript analysis | -- |
+| PRD writing, review, and structure | -- |
+| Product discovery frameworks | -- |
+| Marketing strategy, GTM campaigns, positioning | marketing-strategy-pmm |
+| Project execution, sprint management, delivery | executing-plans |
+| Writing plans and roadmap documents | writing-plans |
+| User research design (survey creation, study planning) | Out of scope (no skill) |
+
+## Prioritization Trap Detection
+
+RICE and similar frameworks produce systematically wrong answers in predictable situations. Detect and correct these before presenting results.
+
+### When RICE Gives Wrong Answers
+
+| Trap | Why RICE fails | Correction |
+|------|---------------|------------|
+| Infrastructure/platform work | Reach = 0 direct users, so score = 0. But every feature depends on it. | Score Reach as "all users of features this unblocks" with a time-decay factor. Or exempt from RICE entirely and allocate a fixed % (15-25%) of capacity. |
+| Technical debt reduction | No visible user impact, so Impact = minimal. But velocity degrades without it. | Track "developer hours lost per quarter" as a proxy Reach metric. If velocity dropped >15% quarter-over-quarter, escalate debt items above RICE ranking. |
+| Defensive features (security, compliance) | Low reach, low impact -- until a breach or audit failure. | Apply a "catastrophic multiplier": if the downside of NOT doing it is existential (data breach, regulatory fine, SOC2 failure), it bypasses RICE. |
+| Overconfident Confidence scores | Teams rate Confidence: High on features they like, regardless of evidence. | Require evidence tiers: High = quantitative data from 50+ users; Medium = qualitative from 10+ interviews; Low = team opinion only. |
+| Effort anchoring | Effort estimates cluster around "M" because teams avoid extremes. | Force calibration: pick the single easiest item (XS anchor) and hardest (XL anchor) first, then score everything relative to those anchors. |
+| Reach inflation for B2B | "All enterprise customers" = 50 accounts, not 50,000 users. Score looks tiny. | Use revenue-weighted reach: Reach = number of accounts x average contract value. Normalize across the portfolio. |
+| Feature cannibalization | Two features score high individually but compete for the same users. | Run overlap analysis: if >60% of Feature A's reach overlaps Feature B's, only count the incremental reach for the lower-scored one. |
+
+### Confidence Calibration Table
+
+| Confidence level | Required evidence | Typical accuracy |
+|-----------------|-------------------|-----------------|
+| High (100%) | A/B test data, 50+ user quantitative validation, or existing usage analytics | 80-90% of projected impact realized |
+| Medium (80%) | 10+ qualitative interviews, competitor benchmarks, or analogous feature data | 50-70% of projected impact realized |
+| Low (50%) | Team intuition, stakeholder request, or <5 data points | 20-40% of projected impact realized |
+
+## PRD Quality Checklist
+
+What separates a PRD that gets built from one that gets shelved:
+
+### PRDs That Get Built (5 signals)
+1. **Problem is quantified**: "Users spend 3.2 hours/week on manual data entry" not "Users find data entry frustrating"
+2. **Success metric has a number and a date**: "Reduce churn from 8% to 5% within 90 days of launch" not "Improve retention"
+3. **Out-of-scope is specific**: Names exact features/requests being deferred and explains why
+4. **Engineering reviewed feasibility BEFORE the PRD was finalized**: Contains a "Technical Feasibility" section written or co-authored by an engineer
+5. **Has a kill criteria**: "If adoption is below 10% after 30 days, we sunset and reallocate resources"
+
+### PRDs That Get Shelved (5 anti-patterns)
+1. Problem statement is a restatement of the solution ("Users need a dashboard" -- that is a solution, not a problem)
+2. No clear owner or RACI -- everyone is "consulted," nobody is "accountable"
+3. Success metrics are lagging indicators only (revenue, NPS) with no leading indicators (activation rate, feature adoption in week 1)
+4. Timeline has no dependencies mapped -- treats the feature as if it exists in isolation
+5. Written after the solution was already decided -- reverse-engineered justification, not genuine discovery
+
+### PRD Template Selection
+
+| Situation | Template | From `references/prd_templates.md` |
+|-----------|----------|-------------------------------------|
+| Major feature, 6+ weeks, cross-functional | Standard PRD (11-section) | Section 1 |
+| Small feature, 2-4 weeks, single team | One-Page PRD | Section 3 |
+| Sprint-based delivery, agile team | Agile Epic Template | Section 2 |
+| Exploration phase, pre-commitment | Feature Brief | Section 4 |
+
+## Interview Analysis: Expert Pitfalls
+
+The `scripts/customer_interview_analyzer.py` extracts signals, but the PM must catch these systematic biases before acting on the output.
+
+### Bias Detection Guide
+
+| Bias | How to detect in transcript | What to do |
+|------|---------------------------|------------|
+| Confirmation bias | Interviewer follows up enthusiastically on answers that match their hypothesis, drops threads that don't | Re-read dropped threads. Count disconfirming evidence separately. If ratio of confirming:disconfirming > 5:1, suspect bias. |
+| Leading questions | "Don't you think X would be helpful?" or "Would you say X is a problem?" | Flag any question containing "don't you," "would you say," or "wouldn't it be." Discount answers to leading questions. |
+| Courtesy bias | Interviewee says everything is "great" or "sounds good" with no specifics | Look for behavioral evidence: "When did you last actually do X?" If they can't give a specific instance, discount the positive. |
+| Survivorship bias | Only interviewed current users; didn't talk to churned users or non-adopters | Note if sample = current users only. Their pain points differ from why people leave or never sign up. |
+| Recency bias | Interviewee anchors on last week's experience, not the pattern over months | Ask "Is this typical or was last week unusual?" Weight recurring patterns over one-time events. |
+| Small sample extrapolation | PM treats 3 interviews as representative of 10,000 users | Minimum viable sample: 5 interviews for theme emergence, 12+ for pattern confidence, 20+ for segmentation. Below 5, label all findings as "hypotheses." |
+
+### Cross-Interview Synthesis Procedure
+1. Run analyzer on each transcript individually
+2. Use `aggregate_interviews()` function to merge findings
+3. Only promote a pain point to "validated" if it appears in 3+ independent interviews
+4. Rank validated pain points by: (frequency across interviews) x (average severity)
+5. Check for contradictions: if Interview A says "X is critical" and Interview B says "X doesn't matter," investigate the segment difference before averaging
+
+## Stakeholder Alignment Failure Modes
+
+When a PM thinks they have buy-in but actually don't:
+
+| Failure mode | Warning sign | Prevention |
+|-------------|-------------|------------|
+| Silent disagreement | Stakeholder says "looks good" in meeting but never references the decision afterward | Ask explicitly: "What concerns do you have?" Silence is not agreement. Follow up async within 24h. |
+| Scope creep as sabotage | Engineering lead keeps adding "must-have" requirements after sign-off | Lock scope with a signed-off doc. Any addition after lock requires a trade-off: "What do we cut to add this?" |
+| Executive override | VP casually mentions a "small change" that invalidates the PRD | Treat any post-approval executive input as a formal change request. Assess impact on timeline and present trade-offs. |
+| Different success definitions | PM measures adoption, engineering measures performance, sales measures pipeline | Align on ONE north star metric + 2-3 supporting metrics BEFORE kickoff. Document in PRD. |
+| HIPPO override of data | Highest-Paid Person's Opinion overrides interview data or analytics | Present data first, opinion second. Frame as "the data suggests X -- do we have additional context that changes this?" |
+
+## Metric Selection Traps
+
+### Vanity vs. Actionable Metrics
+
+| Vanity metric (avoid as primary) | Actionable alternative | Why |
+|----------------------------------|----------------------|-----|
+| Total registered users | Monthly active users (MAU) | Registrations include abandoned accounts |
+| Page views | Time-to-value (first meaningful action) | Views don't indicate value delivery |
+| App downloads | Day-7 retention rate | Downloads without retention = waste |
+| "NPS score" in isolation | NPS segmented by cohort + follow-up action rate | Aggregate NPS hides segment problems |
+| Feature usage count | Feature adoption rate (% of eligible users) | Raw count is meaningless without a denominator |
+
+### Goodhart's Law in Product
+"When a measure becomes a target, it ceases to be a good measure." Watch for:
+- Team gaming activation metrics by lowering the bar (count "viewed dashboard" as "activated")
+- Retention numbers improving because you made it harder to cancel, not because value increased
+- Engagement metrics rising due to notification spam, not genuine interest
+- Revenue per user increasing because low-value users churned (survivorship in metrics)
+
+**Antidote**: Always pair a primary metric with a "health check" counter-metric. If conversion rate goes up, check that absolute conversions also increased (not just smaller denominator). If engagement rises, check that unsubscribe/mute rates haven't spiked.
+
+## Rationalization Table
+
+| Dimension | What this skill adds beyond Claude's base knowledge |
+|-----------|-----------------------------------------------------|
+| RICE trap detection | 7 specific scenarios where RICE produces systematically wrong rankings, with correction procedures |
+| PRD quality signals | Concrete 5-signal checklist separating PRDs that ship from ones that stall, based on organizational behavior patterns |
+| Interview bias catalog | 6 named biases with detection heuristics and minimum sample sizes for valid findings |
+| Stakeholder failure modes | 5 alignment failures with early warning signs -- organizational dynamics Claude can't derive from PM textbooks |
+| Metric traps | Vanity-vs-actionable mapping plus Goodhart's Law detection patterns specific to product contexts |
+| Companion tooling | 3 scripts/references for deterministic execution of prioritization, analysis, and documentation |
+
+## Red Flags
+
+1. Presenting RICE scores for infrastructure work without applying the unblocking-reach correction
+2. Treating 3 customer interviews as statistically significant for product decisions
+3. Writing a PRD after the solution was already decided and engineering started
+4. Using "total registered users" or "page views" as a primary success metric for a feature
+5. Accepting Confidence: High on RICE scoring without requiring quantitative evidence
+6. Finalizing a PRD without an explicit out-of-scope section and kill criteria
+7. Skipping the cross-interview contradiction check when synthesizing multiple transcripts
+8. Letting a stakeholder's "looks good" in a meeting count as formal alignment
+
+## NEVER
+
+1. NEVER present RICE rankings without checking for the 7 known trap conditions first
+2. NEVER write a PRD problem statement that is actually a disguised solution statement
+3. NEVER label interview findings as "validated" with fewer than 3 independent corroborating interviews
+4. NEVER use a single metric without a counter-metric health check (Goodhart's Law protection)
+5. NEVER skip the stakeholder alignment verification step -- silence is not agreement

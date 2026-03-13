@@ -1,576 +1,199 @@
 ---
 name: free-tool-strategy
-description: When the user wants to plan, evaluate, or build a free tool for marketing purposes — lead generation, SEO value, or brand awareness. Also use when the user mentions "engineering as marketing," "free tool," "marketing tool," "calculator," "generator," "interactive tool," "lead gen tool," "build a tool for leads," or "free resource." This skill bridges engineering and marketing — useful for founders and technical marketers.
+description: When the user wants to plan, evaluate, or build a free tool for marketing purposes -- lead generation, SEO value, or brand awareness. Also use when the user mentions "engineering as marketing," "free tool," "marketing tool," "calculator," "generator," "lead gen tool," or "interactive tool." For viral quiz/generator mechanics, see viral-generator-builder. For SEO page scaling, see programmatic-seo. For demand generation channels, see marketing-demand-acquisition.
 ---
 
 # Free Tool Strategy (Engineering as Marketing)
 
-You are an expert in engineering-as-marketing strategy. Your goal is to help plan and evaluate free tools that generate leads, attract organic traffic, and build brand awareness.
+## File Index
 
-## Initial Assessment
+| File | What It Contains | Load When |
+|---|---|---|
+| `SKILL.md` | Tool-product fit decisions, gating strategy, build vs buy, tool type selection, anti-patterns | Always loaded (you are here) |
+| `tool-economics.md` | Build cost estimation, maintenance modeling, lead value calculation, ROI benchmarks by tool type, kill criteria | User asks about costs, ROI, whether a tool is worth building, or when to sunset a tool |
+| `technical-seo-for-tools.md` | JavaScript rendering for crawlers, dynamic meta tags, tool page architecture, schema markup, CWV optimization for interactive content | User asks about SEO for tools, indexing issues, or how to make tools rank |
+| `gating-and-funnel-design.md` | Conversion benchmarks by gating type, progressive gating, email capture optimization, nurture sequence, tool-to-product funnel architecture | User asks about lead capture, email gating, conversion rates, or the funnel from tool to paid product |
 
-Before designing a tool strategy, understand:
+**Do NOT load** companion files unless the user's question specifically requires that depth. Most tool strategy questions are answerable from this file alone.
 
-1. **Business Context**
-   - What's the core product/service?
-   - Who is the target audience?
-   - What problems do they have?
+## Scope Boundary
 
-2. **Goals**
-   - Lead generation primary goal?
-   - SEO/traffic acquisition?
-   - Brand awareness?
-   - Product education?
-
-3. **Resources**
-   - Technical capacity to build?
-   - Ongoing maintenance bandwidth?
-   - Budget for promotion?
-
----
-
-## Core Principles
-
-### 1. Solve a Real Problem
-- Tool must provide genuine value
-- Solves a problem your audience actually has
-- Useful even without your main product
-
-### 2. Adjacent to Core Product
-- Related to what you sell
-- Natural path from tool to product
-- Educates on problem you solve
-
-### 3. Simple and Focused
-- Does one thing well
-- Low friction to use
-- Immediate value
-
-### 4. Worth the Investment
-- Lead value × expected leads > build cost + maintenance
-- Consider SEO value
-- Consider brand halo effect
+| Topic | This Skill | Not This Skill (Use Instead) |
+|---|---|---|
+| Free tool concept evaluation | YES | |
+| Tool-product fit assessment | YES | |
+| Build vs buy vs embed decision | YES | |
+| Gating strategy (gate/ungate) | YES | |
+| Tool launch planning | YES | launch-strategy (for full product launches) |
+| Tool ROI projection | YES | |
+| Viral quiz/generator mechanics | | viral-generator-builder |
+| SEO for tool pages | YES (basics) | seo-optimizer (for general SEO), programmatic-seo (for page scaling) |
+| Demand gen channel strategy | | marketing-demand-acquisition |
+| CRO for tool landing page | | page-cro |
+| Content marketing around tools | | content-creator, content-research-writer |
+| Pricing the core product | | pricing-strategy |
 
 ---
 
-## Tool Types
+## Tool-Product Fit Decision
 
-### Calculators
+The #1 reason free tools fail as marketing: the tool attracts users who will never buy the product. Tool-product fit is more important than tool quality.
 
-**Best for**: Decisions involving numbers, comparisons, estimates
+| Fit Level | Description | Example | Lead Quality |
+|---|---|---|---|
+| **Direct** | Tool solves a subset of what the product solves. User hits the tool's ceiling and needs the product | HubSpot Website Grader -> HubSpot Marketing Hub. Tool reveals problems, product fixes them | HIGH -- 8-15% tool-to-trial conversion |
+| **Adjacent** | Tool solves a related problem. User who has this problem likely has the problem the product solves | CoSchedule Headline Analyzer -> CoSchedule Marketing Suite. Writing headlines = doing content marketing | MEDIUM -- 3-8% tool-to-trial conversion |
+| **Tangential** | Tool is in the same industry but different problem space. Attracts the right audience but weak purchase trigger | An HR software company building a "salary calculator." Attracts job seekers, not HR buyers | LOW -- 0.5-2% tool-to-trial conversion. High volume, low quality |
+| **Vanity** | Tool is fun/viral but attracts wrong audience entirely | A B2B SaaS building a "what's your spirit animal" quiz. Gets traffic, zero leads | ZERO -- traffic that will never convert. Waste of engineering |
 
-**Examples**:
-- ROI calculator
-- Savings calculator
-- Cost comparison tool
-- Salary calculator
-- Tax estimator
-
-**Why they work**:
-- Personalized output
-- High perceived value
-- Share-worthy results
-- Clear problem → solution
-
-### Generators
-
-**Best for**: Creating something useful quickly
-
-**Examples**:
-- Policy generator
-- Template generator
-- Name/tagline generator
-- Email subject line generator
-- Resume builder
-
-**Why they work**:
-- Tangible output
-- Saves time
-- Easily shared
-- Repeat usage
-
-### Analyzers/Auditors
-
-**Best for**: Evaluating existing work or assets
-
-**Examples**:
-- Website grader
-- SEO analyzer
-- Email subject tester
-- Headline analyzer
-- Security checker
-
-**Why they work**:
-- Curiosity-driven
-- Personalized insights
-- Creates awareness of problems
-- Natural lead to solution
-
-### Testers/Validators
-
-**Best for**: Checking if something works
-
-**Examples**:
-- Meta tag preview
-- Email rendering test
-- Accessibility checker
-- Mobile-friendly test
-- Speed test
-
-**Why they work**:
-- Immediate utility
-- Bookmark-worthy
-- Repeat usage
-- Professional necessity
-
-### Libraries/Resources
-
-**Best for**: Reference material
-
-**Examples**:
-- Icon library
-- Template library
-- Code snippet library
-- Example gallery
-- Directory
-
-**Why they work**:
-- High SEO value
-- Ongoing traffic
-- Establishes authority
-- Linkable asset
-
-### Interactive Educational
-
-**Best for**: Learning/understanding
-
-**Examples**:
-- Interactive tutorials
-- Code playgrounds
-- Visual explainers
-- Quizzes/assessments
-- Simulators
-
-**Why they work**:
-- Engages deeply
-- Demonstrates expertise
-- Shareable
-- Memory-creating
+**Rule**: If you can't draw a 2-step path from "user completes tool" to "user considers buying product," the tool-product fit is too weak.
 
 ---
 
-## Ideation Framework
+## Tool Type Selection
 
-### Start with Pain Points
+| Business Goal | Best Tool Type | Why | Build Complexity |
+|---|---|---|---|
+| **Lead generation (high quality, lower volume)** | Analyzer/auditor (website grader, security checker, SEO audit) | Creates personalized problem awareness. User sees THEIR gaps. Natural "want to fix this?" moment | MEDIUM-HIGH -- needs analysis engine, scoring logic, personalized output |
+| **Lead generation (high volume, moderate quality)** | Calculator (ROI, savings, cost comparison) | Personalized numbers are compelling. Results are share-worthy. Clear value exchange for email | LOW-MEDIUM -- input form + math + output template |
+| **SEO/organic traffic** | Library/directory (templates, examples, code snippets) | Each item is a unique page = programmatic SEO. Attracts long-tail searches. Compounds over time | MEDIUM -- CMS/database + individual pages + search |
+| **Brand awareness** | Interactive educational (playground, simulator, visual explainer) | Deep engagement = memory formation. Shareable. Demonstrates expertise | MEDIUM-HIGH -- custom interactive UI, edge cases |
+| **Product education** | Testers/validators (preview tool, compatibility checker) | Users learn what the product cares about. Creates familiarity with concepts | LOW-MEDIUM -- specific input + binary/graded output |
 
-1. **What problems does your audience Google?**
-   - Search query research
-   - Common questions
-   - "How to" searches
+### The "Free Version" Anti-Pattern
 
-2. **What manual processes are tedious?**
-   - Tasks done in spreadsheets
-   - Repetitive calculations
-   - Copy-paste workflows
+A free tool is NOT a freemium product tier. Key differences:
 
-3. **What do they need before buying your product?**
-   - Assessments of current state
-   - Planning/scoping
-   - Comparisons
+| | Free Tool | Freemium Tier |
+|---|---|---|
+| **Purpose** | Marketing channel | Product tier |
+| **Scope** | Solves ONE specific problem completely | Solves the SAME problems as paid, with limits |
+| **Ceiling** | User outgrows tool naturally | User hits artificial restrictions |
+| **Expectation** | Useful standalone, no account needed | Account required, upgrade path expected |
+| **Maintenance** | Low (static logic, infrequent updates) | High (shares codebase with paid product) |
 
-4. **What information do they wish they had?**
-   - Data they can't easily access
-   - Personalized insights
-   - Industry benchmarks
-
-### Validate the Idea
-
-**Search demand:**
-- Is there search volume for this problem?
-- What keywords would rank?
-- How competitive?
-
-**Uniqueness:**
-- What exists already?
-- How can you be 10x better or different?
-- What's your unique angle?
-
-**Lead quality:**
-- Does this problem-audience match buyers?
-- Will users be your target customers?
-- Is there a natural path to your product?
-
-**Build feasibility:**
-- How complex to build?
-- Can you scope an MVP?
-- Ongoing maintenance burden?
+Building a "stripped-down version of the product" as a "free tool" is a freemium strategy, not engineering-as-marketing. Both are valid, but they require different planning.
 
 ---
 
-## SEO Considerations
+## Gating Decision
 
-### Keyword Strategy
+| Approach | Tool-to-Email Rate | Best When | Risk |
+|---|---|---|---|
+| **Fully gated** (email before ANY use) | 30-60% of landing page visitors give email | Tool output is truly unique and high-value (personalized audit, detailed report). User already knows they want it | 60-80% of potential users bounce. Kills SEO value (no crawlable output). Only works with targeted traffic |
+| **Partially gated** (preview free, full results gated) | 15-30% of tool users give email | Default for most tools. Show enough value to create desire, gate the details. "Your score: 72/100. Enter email for full breakdown" | If preview is too generous, no incentive to give email. If too stingy, users feel bait-and-switched |
+| **Soft gated** (full results free, email to save/share/PDF) | 5-15% of tool users give email | SEO-first strategy. Maximize tool usage and backlinks. Lead capture is secondary | Lower email capture rate, but leads are higher intent (they actively chose to save results) |
+| **Ungated** (no email capture at all) | 0% | Pure SEO/brand play. Maximize usage, shares, and links. Monetize through awareness, not direct leads | No direct attribution. Hard to justify ROI. Best combined with on-page CTAs for the main product |
 
-**Tool landing page:**
-- "[thing] calculator"
-- "[thing] generator"
-- "free [tool type]"
-- "[industry] [tool type]"
-
-**Supporting content:**
-- "How to [use case]"
-- "What is [concept tool helps with]"
-- Blog posts that link to tool
-
-### Link Building
-
-Free tools attract links because:
-- Genuinely useful (people reference them)
-- Unique (can't link to just any page)
-- Shareable (social amplification)
-
-**Outreach opportunities:**
-- Roundup posts ("best free tools for X")
-- Resource pages
-- Industry publications
-- Blogs writing about the problem
-
-### Technical SEO
-
-- Fast load time critical
-- Mobile-friendly essential
-- Crawlable content (not just JS app)
-- Proper meta tags
-- Schema markup if applicable
+**The gating mistake everyone makes**: Starting fully gated, getting low traffic, then ungating. By then you've lost the launch window. Start with soft or partial gating. You can always tighten later -- you can't recover the users you bounced.
 
 ---
 
-## Lead Capture Strategy
+## Build Decision
 
-### When to Gate
+| Signal | Approach | Typical Cost | Time to Launch |
+|---|---|---|---|
+| Core concept needs validation, unclear demand | **No-code MVP** (Typeform + Zapier, Outgrow, Involve.me, Tally) | $0-100/month | 1-3 days |
+| Validated concept, need custom UX, have developers | **Custom build** (React/Next.js + API) | $2K-20K equivalent dev time | 2-8 weeks |
+| Tool type already exists, don't need brand differentiation | **White-label/embed** (Calconic, uCalc, external embed) | $20-200/month | 1-3 days |
+| Tool needs real-time data, complex calculations, or API integrations | **Custom build required** | $5K-50K equivalent dev time | 4-12 weeks |
+| Purely static output based on input combinations | **Pre-generated + static site** | <$1K + $5-20/month hosting | 1-2 weeks |
 
-**Fully gated (email required to use):**
-- High-value, unique tools
-- Personalized reports
-- Risk: Lower usage
+### Build Cost Reality Check
 
-**Partially gated (email for full results):**
-- Show preview, gate details
-- Better balance
-- Most common pattern
-
-**Ungated with optional capture:**
-- Tool is free to use
-- Email to save/share results
-- Highest usage, lower capture
-
-**Ungated entirely:**
-- Pure SEO/brand play
-- No direct leads
-- Maximum reach
-
-### Lead Capture Best Practices
-
-- Value exchange clear: "Get your full report"
-- Minimal friction: Email only
-- Show preview of what they'll get
-- Optional: Segment by asking one qualifying question
-
-### Post-Capture
-
-- Immediate email with results/link
-- Nurture sequence relevant to tool topic
-- Clear path to main product
-- Don't spam—provide value
+| Component | Often Overlooked | Real Cost |
+|---|---|---|
+| Initial build | Scoped correctly ~60% of the time | 1.5-2x initial estimate |
+| Edge cases | "What if someone enters a negative number?" | Add 30-50% to initial build |
+| Mobile optimization | Rarely in MVP scope, always needed | 20-40% of initial build cost |
+| OG images / share cards | Custom per result, platform-specific | 1-3 days additional |
+| Email integration | CRM sync, nurture triggers, deliverability | 1-2 days + ongoing monitoring |
+| Maintenance (year 1) | API changes, dependency updates, bug reports | 15-25% of build cost per year |
+| Data/content updates | Calculators need current data, tools need current APIs | Monthly effort or automated pipeline |
 
 ---
 
-## Build vs. Buy vs. Embed
+## Launch and Distribution
 
-### Build Custom
+| Channel | Expected Traffic (month 1) | Effort | Sustainability |
+|---|---|---|---|
+| **Product Hunt** | 1K-10K visits in 48 hours | HIGH (prep assets, rally support, engage comments) | ONE-TIME spike. Not repeatable. Good for initial exposure |
+| **Hacker News / Reddit** | 500-50K (high variance) | LOW-MEDIUM (write genuine post, engage comments) | ONE-TIME per community. Repeat = spam. Genuine value helps |
+| **SEO (organic)** | 0 month 1, 100-5K by month 6 | HIGH upfront (content, backlinks, technical SEO) | COMPOUNDS. The only channel that grows over time without spend |
+| **Email list** | Proportional to list size (20-40% open, 5-15% click) | LOW if list exists | REPEATABLE but finite. Each send has diminishing returns |
+| **Social media** | 100-5K depending on following | LOW-MEDIUM | MODERATE. Each post has 24-48h lifespan. Requires ongoing creation |
+| **Paid (Google/Meta)** | Proportional to spend. CPC $0.50-5 for tool keywords | MEDIUM (creative + budget) | SUSTAINABLE if unit economics work (lead value > CPA) |
 
-**When:**
-- Unique concept, nothing exists
-- Core to brand/product
-- High strategic value
-- Have development capacity
-
-**Consider:**
-- Development time
-- Ongoing maintenance
-- Hosting costs
-- Bug fixes
-
-### Use No-Code Tools
-
-**Options:**
-- Outgrow, Involve.me (calculators/quizzes)
-- Typeform, Tally (forms/quizzes)
-- Notion, Coda (databases)
-- Bubble, Webflow (apps)
-
-**When:**
-- Speed to market
-- Limited dev resources
-- Testing concept viability
-
-### Embed Existing
-
-**When:**
-- Something good already exists
-- White-label options available
-- Not core differentiator
-
-**Consider:**
-- Branding limitations
-- Dependency on third party
-- Cost vs. build
+**Distribution hierarchy**: Build for SEO (long-term compounding) -> launch via owned channels (email, social) -> amplify via communities (Product Hunt, Reddit) -> consider paid if unit economics justify it.
 
 ---
 
-## MVP Scope
+## Tool Maintenance Decision
 
-### Minimum Viable Tool
-
-1. **Core functionality only**
-   - Does the one thing
-   - No bells and whistles
-   - Works reliably
-
-2. **Essential UX**
-   - Clear input
-   - Obvious output
-   - Mobile works
-
-3. **Basic lead capture**
-   - Email collection works
-   - Leads go somewhere useful
-   - Follow-up exists
-
-### What to Skip Initially
-
-- Account creation
-- Saving results
-- Advanced features
-- Perfect design
-- Every edge case
-
-### Iterate Based on Use
-
-- Track where users drop off
-- See what questions they have
-- Add features that get requested
-- Improve based on data
+| Signal | Action | Why |
+|---|---|---|
+| >500 monthly users, positive lead economics | **Maintain and invest** | Working tools compound. Add features, improve UX, create supporting content |
+| 100-500 monthly users, break-even | **Maintain minimally** | Keep it running but don't invest new development. It's a background asset |
+| <100 monthly users after 6 months of SEO | **Evaluate kill criteria** | Either the concept is wrong, the execution is weak, or the distribution failed. Diagnose before killing |
+| Security vulnerability or dependency EOL | **Fix immediately or take offline** | A broken/insecure free tool damages brand more than no tool at all |
+| Core product pivot away from tool's domain | **Sunset gracefully** | Redirect to relevant resource. Don't let orphaned tools confuse brand positioning |
 
 ---
 
-## Promotion Strategy
+## Anti-Patterns
 
-### Launch
+### The Viral Vanity Tool
+**What happens**: Team builds a fun, shareable tool that gets 50K visitors but zero leads. "What's Your Marketing Spirit Animal" for a B2B infrastructure company.
+**Why it fails**: Traffic without fit is a vanity metric. The audience attracted by fun tools is not the audience that buys enterprise software.
+**The rationalization**: "Brand awareness is hard to measure but valuable"
 
-**Owned channels:**
-- Email list announcement
-- Blog post / landing page
-- Social media
-- Product hunt (if applicable)
+### The Feature Creep Tool
+**What happens**: "Free tool" scope grows to include user accounts, dashboards, saved history, team sharing, API access. 3-day project becomes 3-month project.
+**Why it fails**: You're building a product, not a tool. The ROI calculation that justified a 1-week build doesn't justify a 3-month build. Meanwhile, marketing waits.
+**The rationalization**: "If we're going to do it, let's do it right"
 
-**Outreach:**
-- Relevant newsletters
-- Industry publications
-- Bloggers in space
-- Social influencers
+### The Ghost Tool
+**What happens**: Tool launches, gets initial traffic, then nobody maintains it. Data becomes stale, design looks dated, bugs accumulate. Tool stays live, quietly embarrassing the brand.
+**Why it fails**: An unmaintained tool with 2019 data actively damages credibility. Users who find a broken tool form negative brand impressions.
+**The rationalization**: "It's still getting some traffic"
 
-### Ongoing
+### The Gate Slam
+**What happens**: Tool requires full registration (name, email, company, phone, role) before showing any value. 90% of visitors bounce immediately.
+**Why it fails**: Users haven't seen value yet. They're being asked to pay (with data) before knowing the product. No trust, no exchange.
+**The rationalization**: "We need qualified leads, not tire-kickers"
 
-**SEO:**
-- Target tool-related keywords
-- Supporting content
-- Link building
+### The Orphan Launch
+**What happens**: Tool is built, launched with a blog post and tweet, then never promoted again. No SEO strategy, no content support, no integration with sales process.
+**Why it fails**: Free tools don't market themselves. Without ongoing distribution (especially SEO), traffic decays to near-zero within 60-90 days.
+**The rationalization**: "If we build it, they will come"
 
-**Social:**
-- Share interesting results (anonymized)
-- Use case examples
-- Tips for using the tool
+### The Copycat Tool
+**What happens**: "Competitor has a calculator, so we need one too." No differentiation, no unique angle, no reason users would choose yours.
+**Why it fails**: The first tool in a category gets backlinks and brand association. The 5th identical calculator gets ignored. You need 10x better or meaningfully different, not equivalent.
+**The rationalization**: "They're getting leads from it, we should too"
 
-**Product integration:**
-- Mention in sales process
-- Link from related product features
-- Include in email sequences
+### Rationalizations That Signal Bad Strategy
 
----
+1. "Everyone in our space has a free tool" (competitive mimicry, not strategy)
+2. "It'll go viral" (planning for virality is planning for luck)
+3. "The tool basically builds itself" (underestimating edge cases, mobile, maintenance)
+4. "We'll figure out lead capture later" (retrofitting gating is harder than designing it in)
+5. "Our developers are bored, let's give them a fun project" (solution seeking a problem)
 
-## Measurement
+### Red Flags
 
-### Metrics to Track
+1. Can't articulate a 2-step path from tool usage to product consideration
+2. Tool concept requires ongoing data that nobody is assigned to maintain
+3. Build estimate exceeds 6 weeks for a v1
+4. Tool solves a problem the target buyer doesn't have
+5. No SEO keyword research done before committing to build
+6. Lead nurture sequence doesn't exist and nobody is planning one
+7. Tool requires the user to already be a customer to get value
 
-**Acquisition:**
-- Traffic to tool
-- Traffic sources
-- Keyword rankings
-- Backlinks acquired
+### NEVER
 
-**Engagement:**
-- Tool usage/completions
-- Time spent
-- Return visitors
-- Shares
-
-**Conversion:**
-- Email captures
-- Lead quality score
-- MQLs generated
-- Pipeline influenced
-- Customers attributed
-
-### Attribution
-
-- UTM parameters for paid promotion
-- Separate landing page for organic
-- Track lead source through funnel
-- Survey new customers
-
----
-
-## Evaluation Framework
-
-### Tool Idea Scorecard
-
-Rate each factor 1-5:
-
-| Factor | Score |
-|--------|-------|
-| Search demand exists | ___ |
-| Audience match to buyers | ___ |
-| Uniqueness vs. existing tools | ___ |
-| Natural path to product | ___ |
-| Build feasibility | ___ |
-| Maintenance burden (inverse) | ___ |
-| Link-building potential | ___ |
-| Share-worthiness | ___ |
-
-**25+**: Strong candidate
-**15-24**: Promising, needs refinement
-**<15**: Reconsider or scope differently
-
-### ROI Projection
-
-```
-Estimated monthly leads: [X]
-Lead-to-customer rate: [Y%]
-Average customer value: [$Z]
-
-Monthly value: X × Y% × $Z = $___
-
-Build cost: $___
-Monthly maintenance: $___
-
-Payback period: Build cost / (Monthly value - Monthly maintenance)
-```
-
----
-
-## Output Format
-
-### Tool Strategy Document
-
-```
-# Free Tool Strategy: [Tool Name]
-
-## Concept
-[What it does in one paragraph]
-
-## Target Audience
-[Who uses it, what problem it solves]
-
-## Lead Generation Fit
-[How this connects to your product/sales]
-
-## SEO Opportunity
-- Target keywords: [list]
-- Search volume: [estimate]
-- Competition: [assessment]
-
-## Build Approach
-- Custom / No-code / Embed
-- MVP scope: [core features]
-- Estimated effort: [time/cost]
-
-## Lead Capture Strategy
-- Gating approach: [Full/Partial/Ungated]
-- Capture mechanism: [description]
-- Follow-up sequence: [outline]
-
-## Success Metrics
-- [Metric 1]: [Target]
-- [Metric 2]: [Target]
-
-## Promotion Plan
-- Launch: [channels]
-- Ongoing: [strategy]
-
-## Timeline
-- Phase 1: [scope] - [timeframe]
-- Phase 2: [scope] - [timeframe]
-```
-
-### Implementation Spec
-If moving forward with build
-
-### Promotion Plan
-Detailed launch and ongoing strategy
-
----
-
-## Example Tool Concepts by Business Type
-
-### SaaS Product
-- Product ROI calculator
-- Competitor comparison tool
-- Readiness assessment quiz
-- Template library for use case
-
-### Agency/Services
-- Industry benchmark tool
-- Project scoping calculator
-- Portfolio review tool
-- Cost estimator
-
-### E-commerce
-- Product finder quiz
-- Comparison tool
-- Size/fit calculator
-- Savings calculator
-
-### Developer Tools
-- Code snippet library
-- Testing/preview tool
-- Documentation generator
-- Interactive tutorials
-
-### Finance
-- Financial calculators
-- Investment comparison
-- Budget planner
-- Tax estimator
-
----
-
-## Questions to Ask
-
-If you need more context:
-1. What's your core product/service?
-2. What problems does your audience commonly face?
-3. What existing tools do they use for workarounds?
-4. How do you currently generate leads?
-5. What technical resources are available?
-6. What's the timeline and budget?
-
----
-
-## Related Skills
-
-- **page-cro**: For optimizing the tool's landing page
-- **seo-audit**: For SEO-optimizing the tool
-- **analytics-tracking**: For measuring tool usage
-- **email-sequence**: For nurturing leads from the tool
-- **programmatic-seo**: For building tool-based pages at scale
+1. Never build a free tool without defining the tool-to-product path first
+2. Never fully gate a tool before proving it delivers value users want to save
+3. Never launch a tool without an SEO strategy for sustainable traffic
+4. Never let a free tool go unmaintained for more than 6 months
+5. Never scope a "free tool" that takes more engineering effort than a product feature

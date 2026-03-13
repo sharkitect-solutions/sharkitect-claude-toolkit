@@ -1,0 +1,75 @@
+{
+  "skill": "client-reporting",
+  "evals": [
+    {
+      "prompt": "I need to create a weekly status report for our web development retainer client. We have 120 hours allocated monthly, used 72 so far this month (week 3), completed a homepage redesign and started the checkout flow project. One blocker: waiting on client brand assets for 8 days.",
+      "expected_behavior": "Load report-templates reference for weekly status template. Lead with value delivered (homepage redesign complete, checkout flow initiated), not hours consumed. Apply traffic light status (likely yellow due to 8-day blocker exceeding 5-day escalation trigger). Flag the brand asset blocker with impact assessment and request for resolution. Show utilization context (72/120 = 60% through week 3 of 4). Include next week priorities.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "Our marketing campaign for the client finished last quarter. They spent $45K on our services and we need to show them the ROI for the renewal conversation. Website traffic went from 12K to 28K monthly visits, leads went from 180 to 340 per month, and they closed 8 additional deals averaging $15K each.",
+      "expected_behavior": "Load roi-calculation-guide reference. Build before/after framework with all three metrics. Calculate simple ROI: $120K new deal revenue vs $45K investment = 167% ROI. Apply attribution methodology -- distinguish direct vs contributory attribution for the deals. Calculate time-adjusted and risk-adjusted variants. Present payback period. Frame for renewal audience (executive sponsor + finance). Warn against claiming 100% attribution for the 8 deals without evidence of sole causation.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "We need to document that the Phase 2 milestone is complete for our client's e-commerce platform build. The scope originally included product catalog and search. During development, the client asked us to add filtering by 4 additional attributes and we said yes without a change request. Now they think Phase 3 should include the same flexibility.",
+      "expected_behavior": "Apply milestone documentation framework with acceptance criteria, deliverable description, and sign-off block. Flag 'The Scope Creep Enabler' anti-pattern for the undocumented filter additions. Recommend retroactively logging the scope expansion in the change log even though it was delivered. Document the deviation to prevent expectation drift in Phase 3. Include the change log format with impact assessment.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "I need to tell our biggest client that we're going to miss the launch deadline by 3 weeks. The project was supposed to go live March 1st but our lead developer quit and the replacement needs ramp-up time. This client is 35% of our revenue.",
+      "expected_behavior": "Apply the bad news delivery framework: state the issue clearly (3-week delay), own the cause (team transition), quantify impact (new target March 22), present recovery plan with specific actions and owners, state what is needed from client. Flag the red flag for single customer >25% revenue concentration. Do not bury the delay or use euphemisms. Recommend direct communication within one business day. Provide escalation guidance given the revenue concentration risk.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "I need to prepare a QBR deck for a SaaS consulting client. We've been on a $15K/month retainer for 6 months helping them improve their onboarding flow. Their trial-to-paid conversion went from 12% to 19%, and average time-to-first-value dropped from 14 days to 6 days.",
+      "expected_behavior": "Structure a 10-15 slide QBR deck following the report hierarchy (verdict first). Lead with quantified impact: 58% improvement in conversion, 57% reduction in time-to-first-value. Load roi-calculation-guide for value quantification -- convert conversion improvement to revenue impact using their pricing. Include trend visualization recommendations from visualization-standards. Build the scope vs effort matrix showing strategic vs maintenance work split. Include forward-looking section with next quarter recommendations. Frame retainer value as outcomes, not hours.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "Our client is a small accounting firm owner who doesn't understand data. She keeps asking us to 'just tell her if things are working.' We need to build a dashboard for her monthly SEO retainer.",
+      "expected_behavior": "Load visualization-standards reference. Apply KPI selection using the CLEAR test -- choose 3-4 metrics maximum for executive audience. Apply the 5-second rule for chart complexity. Recommend KPI card format (current value, trend arrow, vs target, vs prior period). Use traffic light color coding with text labels. Suggest single-column dashboard layout for simplicity. Avoid technical SEO jargon -- translate metrics to business terms (visitors = potential customers, rankings = visibility). Set monthly refresh cadence for strategic metrics.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "Our retainer client only used 45 of their 100 allocated hours last month, and the month before they used 52. They haven't said anything but I'm worried they'll downgrade.",
+      "expected_behavior": "Flag the red flag: retainer utilization below 50% for two consecutive months. Apply the utilization presentation framework -- this is in the danger zone where client perception shifts to 'I'm wasting money.' Recommend proactive conversation before the client initiates one. Propose strategic initiatives to fill capacity. Structure the retainer activity report leading with value delivered (not the low hours). Present the scope vs effort matrix to identify opportunities. Do not wait for the client to notice.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "We just finished a 9-month website rebuild project for a regional healthcare company. I need to write the project completion report. There were 3 scope changes, we went 12% over budget, but the site loads 4x faster and their online appointment bookings increased 340% in the first month.",
+      "expected_behavior": "Apply the project completion report template. Structure objectives vs outcomes table showing original scope vs delivered. Document all 3 scope changes with approval references and budget impact. Present the 12% budget overrun transparently with explanation tied to scope changes. Lead the results section with the 4x speed improvement and 340% booking increase -- quantify the ROI against total project cost. Include lessons learned and handoff checklist. Frame the budget overrun in context of expanded scope and exceptional results.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "I have a monthly report due for a client where we're managing 3 different workstreams: website maintenance, content marketing, and paid ads. Each has different KPIs and different team members working on them.",
+      "expected_behavior": "Apply the monthly progress report template adapted for multi-workstream engagements. Use a single executive summary covering all three workstreams with traffic light status for each. Structure progress against objectives with workstream grouping. Select 2-3 KPIs per workstream (not 7 each -- total should stay under 10 for the combined report). Apply visualization standards for dashboard design showing all workstreams. Include combined budget status across workstreams. Recommend consistent formatting so the client can scan all three quickly.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "Our client's VP of Marketing was replaced last week. The new VP is questioning the value of our engagement and wants to see 'proof that this is working.' We've been on a 12-month content retainer.",
+      "expected_behavior": "This is a churn risk scenario requiring an ROI summary. Load roi-calculation-guide. Build a comprehensive before/after analysis covering the full 12-month engagement. Quantify all measurable outcomes (traffic, leads, conversions, revenue attributable). Apply attribution methodology transparently. Present to procurement/finance audience level (new VP will scrutinize). Include payback period calculation. Address the 'proof' request with data, not narrative. Flag as an escalation trigger (client stakeholder change). Recommend scheduling a dedicated review meeting rather than sending a document.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "The CEO of our client company asked for a one-page summary of everything we've done this year to present to his board next week. We run their entire digital presence.",
+      "expected_behavior": "Structure a one-page executive summary following the report hierarchy: verdict first (one sentence on overall engagement health), then evidence (3-5 top quantified outcomes), then forward-looking outlook. Apply visualization standards for executive audience: maximum 3-4 KPI cards, one trend chart, minimal text. Load roi-calculation-guide for value quantification. Frame all outcomes in business terms (revenue impact, cost savings, risk reduction), not activity terms. Ensure the CEO can present this without needing to explain methodology.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "We had a major outage on the client's website that we manage. It was down for 6 hours on a Tuesday afternoon. We need to send a report about what happened.",
+      "expected_behavior": "Apply the bad news delivery framework for crisis/incident reporting. Structure: state the issue clearly (6-hour outage, specific date/time), own what is yours, quantify impact (estimated lost traffic, transactions, revenue during window), present root cause analysis, detail remediation actions taken, outline prevention plan for recurrence. Do not minimize or use passive voice. Include a timeline of events. This report should go out within one business day. Flag this as an escalation trigger (metric moved from green to red in single period).",
+      "should_trigger": true
+    },
+    {
+      "prompt": "Can you help me build an internal engineering dashboard to track our team's sprint velocity and bug counts?",
+      "expected_behavior": "Decline or redirect. Internal team dashboards and engineering metrics are outside scope. This skill covers client-facing reports, not internal operations tracking. Suggest using project management tooling (Jira, Linear) for sprint velocity tracking or internal analytics tools for team metrics.",
+      "should_trigger": false
+    },
+    {
+      "prompt": "I need to create a marketing performance report showing our ad spend efficiency across Google, Meta, and LinkedIn for our internal marketing team review.",
+      "expected_behavior": "Decline or redirect. Internal marketing performance reports are outside scope. This skill covers client-facing deliverables. For internal marketing analytics, suggest using marketing-demand-acquisition skill or platform-native reporting tools.",
+      "should_trigger": false
+    }
+  ]
+}

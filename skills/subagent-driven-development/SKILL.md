@@ -1,6 +1,6 @@
 ---
 name: subagent-driven-development
-description: Use when executing implementation plans with independent tasks in the current session
+description: "Use when executing an implementation plan by dispatching subagents for each task, when you have independent tasks to implement from a plan, or when you need fresh-context execution with two-stage review (spec compliance then code quality). Also use when asked to 'implement this plan' or 'execute these tasks'. NEVER for creating the plan itself (use superpowers:writing-plans), for tightly coupled tasks requiring shared state, or for parallel-session execution (use superpowers:executing-plans)."
 ---
 
 # Subagent-Driven Development
@@ -225,6 +225,17 @@ Done!
 **If subagent fails task:**
 - Dispatch fix subagent with specific instructions
 - Don't try to fix manually (context pollution)
+
+## Rationalizations That Skip Discipline
+
+| Rationalization | When It Appears | Why It's Wrong |
+|---|---|---|
+| "I'll review after all tasks are done" | Wanting to batch reviews | Issues compound -- a bad Task 2 built on bad Task 1 means double rework. Review after each task. |
+| "The implementer's self-review is enough" | Self-review found no issues | Self-review is biased -- the same context that produced the code can't objectively evaluate it. Two-stage review is mandatory. |
+| "This task is too simple for spec review" | Small task, seems obvious | Simple tasks are where requirements get misunderstood most -- spec review catches over-building and under-building. |
+| "I'll skip code quality review to save time" | Behind schedule | Code quality issues caught later cost 10x more than catching them now. Never skip. |
+| "I can fix it myself instead of dispatching a subagent" | Small fix needed | Fixing in the controller pollutes context. Dispatch a fix subagent to keep context clean. |
+| "The tasks aren't really independent, but I'll parallelize anyway" | Tasks share state | Parallel implementation of coupled tasks causes merge conflicts and inconsistent state. Serialize them. |
 
 ## Integration
 

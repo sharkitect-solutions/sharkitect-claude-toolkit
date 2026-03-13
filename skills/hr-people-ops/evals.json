@@ -1,0 +1,74 @@
+[
+  {
+    "id": "hr-jd-writing",
+    "type": "should_trigger",
+    "prompt": "I need to write a job description for a Senior Product Manager. We're a 40-person SaaS startup and this will be our first PM hire.",
+    "expected_behavior": "Applies the Role Clarity Architecture: 4-section JD structure (summary, responsibilities, requirements split into must-have/nice-to-have, compensation/logistics). References leveling framework. Warns against title inflation for first PM hire."
+  },
+  {
+    "id": "hr-interview-design",
+    "type": "should_trigger",
+    "prompt": "Help me design an interview process for hiring a marketing director. We've been winging it with unstructured interviews and keep making bad hires.",
+    "expected_behavior": "Designs a structured interview loop with competency mapping, behavioral STAR questions, scorecard methodology, and debrief process. References hiring-pipeline.md for interview loop design. Names 'The Missing Scorecard' anti-pattern as likely root cause of bad hires."
+  },
+  {
+    "id": "hr-offer-letter",
+    "type": "should_trigger",
+    "prompt": "We want to extend an offer to our top candidate for a senior engineering role. They have a competing offer from a bigger company. Help me put together a compelling offer package.",
+    "expected_behavior": "Applies compensation framework: market benchmarking, total comp construction (base + equity + benefits + signing bonus levers). References offer negotiation playbook from hiring-pipeline.md. Addresses how to compete against larger companies using non-monetary levers."
+  },
+  {
+    "id": "hr-onboarding-plan",
+    "type": "should_trigger",
+    "prompt": "Our new customer success manager starts next Monday. We've never had a formal onboarding process. Can you help me build one?",
+    "expected_behavior": "References onboarding-playbook.md. Delivers pre-boarding checklist, Day 1 agenda, Week 1 structure, 30-60-90 day milestones. Assigns buddy. Identifies first small win. Includes manager's separate onboarding checklist."
+  },
+  {
+    "id": "hr-performance-review",
+    "type": "should_trigger",
+    "prompt": "It's time for annual reviews and I've never done them before. We're a 25-person company. What should our performance review process look like?",
+    "expected_behavior": "References performance-framework.md. Recommends quarterly lightweight + annual comprehensive cycle. Explains 4-point rating scale, calibration process, and separation of development feedback from compensation decisions. Provides SMART goal-setting template."
+  },
+  {
+    "id": "hr-team-restructure",
+    "type": "should_trigger",
+    "prompt": "Our engineering team has grown to 15 people all reporting to one VP of Engineering. It's not working anymore. How should we restructure?",
+    "expected_behavior": "Applies span of control guidelines (5-8 direct reports). Recommends adding management layer with rationale. Addresses hire-vs-promote decision framework. Warns about matrix reporting pitfalls."
+  },
+  {
+    "id": "hr-compensation-bands",
+    "type": "should_trigger",
+    "prompt": "We need to create salary bands for our company. We're 60 employees and have never had formal compensation structure. People are starting to find out about pay disparities.",
+    "expected_behavior": "Applies compensation framework: market benchmarking from 3+ sources, 20-25% band spread, leveling framework, pay equity audit process. Flags pay equity as immediate risk. Provides band design table with base, equity, variable, and signing bonus components."
+  },
+  {
+    "id": "hr-employee-handbook",
+    "type": "should_trigger",
+    "prompt": "We need to write an employee handbook. We're a 30-person remote-first startup with no formal HR policies.",
+    "expected_behavior": "References rationalization table entry on handbooks. Recommends 15-20 page lean handbook covering essentials (at-will statement, anti-harassment, PTO, expense, code of conduct, complaint procedure). Warns against over-engineering. Mentions at-will disclaimer requirement from red flags checklist and compliance essentials."
+  },
+  {
+    "id": "hr-no-trigger-hris",
+    "type": "should_not_trigger",
+    "prompt": "We need to evaluate and implement a new HRIS platform. We're comparing Workday, BambooHR, and SAP SuccessFactors for our 500-person company.",
+    "expected_behavior": "Does NOT trigger. This is enterprise HRIS platform selection, which falls outside the skill's scope boundary. The skill handles operational HR for SMBs (1-200 employees), not enterprise software implementation."
+  },
+  {
+    "id": "hr-no-trigger-labor-law",
+    "type": "should_not_trigger",
+    "prompt": "An employee is suing us for wrongful termination. We need to prepare our legal defense and gather documentation for the labor law proceedings.",
+    "expected_behavior": "Does NOT trigger. Labor law litigation is explicitly outside the skill's scope. The skill covers compliance awareness and PIP documentation but does not provide legal advice or litigation support."
+  },
+  {
+    "id": "hr-pressure-pip",
+    "type": "should_trigger",
+    "prompt": "I want to put someone on a PIP but honestly I've already decided to let them go. HR says I need the PIP for documentation. What's the fastest PIP process?",
+    "expected_behavior": "Identifies 'The Perpetual PIP' anti-pattern directly. Advises against using PIP as termination paperwork. Distinguishes performance problems (genuine PIP) from role-fit problems (dignified transition). Recommends honest termination with severance over pretextual PIP. References termination checklist."
+  },
+  {
+    "id": "hr-pressure-urgency-hire",
+    "type": "should_trigger",
+    "prompt": "We lost our only sales rep and revenue is tanking. I need to hire someone THIS WEEK. Let's skip the formal process and just go with whoever looks good on paper.",
+    "expected_behavior": "Identifies 'The Urgency Hire' anti-pattern. Recommends a fast-track pipeline (compressed timeline, same rigor) instead of no-track pipeline. Cites 3x mis-hire rate statistic. Proposes a 7-10 day condensed structured process rather than an unstructured same-week hire."
+  }
+]

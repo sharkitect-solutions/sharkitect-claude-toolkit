@@ -1,750 +1,219 @@
 ---
 name: competitor-alternatives
-description: "When the user wants to create competitor comparison or alternative pages for SEO and sales enablement. Also use when the user mentions 'alternative page,' 'vs page,' 'competitor comparison,' 'comparison page,' '[Product] vs [Product],' '[Product] alternative,' or 'competitive landing pages.' Covers four formats: singular alternative, plural alternatives, you vs competitor, and competitor vs competitor. Emphasizes deep research, modular content architecture, and varied section types beyond feature tables."
+description: "Use when creating competitor comparison pages, alternative-to landing pages, vs-competitor content, competitive battle cards, or win/loss analysis documentation. Use when a user says 'alternative page,' 'vs page,' 'comparison page,' 'battle card,' '[Product] vs [Product],' or 'competitor analysis content.' Do NOT use for general content marketing, SEO strategy unrelated to competitive pages, product roadmap decisions, or pricing strategy."
 ---
 
 # Competitor & Alternative Pages
 
-You are an expert in creating competitor comparison and alternative pages. Your goal is to build pages that rank for competitive search terms, provide genuine value to evaluators, and position your product effectively.
+## File Index
 
-## Initial Assessment
+| File | Load When | Do NOT Load |
+|------|-----------|-------------|
+| `references/competitive-intelligence-methods.md` | Building battle cards, conducting win/loss analysis, setting up competitive monitoring, mining competitor reviews, designing CI workflows | Writing comparison page copy, CRO questions, legal compliance checks |
+| `references/conversion-optimization.md` | Designing comparison page layouts, optimizing CTAs on competitive pages, A/B testing comparison formats, improving conversion rates on vs pages | CI methodology, legal compliance, battle card content strategy |
+| `references/legal-compliance.md` | Making claims about competitors, using competitor trademarks or screenshots, publishing comparative advertising, responding to competitor legal objections | Page layout decisions, CI methodology, conversion optimization |
 
-Before creating competitor pages, understand:
+## Scope Boundary
 
-1. **Your Product**
-   - Core value proposition
-   - Key differentiators
-   - Ideal customer profile
-   - Pricing model
-   - Strengths and honest weaknesses
-
-2. **Competitive Landscape**
-   - Direct competitors
-   - Indirect/adjacent competitors
-   - Market positioning of each
-   - Search volume for competitor terms
-
-3. **Goals**
-   - SEO traffic capture
-   - Sales enablement
-   - Conversion from competitor users
-   - Brand positioning
+| Domain | This Skill Covers | Use Instead |
+|--------|-------------------|-------------|
+| General SEO content | Competitive keyword pages only | seo-audit, content-research-writer |
+| Pricing strategy | Competitive pricing presentation on pages only | smb-cfo |
+| Product roadmap | Feature gap documentation for pages only | Product management tooling |
+| Sales enablement (general) | Battle cards and competitive positioning only | sales-enablement |
+| Content marketing | Comparison/alternative content only | content-research-writer |
 
 ---
 
-## Core Principles
+## Competitive Page Taxonomy
 
-### 1. Honesty Builds Trust
-- Acknowledge competitor strengths
-- Be accurate about your limitations
-- Don't misrepresent competitor features
-- Readers are comparing—they'll verify claims
+Four distinct formats exist. Each targets different search intent, converts at different rates, and requires different editorial approaches. Mismatching format to intent wastes ranking potential.
 
-### 2. Depth Over Surface
-- Go beyond feature checklists
-- Explain *why* differences matter
-- Include use cases and scenarios
-- Show, don't just tell
+| Format | URL Pattern | Search Intent | Expected CVR | Editorial Stance |
+|--------|-------------|---------------|-------------|------------------|
+| Singular alternative | `/alternative/[competitor]` | Active switcher, frustrated with specific tool | 3-5% | Empathetic guide, validate their pain |
+| Plural alternatives | `/[competitor]-alternatives` | Early researcher, exploring options | 2-3% | Objective curator, you are one of many |
+| You-vs-them | `/vs/[competitor]` | Direct comparison shopper, shortlist of two | 4-7% | Confident but fair, acknowledge their strengths |
+| Them-vs-them | `/compare/[a]-vs-[b]` | Evaluating competitors, unaware of you | 1-2% (but high brand discovery) | Neutral analyst, earn trust before introducing yourself |
 
-### 3. Help Them Decide
-- Different tools fit different needs
-- Be clear about who you're best for
-- Be clear about who competitor is best for
-- Reduce evaluation friction
+### Intent Mapping by Keyword Modifier
 
-### 4. Modular Content Architecture
-- Competitor data should be centralized
-- Updates propagate to all pages
-- Avoid duplicating research
-- Single source of truth per competitor
+The modifier attached to the competitor name reveals buyer stage and emotional state:
+
+- **"alternative to X"** -- Switching intent. They have decided to leave. Page should validate the decision and reduce switching anxiety.
+- **"X vs Y"** -- Evaluation intent. They have a shortlist. Page must address specific comparison dimensions they care about.
+- **"best X alternatives"** -- Research intent. They are building a shortlist. Page should help them narrow options, not just list features.
+- **"X replacement"** -- Urgent switching intent. Something broke (pricing change, outage, acquisition). Time-sensitive content converts highest.
+- **"tools like X"** -- Category exploration. They like the concept but want options. Focus on shared category strengths, differentiate on execution.
+- **"X competitors"** -- Market mapping. Often analysts, journalists, or buyers building recommendation lists. Comprehensive coverage matters most.
 
 ---
 
-## Page Formats
+## Competitive Intelligence Methodology
 
-### Format 1: [Competitor] Alternative (Singular)
+### Win/Loss Analysis Framework
 
-**Search intent**: User is actively looking to switch from a specific competitor
+Structured win/loss interviews are the foundation of credible competitive content. Unstructured "why did you choose us" surveys produce self-serving data that readers detect immediately.
 
-**URL pattern**: `/alternatives/[competitor]` or `/[competitor]-alternative`
+**Minimum sample size:** 20 interviews per competitor (10 wins, 10 losses). Below 20, patterns are anecdotal. Above 50, diminishing returns. Weight recent interviews (last 6 months) at 2x older ones.
 
-**Target keywords**:
-- "[Competitor] alternative"
-- "alternative to [Competitor]"
-- "switch from [Competitor]"
-- "[Competitor] replacement"
+**Interview structure:** (1) Open with their evaluation process -- who was involved, what triggered the search, what was the timeline. (2) Ask about decision criteria ranking before discussing specific vendors. (3) Walk through each vendor evaluated, strengths and weaknesses observed. (4) Close with the decisive factor -- the single thing that tipped the decision.
 
-**Page structure**:
-1. Why people look for alternatives (validate their pain)
-2. Summary: You as the alternative (quick positioning)
-3. Detailed comparison (features, service, pricing)
-4. Who should switch (and who shouldn't)
-5. Migration path
-6. Social proof from switchers
-7. CTA
+Never let sales teams conduct their own win/loss interviews. Confirmation bias contaminates results. Use a neutral party -- product marketing, an external firm, or a structured survey with forced-ranking questions.
 
-**Tone**: Empathetic to their frustration, helpful guide
+### Feature Parity Matrix
 
----
+Score features on a 1-5 scale weighted by buyer priority. Raw feature counts are meaningless -- a competitor with 200 features that neglects the 5 features your buyer cares about loses the comparison.
 
-### Format 2: [Competitor] Alternatives (Plural)
+| Weight | Score Meaning | When to Assign |
+|--------|--------------|----------------|
+| 5 (critical) | Deal-breaker if missing | Buyer mentions unprompted in >60% of win/loss interviews |
+| 3 (important) | Influences decision | Buyer mentions in 30-60% of interviews |
+| 1 (nice-to-have) | Tiebreaker only | Buyer mentions in <30% of interviews |
 
-**Search intent**: User is researching options, earlier in journey
+Weighted score = Feature score (1-5) x Priority weight. Sum weighted scores per vendor. This produces defensible rankings that survive scrutiny because the weighting methodology is transparent and buyer-derived.
 
-**URL pattern**: `/alternatives/[competitor]-alternatives` or `/best-[competitor]-alternatives`
+### Competitive Signal Monitoring
 
-**Target keywords**:
-- "[Competitor] alternatives"
-- "best [Competitor] alternatives"
-- "tools like [Competitor]"
-- "[Competitor] competitors"
+Three high-signal, low-noise sources for ongoing intelligence:
 
-**Page structure**:
-1. Why people look for alternatives (common pain points)
-2. What to look for in an alternative (criteria framework)
-3. List of alternatives (you first, but include real options)
-4. Comparison table (summary)
-5. Detailed breakdown of each alternative
-6. Recommendation by use case
-7. CTA
-
-**Tone**: Objective guide, you're one option among several (but positioned well)
-
-**Important**: Include 4-7 real alternatives. Being genuinely helpful builds trust and ranks better.
+1. **Pricing page changes** -- Monitor competitor pricing pages weekly (use Visualping, ChangeTower, or Distill.io). Pricing changes signal strategy shifts: a new free tier means they are losing top-of-funnel; removing a tier means consolidation; annual-only pricing means cash flow pressure.
+2. **Job postings** -- New engineering roles in specific domains (e.g., "AI/ML engineer") reveal roadmap 6-12 months before launch. A burst of sales hiring signals go-to-market expansion.
+3. **Review site sentiment** -- Track G2, Capterra, and TrustRadius quarterly. Rising complaint themes become your content angles. Declining satisfaction scores are competitive opportunities.
 
 ---
 
-### Format 3: You vs [Competitor]
+## Comparison Page Architecture
 
-**Search intent**: User is directly comparing you to a specific competitor
+### Above-the-Fold Hierarchy
 
-**URL pattern**: `/vs/[competitor]` or `/compare/[you]-vs-[competitor]`
+Eye-tracking research (Nielsen Norman Group, Baymard Institute) consistently shows comparison page visitors scan in an F-pattern, reading the first element thoroughly then skimming. Place the verdict above the fold, not the feature table.
 
-**Target keywords**:
-- "[You] vs [Competitor]"
-- "[Competitor] vs [You]"
-- "[You] compared to [Competitor]"
-- "[You] or [Competitor]"
+**Correct hierarchy:** (1) Verdict sentence -- "Choose X if you need A; choose Y if you need B." (2) Summary comparison table -- 5-7 rows maximum. (3) Detailed comparison sections below.
 
-**Page structure**:
-1. TL;DR summary (key differences in 2-3 sentences)
-2. At-a-glance comparison table
-3. Detailed comparison by category:
-   - Features
-   - Pricing
-   - Service & support
-   - Ease of use
-   - Integrations
-4. Who [You] is best for
-5. Who [Competitor] is best for (be honest)
-6. What customers say (testimonials from switchers)
-7. Migration support
-8. CTA
+**Wrong hierarchy:** Leading with a feature table. Users see a grid of checkmarks, conclude "they look the same," and bounce. Bounce rates on feature-first comparison pages run 15-25% higher than verdict-first pages (based on Hotjar/CrazyEgg heatmap studies across B2B SaaS sites).
 
-**Tone**: Confident but fair, acknowledge where competitor excels
+### Trust Engineering
+
+Comparison pages are inherently suspect -- readers know the publisher has a bias. Trust engineering is the set of techniques that neutralize this suspicion:
+
+- **Methodology disclosure** -- State how you gathered data. "Pricing verified on [date]. Features tested on [plan tier]. Reviews analyzed from [source] with [sample size]." Transparency about method converts skeptics.
+- **Date transparency** -- Every comparison page needs a "Last verified: [date]" stamp. Undated comparison pages are assumed stale.
+- **Limitation acknowledgment** -- Name at least one area where the competitor genuinely excels. "Competitor X is the better choice if your primary need is [specific capability]." This single admission increases page credibility measurably because it signals the author is not cherry-picking.
+- **Competitor response invitation** -- Include a line: "We invite [Competitor] to flag any inaccuracies." This is both trust engineering and legal protection.
+
+### CTA Placement Science
+
+Comparison pages convert 2-3x higher when the CTA follows a "you need X if..." section rather than appearing after a generic feature table. The psychological mechanism is self-selection: readers who have just confirmed they match the described profile experience commitment consistency -- they identified as the target audience and the CTA aligns with that self-identification.
+
+**High-converting placement:** After "Who should choose [Your Product]" section.
+**Low-converting placement:** After a feature comparison table (reader is still evaluating, not decided).
+**Avoid:** Sticky CTAs that appear before the reader has consumed any comparison content. These convert at 0.3-0.5% on comparison pages vs 2-4% on product pages because comparison visitors are in evaluation mode, not purchase mode.
 
 ---
 
-### Format 4: [Competitor A] vs [Competitor B]
+## Content Differentiation Strategy
 
-**Search intent**: User comparing two competitors (not you directly)
+### Beyond the Checkbox Trap
 
-**URL pattern**: `/compare/[competitor-a]-vs-[competitor-b]`
+Feature tables with yes/no values are table stakes -- every competitor publishes them. Differentiation requires narrative comparison that addresses what feature tables cannot:
 
-**Target keywords**:
-- "[Competitor A] vs [Competitor B]"
-- "[Competitor A] or [Competitor B]"
-- "[Competitor A] compared to [Competitor B]"
+- **Switching cost analysis** -- Quantify what it costs to move: data migration effort (hours), integration rebuild time, team retraining period, productivity dip duration. Buyers underestimate switching costs by 40-60% (McKinsey research on B2B switching behavior). Honest switching cost documentation paradoxically increases conversion because it builds trust and reduces post-purchase regret.
+- **Total cost of ownership** -- Per-seat pricing comparisons are misleading when tools differ in what is included. Build TCO models: base price + add-ons + implementation + training + ongoing admin overhead. A tool that costs $5/seat more but eliminates $15/seat in admin overhead wins the TCO comparison.
+- **Migration path documentation** -- Step-by-step migration guides are conversion assets. A buyer who can see the exact path from Competitor X to your product experiences reduced uncertainty. Include: what data transfers automatically, what requires manual work, typical timeline, and what support you provide.
 
-**Page structure**:
-1. Overview of both products
-2. Comparison by category
-3. Who each is best for
-4. The third option (introduce yourself)
-5. Comparison table (all three)
-6. CTA
+### Handling Competitor Superiority Honestly
 
-**Tone**: Objective analyst, earn trust through fairness, then introduce yourself
+When a competitor genuinely outperforms you in a dimension, three approaches work:
 
-**Why this works**: Captures search traffic for competitor terms, positions you as knowledgeable, introduces you to qualified audience.
+1. **Acknowledge and reframe** -- "Competitor X offers deeper customization. Our approach trades some customization for faster setup -- teams are productive in hours, not weeks."
+2. **Segment the audience** -- "If customization is your top priority, Competitor X may be the better fit. If time-to-value matters more, [Your Product] delivers results faster."
+3. **Quantify the tradeoff** -- "Competitor X supports 200+ integrations vs our 85. However, our 85 integrations cover 94% of the tools used by [target segment], with deeper data sync on each."
+
+Never ignore a dimension where you lose. Readers who have already used the competitor will immediately detect the omission, and your credibility collapses for every other claim on the page.
 
 ---
 
-## Index Pages
+## Behavioral Economics of Comparison Shopping
 
-Each format needs an index page that lists all pages of that type. These hub pages serve as navigation aids, SEO consolidators, and entry points for visitors exploring multiple comparisons.
+### Anchoring Effect in Pricing Display
 
-### Alternatives Index
+Present your pricing after the competitor's, not before. The competitor's price becomes the anchor. If they are more expensive, your price feels like a deal. If they are cheaper, present value metrics alongside price to shift the anchor from cost to value-per-dollar.
 
-**URL**: `/alternatives` or `/alternatives/index`
+### Decoy Effect in Alternatives Pages
 
-**Purpose**: Lists all "[Competitor] Alternative" pages
+On plural alternatives pages (listing 5-7 alternatives), include at least one option that is clearly inferior on the dimensions your ideal buyer cares about. This "decoy" makes your product look stronger by contrast -- not through deception, but through legitimate comparison that highlights relative strengths. The decoy must be a real product, not a fabrication.
 
-**Page structure**:
-1. Headline: "[Your Product] as an Alternative"
-2. Brief intro on why people switch to you
-3. List of all alternative pages with:
-   - Competitor name/logo
-   - One-line summary of key differentiator vs. that competitor
-   - Link to full comparison
-4. Common reasons people switch (aggregated)
-5. CTA
+### Choice Overload Prevention
 
-**Example**:
-```markdown
-## Explore [Your Product] as an Alternative
+Max 5 alternatives per comparison page. Barry Schwartz's paradox of choice research shows that beyond 5-7 options, decision quality and decision satisfaction both decline. For plural alternatives pages, curate ruthlessly: include only alternatives that genuinely serve different segments. If two alternatives serve the same segment, keep the stronger one.
 
-Looking to switch? See how [Your Product] compares to the tools you're evaluating:
+### Loss Aversion Framing
 
-- **[Notion Alternative](/alternatives/notion)** — Better for teams who need [X]
-- **[Airtable Alternative](/alternatives/airtable)** — Better for teams who need [Y]
-- **[Monday Alternative](/alternatives/monday)** — Better for teams who need [Z]
-```
+"What you lose by staying with X" is 2-2.5x more motivating than "what you gain by switching to Y" (Kahneman & Tversky, prospect theory). Structure at least one section around what the reader is missing or risking by not switching. Frame it as opportunity cost, not fear -- the goal is informed decision-making, not manipulation.
 
 ---
 
-### Alternatives (Plural) Index
+## Programmatic Competitive Content
 
-**URL**: `/alternatives/compare` or `/best-alternatives`
+### Template Systems for Scale
 
-**Purpose**: Lists all "[Competitor] Alternatives" roundup pages
+When targeting 20+ competitors, build template systems rather than writing each page from scratch:
 
-**Page structure**:
-1. Headline: "Software Alternatives & Comparisons"
-2. Brief intro on your comparison methodology
-3. List of all alternatives roundup pages with:
-   - Competitor name
-   - Number of alternatives covered
-   - Link to roundup
-4. CTA
+- **Data layer** -- Centralized competitor profiles (YAML/JSON) with standardized fields: pricing tiers, feature scores, review sentiment, last verified date.
+- **Template layer** -- Page templates that pull from the data layer. One template per page format (singular alt, plural alt, vs, them-vs-them).
+- **Editorial layer** -- Human-written narrative sections unique to each competitor. Templates handle structure; humans handle insight.
 
-**Example**:
-```markdown
-## Find the Right Tool
+### Freshness Signals
 
-Comparing your options? Our guides cover the top alternatives:
+Google's helpful content guidelines penalize stale comparison content. Build freshness into the system:
 
-- **[Best Notion Alternatives](/alternatives/notion-alternatives)** — 7 tools compared
-- **[Best Airtable Alternatives](/alternatives/airtable-alternatives)** — 6 tools compared
-- **[Best Monday Alternatives](/alternatives/monday-alternatives)** — 5 tools compared
-```
+- **Last verified date** on every page, linked to an actual verification process (not just a date bump).
+- **Changelog** visible to readers: "Updated March 2026: Competitor X launched new pricing tier."
+- **Automated staleness alerts** -- If a comparison page has not been verified in 90 days, flag it for review. Stale comparison pages rank lower and convert worse than no page at all because they damage domain trust.
 
 ---
 
-### Vs Comparisons Index
+## Named Anti-Patterns
 
-**URL**: `/vs` or `/compare`
+### The Straw Man
+Only comparing against weak or unknown competitors while ignoring the dominant players readers are actually evaluating. **Detect:** Your top 3 competitors by market share are absent from your comparison pages. Traffic comes from long-tail terms, not head terms. **Fix:** Start with the hardest comparisons. If you cannot write an honest page against your strongest competitor, your positioning needs work before your content does.
 
-**Purpose**: Lists all "You vs [Competitor]" and "[A] vs [B]" pages
+### The Checkbox Fallacy
+Feature comparison tables using yes/no that hide implementation depth, quality differences, and practical limitations. A checkmark for "API access" could mean a full REST API or a read-only webhook. **Detect:** Every row in your comparison table is yes/no or checkmarks. Competitor columns have suspiciously many "no" entries. **Fix:** Replace checkmarks with descriptive text. "Full REST API with 99.9% uptime SLA" vs "Read-only API, rate-limited to 100 calls/day."
 
-**Page structure**:
-1. Headline: "Compare [Your Product]"
-2. Section: "[Your Product] vs Competitors" — list of direct comparisons
-3. Section: "Head-to-Head Comparisons" — list of [A] vs [B] pages
-4. Brief methodology note
-5. CTA
+### The Set-and-Forget
+Publishing competitor pages that go stale within 3 months. Competitor pricing changes, features launch, products pivot -- and your page still shows last year's data. **Detect:** No "last verified" date on pages. Competitor pricing on your page differs from their current pricing page. **Fix:** Implement 90-day verification cycles. Assign ownership per competitor page. Automate pricing page monitoring.
 
-**Example**:
-```markdown
-## Compare [Your Product]
+### The Humble Brag
+Pretending objectivity while systematically sandbagging the competitor through selective emphasis, unfavorable screenshots, or comparison dimensions chosen specifically because you win them. **Detect:** Every comparison dimension favors you. Competitor strengths are mentioned in passing; your strengths get detailed paragraphs. **Fix:** Apply the trust engineering framework. Give at least one section where you explicitly recommend the competitor for a specific use case.
 
-### [Your Product] vs. the Competition
+### The Price Trap
+Comparing incomparable pricing structures -- your annual price against their monthly, your per-seat against their per-usage, your starter tier against their enterprise. **Detect:** Price comparison requires footnotes to be accurate. Readers in comments or reviews call out pricing inaccuracies. **Fix:** Normalize pricing to the same basis (monthly per-seat, or annual total for a defined team size). Show the math. Disclose billing model differences explicitly.
 
-- **[[Your Product] vs Notion](/vs/notion)** — Best for [differentiator]
-- **[[Your Product] vs Airtable](/vs/airtable)** — Best for [differentiator]
-- **[[Your Product] vs Monday](/vs/monday)** — Best for [differentiator]
-
-### Other Comparisons
-
-Evaluating tools we compete with? We've done the research:
-
-- **[Notion vs Airtable](/compare/notion-vs-airtable)**
-- **[Notion vs Monday](/compare/notion-vs-monday)**
-- **[Airtable vs Monday](/compare/airtable-vs-monday)**
-```
+### The Legal Landmine
+Making factual claims about competitors that cannot be substantiated, using competitor trademarks improperly, or publishing comparative advertising that violates jurisdiction-specific regulations. **Detect:** Claims include superlatives ("the only," "the best," "the fastest") without substantiation. Competitor logos are used without consideration of trademark law. No legal review of comparison page claims. **Fix:** See `references/legal-compliance.md` for jurisdiction-specific rules. Every factual claim about a competitor must be verifiable and sourced.
 
 ---
 
-### Index Page Best Practices
+## Rationalization Table
 
-**Keep them updated**: When you add a new comparison page, add it to the relevant index.
-
-**Internal linking**:
-- Link from index → individual pages
-- Link from individual pages → back to index
-- Cross-link between related comparisons
-
-**SEO value**:
-- Index pages can rank for broad terms like "project management tool comparisons"
-- Pass link equity to individual comparison pages
-- Help search engines discover all comparison content
-
-**Sorting options**:
-- By popularity (search volume)
-- Alphabetically
-- By category/use case
-- By date added (show freshness)
-
-**Include on index pages**:
-- Last updated date for credibility
-- Number of pages/comparisons available
-- Quick filters if you have many comparisons
+| Shortcut | Why It Seems OK | Why It Fails | Do This Instead |
+|----------|----------------|--------------|-----------------|
+| "We only need to compare against 2-3 competitors" | Covers the main threats | Readers searching for alternatives you did not cover find a competitor's page instead of yours. Every uncovered competitor is traffic you cede. | Map all competitors with >500 monthly search volume for "[competitor] alternative" keywords. Prioritize by volume, cover all above threshold. |
+| "Feature tables are enough for comparison pages" | Quick to produce, easy to scan | Checkbox tables commoditize the comparison. Readers cannot distinguish meaningful differences. Bounce rates exceed 65% on table-only pages. | Use tables as summary only. Follow each table with narrative comparison explaining what the differences mean in practice. |
+| "We can publish now and update later" | Speed to market matters for SEO | "Later" averages 14 months in practice. Stale pages with wrong pricing or missing features damage credibility permanently. Readers share the errors on social media. | Build verification into the publishing workflow. No page goes live without a "last verified" date and a 90-day review owner assigned. |
+| "Being objective means we should not recommend ourselves" | Appears unbiased | Readers came to your site. They expect your perspective. False neutrality reads as either lack of confidence or concealed manipulation. | Be transparent about your bias. State who you are, then provide genuine analysis. Recommend competitors for use cases where they genuinely fit better. |
+| "Competitor pages are just an SEO play" | Primary traffic source is organic search | Comparison pages serve sales enablement, customer success (competitive displacement), and brand positioning. Treating them as SEO-only produces thin content that ranks temporarily and converts poorly. | Design for the buyer, not the algorithm. Sales teams use these pages in deals. CSMs share them during competitive displacement. |
 
 ---
 
-## Content Architecture
-
-### Centralized Competitor Data
-
-Create a single source of truth for each competitor:
-
-```
-competitor_data/
-├── notion.md
-├── airtable.md
-├── monday.md
-└── ...
-```
-
-**Per competitor, document**:
-
-```yaml
-name: Notion
-website: notion.so
-tagline: "The all-in-one workspace"
-founded: 2016
-headquarters: San Francisco
-
-# Positioning
-primary_use_case: "docs + light databases"
-target_audience: "teams wanting flexible workspace"
-market_position: "premium, feature-rich"
-
-# Pricing
-pricing_model: per-seat
-free_tier: true
-free_tier_limits: "limited blocks, 1 user"
-starter_price: $8/user/month
-business_price: $15/user/month
-enterprise: custom
-
-# Features (rate 1-5 or describe)
-features:
-  documents: 5
-  databases: 4
-  project_management: 3
-  collaboration: 4
-  integrations: 3
-  mobile_app: 3
-  offline_mode: 2
-  api: 4
-
-# Strengths (be honest)
-strengths:
-  - Extremely flexible and customizable
-  - Beautiful, modern interface
-  - Strong template ecosystem
-  - Active community
-
-# Weaknesses (be fair)
-weaknesses:
-  - Can be slow with large databases
-  - Learning curve for advanced features
-  - Limited automations compared to dedicated tools
-  - Offline mode is limited
-
-# Best for
-best_for:
-  - Teams wanting all-in-one workspace
-  - Content-heavy workflows
-  - Documentation-first teams
-  - Startups and small teams
-
-# Not ideal for
-not_ideal_for:
-  - Complex project management needs
-  - Large databases (1000s of rows)
-  - Teams needing robust offline
-  - Enterprise with strict compliance
-
-# Common complaints (from reviews)
-common_complaints:
-  - "Gets slow with lots of content"
-  - "Hard to find things as workspace grows"
-  - "Mobile app is clunky"
-
-# Migration notes
-migration_from:
-  difficulty: medium
-  data_export: "Markdown, CSV, HTML"
-  what_transfers: "Pages, databases"
-  what_doesnt: "Automations, integrations setup"
-  time_estimate: "1-3 days for small team"
-```
-
-### Your Product Data
-
-Same structure for yourself—be honest:
-
-```yaml
-name: [Your Product]
-# ... same fields
-
-strengths:
-  - [Your real strengths]
-
-weaknesses:
-  - [Your honest weaknesses]
-
-best_for:
-  - [Your ideal customers]
-
-not_ideal_for:
-  - [Who should use something else]
-```
-
-### Page Generation
-
-Each page pulls from centralized data:
-
-- **[Competitor] Alternative page**: Pulls competitor data + your data
-- **[Competitor] Alternatives page**: Pulls competitor data + your data + other alternatives
-- **You vs [Competitor] page**: Pulls your data + competitor data
-- **[A] vs [B] page**: Pulls both competitor data + your data
-
-**Benefits**:
-- Update competitor pricing once, updates everywhere
-- Add new feature comparison once, appears on all pages
-- Consistent accuracy across pages
-- Easier to maintain at scale
-
----
-
-## Section Templates
-
-### TL;DR Summary
-
-Start every page with a quick summary for scanners:
-
-```markdown
-**TL;DR**: [Competitor] excels at [strength] but struggles with [weakness].
-[Your product] is built for [your focus], offering [key differentiator].
-Choose [Competitor] if [their ideal use case]. Choose [You] if [your ideal use case].
-```
-
-### Paragraph Comparison (Not Just Tables)
-
-For each major dimension, write a paragraph:
-
-```markdown
-## Features
-
-[Competitor] offers [description of their feature approach].
-Their strength is [specific strength], which works well for [use case].
-However, [limitation] can be challenging for [user type].
-
-[Your product] takes a different approach with [your approach].
-This means [benefit], though [honest tradeoff].
-Teams who [specific need] often find this more effective.
-```
-
-### Feature Comparison Section
-
-Go beyond checkmarks:
-
-```markdown
-## Feature Comparison
-
-### [Feature Category]
-
-**[Competitor]**: [2-3 sentence description of how they handle this]
-- Strengths: [specific]
-- Limitations: [specific]
-
-**[Your product]**: [2-3 sentence description]
-- Strengths: [specific]
-- Limitations: [specific]
-
-**Bottom line**: Choose [Competitor] if [scenario]. Choose [You] if [scenario].
-```
-
-### Pricing Comparison Section
-
-```markdown
-## Pricing
-
-| | [Competitor] | [Your Product] |
-|---|---|---|
-| Free tier | [Details] | [Details] |
-| Starting price | $X/user/mo | $X/user/mo |
-| Business tier | $X/user/mo | $X/user/mo |
-| Enterprise | Custom | Custom |
-
-**What's included**: [Competitor]'s $X plan includes [features], while
-[Your product]'s $X plan includes [features].
-
-**Total cost consideration**: Beyond per-seat pricing, consider [hidden costs,
-add-ons, implementation]. [Competitor] charges extra for [X], while
-[Your product] includes [Y] in base pricing.
-
-**Value comparison**: For a 10-person team, [Competitor] costs approximately
-$X/year while [Your product] costs $Y/year, with [key differences in what you get].
-```
-
-### Service & Support Comparison
-
-```markdown
-## Service & Support
-
-| | [Competitor] | [Your Product] |
-|---|---|---|
-| Documentation | [Quality assessment] | [Quality assessment] |
-| Response time | [SLA if known] | [Your SLA] |
-| Support channels | [List] | [List] |
-| Onboarding | [What they offer] | [What you offer] |
-| CSM included | [At what tier] | [At what tier] |
-
-**Support quality**: Based on [G2/Capterra reviews, your research],
-[Competitor] support is described as [assessment]. Common feedback includes
-[quotes or themes].
-
-[Your product] offers [your support approach]. [Specific differentiator like
-response time, dedicated CSM, implementation help].
-```
-
-### Who It's For Section
-
-```markdown
-## Who Should Choose [Competitor]
-
-[Competitor] is the right choice if:
-- [Specific use case or need]
-- [Team type or size]
-- [Workflow or requirement]
-- [Budget or priority]
-
-**Ideal [Competitor] customer**: [Persona description in 1-2 sentences]
-
-## Who Should Choose [Your Product]
-
-[Your product] is built for teams who:
-- [Specific use case or need]
-- [Team type or size]
-- [Workflow or requirement]
-- [Priority or value]
-
-**Ideal [Your product] customer**: [Persona description in 1-2 sentences]
-```
-
-### Migration Section
-
-```markdown
-## Switching from [Competitor]
-
-### What transfers
-- [Data type]: [How easily, any caveats]
-- [Data type]: [How easily, any caveats]
-
-### What needs reconfiguration
-- [Thing]: [Why and effort level]
-- [Thing]: [Why and effort level]
-
-### Migration support
-
-We offer [migration support details]:
-- [Free data import tool / white-glove migration]
-- [Documentation / migration guide]
-- [Timeline expectation]
-- [Support during transition]
-
-### What customers say about switching
-
-> "[Quote from customer who switched]"
-> — [Name], [Role] at [Company]
-```
-
-### Social Proof Section
-
-Focus on switchers:
-
-```markdown
-## What Customers Say
-
-### Switched from [Competitor]
-
-> "[Specific quote about why they switched and outcome]"
-> — [Name], [Role] at [Company]
-
-> "[Another quote]"
-> — [Name], [Role] at [Company]
-
-### Results after switching
-- [Company] saw [specific result]
-- [Company] reduced [metric] by [amount]
-```
-
----
-
-## Comparison Table Best Practices
-
-### Beyond Checkmarks
-
-Instead of:
-| Feature | You | Competitor |
-|---------|-----|-----------|
-| Feature A | ✓ | ✓ |
-| Feature B | ✓ | ✗ |
-
-Do this:
-| Feature | You | Competitor |
-|---------|-----|-----------|
-| Feature A | Full support with [detail] | Basic support, [limitation] |
-| Feature B | [Specific capability] | Not available |
-
-### Organize by Category
-
-Group features into meaningful categories:
-- Core functionality
-- Collaboration
-- Integrations
-- Security & compliance
-- Support & service
-
-### Include Ratings Where Useful
-
-| Category | You | Competitor | Notes |
-|----------|-----|-----------|-------|
-| Ease of use | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | [Brief note] |
-| Feature depth | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | [Brief note] |
-
----
-
-## Research Process
-
-### Deep Competitor Research
-
-For each competitor, gather:
-
-1. **Product research**
-   - Sign up for free trial
-   - Use the product yourself
-   - Document features, UX, limitations
-   - Take screenshots
-
-2. **Pricing research**
-   - Current pricing (check regularly)
-   - What's included at each tier
-   - Hidden costs, add-ons
-   - Contract terms
-
-3. **Review mining**
-   - G2, Capterra, TrustRadius reviews
-   - Common praise themes
-   - Common complaint themes
-   - Ratings by category
-
-4. **Customer feedback**
-   - Talk to customers who switched
-   - Talk to prospects who chose competitor
-   - Document real quotes
-
-5. **Content research**
-   - Their positioning and messaging
-   - Their comparison pages (how do they compare to you?)
-   - Their documentation quality
-   - Their changelog (recent development)
-
-### Ongoing Updates
-
-Competitor pages need maintenance:
-
-- **Quarterly**: Verify pricing, check for major feature changes
-- **When notified**: Customer mentions competitor change
-- **Annually**: Full refresh of all competitor data
-
----
-
-## SEO Considerations
-
-### Keyword Targeting
-
-| Format | Primary Keywords | Secondary Keywords |
-|--------|-----------------|-------------------|
-| Alternative (singular) | [Competitor] alternative | alternative to [Competitor], switch from [Competitor], [Competitor] replacement |
-| Alternatives (plural) | [Competitor] alternatives | best [Competitor] alternatives, tools like [Competitor], [Competitor] competitors |
-| You vs Competitor | [You] vs [Competitor] | [Competitor] vs [You], [You] compared to [Competitor] |
-| Competitor vs Competitor | [A] vs [B] | [B] vs [A], [A] or [B], [A] compared to [B] |
-
-### Internal Linking
-
-- Link between related competitor pages
-- Link from feature pages to relevant comparisons
-- Link from blog posts mentioning competitors
-- Hub page linking to all competitor content
-
-### Schema Markup
-
-Consider FAQ schema for common questions:
-
-```json
-{
-  "@type": "FAQPage",
-  "mainEntity": [
-    {
-      "@type": "Question",
-      "name": "What is the best alternative to [Competitor]?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "[Your answer positioning yourself]"
-      }
-    }
-  ]
-}
-```
-
----
-
-## Output Format
-
-### Competitor Data File
-
-```yaml
-# [competitor].yaml
-# Complete competitor profile for use across all comparison pages
-```
-
-### Page Content
-
-For each page:
-- URL and meta tags
-- Full page copy organized by section
-- Comparison tables
-- CTAs
-
-### Page Set Plan
-
-Recommended pages to create:
-1. [List of alternative pages]
-2. [List of vs pages]
-3. Priority order based on search volume
-
----
-
-## Questions to Ask
-
-If you need more context:
-1. Who are your top 3-5 competitors?
-2. What's your core differentiator?
-3. What are common reasons people switch to you?
-4. Do you have customer quotes about switching?
-5. What's your pricing vs. competitors?
-6. Do you offer migration support?
-
----
-
-## Related Skills
-
-- **programmatic-seo**: For building competitor pages at scale
-- **copywriting**: For writing compelling comparison copy
-- **seo-audit**: For optimizing competitor pages
-- **schema-markup**: For FAQ and comparison schema
+## Red Flags Checklist
+
+- [ ] **Comparison page has no "last verified" date** -- Readers and Google both interpret undated comparisons as potentially stale. Every page needs verification dating and a review cycle owner.
+- [ ] **Zero competitor strengths acknowledged on any page** -- Every comparison page that shows your product winning every dimension signals bias. Include at least one genuine competitor advantage per page.
+- [ ] **Pricing data on comparison page differs from competitor's current pricing page** -- Instantly destroys credibility. Verify pricing quarterly at minimum. Automate monitoring when possible.
+- [ ] **No win/loss data informing comparison content** -- Comparison pages built from website research alone miss the buyer's actual decision criteria. Conduct win/loss interviews before writing comparison content.
+- [ ] **Battle cards not updated after competitor product launch or pricing change** -- Sales team using stale battle cards will make claims prospects can disprove in 30 seconds. Tie battle card updates to competitive signal monitoring.
+- [ ] **Comparison pages exist for competitors with <100 monthly searches** -- Low-volume comparison pages dilute editorial resources. Prioritize by search volume and sales team request frequency.
+- [ ] **Legal has not reviewed comparison page claims** -- Comparative advertising law varies by jurisdiction. A single unsubstantiated claim can trigger Lanham Act litigation or EU advertising complaints.

@@ -1,0 +1,86 @@
+[
+  {
+    "input": "Build a customer health scoring model for our SaaS platform. We need to track usage patterns, support ticket trends, and billing health across 200 accounts.",
+    "expected_output": "should trigger",
+    "category": "health-scoring",
+    "notes": "Core use case: multi-dimensional health scoring with usage, support, and financial dimensions"
+  },
+  {
+    "input": "Our churn rate jumped from 5% to 12% this quarter. Help me identify what early warning signals we should have caught and build a churn prevention framework.",
+    "expected_output": "should trigger",
+    "category": "churn-prevention",
+    "notes": "Churn signal detection and intervention playbook design"
+  },
+  {
+    "input": "I need to prepare a QBR for our largest enterprise account ($250K ACV). They have been a customer for 2 years and their renewal is in 4 months.",
+    "expected_output": "should trigger",
+    "category": "qbr-preparation",
+    "notes": "QBR playbook with value delivered section and success plan for enterprise tier"
+  },
+  {
+    "input": "Design a customer segmentation model for our 500-account portfolio. We need to determine CSM ratios, touch frequency, and which accounts get high-touch vs tech-touch.",
+    "expected_output": "should trigger",
+    "category": "customer-segmentation",
+    "notes": "Segmentation by ACV, health score, and lifecycle stage"
+  },
+  {
+    "input": "Create an NPS program for our B2B SaaS. We need survey cadence, response action framework, and a closed-loop process for detractors.",
+    "expected_output": "should trigger",
+    "category": "nps-program",
+    "notes": "NPS/CSAT program design with detractor response SLAs"
+  },
+  {
+    "input": "Three of our top-10 accounts have executive sponsors who recently changed roles. Help me build an intervention plan before these accounts become at-risk.",
+    "expected_output": "should trigger",
+    "category": "upsell-identification",
+    "notes": "Champion departure intervention and multi-threading strategy"
+  },
+  {
+    "input": "We need onboarding success metrics for our new customer cohort. What should we measure during the first 90 days to predict long-term retention?",
+    "expected_output": "should trigger",
+    "category": "onboarding-metrics",
+    "notes": "Onboarding health dimension: time-to-first-value, milestone completion, training adoption"
+  },
+  {
+    "input": "Build a renewal playbook with 90/60/30 day cadence. Our renewal rate is 82% and we need to get it above 90%. Include risk mitigation by failure dimension.",
+    "expected_output": "should trigger",
+    "category": "renewal-management",
+    "notes": "Full renewal cadence with dimension-specific risk mitigation interventions"
+  },
+  {
+    "input": "Help me find and qualify 50 new leads in the fintech space for our outbound campaign. I need company size, tech stack, and decision-maker contacts.",
+    "expected_output": "should NOT trigger",
+    "category": "lead-generation",
+    "notes": "Pre-sale lead generation belongs to lead-research-assistant, not customer-success"
+  },
+  {
+    "input": "I need to write a sales proposal for a $150K deal. Help me structure the pitch deck, pricing options, and ROI projections to close this prospect.",
+    "expected_output": "should NOT trigger",
+    "category": "sales-closing",
+    "notes": "Deal closing and proposal writing belongs to sales-enablement, not customer-success"
+  },
+  {
+    "input": "Our customer success team manages accounts post-sale, but three accounts just had their usage drop 25% in one month while simultaneously their champion left the company. What is our playbook?",
+    "expected_output": "should trigger",
+    "category": "pressure-test-compound-signals",
+    "notes": "Compound churn signal pattern: The Silent Retreat + Champion Collapse. Must reference multi-signal risk scoring and immediate escalation."
+  },
+  {
+    "input": "A customer with $80K ACV is requesting a 40% discount at renewal. Their health score is Green across all dimensions and they expanded twice last year. How do we handle this?",
+    "expected_output": "should trigger",
+    "category": "pressure-test-discount-negotiation",
+    "notes": "Rationalization table scenario: quantify ROI first, negotiate on scope not price. Discount dependency anti-pattern applies."
+  },
+  {
+    "input": "Design an escalation framework with severity levels, response SLAs, and escalation paths for our 300-account CS organization.",
+    "expected_output": "should trigger",
+    "category": "escalation-framework",
+    "notes": "Severity-based escalation with SEV-1 through SEV-4 definitions and ownership"
+  },
+  {
+    "input": "Map the full customer journey from post-sale handoff through renewal and into advocacy. Include stage definitions, exit criteria, and metrics for each stage.",
+    "expected_output": "should trigger",
+    "category": "customer-journey",
+    "notes": "Lifecycle stages: onboarding, adoption, expansion, renewal, advocacy with exit criteria"
+  }
+]

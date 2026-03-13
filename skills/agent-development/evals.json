@@ -1,0 +1,64 @@
+{
+  "evals": [
+    {
+      "input": "I want to create an agent that reviews code whenever the user asks for it",
+      "expected_behavior": "First ask: should this be an agent or a command? Since the user always explicitly asks, a command might be simpler. If agent is chosen, emphasize description engineering — need 2-4 examples with varied phrasings ('review my code', 'check my changes', 'look over this PR').",
+      "anti_pattern": "Jumping straight to writing the system prompt without considering agent vs command or investing in description quality",
+      "difficulty": "easy"
+    },
+    {
+      "input": "My agent never triggers even though the system prompt is perfect",
+      "expected_behavior": "Diagnose as a description problem, not a system prompt problem. The system prompt only matters AFTER triggering. Check: does the description have example blocks? Do examples cover varied phrasings? Is the description too narrow (only matches one specific phrase)?",
+      "anti_pattern": "Debugging the system prompt when the agent never even loads",
+      "difficulty": "easy"
+    },
+    {
+      "input": "I need my code-review agent to fire automatically after every code change, not just when the user asks",
+      "expected_behavior": "This requires proactive triggering examples in the description. The examples need Context showing 'User just wrote code' with commentary explaining 'Code was written, proactively trigger review.' Without proactive examples, Claude won't trigger it automatically.",
+      "anti_pattern": "Trying to add proactive behavior in the system prompt rather than in the description examples",
+      "difficulty": "medium"
+    },
+    {
+      "input": "What model should I use for my agent that validates config files?",
+      "expected_behavior": "Config validation is a structured, rule-based task — haiku or inherit is fine. Don't waste opus on simple validation. Only use opus for agents making complex reasoning decisions (architecture review, security analysis with nuanced judgment).",
+      "anti_pattern": "Defaulting to opus 'to be safe' for a task that doesn't need complex reasoning",
+      "difficulty": "easy"
+    },
+    {
+      "input": "My agent has access to all tools but it only reads files. Should I change anything?",
+      "expected_behavior": "Yes — restrict to ['Read', 'Grep', 'Glob']. Principle of least privilege. An agent with Bash and Write access that only needs to read is over-permissioned. Restricting tools prevents unintended side effects.",
+      "anti_pattern": "Leaving all tools available because 'it works fine'",
+      "difficulty": "easy"
+    },
+    {
+      "input": "I have two agents that both trigger when the user says 'check my code'. How do I fix this?",
+      "expected_behavior": "Triggering conflict. Solutions: 1) Differentiate descriptions — make each agent's trigger conditions more specific. 2) Add negative boundaries ('Do NOT use for security checks, use security-analyzer instead'). 3) Consider if both agents should be merged into one.",
+      "anti_pattern": "Adding more examples to both agents, making the conflict worse",
+      "difficulty": "medium"
+    },
+    {
+      "input": "Write a system prompt for my test-generator agent",
+      "expected_behavior": "Use the Generation pattern. Key elements: convention matching (read existing tests first), quality standards (coverage, edge cases, naming), output format (file path, test structure). Load references/system-prompt-design.md for the full template. Don't write a vague 'generate good tests' prompt.",
+      "anti_pattern": "Writing a system prompt without defined output format, quality standards, or convention matching",
+      "difficulty": "medium"
+    },
+    {
+      "input": "I want my agent to handle code review, test generation, AND documentation — should I make one agent or three?",
+      "expected_behavior": "Three separate agents. Each has different trigger conditions, different tool needs, different output formats. A single agent trying to do all three will have a confused description (when to trigger?) and a bloated system prompt. Focused agents trigger more reliably.",
+      "anti_pattern": "Building a 'super agent' that does everything, resulting in unreliable triggering and inconsistent output",
+      "difficulty": "hard"
+    },
+    {
+      "input": "My agent triggers correctly but the output quality is inconsistent — sometimes great, sometimes terrible",
+      "expected_behavior": "Diagnose system prompt issues: likely missing output format specification, missing quality standards, or missing edge case handling. The system prompt should define EXACTLY what sections to include, what quality looks like, and how to handle unusual inputs.",
+      "anti_pattern": "Blaming the model instead of improving the system prompt's specificity",
+      "difficulty": "hard"
+    },
+    {
+      "input": "Should I add proactive examples to every agent I build?",
+      "expected_behavior": "No. Only add proactive examples if the agent SHOULD fire automatically. Many agents are purely reactive (user explicitly asks). Adding proactive examples to a reactive-only agent causes unwanted triggering. Decide upfront: reactive only, proactive only, or both.",
+      "anti_pattern": "Adding proactive examples to every agent 'for completeness' without considering whether proactive triggering is appropriate",
+      "difficulty": "medium"
+    }
+  ]
+}

@@ -1,5 +1,39 @@
 # Cold Email Copywriting Frameworks
 
+## Which Framework Fits This Situation?
+
+```
+Prospect awareness level?
+|
++-- PROBLEM-AWARE (knows they have the problem)
+|   +-- Analytical / data-driven --> AIDA or ACCA
+|   +-- Time-pressed (C-suite) --> QVC or Mouse Trap
+|   +-- Emotional decision-maker --> BAB or PAS
+|
++-- SOLUTION-UNAWARE (has problem, doesn't know solutions exist)
+|   +-- You have a trigger event --> SCQ or Trigger->Insight->Ask
+|   +-- You have a customer story --> Star-Story-Solution or 3C's
+|   +-- You have a strong data point --> AIDA
+|
++-- NOT PROBLEM-AWARE (doesn't realize they have the problem)
+|   +-- Josh Braun "Poke the Bear" -- neutral question approach
+|   +-- PAS with stronger agitation
+|
++-- Default / unclear --> Vanilla Ice Cream (universal base)
+```
+
+## Before/After: PAS Framework
+
+**WEAK (generic, no research, feature-focused):**
+> Hi Sarah, I hope this finds you well. We help companies with their hiring challenges. Our AI-powered platform reduces time-to-hire by leveraging advanced algorithms. Would you like to schedule a 30-minute demo?
+
+**STRONG (research signal, specific agitation, interest CTA):**
+> Sarah -- saw you posted 11 engineering roles last month. When the req count spikes like that, screening volume usually buries the team and time-to-fill creeps past 60 days. We helped Acme's 4-person TA team cut that to 31 days after a similar hiring push. Worth a look?
+
+**Why it works:** The observation (11 roles) proves research. The agitation (screening volume, 60-day creep) names a consequence they recognize. The proof (Acme, 31 days) is specific and comparable. The CTA (worth a look?) is low-friction.
+
+---
+
 ## PAS (Problem, Agitate, Solution)
 
 Identify pain -> Amplify consequences -> Present solution + soft CTA.

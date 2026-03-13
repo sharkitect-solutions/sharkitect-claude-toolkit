@@ -1,0 +1,76 @@
+{
+  "evals": [
+    {
+      "input": "I need to add memory to my chatbot so it remembers user preferences across sessions",
+      "expected_behavior": "Recommend entity memory for user preferences with TTL of 30-90 days, suggest metadata schema (timestamp, source, confidence), mention that preferences change and stale ones cause friction",
+      "anti_pattern": "Recommending a vector store or conversation buffer for structured preference data",
+      "difficulty": "easy"
+    },
+    {
+      "input": "How should I chunk my company's 200-page documentation for a RAG agent?",
+      "expected_behavior": "Recommend semantic chunking with contextual prepending, 10-20% overlap, suggest hybrid search (vector + BM25), mention chunk size should stay under 1024 tokens",
+      "anti_pattern": "Suggesting fixed-size 512-token chunks without discussing overlap or contextual chunking",
+      "difficulty": "easy"
+    },
+    {
+      "input": "My agent has the right information in its vector store but keeps giving wrong answers",
+      "expected_behavior": "Walk through the retrieval failure hierarchy: wrong chunks retrieved, split answers, semantic drift, recency bias. Suggest hybrid search, increasing overlap, query expansion",
+      "anti_pattern": "Suggesting to add more data or retrain the model without diagnosing the retrieval pipeline first",
+      "difficulty": "easy"
+    },
+    {
+      "input": "Just set up a basic memory system for my agent, nothing fancy",
+      "expected_behavior": "Still ask the four architecture questions (what to remember, how long, how to retrieve, cost of forgetting) before recommending. Even 'basic' requires matching memory type to data type",
+      "anti_pattern": "Skipping the decision framework and defaulting to conversation buffer because the user said 'basic'",
+      "difficulty": "medium"
+    },
+    {
+      "input": "We want to switch from OpenAI embeddings to Cohere embeddings for our production RAG system",
+      "expected_behavior": "Warn that switching embedding models requires full re-indexing of ALL stored vectors. Old and new vectors are in incompatible semantic spaces. Plan for downtime or dual-index migration.",
+      "anti_pattern": "Treating it as a simple config change without mentioning re-indexing requirement",
+      "difficulty": "medium"
+    },
+    {
+      "input": "Should I use a knowledge graph or vector store for my customer support agent?",
+      "expected_behavior": "Ask what kinds of queries the agent handles. If mostly 'how do I X' factual lookups, vector store. If 'who is responsible for X and what's their relationship to Y', knowledge graph. Likely recommend hybrid.",
+      "anti_pattern": "Recommending one without asking about query patterns and relationship complexity",
+      "difficulty": "medium"
+    },
+    {
+      "input": "My agent's memory keeps growing and search is getting slower. How do I manage this?",
+      "expected_behavior": "Recommend TTL tiers (session context: end of session, task facts: 24-72h, preferences: 30-90 days, domain knowledge: permanent with versioning). Suggest memory consolidation for granular entries.",
+      "anti_pattern": "Suggesting to just increase server resources or add more indexes without addressing lifecycle management",
+      "difficulty": "medium"
+    },
+    {
+      "input": "I'm building a legal research agent. What memory architecture should I use?",
+      "expected_behavior": "High-stakes domain: recommend contextual chunking (prepend case/section context), strict metadata (timestamp, source, jurisdiction, confidence), contradiction handling that flags conflicts rather than silently overwriting, hybrid search mandatory",
+      "anti_pattern": "Generic RAG setup without acknowledging the high cost of forgetting in legal domain",
+      "difficulty": "medium"
+    },
+    {
+      "input": "Can you quickly help me store my agent's conversation history? I'll optimize later.",
+      "expected_behavior": "Explain that chunking determines 80% of retrieval quality - this is NOT something to optimize later. Get the fundamentals right now: choose appropriate memory type, set up metadata, implement overlap. The rationalization table explicitly addresses 'we'll optimize chunking later'.",
+      "anti_pattern": "Just showing how to dump raw conversation turns into a vector store because the user wants something quick",
+      "difficulty": "hard"
+    },
+    {
+      "input": "My entity extraction keeps confusing different people mentioned in conversations. How do I fix this?",
+      "expected_behavior": "Acknowledge coreference resolution is genuinely hard ('she', 'the client', 'Mrs. Chen' must resolve to same entity). Suggest explicit entity linking with user confirmation for ambiguous cases, maintaining an entity registry with aliases.",
+      "anti_pattern": "Suggesting a better NER model will solve it, without addressing the fundamental coreference challenge",
+      "difficulty": "hard"
+    },
+    {
+      "input": "We have contradictory information in our agent's memory - old product specs conflict with new ones. What do we do?",
+      "expected_behavior": "Follow the contradiction handling protocol: don't silently overwrite, timestamp both, keep both with confidence scores, use recency as tiebreaker. For product specs specifically, implement versioned domain knowledge with the latest version marked as primary.",
+      "anti_pattern": "Just deleting the old information without a systematic approach to contradiction handling",
+      "difficulty": "hard"
+    },
+    {
+      "input": "I want to use the same embedding model for storing code snippets, natural language docs, and structured data tables",
+      "expected_behavior": "Flag that same embedding model for all content types is a red flag. Code, prose, and structured data have different semantic properties. At minimum, use different chunking strategies per type. Ideally, use domain-specific embeddings for code (e.g., code-specific models).",
+      "anti_pattern": "Accepting this approach without questioning it, or just suggesting a 'better' general-purpose model",
+      "difficulty": "hard"
+    }
+  ]
+}

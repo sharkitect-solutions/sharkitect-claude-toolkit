@@ -1,413 +1,137 @@
 ---
-name: SEO Optimizer
-description: Search Engine Optimization specialist for content strategy, technical SEO, keyword research, and ranking improvements. Use when optimizing website content, improving search rankings, conducting keyword analysis, or implementing SEO best practices. Expert in on-page SEO, meta tags, schema markup, and Core Web Vitals.
+name: seo-optimizer
+description: Use when optimizing website content for search rankings, conducting keyword research, auditing technical SEO issues, implementing schema markup, or planning organic content strategy. NEVER use for paid search (PPC/Google Ads), social media strategy, or general copywriting that is not search-intent-driven.
+version: "2.0"
+optimized: true
+optimized_date: "2026-03-10"
 ---
 
 # SEO Optimizer
 
-Comprehensive guidance for search engine optimization across content, technical implementation, and strategic planning to improve organic search visibility and rankings.
-
-## When to Use This Skill
-
-Use this skill when:
-- Optimizing website content for search engines
-- Conducting keyword research and analysis
-- Implementing technical SEO improvements
-- Creating SEO-friendly meta tags and descriptions
-- Auditing websites for SEO issues
-- Improving Core Web Vitals and page speed
-- Implementing schema markup (structured data)
-- Planning content strategy for organic traffic
-
-## SEO Fundamentals
-
-### 1. Keyword Research & Strategy
-
-**Primary Keyword Selection:**
-- Focus on search intent (informational, navigational, transactional, commercial)
-- Balance search volume with competition
-- Consider keyword difficulty and ranking potential
-- Target long-tail keywords for quick wins
-
-**Keyword Research Process:**
-```
-1. Identify seed keywords from business objectives
-2. Use tools to expand keyword list (Google Keyword Planner, Ahrefs, SEMrush)
-3. Analyze search volume and difficulty
-4. Group keywords by topic clusters
-5. Map keywords to content types and pages
-6. Prioritize based on potential ROI
-```
-
-**Content Optimization Formula:**
-- Primary keyword: 1-2% density (natural placement)
-- Include in: Title tag, H1, first paragraph, URL, meta description
-- Use semantic variations and related terms
-- Maintain natural readability (don't keyword stuff)
-
-### 2. On-Page SEO
-
-**Title Tag Optimization:**
-```html
-<!-- Good: Descriptive, includes keyword, under 60 characters -->
-<title>Ultimate Guide to React Hooks - Learn useEffect & useState</title>
-
-<!-- Bad: Too long, keyword stuffing, generic -->
-<title>React Hooks Guide React Hooks Tutorial React Hooks Examples Learn React</title>
-```
-
-**Best Practices:**
-- Keep under 60 characters (displayed in SERPs)
-- Place primary keyword near the beginning
-- Include brand name if space permits
-- Make compelling and click-worthy
-- Unique for every page
-
-**Meta Description:**
-```html
-<!-- Good: Compelling, includes keywords, call-to-action, 150-160 chars -->
-<meta name="description" content="Master React Hooks with our comprehensive guide. Learn useState, useEffect, and custom hooks with practical examples. Start building better React apps today.">
-
-<!-- Bad: Too short, no value proposition -->
-<meta name="description" content="React Hooks guide and tutorial">
-```
-
-**Header Structure:**
-```html
-<!-- Proper hierarchy -->
-<h1>Main Page Title (Primary Keyword)</h1>
-  <h2>Section Heading (Related Keywords)</h2>
-    <h3>Subsection</h3>
-    <h3>Subsection</h3>
-  <h2>Another Section</h2>
-    <h3>Subsection</h3>
-```
-
-**URL Structure:**
-```
-✅ Good URLs:
-- /blog/react-hooks-guide
-- /products/running-shoes
-- /learn/javascript-async-await
-
-❌ Bad URLs:
-- /blog?p=12345
-- /products/cat-1/subcat-2/item-999
-- /page.php?id=abc&ref=xyz
-```
-
-**Image Optimization:**
-```html
-<!-- Optimized image -->
-<img
-  src="/images/react-hooks-diagram-800w.webp"
-  alt="React Hooks lifecycle diagram showing useState and useEffect"
-  width="800"
-  height="600"
-  loading="lazy"
-/>
-```
-
-**Best Practices:**
-- Use descriptive, keyword-rich alt text
-- Compress images (WebP format preferred)
-- Specify dimensions to prevent layout shift
-- Use lazy loading for below-fold images
-- Include captions when relevant
-
-### 3. Content Quality
-
-**E-E-A-T Principles (Experience, Expertise, Authoritativeness, Trust):**
-- Demonstrate author expertise with credentials
-- Cite authoritative sources
-- Keep content accurate and up-to-date
-- Show real experience and original insights
-- Include author bios and bylines
-
-**Content Structure for SEO:**
-```markdown
-# Main Title (H1) - Primary Keyword
-
-Brief introduction with primary keyword in first 100 words.
-
-## What is [Topic]? (H2) - Answer core question
-
-Comprehensive explanation with examples.
-
-## Why [Topic] Matters (H2) - Value proposition
-
-Benefits and use cases.
-
-## How to [Action] (H2) - Practical guide
-
-Step-by-step instructions with visuals.
-
-## Best Practices (H2) - Advanced tips
-
-Expert recommendations.
-
-## Common Mistakes to Avoid (H2)
-
-Troubleshooting and pitfalls.
-
-## Conclusion
-
-Summary and call-to-action.
-```
-
-**Content Length Guidelines:**
-- Blog posts: 1,500-2,500 words (comprehensive topics)
-- Product pages: 300-500 words minimum
-- Category pages: 500-1,000 words
-- Homepage: 500+ words
-
-### 4. Technical SEO
-
-**Schema Markup (Structured Data):**
-```json
-{
-  "@context": "https://schema.org",
-  "@type": "Article",
-  "headline": "Complete Guide to React Hooks",
-  "image": "https://example.com/images/react-hooks.jpg",
-  "datePublished": "2024-01-15",
-  "dateModified": "2024-02-01",
-  "author": {
-    "@type": "Person",
-    "name": "Jane Developer"
-  },
-  "publisher": {
-    "@type": "Organization",
-    "name": "Tech Academy",
-    "logo": {
-      "@type": "ImageObject",
-      "url": "https://example.com/logo.png"
-    }
-  }
-}
-```
-
-**Common Schema Types:**
-- Article (blog posts)
-- Product (e-commerce)
-- FAQ (question/answer pages)
-- HowTo (tutorials and guides)
-- Organization (company info)
-- LocalBusiness (location-based businesses)
-- BreadcrumbList (navigation paths)
-- Review/AggregateRating (ratings and reviews)
-
-**Robots.txt Configuration:**
-```
-User-agent: *
-Disallow: /admin/
-Disallow: /private/
-Disallow: /api/
-Allow: /api/public/
-
-Sitemap: https://example.com/sitemap.xml
-```
-
-**XML Sitemap Structure:**
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://example.com/</loc>
-    <lastmod>2024-01-15</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>https://example.com/blog/react-hooks-guide</loc>
-    <lastmod>2024-01-10</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-</urlset>
-```
-
-**Canonical Tags:**
-```html
-<!-- Prevent duplicate content issues -->
-<link rel="canonical" href="https://example.com/original-page">
-
-<!-- Handle URL parameters -->
-<link rel="canonical" href="https://example.com/products/shoes">
-<!-- Even if accessed via: /products/shoes?color=red&size=10 -->
-```
-
-### 5. Core Web Vitals
-
-**Largest Contentful Paint (LCP) - Target: < 2.5s**
-- Optimize images and videos
-- Use CDN for static assets
-- Minimize render-blocking resources
-- Implement lazy loading
-
-**First Input Delay (FID) - Target: < 100ms**
-- Minimize JavaScript execution time
-- Break up long tasks
-- Use web workers for heavy computations
-- Defer non-critical JavaScript
-
-**Cumulative Layout Shift (CLS) - Target: < 0.1**
-- Set size attributes on images and videos
-- Avoid inserting content above existing content
-- Use transform animations instead of layout-triggering properties
-- Reserve space for ads and embeds
-
-**Page Speed Optimization:**
-```html
-<!-- Preload critical resources -->
-<link rel="preload" href="/fonts/main.woff2" as="font" crossorigin>
-
-<!-- Defer non-critical CSS -->
-<link rel="preload" href="/styles/non-critical.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-
-<!-- Async/defer JavaScript -->
-<script src="/js/analytics.js" async></script>
-<script src="/js/main.js" defer></script>
-```
-
-### 6. Mobile SEO
-
-**Mobile-First Optimization:**
-- Responsive design (mobile-friendly test passed)
-- Touch-friendly buttons (minimum 48x48px)
-- Readable font sizes (16px minimum)
-- Proper viewport configuration
-- Fast mobile page speed
-
-**Viewport Configuration:**
-```html
-<meta name="viewport" content="width=device-width, initial-scale=1">
-```
-
-### 7. Internal Linking Strategy
-
-**Best Practices:**
-- Use descriptive anchor text (avoid "click here")
-- Link to relevant, contextual pages
-- Maintain logical hierarchy and flow
-- Include 3-5 internal links per 1,000 words
-- Update old content with links to new content
-
-**Example:**
-```markdown
-Learn more about [advanced React patterns](/guides/react-patterns)
-or check out our [useState hook tutorial](/tutorials/usestate-guide).
-```
-
-## SEO Content Checklist
-
-**Before Publishing:**
-- [ ] Primary keyword in title tag (under 60 chars)
-- [ ] Meta description (150-160 chars, compelling)
-- [ ] H1 tag with primary keyword
-- [ ] URL slug optimized and readable
-- [ ] Images compressed with descriptive alt text
-- [ ] 3-5 internal links to relevant content
-- [ ] External links to authoritative sources
-- [ ] Content length appropriate for topic depth
-- [ ] Schema markup implemented
-- [ ] Mobile-friendly and responsive
-- [ ] Page speed optimized (< 3s load time)
-- [ ] No broken links
-- [ ] Canonical tag set correctly
-- [ ] Social sharing meta tags (Open Graph, Twitter Card)
-
-## Advanced SEO Strategies
-
-### Topic Clusters & Pillar Pages
-
-**Structure:**
-```
-Pillar Page: "Complete Guide to React"
-  ├── Cluster: "React Hooks Tutorial"
-  ├── Cluster: "React Context API Guide"
-  ├── Cluster: "React Performance Optimization"
-  └── Cluster: "React Testing Best Practices"
-```
-
-**Implementation:**
-- Create comprehensive pillar content (3,000+ words)
-- Develop 8-12 cluster articles supporting the pillar
-- Link all clusters back to pillar page
-- Link pillar page to all clusters
-- Use consistent keyword themes
-
-### Featured Snippet Optimization
-
-**Question-Based Content:**
-```markdown
-## What is React?
-
-React is a JavaScript library for building user interfaces,
-developed by Facebook. It allows developers to create reusable
-UI components and efficiently update the DOM through a virtual
-DOM implementation.
-```
-
-**List-Based Content:**
-```markdown
-## Top 5 React Best Practices
-
-1. Use functional components with hooks
-2. Implement proper state management
-3. Optimize performance with React.memo
-4. Follow component composition patterns
-5. Write comprehensive tests
-```
-
-**Table-Based Content:**
-| Framework | Performance | Learning Curve | Ecosystem |
-|-----------|-------------|----------------|-----------|
-| React     | Excellent   | Moderate       | Extensive |
-| Vue       | Excellent   | Easy           | Growing   |
-| Angular   | Good        | Steep          | Mature    |
-
-## Local SEO (for businesses with physical locations)
-
-**Google Business Profile Optimization:**
-- Complete all business information
-- Regular posts and updates
-- Respond to reviews
-- Add high-quality photos
-- Verify business hours
-
-**Local Schema Markup:**
-```json
-{
-  "@type": "LocalBusiness",
-  "name": "Tech Solutions Inc",
-  "address": {
-    "@type": "PostalAddress",
-    "streetAddress": "123 Main St",
-    "addressLocality": "San Francisco",
-    "addressRegion": "CA",
-    "postalCode": "94102"
-  },
-  "telephone": "+1-415-555-0123"
-}
-```
-
-## Monitoring & Analytics
-
-**Key Metrics to Track:**
-- Organic traffic trends
-- Keyword rankings
-- Click-through rates (CTR)
-- Bounce rate and dwell time
-- Core Web Vitals scores
-- Backlink profile growth
-- Conversion rates from organic traffic
-
-**Tools:**
-- Google Search Console (performance, indexing issues)
-- Google Analytics 4 (traffic, behavior, conversions)
-- PageSpeed Insights (Core Web Vitals)
-- Ahrefs/SEMrush (keywords, backlinks, competition)
-- Screaming Frog (technical audits)
-
-When optimizing for SEO, prioritize user experience and value delivery. Search engines increasingly reward content that genuinely helps users and provides authoritative, trustworthy information.
+## SEO Conflict Resolution
+
+These are the real decisions that require judgment. Claude's default behavior without this skill is to treat each SEO factor in isolation. Apply these resolutions instead.
+
+| Conflict | Default Mistake | Correct Resolution |
+|---|---|---|
+| Page speed vs. content richness | Remove images/JS to hit Core Web Vitals targets | Optimize delivery (lazy load, WebP, CDN) before removing content. Speed wins only when content removal has zero user-experience cost. |
+| Keyword density vs. natural readability | Force keyword to 1-2% density even when it sounds robotic | Semantic variants and related terms count. One natural mention in H1 + one in intro is sufficient. Readability beats density every time. |
+| Content length vs. search intent | Default to 2,000+ words because "longer ranks better" | Match intent: transactional queries want concise pages with clear CTAs, not exhaustive guides. Long-form is correct for informational head terms only. |
+| Internal linking vs. user flow | Add 5+ internal links per page because "links pass authority" | Cap at 3-5 per 1,000 words. Each link is a distraction. Prioritize links that help the user complete their task, not links that sculpt PageRank. |
+| Canonical vs. content variation | Canonical every near-duplicate to the main URL by default | Let pages compete when they serve different intent variants (e.g., "best running shoes" vs. "cheap running shoes"). Canonical kills ranking opportunity for legitimately distinct pages. |
+| Schema completeness vs. maintenance burden | Mark up every schema type on every page | Focus schema on pages with direct SERP feature opportunity: FAQ on support pages, Product on e-commerce, HowTo on tutorials. Skip schema on pages with no realistic rich result chance. |
+| Freshness signals vs. content stability | Update dates and rewrite sections to appear fresh | Only update when content accuracy has degraded. Gratuitous refreshes without substance changes can trigger re-evaluation and temporary ranking dips. |
+
+## Intent-to-Content Format Decision Framework
+
+Search intent determines format before any other consideration. Getting this wrong makes optimization effort irrelevant.
+
+| Intent Type | Signal Words | Correct Format | Wrong Format |
+|---|---|---|---|
+| Informational | "how to", "what is", "guide", "tutorial", "learn" | Long-form guide, step-by-step, comparison tables | Product pages with CTAs |
+| Navigational | Brand name, "[brand] login", "[product] pricing" | Landing page, direct answer, quick links | Blog posts, guides |
+| Transactional | "buy", "price", "discount", "order", "cheap" | Product page with clear CTA, minimal friction | Long editorial content |
+| Commercial investigation | "best", "vs", "review", "alternative", "top 10" | Comparison page, review with verdict, case study | Pure informational guides with no recommendation |
+
+When intent is ambiguous: check the top 5 SERP results. The format Google is already ranking reveals the inferred intent. Match that format.
+
+## SEO Audit Priority Matrix
+
+Fix in this order. Impact is not alphabetical or intuitive -- this sequence is derived from what creates the fastest measurable ranking lift.
+
+**Tier 1 -- Fix immediately (blocks indexing or signals penalties):**
+- Pages accidentally blocked in robots.txt or noindex that should rank
+- Missing or duplicate title tags on pages that receive organic traffic
+- Broken canonical tags pointing to non-existent or wrong URLs
+- 4xx errors on pages with external backlinks
+- Redirect chains longer than 3 hops (link equity bleeds at each hop)
+
+**Tier 2 -- Fix this week (direct ranking signal improvement):**
+- Missing schema markup on pages with clear rich result opportunity
+- Thin content (under 300 words) on pages Google has already indexed and ranked
+- Mobile usability failures reported in Google Search Console
+- Core Web Vitals failing pages that are in the top 20% of organic traffic
+- Title tags over 60 characters getting truncated in SERPs
+
+**Tier 3 -- Fix this month (incremental gains, compounding over time):**
+- Image alt text missing on content images (decorative images do not need alt text)
+- Internal linking gaps -- high-authority pages not linking to related content
+- Content freshness on pages ranking positions 4-10 that cover time-sensitive topics
+- URL structure cleanup on new site sections (avoid touching existing URLs that rank)
+
+## Edge Cases That Change All Advice
+
+| Scenario | How Standard SEO Advice Breaks | What to Do Instead |
+|---|---|---|
+| Single-page app (SPA) with client-side rendering | Standard crawling advice fails -- Googlebot may not execute JS fully | Implement server-side rendering (SSR) or static site generation (SSG). Test with Google's URL Inspection tool. Treat hydration time as a Core Web Vitals factor. |
+| International/multilingual site | Separate-URL strategy creates duplicate content risk; subdomain vs. subdirectory debate is context-dependent | Use hreflang annotations for every language/region pair. Prefer subdirectory (/en/, /es/) over subdomains for sites without CDN infrastructure to support subdomain authority building. |
+| E-commerce with 10,000+ product pages | Crawl budget becomes a real constraint; faceted navigation creates URL explosion | Use robots.txt or canonical tags to consolidate faceted navigation. Prioritize crawl budget for pages with sales potential. Paginate category pages with rel=next/prev patterns. |
+| Content behind login or paywall | Google cannot index gated content by default | Use first-click-free or structured data paywallContent schema. For lead gen, ensure metadata (title, description) is descriptive enough to generate clicks even when content is gated. |
+| Site migration (domain change or URL restructure) | Redirect mapping errors can erase years of ranking history | Map every URL with inbound links or organic traffic. Implement 301s before DNS cutover. Monitor Search Console for coverage errors for 90 days post-migration. Expect 10-20% temporary traffic dip. |
+
+## SEO Activation Reminders
+
+These principles are deeply known. This table exists only as a pre-flight check -- not learning material. Review before starting any optimization task.
+
+| Area | One-Line Check |
+|---|---|
+| Title tag | Under 60 chars, primary keyword near start, unique per page |
+| Meta description | 150-160 chars, compelling, matches page content (does not affect ranking, affects CTR) |
+| H1 | One per page, contains primary keyword, matches or closely mirrors title tag |
+| URL structure | Lowercase, hyphens not underscores, keyword-relevant, stable once published |
+| Images | WebP or compressed JPEG, descriptive alt text on content images, width/height set |
+| E-E-A-T | Author credentials, cited sources, original insight -- applies to YMYL topics most |
+| Core Web Vitals | LCP < 2.5s, FID/INP < 200ms, CLS < 0.1 -- measure on field data not lab only |
+| Mobile-first | Test on real devices -- viewport, tap target size (48x48px min), font 16px min |
+| Internal links | Descriptive anchor text, 3-5 per 1,000 words, update old content to link new |
+| Schema | Validate with Google's Rich Results Test before deploying |
+
+## Pre-Publish SEO Checklist
+
+- [ ] Title tag: unique, keyword-forward, under 60 characters
+- [ ] Meta description: 150-160 characters, written to earn clicks
+- [ ] H1 present, one only, contains primary keyword
+- [ ] URL is readable and keyword-relevant
+- [ ] Images have alt text; file sizes compressed
+- [ ] Internal links added to and from this page
+- [ ] Schema markup implemented and validated
+- [ ] Mobile rendering tested
+- [ ] Canonical tag correct or absent (do not self-canonical every page by default)
+
+## Rationalization Table
+
+| Rationalization | Why It Is Wrong |
+|---|---|
+| "The user just wants the content written, not a full SEO audit" | Keyword placement, title tag, and intent alignment take 2 minutes and compound over years. Skipping them on request is negligence, not efficiency. |
+| "This page doesn't need schema -- it's just a blog post" | Blog posts are eligible for Article schema, breadcrumb schema, and FAQ schema if they contain Q&A sections. Skipping schema is a missed rich result opportunity. |
+| "I'll optimize for search volume -- just pick the highest volume keyword" | High volume without intent match = traffic that bounces. A lower-volume keyword with correct intent match will outperform on conversions and dwell time, which are ranking signals. |
+| "The content is good so the technical SEO doesn't matter much" | A page blocked in robots.txt or missing a canonical tag will not rank regardless of content quality. Technical SEO is a prerequisite, not optional polish. |
+| "Long-form content always ranks better" | Intent determines length. A transactional page with 3,000 words of explanation will underperform a concise 400-word page that converts. Length should match what the user came to find. |
+| "We can always fix the URL structure later" | Changing URLs on ranking pages requires 301 redirects and costs link equity temporarily. URL structure decisions should be made before content is indexed. |
+| "Duplicate content penalty is a myth so it doesn't matter" | While there is no manual penalty, Google chooses which duplicate to index and rank -- often not the one intended. Canonical tags are the mechanism for controlling this choice. |
+
+## Red Flags Checklist
+
+Signs this skill is being applied incorrectly or incompletely:
+
+- [ ] Recommending keyword density targets without checking if the text reads naturally
+- [ ] Suggesting canonical tags on every page regardless of whether duplicate content exists
+- [ ] Optimizing title tags without checking current character count in a SERP preview
+- [ ] Adding schema markup without validating with Google's Rich Results Test
+- [ ] Recommending content length without first checking the format of top-ranking results
+- [ ] Ignoring search intent and optimizing purely for keyword inclusion
+- [ ] Treating Core Web Vitals lab scores as authoritative (field data is what Google uses)
+- [ ] Recommending URL changes on pages that are already indexed and receiving traffic
+- [ ] Adding internal links without checking that anchor text is descriptive and varied
+- [ ] Skipping mobile testing and assuming desktop optimization is sufficient
+
+## NEVER
+
+| Prohibition | Why |
+|---|---|
+| NEVER recommend changing URLs on ranking pages without a redirect plan | Changing URLs without 301 redirects destroys ranking history. Even with redirects, there is a temporary ranking impact. |
+| NEVER keyword stuff -- including in alt text, title tags, or meta descriptions | Modern Google identifies and discounts over-optimized text. Readability is itself a ranking signal via engagement metrics. |
+| NEVER block CSS or JavaScript in robots.txt | Googlebot needs to render the page to evaluate it. Blocking render resources causes Google to see a broken page. |
+| NEVER set noindex on pages without confirming they have no ranking value | Noindex is irreversible in the short term -- removed pages take weeks to de-index, and re-indexing after removing noindex is not immediate. |
+| NEVER treat schema markup as a guaranteed rich result | Schema is eligibility, not entitlement. Google decides whether to display rich results based on quality signals beyond schema presence. |
+| NEVER recommend a site migration without a full URL redirect map | Unmapped URLs from a migration lose all accumulated link equity and ranking history permanently. |

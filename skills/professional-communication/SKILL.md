@@ -1,267 +1,242 @@
 ---
 name: professional-communication
-description: Guide technical communication for software developers. Covers email structure, team messaging etiquette, meeting agendas, and adapting messages for technical vs non-technical audiences. Use when drafting professional messages, preparing meeting communications, or improving written communication.
-allowed-tools: Read, Glob, Grep
+description: "Use when drafting high-stakes business messages (layoffs, escalations, disagreements with leadership, budget requests, bad news upward). Use when the user's communication problem is political, cross-cultural, or audience-calibration -- not just 'make this sound professional.' NEVER for casual messages, basic email formatting, or grammar fixes."
 ---
 
 # Professional Communication
 
-## Overview
+## Communication Problem Router
 
-This skill provides frameworks and guidance for effective professional communication in software development contexts. Whether you're writing an email to stakeholders, crafting a team chat message, or preparing meeting agendas, these principles help you communicate clearly and build professional credibility.
+Before writing anything, diagnose the ACTUAL problem. Most people ask for "help writing an email" when the real issue is upstream.
 
-**Core principle:** Effective communication isn't about proving how much you know - it's about ensuring your message is received and understood.
-
-## When to Use This Skill
-
-Use this skill when:
-
-- Writing emails to teammates, managers, or stakeholders
-- Crafting team chat messages or async communications
-- Preparing meeting agendas or summaries
-- Translating technical concepts for non-technical audiences
-- Structuring status updates or reports
-- Improving clarity of written communication
-
-**Keywords**: email, chat, teams, slack, discord, message, writing, communication, meeting, agenda, status update, report
-
-## Core Frameworks
-
-### The What-Why-How Structure
-
-Use this universal framework to organize any professional message:
-
-| Component | Purpose | Example |
-| --- | --- | --- |
-| **What** | State the topic/request clearly | "We need to delay the release by one week" |
-| **Why** | Explain the reasoning | "Critical bug found in payment processing" |
-| **How** | Outline next steps/action items | "QA will retest by Thursday; I'll update stakeholders Friday" |
-
-**Apply to**: Emails, status updates, meeting talking points, technical explanations
-
-### Three Golden Rules for Written Communication
-
-1. **Start with a clear subject/purpose** - Recipients should immediately grasp what your message is about
-2. **Use bullets, headlines, and scannable formatting** - Nobody wants a wall of text
-3. **Key messages first** - Busy people appreciate efficiency; state your main point upfront
-
-### Audience Calibration
-
-Before communicating, ask yourself:
-
-1. **Who** are you writing to? (Technical peers, managers, stakeholders, customers)
-2. **What level of detail** do they need? (High-level overview vs implementation details)
-3. **What's the value** for them? (How does this affect their work/decisions?)
-
-## Email Best Practices
-
-### Subject Line Formula
-
-| Instead of | Try |
-| --- | --- |
-| "Project updates" | "Project X: Status Update and Next Steps" |
-| "Question" | "Quick question: API rate limiting approach" |
-| "FYI" | "FYI: Deployment scheduled for Tuesday 3pm" |
-
-### Email Structure Template
-
-```markdown
-**Subject:** [Project/Topic]: [Specific Purpose]
-
-Hi [Name],
-
-[1-2 sentences stating the key point or request upfront]
-
-**Context/Background:**
-- [Bullet point 1]
-- [Bullet point 2]
-
-**What I need from you:**
-- [Specific action or decision needed]
-- [Timeline if applicable]
-
-[Optional: Brief next steps or follow-up plan]
-
-Best,
-[Your name]
+```
+What is the user struggling with?
+|
+|-- "I don't know what to say"
+|   --> MESSAGE STRUCTURE problem. Use the Pyramid or BLUF framework below.
+|
+|-- "I don't know how to say it without causing problems"
+|   --> POLITICAL problem. Go to Political Communication section.
+|
+|-- "They keep misunderstanding me"
+|   --> AUDIENCE CALIBRATION problem. Check the Seniority Ladder.
+|   --> Or MEDIUM MISMATCH. Check the Medium Decision Tree.
+|
+|-- "I need to deliver bad news"
+|   --> HIGH-STAKES MESSAGE. Go to The 5 Hardest Messages.
+|
+|-- "This person is in another country/culture and things keep going wrong"
+|   --> CROSS-CULTURAL problem. Go to Cross-Cultural Traps.
+|
+|-- "I need to get something approved"
+|   --> PRE-WIRE problem. Go to The Pre-Wire Technique.
+|
+|-- "I just need it to sound more professional"
+|   --> This skill is probably overkill. Claude already knows tone adjustment.
+|   --> Apply BLUF + cut filler. Done.
 ```
 
-### Common Email Types
+## Rationalization Table
 
-| Type | Key Elements |
-| --- | --- |
-| **Status Update** | Progress summary, blockers, next steps, timeline |
-| **Request** | Clear ask, context, deadline, why it matters |
-| **Escalation** | Issue summary, impact, attempted solutions, needed decision |
-| **FYI/Announcement** | What changed, who's affected, any required action |
+| What the user says | What they actually need |
+|---|---|
+| "Help me write a professional email" | Diagnose whether the problem is structure, politics, audience, or medium first |
+| "Make this sound nicer" | Identify what is politically dangerous in their draft and neutralize it |
+| "I need to escalate this" | A message that escalates the ISSUE without escalating the CONFLICT |
+| "How do I tell my boss they're wrong?" | A face-saving reframe that lets the boss arrive at the right answer |
+| "I need to send bad news" | A message structured so the reader processes facts before emotions |
+| "Can you write this for multiple audiences?" | Separate messages calibrated per audience, not one compromise message |
+| "Help me follow up -- they're ignoring me" | Diagnose why they are ignoring (unclear ask, wrong person, no incentive) |
+| "I need to be more concise" | Their real problem is burying the lead -- fix structure, not word count |
 
-**For templates**: See `references/email-templates.md`
+## NEVER List
 
-## Team Messaging Etiquette
+1. NEVER write a message without first asking who the recipient is and what outcome the user wants
+2. NEVER use the phrase "I just wanted to..." -- it signals subordination and weakens every request
+3. NEVER put bad news after good news in the same message -- the reader stops at the good news
+4. NEVER send one message to both technical and executive audiences -- they need different frames
+5. NEVER escalate and propose a solution in the same breath -- it looks like you already decided
+6. NEVER write "per my last email" or any passive-aggressive callback -- restate the point cleanly
+7. NEVER deliver critical feedback or bad news over chat/Slack -- use a call, then follow up in writing
+8. NEVER assume "no response" means agreement -- it usually means they did not read it or are avoiding it
+9. NEVER include more than one decision request per message -- each decision needs its own thread
+10. NEVER CC someone's boss without telling them first -- this is a career-damaging move in most orgs
 
-> **Note:** Examples use Slack terminology, but these principles apply equally to Microsoft Teams, Discord, or any team messaging platform.
+## The Seniority Ladder: How Communication Changes by Level
 
-### When to Use Chat vs Email
+The biggest communication mistake is talking to an executive like a peer or to a peer like an executive.
 
-| Use Chat | Use Email |
-| --- | --- |
-| Quick questions with short answers | Detailed documentation needing records |
-| Real-time coordination | Formal communications to stakeholders |
-| Informal team discussions | Messages requiring careful review |
-| Time-sensitive updates | Complex explanations with multiple parts |
+**IC to IC:** Lead with the problem, share technical context, ask for help directly. Informality is fine. "Hey, the auth middleware is dropping sessions after 30 min -- have you seen this? Here's my debug log."
 
-### Team Messaging Best Practices
+**IC to Manager:** Lead with impact and what you need from them. Skip implementation details unless asked. "The auth bug is blocking the release. I need 2 days to fix it, which pushes the deadline to Friday. Want me to proceed or should we ship without the fix?"
 
-1. **Use threads** - Keep main channels scannable; follow-ups go in threads
-2. **@mention thoughtfully** - Don't notify people unnecessarily
-3. **Channel organization** - Right channel for right topic
-4. **Be direct** - "Can you review my PR?" beats "Hey, are you busy?"
-5. **Async-friendly** - Write messages that don't require immediate response
+**IC/Manager to Director+:** Lead with business impact and a recommendation. They want to make a decision, not understand your process. Use the Pyramid Principle: conclusion first, supporting evidence in layers, details only if asked.
 
-### The "No Hello" Principle
+**Anyone to Executive (VP/C-level):** Maximum 3 sentences for the core message. The "so what" chain must end at revenue, risk, or customer impact. Everything else is noise. Pre-wire the decision before the meeting if possible.
 
-Instead of:
+**Downward (to reports):** Lead with context and reasoning, not just the decision. People execute better when they understand why. But do not over-explain -- it signals you do not trust them to handle it.
 
-```text
-You: Hi
-You: Are you there?
-You: Can I ask you something?
-[waiting...]
+## The Medium Decision Tree
+
+Most communication failures are medium mismatches, not message failures.
+
+```
+Is the message emotionally charged or politically sensitive?
+|-- Yes --> Voice/video call, then summarize in writing
+|-- No:
+    |
+    Does the message require back-and-forth to reach a decision?
+    |-- Yes, 2-3 exchanges --> Chat/Slack thread
+    |-- Yes, complex --> Schedule a 15-min call
+    |-- No:
+        |
+        Does it need to be findable in 30 days?
+        |-- Yes --> Email or shared document
+        |-- No --> Chat is fine
 ```
 
-Try:
+Key insight: The medium IS part of the message. Sending a Slack DM about a layoff communicates "this doesn't matter." Sending a formal email about a lunch plan communicates "I'm difficult to work with."
 
-```text
-You: Hi Sarah - quick question about the deployment script.
-     Getting a permission error on line 42. Have you seen this before?
-     Here's the error: [paste error]
-```
+## Political Communication
 
-## Technical vs Non-Technical Communication
+### Disagreeing with Your Boss in Writing
 
-### When to Be Technical vs Accessible
+The goal is never to prove you are right. The goal is to help them arrive at the better answer while preserving their authority.
 
-| Audience | Approach |
-| --- | --- |
-| **Engineering peers** | Technical details, code examples, architecture specifics |
-| **Technical managers** | Balance of detail and high-level impact |
-| **Non-technical stakeholders** | Business impact, analogies, outcomes over implementation |
-| **Customers** | Plain language, what it means for them, avoid jargon |
+**The Reframe Technique:**
+Do not say "I disagree" or "I think you're wrong." Instead, add a constraint they may not have considered:
 
-### Three Strategies for Simplification
+BAD: "I don't think we should use vendor X. Their uptime is terrible."
+GOOD: "I looked into vendor X -- they hit most of our requirements. One thing I want to flag: their SLA is 99.5%, and our compliance team requires 99.9%. Want me to check if they offer a higher tier, or should I pull alternatives?"
 
-1. **Start with the big picture before details** - People process "why" before "how"
-2. **Simplify without losing accuracy** - Use analogies; replace jargon with plain language
-3. **Know when to switch** - Read the room; adjust based on questions and engagement
+This works because: (1) you show you did the work, (2) you introduce a fact, not an opinion, (3) you offer them the choice rather than making it for them.
 
-### Jargon Translation Examples
+### Escalating Without Burning Bridges
 
-| Technical | Plain Language |
-| --- | --- |
-| "Microservices architecture" | "Our system is split into smaller, independent pieces that can scale separately" |
-| "Asynchronous message processing" | "Tasks are queued and processed in the background" |
-| "CI/CD pipeline" | "Automated process that tests and deploys our code" |
-| "Database migration" | "Updating how our data is organized and stored" |
+Escalation is not tattling. It is transferring a decision to someone with the authority to make it. But it feels like tattling if you do it wrong.
 
-**For more examples**: See `references/jargon-simplification.md`
+**Before escalating, always:**
+1. Tell the person you are about to escalate. "I want to loop in [Director] because this decision affects the Q2 timeline and I think they should weigh in."
+2. Frame the escalation as seeking authority, not complaining about the person.
+3. State facts and impact. Never state your interpretation of someone's motives.
 
-## Writing Clarity Principles
+**Escalation message structure:**
+- Line 1: What decision is needed
+- Line 2: Why it needs someone at this level (scope, budget, cross-team)
+- Line 3: What has been tried so far
+- Line 4: Your recommendation (optional -- sometimes better to let the senior leader decide clean)
 
-### Active Voice Over Passive Voice
+### Delivering Bad News Upward
 
-Active voice is clearer, more direct, and conveys authority:
+Bad news must travel fast, with facts, and with a plan.
 
-| Passive (avoid) | Active (prefer) |
-| --- | --- |
-| "A bug was identified by the team" | "The team identified a bug" |
-| "The feature will be implemented" | "We will implement the feature" |
-| "Errors were found during testing" | "Testing revealed errors" |
+**Structure: SIP (Situation - Impact - Plan)**
+- Situation: What happened, in one sentence.
+- Impact: What this means for timelines, revenue, customers, commitments.
+- Plan: What you are doing about it, and what you need from them.
 
-### Eliminate Filler Words
+BAD: "Hey, wanted to give you a heads up that there might be some delays with the project. We ran into some issues and are working through them. Will keep you posted."
 
-| Instead of | Use |
-| --- | --- |
-| "At this point in time" | "Now" |
-| "In the event that" | "If" |
-| "Due to the fact that" | "Because" |
-| "In order to" | "To" |
-| "I just wanted to check if" | "Can you" |
+GOOD: "The payment integration failed load testing -- it drops transactions above 500/min. This blocks our March 15 launch. We have two options: (A) add a queue layer, which takes 5 days and pushes launch to March 20, or (B) launch with a 500/min cap and patch in sprint 2. I recommend option A. Can we discuss today?"
 
-### The "So What?" Test
+## The Pre-Wire Technique
 
-After writing, ask: "So what? Why does this matter to the reader?"
+The most important communication in business happens BEFORE the meeting, not during it.
 
-If you can't answer clearly, restructure your message to lead with the value/impact.
+**Pre-wiring** means individually socializing your proposal with key stakeholders before presenting it to the group. By the time the meeting starts, you already know who supports you, who has concerns, and what the objections will be.
 
-## Meeting Communication
+**How to pre-wire:**
+1. Identify the 2-3 people whose opinion will sway the room.
+2. Send them a short preview: "I'm presenting X at Thursday's meeting. The core proposal is [one sentence]. I'd value your input before I finalize -- any concerns I should address?"
+3. Incorporate their feedback. Now they are co-authors, not critics.
+4. In the meeting, reference their input: "I spoke with Sarah about the timeline concern, and we adjusted the rollout to address it."
 
-### Before: Agenda Best Practices
+**When NOT to pre-wire:** When transparency requires real-time group deliberation (ethics decisions, layoff discussions, incident reviews).
 
-Every meeting invite should include:
+## Cross-Cultural Communication Traps
 
-1. **Clear objective** - What will be accomplished?
-2. **Agenda items** - Topics to cover with time estimates
-3. **Preparation required** - What should attendees bring/review?
-4. **Expected outcome** - Decision needed? Information sharing? Brainstorm?
+These cause real damage on distributed teams and are rarely taught:
 
-### During: Facilitation Tips
+**Direct vs. Indirect cultures:** In the US, Netherlands, Israel, Germany -- directness is expected. "This won't work because..." is professional. In Japan, Korea, many Southeast Asian cultures, the UK -- indirectness is the norm. "This is interesting, but perhaps we could consider..." means "no." If you miss this, you will think agreement happened when it did not.
 
-- **Time-box discussions** - "Let's spend 5 minutes on this, then move on"
-- **Capture action items live** - Who does what by when
-- **Parking lot** - Note off-topic items for later
+**Silence in meetings:** In some cultures, silence means processing or respect. In US meeting culture, silence means agreement or disengagement. If your distributed team has members from high-context cultures, explicitly ask: "I want to make sure everyone has had a chance to share concerns. [Name], what are your thoughts?"
 
-### After: Summary Format
+**"Yes" does not always mean yes:** In many cultures, saying "no" directly to a superior or client is unacceptable. "Yes, we will try" may mean "this is impossible but I cannot say that." Follow up with: "What would you need to make this work by Friday?" If the answer is vague, the real answer is probably no.
 
-```markdown
-**Meeting: [Topic] - [Date]**
+**Written tone across cultures:** Exclamation points, emojis, and casual greetings that read as friendly in American English can read as unprofessional in German or Japanese business contexts. When in doubt, err formal for the first 3-4 exchanges, then mirror the other person's tone.
 
-**Attendees:** [Names]
+## The 5 Hardest Business Messages
 
-**Key Decisions:**
-- [Decision 1]
-- [Decision 2]
+### 1. Layoff / Role Elimination Announcement
 
-**Action Items:**
-- [ ] [Person]: [Task] - Due [Date]
-- [ ] [Person]: [Task] - Due [Date]
+Lead with the decision (do not bury it). State the reason honestly. Explain what happens next for the affected person. Do not over-explain or apologize excessively -- it centers your discomfort instead of their needs.
 
-**Next Steps:**
-- [Follow-up meeting if needed]
-- [Documents to share]
-```
+Key rules: Be specific about severance, benefits continuation, and timeline. Never say "this was a difficult decision" without concrete next steps. Never blame the person ("performance-based" when it is actually a reorg). Have the conversation live first, then send the written follow-up.
 
-**For structures by meeting type**: See `references/meeting-structures.md`
+### 2. Project Cancellation
 
-## Quick Reference: Communication Checklist
+Acknowledge the team's work before explaining the decision. State the business reason clearly. Address what happens to the people (reassignment, not limbo). Do not frame cancellation as "pivoting" or "refocusing" -- the team knows what happened, and euphemisms destroy trust.
 
-Before sending any professional communication:
+### 3. Disagreeing with Leadership's Direction
 
-- [ ] **Clear purpose** - Can the recipient understand intent in 5 seconds?
-- [ ] **Right audience** - Is this the appropriate person/channel?
-- [ ] **Key message first** - Is the main point upfront?
-- [ ] **Scannable** - Are there bullets, headers, short paragraphs?
-- [ ] **Action clear** - Does the recipient know what (if anything) they need to do?
-- [ ] **Jargon check** - Will the audience understand all terminology?
-- [ ] **Tone appropriate** - Is it professional but not cold?
-- [ ] **Proofread** - Any typos or unclear phrasing?
+Use the Reframe Technique above. Never frame it as "you're wrong." Always frame it as "here's a constraint/data point that might change the calculus." Offer two paths, including theirs, with honest tradeoffs. Make it easy for them to change course without losing face.
 
-## Additional Tools
+### 4. Requesting Budget / Resources
 
-- `references/email-templates.md` - Ready-to-use email templates by type
-- `references/meeting-structures.md` - Structures for standups, retros, reviews
-- `references/jargon-simplification.md` - Technical-to-plain-language translations
+Executives approve budgets based on ROI and risk, not on how hard you are working. Structure: (1) What you will deliver with the resources, (2) What happens without them (be specific -- "we miss the Q3 target" not "things will be harder"), (3) The specific ask in dollars and headcount, (4) Timeline to ROI.
 
-## Companion Skills
+Never lead with "we need more people." Lead with what the business gets.
 
-- `feedback-mastery` - For difficult conversations and feedback delivery
-- `/draft-email` - Generate emails using these frameworks
+### 5. Performance Feedback That Could End a Career
 
----
+Separate observation from interpretation. "You missed 3 of the last 5 deadlines" is observation. "You don't care about the team" is interpretation. State the pattern, state the impact, ask for their perspective before prescribing solutions. Document everything. Never deliver this over email first -- it requires a conversation, with the written version as follow-up.
 
-**Last Updated:** 2025-12-22
+## Before/After: A Real Communication Failure
 
-## Version History
+**BEFORE (actual message sent by a senior engineer):**
 
-- **v1.0.0** (2025-12-26): Initial release
+> Subject: Concerns about the new architecture
+>
+> Hi team,
+>
+> I've been thinking about the new microservices proposal and I have some
+> concerns. I think we might be over-engineering this. The current monolith
+> works fine for our scale and adding microservices will create a lot of
+> operational overhead that we don't have the team to support. I've seen
+> this pattern before at my last company and it didn't go well. I think
+> we should reconsider.
+>
+> Also, I noticed that the proposal doesn't address data consistency
+> across services, which is going to be a major issue.
+>
+> Let me know what you think.
 
----
+**What went wrong:**
+- Sent to "team" but the real audience is the architect who proposed it (public challenge)
+- "I've seen this pattern before" -- appeals to unverifiable authority
+- "I think we should reconsider" -- no specific alternative, just opposition
+- Buries the strongest technical point (data consistency) after opinion
+- No proposed path forward
+
+**AFTER (rewritten for effectiveness):**
+
+> Subject: Architecture proposal -- data consistency question
+>
+> Hi [Architect name],
+>
+> I reviewed the microservices proposal. The service boundaries look clean.
+> One area I think needs more detail before we commit: data consistency
+> across services. Specifically:
+>
+> - Orders and inventory would span two services. How do we handle
+>   a scenario where an order is placed but inventory update fails?
+> - The proposal doesn't mention saga patterns or eventual consistency
+>   tradeoffs. Should we add a section on this?
+>
+> I also want to flag an operational concern: we currently have 3 engineers
+> on infra. Microservices typically need at least 5 for on-call coverage
+> across services. Should we factor hiring into the timeline?
+>
+> Happy to pair on the data consistency section if that would help.
+
+**What changed:** Direct to the right person. Leads with the technical gap. Asks questions instead of asserting opinions. Offers to help rather than just criticize. Quantifies the operational concern instead of vague "overhead."

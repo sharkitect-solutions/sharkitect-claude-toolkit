@@ -1,0 +1,64 @@
+{
+  "evals": [
+    {
+      "input": "I want to build an AI agent that processes invoices from emails and enters them into our accounting system",
+      "expected_behavior": "Push back: this is a deterministic pipeline, not an agent. Steps are always the same (extract email → parse invoice → validate fields → enter into system). Recommend a pipeline with an LLM call for extraction, not a ReAct agent.",
+      "anti_pattern": "Designing a full ReAct agent with tools for a task that follows the same steps every time",
+      "difficulty": "easy"
+    },
+    {
+      "input": "My agent has 25 tools available. It keeps calling the wrong one. How do I fix this?",
+      "expected_behavior": "Diagnose the tool count problem — selection accuracy drops to ~65% at 16-30 tools. Recommend dynamic tool filtering (show only relevant tools per step), tool categories, or splitting into specialized sub-agents with 3-5 tools each.",
+      "anti_pattern": "Suggesting to improve tool descriptions without addressing the fundamental tool count problem",
+      "difficulty": "easy"
+    },
+    {
+      "input": "Should I use ReAct or Plan-Execute for my customer support agent that handles refunds, account changes, and technical troubleshooting?",
+      "expected_behavior": "This is a routing pattern, not ReAct or Plan-Execute. Classify the request type first, then route to a specialized handler for each category. Each handler may use simple steps, not full agent loops.",
+      "anti_pattern": "Defaulting to ReAct without considering that a router pattern better fits classification-then-handle workflows",
+      "difficulty": "medium"
+    },
+    {
+      "input": "I'm building a research agent. Should I use one agent or multiple agents?",
+      "expected_behavior": "Apply the multi-agent decision framework. Key questions: do different research tasks need different tool sets? Can they run in parallel? Default to single agent unless there's a clear reason for multi-agent. If parallel research on independent topics, multi-agent with orchestrator makes sense.",
+      "anti_pattern": "Recommending multi-agent architecture without checking if single agent with role-switching handles it",
+      "difficulty": "medium"
+    },
+    {
+      "input": "My agent sometimes returns results without actually calling the search tool. It seems to make up answers.",
+      "expected_behavior": "Diagnose hallucinated tool calls — the agent fabricates tool output instead of actually calling tools. Root cause is usually unclear tool descriptions or model confusion. Fix: verify tool was actually called in execution traces, add explicit tool call verification step.",
+      "anti_pattern": "Treating this as a hallucination problem to fix with prompt engineering rather than an architecture gap (missing tool call verification)",
+      "difficulty": "medium"
+    },
+    {
+      "input": "We need three agents: one to research, one to write, and one to edit. They should debate until the output is good.",
+      "expected_behavior": "Flag the debate pattern's failure mode: it converges to consensus mush and tokens explode. Recommend orchestrator pattern instead — research agent produces facts, writer uses them, editor reviews once. Pipeline with clear handoffs, not iterative debate.",
+      "anti_pattern": "Implementing the debate pattern without warning about convergence to mediocrity and token explosion",
+      "difficulty": "hard"
+    },
+    {
+      "input": "My agent works great on test cases but in production it sometimes loops for 2 minutes and returns nothing useful",
+      "expected_behavior": "Diagnose missing escape hatch. Agent needs: max iteration limit, action deduplication (detect same action repeated), partial result return on failure, and clear 'I'm stuck' behavior. The escape hatch pattern is non-negotiable for production.",
+      "anti_pattern": "Suggesting to increase timeout or add retry logic without addressing the fundamental lack of graceful failure",
+      "difficulty": "hard"
+    },
+    {
+      "input": "I want to give my agent access to every tool we have so it can handle any request",
+      "expected_behavior": "Strongly push back using the tool count table. At 30+ tools, selection accuracy drops to ~40%. The agent is effectively guessing. Recommend: categorize tools, use dynamic filtering to show only relevant subset per step, or use specialized sub-agents.",
+      "anti_pattern": "Helping set up a tool registry with 30+ tools without flagging the selection accuracy degradation",
+      "difficulty": "medium"
+    },
+    {
+      "input": "How should I design the tool descriptions for my agent?",
+      "expected_behavior": "Emphasize that tool descriptions are the agent's primary decision input — more important than the system prompt. Each description must say: what it does, WHEN to use it, WHEN NOT to use it, parameter examples, and return format. Show the good vs bad description comparison.",
+      "anti_pattern": "Giving generic advice like 'make descriptions clear' without the specific checklist of what makes a good tool schema",
+      "difficulty": "easy"
+    },
+    {
+      "input": "My Plan-Execute agent creates a great plan but then ignores it during execution and goes off-track",
+      "expected_behavior": "Diagnose plan abandonment — the agent gets new observations that contradict the plan but has no replan logic. Fix: add explicit replan trigger when observations diverge significantly from plan expectations. Check plan adherence at each step.",
+      "anti_pattern": "Suggesting to make the plan more detailed without adding replanning logic for when execution diverges",
+      "difficulty": "hard"
+    }
+  ]
+}

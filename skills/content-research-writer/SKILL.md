@@ -1,538 +1,161 @@
 ---
 name: content-research-writer
-description: Assists in writing high-quality content by conducting research, adding citations, improving hooks, iterating on outlines, and providing real-time feedback on each section. Transforms your writing process from solo effort to collaborative partnership.
+description: "Use when writing research-backed articles, blog posts, newsletters, or long-form content requiring source discovery, citation management, and iterative section-by-section refinement. Also use when the user mentions content research, article writing with citations, writing partner, or collaborative drafting. NEVER use for quick social media posts (use social-content), email copy (use email-composer), copy editing of existing text (use copy-editing), or copywriting from scratch without research needs (use copywriting)."
+version: "2.0"
+optimized: true
+optimized_date: "2026-03-11"
 ---
 
 # Content Research Writer
 
-This skill acts as your writing partner, helping you research, outline, draft, and refine content while maintaining your unique voice and style.
-
-## When to Use This Skill
-
-- Writing blog posts, articles, or newsletters
-- Creating educational content or tutorials
-- Drafting thought leadership pieces
-- Researching and writing case studies
-- Producing technical documentation with sources
-- Writing with proper citations and references
-- Improving hooks and introductions
-- Getting section-by-section feedback while writing
-
-## What This Skill Does
-
-1. **Collaborative Outlining**: Helps you structure ideas into coherent outlines
-2. **Research Assistance**: Finds relevant information and adds citations
-3. **Hook Improvement**: Strengthens your opening to capture attention
-4. **Section Feedback**: Reviews each section as you write
-5. **Voice Preservation**: Maintains your writing style and tone
-6. **Citation Management**: Adds and formats references properly
-7. **Iterative Refinement**: Helps you improve through multiple drafts
-
-## How to Use
-
-### Setup Your Writing Environment
-
-Create a dedicated folder for your article:
-```
-mkdir ~/writing/my-article-title
-cd ~/writing/my-article-title
-```
-
-Create your draft file:
-```
-touch article-draft.md
-```
-
-Open Claude Code from this directory and start writing.
-
-### Basic Workflow
-
-1. **Start with an outline**:
-```
-Help me create an outline for an article about [topic]
-```
-
-2. **Research and add citations**:
-```
-Research [specific topic] and add citations to my outline
-```
-
-3. **Improve the hook**:
-```
-Here's my introduction. Help me make the hook more compelling.
-```
-
-4. **Get section feedback**:
-```
-I just finished the "Why This Matters" section. Review it and give feedback.
-```
-
-5. **Refine and polish**:
-```
-Review the full draft for flow, clarity, and consistency.
-```
-
-## Instructions
-
-When a user requests writing assistance:
-
-1. **Understand the Writing Project**
-   
-   Ask clarifying questions:
-   - What's the topic and main argument?
-   - Who's the target audience?
-   - What's the desired length/format?
-   - What's your goal? (educate, persuade, entertain, explain)
-   - Any existing research or sources to include?
-   - What's your writing style? (formal, conversational, technical)
-
-2. **Collaborative Outlining**
-   
-   Help structure the content:
-   
-   ```markdown
-   # Article Outline: [Title]
-   
-   ## Hook
-   - [Opening line/story/statistic]
-   - [Why reader should care]
-   
-   ## Introduction
-   - Context and background
-   - Problem statement
-   - What this article covers
-   
-   ## Main Sections
-   
-   ### Section 1: [Title]
-   - Key point A
-   - Key point B
-   - Example/evidence
-   - [Research needed: specific topic]
-   
-   ### Section 2: [Title]
-   - Key point C
-   - Key point D
-   - Data/citation needed
-   
-   ### Section 3: [Title]
-   - Key point E
-   - Counter-arguments
-   - Resolution
-   
-   ## Conclusion
-   - Summary of main points
-   - Call to action
-   - Final thought
-   
-   ## Research To-Do
-   - [ ] Find data on [topic]
-   - [ ] Get examples of [concept]
-   - [ ] Source citation for [claim]
-   ```
-   
-   **Iterate on outline**:
-   - Adjust based on feedback
-   - Ensure logical flow
-   - Identify research gaps
-   - Mark sections for deep dives
-
-3. **Conduct Research**
-   
-   When user requests research on a topic:
-   
-   - Search for relevant information
-   - Find credible sources
-   - Extract key facts, quotes, and data
-   - Add citations in requested format
-   
-   Example output:
-   ```markdown
-   ## Research: AI Impact on Productivity
-   
-   Key Findings:
-   
-   1. **Productivity Gains**: Studies show 40% time savings for 
-      content creation tasks [1]
-   
-   2. **Adoption Rates**: 67% of knowledge workers use AI tools 
-      weekly [2]
-   
-   3. **Expert Quote**: "AI augments rather than replaces human 
-      creativity" - Dr. Jane Smith, MIT [3]
-   
-   Citations:
-   [1] McKinsey Global Institute. (2024). "The Economic Potential 
-       of Generative AI"
-   [2] Stack Overflow Developer Survey (2024)
-   [3] Smith, J. (2024). MIT Technology Review interview
-   
-   Added to outline under Section 2.
-   ```
-
-4. **Improve Hooks**
-   
-   When user shares an introduction, analyze and strengthen:
-   
-   **Current Hook Analysis**:
-   - What works: [positive elements]
-   - What could be stronger: [areas for improvement]
-   - Emotional impact: [current vs. potential]
-   
-   **Suggested Alternatives**:
-   
-   Option 1: [Bold statement]
-   > [Example]
-   *Why it works: [explanation]*
-   
-   Option 2: [Personal story]
-   > [Example]
-   *Why it works: [explanation]*
-   
-   Option 3: [Surprising data]
-   > [Example]
-   *Why it works: [explanation]*
-   
-   **Questions to hook**:
-   - Does it create curiosity?
-   - Does it promise value?
-   - Is it specific enough?
-   - Does it match the audience?
-
-5. **Provide Section-by-Section Feedback**
-   
-   As user writes each section, review for:
-   
-   ```markdown
-   # Feedback: [Section Name]
-   
-   ## What Works Well ✓
-   - [Strength 1]
-   - [Strength 2]
-   - [Strength 3]
-   
-   ## Suggestions for Improvement
-   
-   ### Clarity
-   - [Specific issue] → [Suggested fix]
-   - [Complex sentence] → [Simpler alternative]
-   
-   ### Flow
-   - [Transition issue] → [Better connection]
-   - [Paragraph order] → [Suggested reordering]
-   
-   ### Evidence
-   - [Claim needing support] → [Add citation or example]
-   - [Generic statement] → [Make more specific]
-   
-   ### Style
-   - [Tone inconsistency] → [Match your voice better]
-   - [Word choice] → [Stronger alternative]
-   
-   ## Specific Line Edits
-   
-   Original:
-   > [Exact quote from draft]
-   
-   Suggested:
-   > [Improved version]
-   
-   Why: [Explanation]
-   
-   ## Questions to Consider
-   - [Thought-provoking question 1]
-   - [Thought-provoking question 2]
-   
-   Ready to move to next section!
-   ```
-
-6. **Preserve Writer's Voice**
-   
-   Important principles:
-   
-   - **Learn their style**: Read existing writing samples
-   - **Suggest, don't replace**: Offer options, not directives
-   - **Match tone**: Formal, casual, technical, friendly
-   - **Respect choices**: If they prefer their version, support it
-   - **Enhance, don't override**: Make their writing better, not different
-   
-   Ask periodically:
-   - "Does this sound like you?"
-   - "Is this the right tone?"
-   - "Should I be more/less [formal/casual/technical]?"
-
-7. **Citation Management**
-   
-   Handle references based on user preference:
-   
-   **Inline Citations**:
-   ```markdown
-   Studies show 40% productivity improvement (McKinsey, 2024).
-   ```
-   
-   **Numbered References**:
-   ```markdown
-   Studies show 40% productivity improvement [1].
-   
-   [1] McKinsey Global Institute. (2024)...
-   ```
-   
-   **Footnote Style**:
-   ```markdown
-   Studies show 40% productivity improvement^1
-   
-   ^1: McKinsey Global Institute. (2024)...
-   ```
-   
-   Maintain a running citations list:
-   ```markdown
-   ## References
-   
-   1. Author. (Year). "Title". Publication.
-   2. Author. (Year). "Title". Publication.
-   ...
-   ```
-
-8. **Final Review and Polish**
-   
-   When draft is complete, provide comprehensive feedback:
-   
-   ```markdown
-   # Full Draft Review
-   
-   ## Overall Assessment
-   
-   **Strengths**:
-   - [Major strength 1]
-   - [Major strength 2]
-   - [Major strength 3]
-   
-   **Impact**: [Overall effectiveness assessment]
-   
-   ## Structure & Flow
-   - [Comments on organization]
-   - [Transition quality]
-   - [Pacing assessment]
-   
-   ## Content Quality
-   - [Argument strength]
-   - [Evidence sufficiency]
-   - [Example effectiveness]
-   
-   ## Technical Quality
-   - Grammar and mechanics: [assessment]
-   - Consistency: [assessment]
-   - Citations: [completeness check]
-   
-   ## Readability
-   - Clarity score: [evaluation]
-   - Sentence variety: [evaluation]
-   - Paragraph length: [evaluation]
-   
-   ## Final Polish Suggestions
-   
-   1. **Introduction**: [Specific improvements]
-   2. **Body**: [Specific improvements]
-   3. **Conclusion**: [Specific improvements]
-   4. **Title**: [Options if needed]
-   
-   ## Pre-Publish Checklist
-   - [ ] All claims sourced
-   - [ ] Citations formatted
-   - [ ] Examples clear
-   - [ ] Transitions smooth
-   - [ ] Call to action present
-   - [ ] Proofread for typos
-   
-   Ready to publish! 🚀
-   ```
-
-## Examples
-
-### Example 1: Teresa Torres's Workflow
-
-**User**: "I'm writing an article about continuous discovery. Help me create an outline."
-
-**Process**:
-1. Collaborates on outline structure
-2. Identifies research needs
-3. User starts writing introduction
-4. Reviews and improves the hook
-5. User writes each section
-6. Provides feedback after each section
-7. Conducts research and adds citations
-8. Final review of complete draft
-9. Polish and prep for publishing
-
-**Result**: Well-researched, properly cited article written in Teresa's voice with strong structure and flow.
-
-### Example 2: Research-Heavy Article
-
-**User**: "I'm writing about AI's impact on product management. Help me find current data and examples."
-
-**Output**:
-```markdown
-## Research Compiled
-
-### Recent Data
-- Gartner: 80% of PMs will use AI tools by 2025 [1]
-- Survey: 45% report faster feature shipping [2]
-- Case study: Airbnb's AI-assisted prioritization [3]
-
-### Expert Quotes
-- "AI amplifies PM judgment, not replaces it" - Marty Cagan
-- [Additional quotes with citations]
-
-### Real Examples
-1. **Company A**: Used AI for user research synthesis
-   - Result: 60% time savings
-   - Source: [citation]
-
-2. **Company B**: AI-powered roadmap analysis
-   - Result: Better stakeholder alignment
-   - Source: [citation]
-
-All added to your outline with proper citations.
-```
-
-### Example 3: Hook Improvement
-
-**User's Original Hook**:
-> "Product management is changing because of AI. In this article, I'll discuss some ways AI affects product managers."
-
-**Improved Options**:
-
-**Option 1 (Data-driven)**:
-> "Last month, I asked AI to analyze 500 customer interviews. It took 30 minutes instead of 3 weeks. Product management will never be the same."
-
-**Option 2 (Question)**:
-> "What if you could talk to every customer, read every review, and analyze every support ticket—all before your morning coffee?"
-
-**Option 3 (Story)**:
-> "Sarah spent two weeks building the wrong feature. Not because she didn't understand her users, but because she couldn't process the hundreds of interviews fast enough to spot the pattern."
-
-### Example 4: Section Feedback
-
-**User**: "Just finished my 'Common Mistakes' section. Thoughts?"
-
-**Response**:
-```markdown
-# Feedback: Common Mistakes Section
-
-## What Works Well ✓
-- Strong examples (the Slack notification story)
-- Clear structure (3 mistakes, clean layout)
-- Practical advice for each mistake
-
-## Suggestions
-
-### Make It More Specific
-Your second point says "Bad prioritization" but could be stronger:
-
-Current:
-> "Many teams prioritize badly by focusing on features instead of outcomes."
-
-Suggested:
-> "I've watched teams ship 14 features in a quarter yet move none of their key metrics. They prioritized activity over progress."
-
-### Add Data
-The third mistake would benefit from evidence:
-> "[Add citation]: Studies show teams without regular user contact are 3x more likely to build unused features [needs source]"
-
-### Flow Improvement
-Consider reordering: Mistake 3 → Mistake 2 → Mistake 1
-This builds from small to big impact.
-
-Ready for the next section!
-```
-
-## Writing Workflows
-
-### Blog Post Workflow
-1. Outline together
-2. Research key points
-3. Write introduction → get feedback
-4. Write body sections → feedback each
-5. Write conclusion → final review
-6. Polish and edit
-
-### Newsletter Workflow
-1. Discuss hook ideas
-2. Quick outline (shorter format)
-3. Draft in one session
-4. Review for clarity and links
-5. Quick polish
-
-### Technical Tutorial Workflow
-1. Outline steps
-2. Write code examples
-3. Add explanations
-4. Test instructions
-5. Add troubleshooting section
-6. Final review for accuracy
-
-### Thought Leadership Workflow
-1. Brainstorm unique angle
-2. Research existing perspectives
-3. Develop your thesis
-4. Write with strong POV
-5. Add supporting evidence
-6. Craft compelling conclusion
-
-## Pro Tips
-
-1. **Work in VS Code**: Better than web Claude for long-form writing
-2. **One section at a time**: Get feedback incrementally
-3. **Save research separately**: Keep a research.md file
-4. **Version your drafts**: article-v1.md, article-v2.md, etc.
-5. **Read aloud**: Use feedback to identify clunky sentences
-6. **Set deadlines**: "I want to finish the draft today"
-7. **Take breaks**: Write, get feedback, pause, revise
-
-## File Organization
-
-Recommended structure for writing projects:
-
-```
-~/writing/article-name/
-├── outline.md          # Your outline
-├── research.md         # All research and citations
-├── draft-v1.md         # First draft
-├── draft-v2.md         # Revised draft
-├── final.md            # Publication-ready
-├── feedback.md         # Collected feedback
-└── sources/            # Reference materials
-    ├── study1.pdf
-    └── article2.md
-```
-
-## Best Practices
-
-### For Research
-- Verify sources before citing
-- Use recent data when possible
-- Balance different perspectives
-- Link to original sources
-
-### For Feedback
-- Be specific about what you want: "Is this too technical?"
-- Share your concerns: "I'm worried this section drags"
-- Ask questions: "Does this flow logically?"
-- Request alternatives: "What's another way to explain this?"
-
-### For Voice
-- Share examples of your writing
-- Specify tone preferences
-- Point out good matches: "That sounds like me!"
-- Flag mismatches: "Too formal for my style"
-
-## Related Use Cases
-
-- Creating social media posts from articles
-- Adapting content for different audiences
-- Writing email newsletters
-- Drafting technical documentation
-- Creating presentation content
-- Writing case studies
-- Developing course outlines
+## File Index
 
+| File | Purpose | When to Load |
+|---|---|---|
+| SKILL.md | Research-to-draft procedure, source credibility, research depth calibration, section feedback, citation management, hook improvement, pre-publish checklist | Always (auto-loaded) |
+| source-verification-methods.md | Study methodology assessment, pre-registration checks, retraction/correction verification, statistical literacy for writers, press release vs research paper distortions, fact-checking procedure, disappeared source recovery | When evaluating source quality beyond the basic tier, fact-checking specific claims, assessing study methodology, or verifying statistics |
+| long-form-structure-patterns.md | Argument architecture selection (6 patterns), information density calibration by audience, counterargument integration patterns, section transition engineering, multi-article series architecture, reader fatigue management | When structuring content longer than 2,000 words, building multi-section arguments, managing competing evidence, or diagnosing structural problems in drafts |
+| editorial-quality-control.md | Research rabbit hole timeboxing, fact-checking tiers (4 levels), accuracy under deadline tradeoffs, hedge language calibration, voice consistency audit (5 markers), named editorial failures (7), correction/update protocol | When establishing review processes, managing research scope, handling accuracy-under-deadline tradeoffs, auditing voice consistency, or dealing with corrections |
+
+## Scope Boundary
+
+| Area | This Skill | Other Skill |
+|---|---|---|
+| Research-backed articles, blog posts, newsletters, long-form content | YES | -- |
+| Collaborative writing with source discovery and citation management | YES | -- |
+| Section-by-section feedback and iterative refinement | YES | -- |
+| Quick social media posts (no research depth needed) | NO | social-content |
+| Email copy (different structure and objectives) | NO | email-composer |
+| Copy editing existing text (editing, not writing) | NO | copy-editing |
+| Copywriting from scratch without research needs | NO | copywriting |
+| SEO keyword strategy and technical SEO | NO | seo-optimizer |
+
+## Assessment Procedure
+
+Before starting any research-writing project, work through this sequence. Skipping steps leads to research rabbit holes or structural rewrites.
+
+1. **Classify the content type** using the Research Depth Calibration table below. A blog post and a thought leadership piece require fundamentally different research investment -- misclassifying wastes hours or produces under-researched content.
+2. **Confirm the thesis or argument.** If the author can't state their main point in one sentence, the piece isn't ready to research. Help them articulate it before searching for sources.
+3. **Assess source availability.** Quick search: are there credible sources for this topic? If the topic has minimal published research, adjust expectations -- the piece may need to rely on expert interviews or primary data collection rather than citation-heavy evidence.
+4. **Determine the author's voice.** Read 2-3 existing pieces by the author (or ask for samples). The goal is to enhance their voice, not replace it. Note: sentence length patterns, formality level, use of contractions, how they handle technical terms.
+5. **Build the outline before researching.** The outline determines what research is needed. Researching before outlining leads to the rabbit hole -- you'll find interesting sources that don't serve the piece.
+6. **Set the research timebox.** Based on content type classification. When the timebox expires, start writing with what you have. Load `editorial-quality-control.md` for timeboxing guidance.
+
+## Research-to-Draft Procedure
+
+1. **Scope the project**: Confirm topic, thesis/argument, target audience, desired length, content type (blog, newsletter, tutorial, thought leadership, case study), and available sources.
+2. **Build the outline**: Structure with hook, introduction (context + problem + scope), 3-5 main sections with key points and evidence needs, conclusion with CTA. Mark sections needing research with `[RESEARCH: specific question]`.
+3. **Conduct research**: Search for credible sources matching each `[RESEARCH]` tag. Extract key facts, data points, and quotable insights. Record full citations immediately -- never defer citation tracking.
+4. **Draft iteratively**: Write one section at a time. After each section, review for clarity, flow, evidence, and voice consistency before moving to the next. This catches structural issues early instead of requiring full-draft rewrites.
+5. **Polish and validate**: Full-draft review for flow across sections, citation completeness, and voice consistency. Run the Pre-Publish Checklist.
+
+## Source Credibility Hierarchy
+
+Evaluate every source before citing. Higher-tier sources require less corroboration.
+
+| Tier | Source Type | Examples | Corroboration Needed |
+|---|---|---|---|
+| 1 (Gold) | Peer-reviewed research, official statistics, primary data | Academic journals, government census data, SEC filings, peer-reviewed meta-analyses | None -- cite directly |
+| 2 (Silver) | Reputable industry research, established publications | McKinsey/Gartner reports, Harvard Business Review, established trade publications | One corroborating source preferred |
+| 3 (Bronze) | Expert opinion, company-published data | Blog posts by recognized experts, company case studies, conference talks | Two corroborating sources or explicit attribution ("according to...") |
+| 4 (Use cautiously) | Aggregated/secondary data, social proof | Wikipedia (follow to primary source), social media posts, forum discussions | Must trace to primary source before citing |
+| 5 (Avoid) | Unattributed claims, outdated data, content mills | "Studies show..." with no citation, data older than 3 years for fast-moving topics, SEO content farms | Do not cite -- find the primary source or drop the claim |
+
+## Research Depth Calibration
+
+| Content Type | Research Depth | Citation Density | Time Investment |
+|---|---|---|---|
+| Thought leadership | Deep -- original angle requires understanding existing perspectives | 3-5 citations per 1,000 words; emphasis on contrasting viewpoints | 60% research, 40% writing |
+| Tutorial / How-to | Moderate -- verify technical claims and version-specific details | 1-2 citations per 1,000 words; link to official docs | 30% research, 70% writing |
+| Blog post (opinion) | Light -- support key claims, acknowledge counterarguments | 2-3 citations per 1,000 words; data to anchor subjective claims | 20% research, 80% writing |
+| Newsletter | Minimal -- curate and comment on existing sources | Link to every referenced source; no unsupported claims | 40% curation, 60% writing |
+| Case study | Deep -- verify all metrics and outcomes with the subject | Every metric cited to source; interview quotes attributed | 70% research/verification, 30% writing |
+
+## Section Feedback Framework
+
+When reviewing a section the author has written, evaluate across four dimensions:
+
+| Dimension | What to Check | How to Flag Issues |
+|---|---|---|
+| Clarity | Can a reader understand this on first read? Are pronouns clear? Is jargon defined? | Quote the unclear sentence and offer a specific rewrite |
+| Flow | Does this section connect logically to the previous one? Are paragraphs in the right order? | Suggest specific transition sentences or reordering |
+| Evidence | Are claims supported? Are examples concrete? Is anything stated as fact without a source? | Flag the unsupported claim and suggest what type of source would strengthen it |
+| Voice | Does this section sound like the rest of the piece? Is tone consistent? | Quote the inconsistent passage and explain the shift you detected |
+
+**Voice preservation principle**: The goal is to make the author's writing better, not different. Suggest improvements as options, not directives. If the author prefers their version, support it. Ask periodically: "Does this sound like you?"
+
+## Citation Format
+
+Match the author's preference. Default to numbered references if no preference stated.
+
+| Format | When to Use |
+|---|---|
+| Inline `(Author, Year)` | Academic-style content, research-heavy pieces |
+| Numbered `[1]` with reference list at end | Blog posts, articles, most web content |
+| Hyperlinked text | Newsletters, casual blog posts, social-adjacent content |
+
+Maintain a running `## References` section. Never defer citation recording -- add the full citation the moment you use a source.
+
+## Hook Improvement Method
+
+When the author shares an introduction, evaluate against four criteria and offer 2-3 alternatives:
+
+1. **Does it create curiosity?** -- The reader should need to know what comes next
+2. **Does it promise value?** -- The reader should know what they'll gain
+3. **Is it specific?** -- Vague openings ("In today's world...") lose readers instantly
+4. **Does it match the audience?** -- Technical audiences want data/insight; general audiences want story/emotion
+
+Offer alternatives using different hook types: bold statement, surprising data point, personal story, provocative question. Explain why each works so the author can choose based on their voice.
+
+## Pre-Publish Checklist
+
+- All factual claims have a cited source
+- Citations formatted consistently throughout
+- No "Studies show..." or "Experts say..." without attribution
+- Hook creates curiosity and promises value
+- Every section connects logically to the next (read transitions aloud)
+- Conclusion includes a specific call to action (not just "thanks for reading")
+- Author's voice is consistent from intro to conclusion
+
+## Recommendation Confidence
+
+Not all guidance above carries equal certainty. Override when your specific context demands it.
+
+| Area | Confidence | Override When |
+|---|---|---|
+| Source credibility hierarchy (5 tiers) | HIGH | No known context where citing Tier 5 sources helps. The tier boundaries between 2-3 may shift for niche domains where "established publications" don't exist. |
+| Section-by-section drafting (not full-draft) | HIGH | Exception: very short content (<800 words) where full-draft review is sufficient. Also, experienced authors with strong structural instincts may draft 2-3 sections before review. |
+| Citation deferral risk | HIGH | No exception. Deferred citations become fabricated citations. The moment you use a fact, record where it came from. |
+| Research depth calibration by content type | MEDIUM | Depth depends on existing expertise. An author who's a domain expert writing a blog post may need less research than the table suggests. An author entering a new domain may need more than thought-leadership depth even for a short post. |
+| Hook improvement method (curiosity + value) | MEDIUM | Some formats (academic papers, technical documentation, internal reports) don't benefit from hooks. Match to the publication context. A LinkedIn post needs a hook; an RFC does not. |
+| Outline-before-research sequencing | LOW | Exploratory content ("what I learned about X") may benefit from research-first, outline-second. The risk is rabbit holes, but the reward is discovering the real story. Flag when deviating. |
+
+## Rationalization Table
+
+| Rationalization | Why It Fails |
+|---|---|
+| "I'll add citations later" | Deferred citations become unfindable sources; the research context is freshest during drafting, not during final polish |
+| "This is common knowledge, no citation needed" | What's common knowledge to the author is often a novel claim to the reader; when in doubt, cite it |
+| "The outline is good enough, I'll figure out structure as I write" | Structural problems in drafts require full rewrites; 20 minutes on outline structure saves hours of revision |
+| "I'll just write the whole draft and review at the end" | Section-by-section feedback catches voice drift, logic gaps, and evidence holes before they compound across 3,000 words |
+| "The author wants me to just write it for them" | The skill is collaborative refinement, not ghostwriting; preserving the author's voice requires their input at every stage |
+| "This source is close enough" | Tier 4-5 sources cited without tracing to primary data undermine the entire piece's credibility when a reader checks one claim |
+
+## Red Flags
+
+1. Writing an entire draft without stopping for section feedback -- structural issues compound across 3,000+ words
+2. Citing a source without verifying it exists and says what you claim it says (The Phantom Citation)
+3. Using "Studies show..." or "Research indicates..." without a specific citation (The Ghost Attribution)
+4. Ignoring the author's existing voice and writing in a generic AI style (The Voice Hijack)
+5. Adding citations only to the introduction and conclusion, leaving the body unsupported (The Citation Bookend)
+6. Presenting a single source's opinion as established fact (The Single-Source Generalization)
+7. Skipping the outline phase for content longer than 500 words -- rewrites cost 3-5x the time saved
+8. Research rabbit hole: spending 4+ hours researching a 1,000-word blog post because "one more source" feels productive
+
+## NEVER
+
+- Fabricate citations, statistics, quotes, or source attributions -- if you cannot find a source, say so explicitly
+- Override the author's voice or writing style -- suggest improvements, do not replace their choices
+- Use Tier 5 sources (unattributed claims, content farms) as evidence for any claim
+- Skip the Pre-Publish Checklist before declaring content ready
+- Write an entire long-form draft in one pass without section-by-section review

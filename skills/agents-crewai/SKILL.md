@@ -1,498 +1,175 @@
 ---
-name: crewai-multi-agent
-description: Multi-agent orchestration framework for autonomous AI collaboration. Use when building teams of specialized agents working together on complex tasks, when you need role-based agent collaboration with memory, or for production workflows requiring sequential/hierarchical execution. Built without LangChain dependencies for lean, fast execution.
-version: 1.0.0
-author: Orchestra Research
-license: MIT
-tags: [Agents, CrewAI, Multi-Agent, Orchestration, Collaboration, Role-Based, Autonomous, Workflows, Memory, Production]
-dependencies: [crewai>=1.2.0, crewai-tools>=1.2.0]
+name: agents-crewai
+description: "Use when building multi-agent systems with CrewAI framework. Use when choosing between CrewAI Crews (autonomous) vs Flows (event-driven). Use when designing agent roles/goals/backstories for CrewAI. Use when debugging CrewAI crew failures (infinite loops, agents ignoring context, token cost explosion). Use when configuring CrewAI with different LLM providers (OpenAI, Anthropic, local). NEVER for general agent architecture decisions (use ai-agents-architect). NEVER for non-CrewAI frameworks like LangGraph or AutoGen."
+version: "2.0"
+optimized: true
+optimized_date: "2026-03-10"
 ---
 
-# CrewAI - Multi-Agent Orchestration Framework
+# CrewAI Multi-Agent Orchestration
 
-Build teams of autonomous AI agents that collaborate to solve complex tasks.
+Think like someone who has built 20 crews and learned that the biggest failures aren't code bugs — they're crew DESIGN bugs. Wrong agent count, vague roles, wrong process type. The code compiles fine, the crew runs, but the output is mediocre because the architecture is wrong.
 
-## When to use CrewAI
+## When CrewAI Is (and Isn't) the Right Choice
 
-**Use CrewAI when:**
-- Building multi-agent systems with specialized roles
-- Need autonomous collaboration between agents
-- Want role-based task delegation (researcher, writer, analyst)
-- Require sequential or hierarchical process execution
-- Building production workflows with memory and observability
-- Need simpler setup than LangChain/LangGraph
-
-**Key features:**
-- **Standalone**: No LangChain dependencies, lean footprint
-- **Role-based**: Agents have roles, goals, and backstories
-- **Dual paradigm**: Crews (autonomous) + Flows (event-driven)
-- **50+ tools**: Web scraping, search, databases, AI services
-- **Memory**: Short-term, long-term, and entity memory
-- **Production-ready**: Tracing, enterprise features
-
-**Use alternatives instead:**
-- **LangChain**: General-purpose LLM apps, RAG pipelines
-- **LangGraph**: Complex stateful workflows with cycles
-- **AutoGen**: Microsoft ecosystem, multi-agent conversations
-- **LlamaIndex**: Document Q&A, knowledge retrieval
-
-## Quick start
-
-### Installation
-
-```bash
-# Core framework
-pip install crewai
-
-# With 50+ built-in tools
-pip install 'crewai[tools]'
+```
+Do you need multiple LLM-powered agents collaborating?
+│
+├─ NO → Don't use CrewAI
+│  ├─ Single agent task → Use direct LLM calls or a simple agent loop
+│  └─ Pipeline (no agent autonomy) → Use a script or workflow tool
+│
+└─ YES → Is the collaboration pattern simple or complex?
+   │
+   ├─ Simple (linear pipeline, A→B→C)
+   │  └─ CrewAI Crews with Process.sequential
+   │     (Simplest multi-agent setup. Start here.)
+   │
+   ├─ Complex (conditional routing, parallel branches, cycles)
+   │  └─ CrewAI Flows (event-driven, state management)
+   │     OR consider LangGraph if you need cycle-heavy graphs
+   │
+   └─ Conversational (agents debate/discuss until consensus)
+      └─ AutoGen is better suited for conversation-style multi-agent
 ```
 
-### Create project with CLI
+### CrewAI vs LangGraph vs AutoGen — Expert Take
 
-```bash
-# Create new crew project
-crewai create crew my_project
-cd my_project
+| Factor | CrewAI Wins | LangGraph Wins | AutoGen Wins |
+|--------|------------|----------------|-------------|
+| Setup speed | Simple role-based agents, runs in 10 min | Requires graph thinking, longer setup | Easy chat setup, but patterns are limited |
+| Process control | Sequential/hierarchical built-in | Full graph control with cycles | Conversation-based, less structured |
+| Production readiness | Good — memory, caching, enterprise | Good — checkpointing, streaming | Improving, but less mature |
+| Debugging | Moderate — verbose mode helps | Better — step-through graph nodes | Hard — conversation traces are long |
+| When to pick | Most multi-agent tasks (default choice) | Complex stateful workflows with branches | Multi-agent debate/discussion |
 
-# Install dependencies
-crewai install
+**Default to CrewAI** for multi-agent orchestration unless you need LangGraph's graph cycles or AutoGen's conversational patterns.
 
-# Run the crew
-crewai run
-```
+## Crew Design — Where Most Teams Fail
 
-### Simple crew (code-only)
+### The "Too Many Cooks" Problem
+
+Every additional agent adds:
+- ~2000-5000 tokens for role/goal/backstory context
+- Another LLM call per task cycle
+- Communication overhead (context passing between agents)
+- Debugging complexity (which agent went wrong?)
+
+| Agent Count | Cost Multiplier | Quality Impact |
+|-------------|----------------|----------------|
+| 2 agents | ~2x single agent | Usually improves — specialization helps |
+| 3-4 agents | ~3-5x | Sweet spot for most tasks |
+| 5-7 agents | ~6-10x | Diminishing returns, coordination overhead |
+| 8+ agents | ~12-20x | Actively hurts quality — agents duplicate work or contradict each other |
+
+**Rule of thumb:** If you can't explain why each agent needs to be separate (different tools? different expertise? different output format?), merge them.
+
+### Role/Goal/Backstory Quality
+
+These three fields determine 80% of agent output quality. Bad roles produce generic output regardless of task quality.
 
 ```python
-from crewai import Agent, Task, Crew, Process
-
-# 1. Define agents
-researcher = Agent(
-    role="Senior Research Analyst",
-    goal="Discover cutting-edge developments in AI",
-    backstory="You are an expert analyst with a keen eye for emerging trends.",
-    verbose=True
+# BAD: Generic, gives agent no direction
+Agent(
+    role="Assistant",
+    goal="Help with the task",
+    backstory="You are helpful."
 )
 
-writer = Agent(
-    role="Technical Writer",
-    goal="Create clear, engaging content about technical topics",
-    backstory="You excel at explaining complex concepts to general audiences.",
-    verbose=True
-)
-
-# 2. Define tasks
-research_task = Task(
-    description="Research the latest developments in {topic}. Find 5 key trends.",
-    expected_output="A detailed report with 5 bullet points on key trends.",
-    agent=researcher
-)
-
-write_task = Task(
-    description="Write a blog post based on the research findings.",
-    expected_output="A 500-word blog post in markdown format.",
-    agent=writer,
-    context=[research_task]  # Uses research output
-)
-
-# 3. Create and run crew
-crew = Crew(
-    agents=[researcher, writer],
-    tasks=[research_task, write_task],
-    process=Process.sequential,  # Tasks run in order
-    verbose=True
-)
-
-# 4. Execute
-result = crew.kickoff(inputs={"topic": "AI Agents"})
-print(result.raw)
-```
-
-## Core concepts
-
-### Agents - Autonomous workers
-
-```python
-from crewai import Agent
-
-agent = Agent(
-    role="Data Scientist",                    # Job title/role
-    goal="Analyze data to find insights",     # What they aim to achieve
-    backstory="PhD in statistics...",         # Background context
-    llm="gpt-4o",                             # LLM to use
-    tools=[],                                 # Tools available
-    memory=True,                              # Enable memory
-    verbose=True,                             # Show reasoning
-    allow_delegation=True,                    # Can delegate to others
-    max_iter=15,                              # Max reasoning iterations
-    max_rpm=10                                # Rate limit
+# GOOD: Specific expertise, clear direction
+Agent(
+    role="Financial Data Analyst",
+    goal="Identify anomalies and trends in quarterly revenue data that would affect investor communications",
+    backstory="You've spent 10 years at a Big 4 firm analyzing Fortune 500 financials. You know that small discrepancies in revenue recognition can signal major issues."
 )
 ```
 
-### Tasks - Units of work
+**The backstory test:** Does the backstory give the agent PERSPECTIVE that changes its output? "You are helpful" adds nothing. "10 years at Big 4 analyzing Fortune 500 financials" shapes how the agent interprets data, what it flags as important, and what language it uses.
 
-```python
-from crewai import Task
-
-task = Task(
-    description="Analyze the sales data for Q4 2024. {context}",
-    expected_output="A summary report with key metrics and trends.",
-    agent=analyst,                            # Assigned agent
-    context=[previous_task],                  # Input from other tasks
-    output_file="report.md",                  # Save to file
-    async_execution=False,                    # Run synchronously
-    human_input=False                         # No human approval needed
-)
-```
-
-### Crews - Teams of agents
-
-```python
-from crewai import Crew, Process
-
-crew = Crew(
-    agents=[researcher, writer, editor],      # Team members
-    tasks=[research, write, edit],            # Tasks to complete
-    process=Process.sequential,               # Or Process.hierarchical
-    verbose=True,
-    memory=True,                              # Enable crew memory
-    cache=True,                               # Cache tool results
-    max_rpm=10,                               # Rate limit
-    share_crew=False                          # Opt-in telemetry
-)
-
-# Execute with inputs
-result = crew.kickoff(inputs={"topic": "AI trends"})
-
-# Access results
-print(result.raw)                             # Final output
-print(result.tasks_output)                    # All task outputs
-print(result.token_usage)                     # Token consumption
-```
-
-## Process types
-
-### Sequential (default)
-
-Tasks execute in order, each agent completing their task before the next:
-
-```python
-crew = Crew(
-    agents=[researcher, writer],
-    tasks=[research_task, write_task],
-    process=Process.sequential  # Task 1 → Task 2 → Task 3
-)
-```
-
-### Hierarchical
-
-Auto-creates a manager agent that delegates and coordinates:
-
-```python
-crew = Crew(
-    agents=[researcher, writer, analyst],
-    tasks=[research_task, write_task, analyze_task],
-    process=Process.hierarchical,  # Manager delegates tasks
-    manager_llm="gpt-4o"           # LLM for manager
-)
-```
-
-## Using tools
-
-### Built-in tools (50+)
-
-```bash
-pip install 'crewai[tools]'
-```
-
-```python
-from crewai_tools import (
-    SerperDevTool,           # Web search
-    ScrapeWebsiteTool,       # Web scraping
-    FileReadTool,            # Read files
-    PDFSearchTool,           # Search PDFs
-    WebsiteSearchTool,       # Search websites
-    CodeDocsSearchTool,      # Search code docs
-    YoutubeVideoSearchTool,  # Search YouTube
-)
-
-# Assign tools to agent
-researcher = Agent(
-    role="Researcher",
-    goal="Find accurate information",
-    backstory="Expert at finding data online.",
-    tools=[SerperDevTool(), ScrapeWebsiteTool()]
-)
-```
-
-### Custom tools
-
-```python
-from crewai.tools import BaseTool
-from pydantic import Field
-
-class CalculatorTool(BaseTool):
-    name: str = "Calculator"
-    description: str = "Performs mathematical calculations. Input: expression"
-
-    def _run(self, expression: str) -> str:
-        try:
-            result = eval(expression)
-            return f"Result: {result}"
-        except Exception as e:
-            return f"Error: {str(e)}"
-
-# Use custom tool
-agent = Agent(
-    role="Analyst",
-    goal="Perform calculations",
-    tools=[CalculatorTool()]
-)
-```
-
-## YAML configuration (recommended)
-
-### Project structure
+### Sequential vs Hierarchical Decision
 
 ```
-my_project/
-├── src/my_project/
-│   ├── config/
-│   │   ├── agents.yaml    # Agent definitions
-│   │   └── tasks.yaml     # Task definitions
-│   ├── crew.py            # Crew assembly
-│   └── main.py            # Entry point
-└── pyproject.toml
+Process.sequential — Tasks run in defined order
+│ Agent A does Task 1 → Agent B does Task 2 → Agent C does Task 3
+│
+│ Use when:
+│ - Task order is clear and fixed
+│ - Each task's output feeds the next
+│ - You want predictable execution
+│ - DEFAULT CHOICE for most crews
+│
+Process.hierarchical — Manager agent delegates dynamically
+│ Manager decides → assigns tasks → reviews results
+│
+│ Use when:
+│ - Task order depends on intermediate results
+│ - Agents may need to collaborate or re-do work
+│ - CAUTION: Manager adds cost + latency + another failure point
 ```
 
-### agents.yaml
+**Expert insight:** Most teams default to hierarchical because it sounds more capable. In practice, sequential produces better results for 80% of use cases because the execution is predictable and debuggable. Use hierarchical only when you genuinely need dynamic task assignment.
 
-```yaml
-researcher:
-  role: "{topic} Senior Data Researcher"
-  goal: "Uncover cutting-edge developments in {topic}"
-  backstory: >
-    You're a seasoned researcher with a knack for uncovering
-    the latest developments in {topic}. Known for your ability
-    to find relevant information and present it clearly.
+### Crews vs Flows Decision
 
-reporting_analyst:
-  role: "Reporting Analyst"
-  goal: "Create detailed reports based on research data"
-  backstory: >
-    You're a meticulous analyst who transforms raw data into
-    actionable insights through well-structured reports.
-```
+| Need | Use Crews | Use Flows |
+|------|-----------|-----------|
+| Linear agent pipeline | Yes | Overkill |
+| Conditional branching | Awkward | Yes — `@router` decorator |
+| Parallel execution paths | Limited | Yes — event-driven |
+| State management across steps | Implicit (context passing) | Explicit (`BaseModel` state) |
+| Simple multi-agent task | Yes | Overkill |
+| Complex orchestration with retry/fallback | Limited | Yes |
 
-### tasks.yaml
+**Start with Crews.** Graduate to Flows when you need conditional routing, parallel branches, or explicit state management. See `references/flows.md` for Flow patterns.
 
-```yaml
-research_task:
-  description: >
-    Conduct thorough research about {topic}.
-    Find the most relevant information for {year}.
-  expected_output: >
-    A list with 10 bullet points of the most relevant
-    information about {topic}.
-  agent: researcher
+## Production Gotchas
 
-reporting_task:
-  description: >
-    Review the research and create a comprehensive report.
-    Focus on key findings and recommendations.
-  expected_output: >
-    A detailed report in markdown format with executive
-    summary, findings, and recommendations.
-  agent: reporting_analyst
-  output_file: report.md
-```
+| Gotcha | Symptom | Fix |
+|--------|---------|-----|
+| Token cost explosion | Bill 10-20x expected | Reduce agent count, use `max_iter`, use haiku/cheaper models for simple agents |
+| Agent infinite loop | Task never completes | Set `max_iter=10` on agents (default 15 is often too high) |
+| Context not passing | Agent B ignores Agent A's output | Explicitly set `context=[task_a]` on Task B |
+| ChromaDB storage growth | Disk fills up with memory data | Set `CREWAI_STORAGE_DIR`, add cleanup schedule |
+| Manager agent confusion | Hierarchical crew produces bad delegations | Switch to sequential, or improve manager LLM to opus-level |
+| Backstory ignored | Agent output doesn't reflect expertise | Backstory too generic — make it specific with concrete experience |
+| Tool errors swallowed | Agent fabricates tool results | Check `verbose=True` output, verify tools actually execute |
 
-### crew.py
+## File Index
 
-```python
-from crewai import Agent, Crew, Process, Task
-from crewai.project import CrewBase, agent, crew, task
-from crewai_tools import SerperDevTool
+| File | Purpose | When to Load |
+|------|---------|-------------|
+| SKILL.md | Design decisions, anti-patterns, when to use CrewAI | Always (auto-loaded) |
+| references/flows.md | Flow patterns, state management, router examples | When implementing Flows (event-driven orchestration) |
+| references/tools.md | Built-in tools list, custom tool creation, MCP integration | When adding tools to agents |
+| references/troubleshooting.md | Debugging guides, common errors, solutions | When crew execution fails or produces bad output |
 
-@CrewBase
-class MyProjectCrew:
-    """My Project crew"""
+**Do NOT load** reference files when deciding whether to use CrewAI, choosing between Crews and Flows, or designing crew architecture. The SKILL.md body covers those decisions.
 
-    @agent
-    def researcher(self) -> Agent:
-        return Agent(
-            config=self.agents_config['researcher'],
-            tools=[SerperDevTool()],
-            verbose=True
-        )
+## Rationalization Table
 
-    @agent
-    def reporting_analyst(self) -> Agent:
-        return Agent(
-            config=self.agents_config['reporting_analyst'],
-            verbose=True
-        )
+| Rationalization | When It Appears | Why It's Wrong |
+|----------------|-----------------|----------------|
+| "Let's add another agent for that" | Expanding crew for a subtask | Every agent adds 2000-5000 tokens + an LLM call. Can this subtask be handled by an existing agent with an additional tool? |
+| "Hierarchical is more sophisticated" | Choosing process type | Hierarchical adds a manager agent (cost + latency + failure point). Sequential is better for 80% of use cases. |
+| "The backstory doesn't matter much" | Writing agent config | Backstory determines agent perspective and output quality. Generic backstories = generic output. |
+| "We need Flows for everything" | Choosing orchestration pattern | Flows add complexity. Start with Crews for linear pipelines. Use Flows only when you need conditional routing or parallel branches. |
+| "More tools = more capable agents" | Assigning tools | Agents with too many tools pick wrong ones. 3-5 focused tools per agent. |
 
-    @task
-    def research_task(self) -> Task:
-        return Task(config=self.tasks_config['research_task'])
+## NEVER
 
-    @task
-    def reporting_task(self) -> Task:
-        return Task(
-            config=self.tasks_config['reporting_task'],
-            output_file='report.md'
-        )
+- NEVER add agents without justifying why they can't be merged — each agent adds ~2000-5000 tokens + an LLM call; unjustified agents waste money and degrade quality
+- NEVER use `Process.hierarchical` as the default — the manager agent adds cost, latency, and a failure point; use sequential unless you genuinely need dynamic task assignment
+- NEVER write generic backstories ("You are helpful") — the backstory shapes agent perspective; generic = generic output regardless of task quality
+- NEVER skip `context=[previous_task]` when tasks depend on each other — without explicit context passing, agents can't see previous outputs
+- NEVER deploy without `max_iter` limits on agents — the default 15 iterations is often too high; agents loop until token budget exhaustion
+- NEVER ignore token costs in multi-agent crews — a 5-agent sequential crew costs 5-10x a single agent; budget for this
 
-    @crew
-    def crew(self) -> Crew:
-        return Crew(
-            agents=self.agents,
-            tasks=self.tasks,
-            process=Process.sequential,
-            verbose=True
-        )
-```
+## Red Flags
 
-### main.py
-
-```python
-from my_project.crew import MyProjectCrew
-
-def run():
-    inputs = {
-        'topic': 'AI Agents',
-        'year': 2025
-    }
-    MyProjectCrew().crew().kickoff(inputs=inputs)
-
-if __name__ == "__main__":
-    run()
-```
-
-## Flows - Event-driven orchestration
-
-For complex workflows with conditional logic, use Flows:
-
-```python
-from crewai.flow.flow import Flow, listen, start, router
-from pydantic import BaseModel
-
-class MyState(BaseModel):
-    confidence: float = 0.0
-
-class MyFlow(Flow[MyState]):
-    @start()
-    def gather_data(self):
-        return {"data": "collected"}
-
-    @listen(gather_data)
-    def analyze(self, data):
-        self.state.confidence = 0.85
-        return analysis_crew.kickoff(inputs=data)
-
-    @router(analyze)
-    def decide(self):
-        return "high" if self.state.confidence > 0.8 else "low"
-
-    @listen("high")
-    def generate_report(self):
-        return report_crew.kickoff()
-
-# Run flow
-flow = MyFlow()
-result = flow.kickoff()
-```
-
-See [Flows Guide](references/flows.md) for complete documentation.
-
-## Memory system
-
-```python
-# Enable all memory types
-crew = Crew(
-    agents=[researcher],
-    tasks=[research_task],
-    memory=True,           # Enable memory
-    embedder={             # Custom embeddings
-        "provider": "openai",
-        "config": {"model": "text-embedding-3-small"}
-    }
-)
-```
-
-**Memory types:** Short-term (ChromaDB), Long-term (SQLite), Entity (ChromaDB)
-
-## LLM providers
-
-```python
-from crewai import LLM
-
-llm = LLM(model="gpt-4o")                              # OpenAI (default)
-llm = LLM(model="claude-sonnet-4-5-20250929")                       # Anthropic
-llm = LLM(model="ollama/llama3.1", base_url="http://localhost:11434")  # Local
-llm = LLM(model="azure/gpt-4o", base_url="https://...")              # Azure
-
-agent = Agent(role="Analyst", goal="Analyze data", llm=llm)
-```
-
-## CrewAI vs alternatives
-
-| Feature | CrewAI | LangChain | LangGraph |
-|---------|--------|-----------|-----------|
-| **Best for** | Multi-agent teams | General LLM apps | Stateful workflows |
-| **Learning curve** | Low | Medium | Higher |
-| **Agent paradigm** | Role-based | Tool-based | Graph-based |
-| **Memory** | Built-in | Plugin-based | Custom |
-
-## Best practices
-
-1. **Clear roles** - Each agent should have a distinct specialty
-2. **YAML config** - Better organization for larger projects
-3. **Enable memory** - Improves context across tasks
-4. **Set max_iter** - Prevent infinite loops (default 15)
-5. **Limit tools** - 3-5 tools per agent max
-6. **Rate limiting** - Set max_rpm to avoid API limits
-
-## Common issues
-
-**Agent stuck in loop:**
-```python
-agent = Agent(
-    role="...",
-    max_iter=10,           # Limit iterations
-    max_rpm=5              # Rate limit
-)
-```
-
-**Task not using context:**
-```python
-task2 = Task(
-    description="...",
-    context=[task1],       # Explicitly pass context
-    agent=writer
-)
-```
-
-**Memory errors:**
-```python
-# Use environment variable for storage
-import os
-os.environ["CREWAI_STORAGE_DIR"] = "./my_storage"
-```
-
-## References
-
-- **[Flows Guide](references/flows.md)** - Event-driven workflows, state management
-- **[Tools Guide](references/tools.md)** - Built-in tools, custom tools, MCP
-- **[Troubleshooting](references/troubleshooting.md)** - Common issues, debugging
-
-## Resources
-
-- **GitHub**: https://github.com/crewAIInc/crewAI (25k+ stars)
-- **Docs**: https://docs.crewai.com
-- **Tools**: https://github.com/crewAIInc/crewAI-tools
-- **Examples**: https://github.com/crewAIInc/crewAI-examples
-- **Version**: 1.2.0+
-- **License**: MIT
+- [ ] Crew has 6+ agents for a task a 2-3 agent crew could handle — "too many cooks" problem
+- [ ] Using hierarchical process for a linear pipeline — sequential is simpler and more reliable
+- [ ] Agent backstories are all generic one-liners — output quality will be generic
+- [ ] No `max_iter` set on any agents — risk of infinite loops and token waste
+- [ ] Tasks don't use `context=[]` but depend on previous task output — broken data flow
+- [ ] Using expensive model (GPT-4o/Opus) for every agent in a large crew — use cheaper models for simple agents
+- [ ] No `verbose=True` during development — can't debug agent reasoning without it

@@ -1,0 +1,75 @@
+{
+  "skill": "file-organizer",
+  "evals": [
+    {
+      "prompt": "My Downloads folder has 3,000+ files going back 4 years. It's completely out of control. How should I organize it?",
+      "expected_behavior": "Identify this as a volume threshold requiring Hybrid pattern (1,000-10,000 range). Recommend the size-first triage: identify and delete re-downloadable installers (.exe, .msi, .dmg, .pkg) older than 30 days first to reduce volume. Then apply Categorical sorting for remaining files by extension grouping. Recommend 2-3 level hierarchy. Insist on dry-run mode before executing any bulk moves. Load platform-commands companion for cross-platform listing and bulk move commands. Flag The Desktop Purgatory anti-pattern if Downloads was used as a workspace.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "I'm a freelance graphic designer and need a project folder structure that scales. I work with 10-15 clients at any time, each with multiple deliverables.",
+      "expected_behavior": "Load organization-archetypes companion and recommend the Creative Professional archetype. Project-Based pattern with date-prefixed client folders (YYYY-MM-clientname-description). Each project gets assets/, exports/, briefs/ subfolders. Separate assets-library/ at root for reusable resources (fonts, templates, brand kits). Recommend archiving projects untouched for 6 months. Warn about shared assets duplication across projects -- use a root-level assets-library instead. Keep hierarchy to 3 levels maximum.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "I think I have a lot of duplicate photos across multiple folders. Some are exact copies, others are the same photo at different resolutions. How do I find and clean them up?",
+      "expected_behavior": "Load dedup-strategies companion. Recommend the size-first pipeline for exact duplicates (group by size, partial hash, full hash). For different-resolution variants, recommend perceptual hashing (dHash with Hamming distance threshold of 10). Warn that perceptual hashing produces false positives on visually similar but different images -- always present for human review, never auto-delete. Recommend moving duplicates to a staging folder rather than deleting. For resolution variants, keep the larger (higher quality) file.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "I need to move about 50,000 files from my old Windows laptop to my new MacBook. How do I make sure nothing gets lost or corrupted in the transfer?",
+      "expected_behavior": "Flag cross-platform risks: case sensitivity (Windows case-insensitive, macOS case-insensitive but different Unicode normalization), NTFS alternate data streams will be lost, Windows reserved characters in filenames may cause issues. Recommend pre-transfer audit: check for case-variant filenames, paths exceeding 260 chars, reserved characters. Use metadata-preserving copy tools (robocopy on source side, or Python shutil.copy2). Warn about Unicode normalization (NFC vs NFD on macOS). Recommend post-transfer verification with hash comparison of source vs destination.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "I want to set up my Downloads folder to automatically sort files into the right places. Can you help me build that automation?",
+      "expected_behavior": "Recommend watched folder automation using Python watchdog for cross-platform support (or PowerShell scheduled task on Windows-only). Design routing rules ordered by specificity: specific name patterns first (INV-*.pdf to finances/), then by extension (.pdf to documents/, .jpg to images/), catch-all to unsorted/. Include file aging rules: 30-day review for inbox folders, auto-delete installers after 30 days. Require operation logging for rollback capability. Always move, never copy, to prevent duplicates.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "My project folder has gotten really deep -- some files are 8 or 9 folders deep and I can never find anything. How do I fix this?",
+      "expected_behavior": "Identify The Infinite Nest anti-pattern. Check average files-per-folder (if below 3, the nesting is structure without content). Recommend flattening to 3 levels maximum, citing cognitive load research (Miller's 7 plus-or-minus 2). Encode former folder names into filenames where context would be lost. Check path lengths against Windows MAX_PATH (260 chars). Present a dry-run flattening plan before executing any moves.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "We have a shared drive at our small business with 5 employees. Everyone organizes differently and it's chaos. How do we establish a standard?",
+      "expected_behavior": "Load organization-archetypes companion for Business User archetype. Recommend Hybrid pattern combining Project-Based for client work with Categorical for shared resources. Establish naming conventions (YYYY-MM-DD prefix for dated documents, kebab-case for folders). Define routing rules: new client engagement creates standardized subfolder structure. Set a 3-level depth limit. Address the 'I know where everything is' rationalization from the rationalization table. Recommend quarterly review of folder governance.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "I accidentally moved a bunch of files to the wrong folders during a cleanup. Is there a way to undo this?",
+      "expected_behavior": "If an operation log exists, use it to reverse moves. If no log exists, recommend checking recent file modification timestamps to identify displaced files, then manually restore. Emphasize the rollback strategy going forward: always maintain an operation log during batch processing, use a staging directory for deletes rather than permanent deletion, and always run dry-run mode before executing bulk operations. Explain the move-log JSON format for future operations.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "I'm on Windows and I keep getting 'path too long' errors when trying to move some folders. What's going on and how do I fix it?",
+      "expected_behavior": "Explain Windows MAX_PATH limit of 260 characters. The Infinite Nest anti-pattern often causes this. Two solutions: (1) Enable long path support via registry key LongPathsEnabled (requires admin access, Windows 10 1607+), (2) Restructure folders to reduce path depth -- flatten hierarchy, shorten folder names, encode context into filenames instead of nesting. Load platform-commands companion for PowerShell commands to find paths exceeding 250 characters. Recommend the 4-level maximum depth rule to prevent recurrence.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "I need to organize files for a software development project. What folder structure should I use for my React app with a Node.js backend?",
+      "expected_behavior": "Decline or redirect. Source code project structure is out of scope for file-organizer. Recommend the senior-architect skill for project structure design, or senior-backend for Node.js project layout. File-organizer handles personal and business file organization, not source code architecture. The scope boundary explicitly excludes source code project structure.",
+      "should_trigger": false
+    },
+    {
+      "prompt": "I have hundreds of receipts and invoices from this year that I need to sort and file for tax season. Can you help organize them?",
+      "expected_behavior": "Decline or redirect. Invoice and financial document organization is explicitly out of scope. Recommend the invoice-organizer skill which handles receipt categorization, financial document filing, tax document organization, and vendor-based sorting. File-organizer handles general file organization but defers to invoice-organizer for financial documents.",
+      "should_trigger": false
+    },
+    {
+      "prompt": "My team creates a lot of documents with similar names -- 'Report.pdf', 'report.pdf', 'REPORT.pdf'. We work on both Windows and Linux machines. Is this a problem?",
+      "expected_behavior": "Flag The Case Sensitivity Trap. On Linux these are three distinct files. On Windows and macOS they are the same file -- copying from Linux to Windows would lose two of the three. Recommend enforcing single casing convention (lowercase) across all systems. Load platform-commands companion for the Python script that detects case-conflict files. Recommend a pre-transfer audit before any cross-platform file sharing.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "I have a 2TB external drive with photos, videos, old documents, and backups from three different computers over 10 years. Where do I even start?",
+      "expected_behavior": "This is a 10,000+ file scale requiring systematic phased approach. Start with inventory: file count by type and size to understand the scope. Phase 1: identify and isolate obvious categories (photos by EXIF date, videos by size, documents by extension). Phase 2: deduplicate using the size-first pipeline for exact matches, perceptual hashing for photo variants. Phase 3: apply Chronological pattern at top level (YYYY/) with Categorical second level. Insist on dry-run mode for every batch. Maintain operation log for rollback. Recommend processing one category at a time rather than trying to organize everything at once.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "I want to clean up symlinks and shortcuts scattered around my filesystem. Some point to files that no longer exist. How do I find and handle them?",
+      "expected_behavior": "Load platform-commands companion for symlink detection commands. Explain the difference between symlinks, NTFS junctions (Windows), and shortcuts (.lnk files on Windows). Check for broken symlinks (target no longer exists) and flag for removal. Warn about The Symlink Surprise: deleting the symlink does NOT delete the target, but following symlinks during cleanup can cause duplicate processing or infinite loops. Recommend: detect all symlinks first, resolve targets, report broken ones, skip symlinks during any recursive organization operation unless explicitly told to follow them.",
+      "should_trigger": true
+    }
+  ]
+}

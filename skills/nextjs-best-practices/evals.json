@@ -1,0 +1,50 @@
+[
+  {
+    "input": "I need to design the component architecture for a Next.js App Router dashboard with both static content and interactive charts. How should I split server and client components?",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "My Next.js app is showing stale data after mutations. I'm using revalidateTag but the page still shows old content when navigating with the Link component. How do I fix the caching?",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "What's the best data fetching pattern for a Next.js server component that needs data from three different APIs? Should I use Promise.all or sequential awaits?",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "I want to implement a modal that opens on link click but shows a full page when accessed directly via URL. How do I set up intercepting routes in Next.js?",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "My Next.js middleware is getting complex with authentication checks, geolocation routing, and A/B test assignment. How should I structure the middleware to keep it maintainable?",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "The first-load JS for my Next.js routes is over 150KB. How do I analyze the bundle and reduce it?",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "Should I use server actions or API route handlers for form submissions in my Next.js App Router application?",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "I'm deploying my Next.js app to a self-hosted Docker environment instead of Vercel. What configuration changes do I need for ISR, image optimization, and standalone output?",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "How do I configure next/image and next/font to optimize my Core Web Vitals scores? My LCP is currently over 4 seconds.",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "I need to set up parallel routes in my Next.js dashboard so that analytics, activity feed, and notifications load independently with separate loading and error states.",
+    "expected_output": "should trigger"
+  },
+  {
+    "input": "How do I use the useState and useEffect hooks to manage a form with validation in React?",
+    "expected_output": "should not trigger"
+  },
+  {
+    "input": "I need to migrate my Next.js Pages Router app from getServerSideProps to something more modern. Can you help with the getStaticProps and getServerSideProps patterns?",
+    "expected_output": "should not trigger"
+  }
+]

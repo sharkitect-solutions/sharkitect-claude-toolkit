@@ -1,0 +1,75 @@
+{
+  "skill": "knowledge-management",
+  "evals": [
+    {
+      "prompt": "We're a 20-person engineering team and our documentation is scattered across Google Docs, Confluence, and Slack bookmarks. Nobody can find anything. Help me design a knowledge base from scratch.",
+      "expected_behavior": "Identify The Documentation Sprawl anti-pattern. Recommend declaring one canonical platform. Apply the tool selection criteria (contributor friction weighted highest). Design a hierarchical taxonomy for a team of this size (under 500 docs). Define the four content types and enforce separation. Set up metadata standards, ownership model, and review cadence. Reference taxonomy-design companion for implementation details.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "I need to create an SOP for our customer onboarding process. It involves multiple teams - sales handoff, implementation, training, and go-live. How should I structure it?",
+      "expected_behavior": "Apply the SOP 7-section structure: Purpose, Scope, Roles & Responsibilities, Prerequisites, Procedure, Exceptions & Edge Cases, Revision History. Use RACI for multi-team coordination. Classify as Complex SOP tier (multi-path, cross-functional). Include decision tree for branching points. Load sop-framework companion for template and writing standards.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "Our production systems go down and every time people scramble. We need an incident response runbook. What should it look like?",
+      "expected_behavior": "Apply the runbook structure: Trigger Condition (observable symptoms), Severity Assessment, Prerequisite Checks, Diagnostic Steps (action -> expected output -> branch), Resolution Procedure with verification, Rollback Steps (mandatory), Escalation Path with SLAs, Post-Incident Checklist. Distinguish runbooks from SOPs (stress vs routine). Load runbook-patterns companion for templates. Recommend game day testing.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "We just launched a new product and need to set up documentation for it - architecture docs, user guides, API reference, internal processes. How do I organize all of this?",
+      "expected_behavior": "Apply the four content types (Reference, Procedural, Conceptual, Troubleshooting) and enforce separation. Use the hub-and-spoke cross-linking pattern centered on the product. Set up metadata standards. Establish ownership model. Recommend hierarchical taxonomy with product as a top-level node. Redirect API documentation to api-patterns or technical-writing skills (out of scope). Focus on internal documentation.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "We're migrating from Confluence to Notion. What's the best way to do this without losing everything?",
+      "expected_behavior": "Load taxonomy-design companion for the migration checklist. Cover pre-migration (inventory, taxonomy mapping, export method selection), execution (phased migration, link preservation, metadata preservation), post-migration (parallel systems for 30 days, URL redirects, audit). Warn against cutting over immediately. Emphasize preserving internal links and search quality verification.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "I need to build an onboarding documentation path for new engineering hires. What should they read and in what order?",
+      "expected_behavior": "Apply the onboarding documentation paths framework: Week 1 (company context + tooling), Week 2 (domain knowledge + architecture), Week 3 (procedural knowledge + SOPs), Week 4 (deep dives + historical context). Use sequential linking (Previous/Next). Link to canonical sources rather than duplicating content. Flag The Tribal Knowledge Trap if onboarding currently relies on shadowing.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "Our support team handles 500+ tickets a month and the same questions keep coming up. We want to build a knowledge base to reduce repeat tickets. How should we design the tagging taxonomy?",
+      "expected_behavior": "Recommend faceted taxonomy (500-5,000 docs expected, multiple teams involved). Define facets: content type, product area, customer segment, issue category, lifecycle status. Implement controlled vocabulary with synonym rings to prevent tag proliferation. Load taxonomy-design companion for tagging governance process and synonym ring patterns. Structure troubleshooting content by observable symptom, not root cause.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "We had a major outage last week and the post-mortem generated great insights, but I know we'll forget them in a month. How do we capture this knowledge properly?",
+      "expected_behavior": "Apply the incident-to-knowledge pipeline: post-mortem (temporal) is NOT the KB article (evergreen). Extract reusable knowledge and file separately. Create or update runbook with the failure pattern. Link to related documents. Assign owner for the new content. Flag The Meeting-as-Documentation Fallacy if insights are only in meeting notes. Set review date on the new article.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "We need to set up a regular documentation review process. Half our wiki is probably outdated. How do I build a freshness management system?",
+      "expected_behavior": "Apply staleness detection rules: review overdue, edit decay, orphaned docs, reference rot, high-risk stale. Establish ownership model (every doc needs one named owner). Set review cadence by category (quarterly for incident SOPs, semi-annually for operational, annually for administrative). Build staleness dashboard. Flag The Wiki Graveyard anti-pattern if >40% of docs have no edits in 6 months.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "Help me create a decision tree for our complex approval process. Depending on the dollar amount, department, and urgency, different people need to approve.",
+      "expected_behavior": "Apply decision tree documentation format from the SOP framework. Structure as yes/no questions at each node. Maximum 5 levels deep. Every branch terminates at a defined action. Use the text-based decision tree format for platform-agnostic representation. Embed within or link from the relevant SOP. Load sop-framework companion for decision tree documentation patterns.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "Our senior engineer is leaving in two weeks and he's the only person who knows how half our systems work. What do we do?",
+      "expected_behavior": "Apply knowledge transfer for departing employees: Inventory (what do they own?), Prioritize (bus factor analysis), Capture method (recorded interviews for complex knowledge, written SOPs for procedures, pair sessions for tacit skills), Transfer ownership, Verify (new owner executes procedures while departing employee is available). Flag The Tribal Knowledge Trap. Emphasize that 2 weeks is insufficient for comprehensive transfer -- triage ruthlessly by bus factor.",
+      "should_trigger": true
+    },
+    {
+      "prompt": "Our FAQ page has 200 entries and nobody reads it. Support tickets for questions answered in the FAQ keep coming in. What are we doing wrong?",
+      "expected_behavior": "Identify FAQ anti-patterns: flat list structure defeats findability, FAQs mix content types (reference + procedural + troubleshooting in one page), no progressive disclosure. Restructure by content type: troubleshooting docs organized by symptom, procedural docs for common tasks, reference docs for factual lookups. Apply search optimization and tagging. Consider contextual help design (surface answers where users encounter the problem, not in a separate FAQ).",
+      "should_trigger": true
+    },
+    {
+      "prompt": "Can you write API documentation for our REST endpoints? We have about 30 endpoints that need proper OpenAPI specs.",
+      "expected_behavior": "Decline or redirect. API documentation and OpenAPI spec writing is out of scope for knowledge-management. Refer to api-patterns skill or technical-writing. This skill covers internal knowledge bases, SOPs, runbooks, and documentation systems -- not external-facing API documentation.",
+      "should_trigger": false
+    },
+    {
+      "prompt": "I need to create a marketing content library to organize our blog posts, case studies, and whitepapers for the sales team.",
+      "expected_behavior": "Decline or redirect. Marketing content libraries are out of scope. Refer to content-research-writer or sales-enablement skills. This skill covers internal operational knowledge, not marketing collateral organization.",
+      "should_trigger": false
+    }
+  ]
+}

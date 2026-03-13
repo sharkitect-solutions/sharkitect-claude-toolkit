@@ -1,87 +1,129 @@
 ---
-name: "security-best-practices"
-description: "Perform language and framework specific security best-practice reviews and suggest improvements. Trigger only when the user explicitly requests security best practices guidance, a security review/report, or secure-by-default coding help. Trigger only for supported languages (python, javascript/typescript, go). Do not trigger for general code review, debugging, or non-security tasks."
-author: openai
+name: security-best-practices
+description: "Use when performing security reviews, writing secure-by-default code, generating vulnerability reports, or hardening existing codebases. Also use when the user mentions security audit, secure coding, OWASP, vulnerability assessment, or security best practices. NEVER use for general code review without security focus (use clean-code), penetration testing execution, or compliance certification (use data-privacy-compliance)."
+version: "2.0"
+optimized: true
+optimized_date: "2026-03-11"
 ---
 
 # Security Best Practices
 
-## Overview
+Performs language-and-framework-specific security reviews, writes secure-by-default code, and generates prioritized vulnerability reports with actionable fixes.
 
-This skill provides a description of how to identify the language and frameworks used by the current context, and then to load information from this skill's references directory about the security best practices for this language and or frameworks.
+## File Index
 
-This information, if present, can be used to write new secure by default code, or to passively detect major issues within existing code, or (if requested by the user) provide a vulnerability report and suggest fixes.
+| File | Purpose | Load When |
+|------|---------|-----------|
+| SKILL.md | Security review procedure, depth calibration, cross-language principles, report format, override handling | Always (auto-loaded) |
+| threat-modeling-guide.md | STRIDE methodology applied, trust boundary identification, attack surface enumeration, threat prioritization, business logic security threats, common threat modeling failures | When performing threat modeling, assessing attack surface for new features, or evaluating security architecture |
+| security-anti-patterns.md | Authentication anti-patterns (7), authorization anti-patterns (7), data handling anti-patterns (7), infrastructure anti-patterns (7), error handling anti-patterns (5), dependency anti-patterns (6) | When reviewing code for security issues, educating developers, or when a review finds vulnerabilities |
+| dependency-security-guide.md | Dependency audit procedure, vulnerability triage (CVSS+EPSS), lock file security, update strategies, npm/pip/Go-specific risks, CI/CD pipeline security, SBOM generation | When auditing dependencies, setting up supply chain security, or responding to vulnerability disclosures |
+| references/golang-general-backend-security.md | Go backend security patterns | Project uses Go |
+| references/javascript-express-web-server-security.md | Express.js server hardening | Project uses Express |
+| references/javascript-general-web-frontend-security.md | Frontend security fundamentals | Any web frontend project |
+| references/javascript-jquery-web-frontend-security.md | jQuery-specific XSS prevention | Project uses jQuery |
+| references/javascript-typescript-nextjs-web-server-security.md | Next.js server security | Project uses Next.js |
+| references/javascript-typescript-react-web-frontend-security.md | React frontend security | Project uses React |
+| references/javascript-typescript-vue-web-frontend-security.md | Vue frontend security | Project uses Vue |
+| references/python-django-web-server-security.md | Django security configuration | Project uses Django |
+| references/python-fastapi-web-server-security.md | FastAPI security patterns | Project uses FastAPI |
+| references/python-flask-web-server-security.md | Flask security hardening | Project uses Flask |
 
-## Workflow
+**Loading rule**: For web applications with both frontend and backend, load BOTH the backend framework guide AND the relevant frontend guide. If the frontend framework is unspecified, load `javascript-general-web-frontend-security.md`.
 
-The initial step for this skill is to identify ALL languages and ALL frameworks which you are being asked to use or already exist in the scope of the project you are working in. Focus on the primary core frameworks. Often you will want to identify both frontend and backend languages and frameworks.
+## Scope Boundary
 
-Then check this skill's references directory to see if there are any relevant documentation for the language and or frameworks. Make sure you read ALL reference files which relate to the specific framework or language. The format of the filenames is `<language>-<framework>-<stack>-security.md`. You should also check if there is a `<language>-general-<stack>-security.md` which is agnostic to the framework you may be using.
+| This Skill Handles | Defer To |
+|---|---|
+| Security code review and vulnerability identification | clean-code (general code quality without security focus) |
+| Secure-by-default coding patterns | senior-backend (general backend architecture decisions) |
+| OWASP Top 10 and framework-specific security | vulnerability-scanner (automated scanning and EPSS-based triage) |
+| Threat modeling and attack surface analysis | data-privacy-compliance (GDPR/HIPAA/SOC2 compliance frameworks) |
+| Dependency and supply chain security | docker-expert (container security and image hardening) |
+| Security report generation | senior-architect (system-level architecture review) |
 
-If working on a web application which includes a frontend and a backend, make sure you have checked for reference documents for BOTH the frontend and backend!
+## Security Review Procedure
 
-If you are asked to make a web app which will include both a frontend and backend, but the frontend framework is not specified, also check out `javascript-general-web-frontend-security.md`. It is important that you understand how to secure both the frontend and backend.
+1. **Identify the stack**: Inspect the project for ALL languages and frameworks -- check `package.json`, `requirements.txt`, `go.mod`, directory structure, and import statements. List your evidence.
+2. **Load reference files**: Read ALL reference files matching the detected stack from the File Index above. For full-stack apps, load both frontend and backend guides.
+3. **Select operating mode** based on the trigger:
+   - **Passive mode** (default when writing code): Apply security patterns from reference files to all new code. Flag critical vulnerabilities found in existing code as you encounter them.
+   - **Active review mode** (user requests security review): Full audit against all reference file guidance. Produce a prioritized report.
+   - **Report mode** (user requests vulnerability report): Generate `security_best_practices_report.md` with executive summary, findings by severity, line numbers, and impact statements.
+4. **Prioritize findings** by severity: Critical (exploitable, data exposure) > High (privilege escalation, injection) > Medium (misconfiguration, weak defaults) > Low (best practice deviation, hardening opportunity).
+5. **Implement fixes** one finding at a time. Consider second-order impacts -- insecure code is often relied on elsewhere. Test after each fix. Clear commit messages referencing the specific finding ID.
 
-If no relevant information is available in the skill's references directory, think a little bit about what you know about the language, the framework, and all well known security best practices for it. If you are unsure you can try to search online for documentation on security best practices.
+## Review Depth Calibration
 
-From there it can operate in a few ways.
+| Trigger | Depth | Focus |
+|---------|-------|-------|
+| Writing new code in an existing project | Passive -- apply secure defaults from reference files | Input validation, auth patterns, output encoding |
+| User says "review security" or "security check" | Active -- audit changed files against reference guidance | Full OWASP Top 10 coverage for the detected stack |
+| User requests vulnerability report | Report -- comprehensive audit of entire codebase scope | All findings with severity, line numbers, fix recommendations |
+| Quick fix on a single file | Passive -- scan the file for critical issues only | Injection, auth bypass, secrets exposure |
 
-1. The primary mode is to just use the information to write secure by default code from this point forward. This is useful for starting a new project or when writing new code.
+## Cross-Language Security Principles
 
-2. The secondary mode is to passively detect vulnerabilities while working in the project and writing code for the user. Critical or very important vulnerabilities or major issues going against security guidance can be flagged and the user can be told about them. This passive mode should focus on the largest impact vulnerabilities and secure defaults.
+These apply regardless of framework. Framework-specific rules in reference files override these when they conflict.
 
-3. The user can ask for a security report or to improve the security of the codebase. In this case a full report should be produced describe anyways the project fails to follow security best practices guidance. The report should be prioritized and have clear sections of severity and urgency. Then offer to start working on fixes for these issues. See #fixes below.
+| Principle | Implementation | Why |
+|-----------|---------------|-----|
+| Never use incrementing IDs for public resources | UUID4 or random hex for any externally-exposed ID | Prevents enumeration attacks and leaks resource count |
+| Validate all external input at system boundaries | Whitelist validation on user input, API responses, file reads | Injection and type confusion attacks exploit unvalidated input |
+| Secrets never in code or env-committed files | Use secrets management (vault, env vars loaded at runtime, Docker secrets) | Secrets in code persist in git history even after deletion |
+| Parameterize all database queries | Use ORM query builders or parameterized statements -- never string concatenation | SQL injection remains the #1 exploited vulnerability class |
+| Output encode for the destination context | HTML-encode for DOM, URL-encode for query params, JSON-encode for API responses | XSS exploits output that reaches the browser unencoded |
+| Principle of least privilege | Minimal permissions for DB users, API keys, file access, container users | Limits blast radius when a component is compromised |
 
-## Workflow Decision Tree
+## Report Format
 
-- If the language/framework is unclear, inspect the repo to determine it and list your evidence.
-- If matching guidance exists in `references/`, load only the relevant files and follow their instructions.
-- If no matching guidance exists, consider if you know any well known security best practices for the chosen language and or frameworks, but if asked to generate a report, let the user know that concrete guidance is not available (you can still generate the report or detect for sure critical vulnerabilities)
+When generating a report, write to `security_best_practices_report.md` (or user-specified location):
 
-# Overrides
+1. **Executive summary** (3-5 sentences): total findings, critical count, overall risk posture
+2. **Findings by severity** (Critical > High > Medium > Low): each with numeric ID, one-sentence impact statement (critical only), affected file and line numbers, recommended fix
+3. **After writing**: summarize findings to the user directly, offer to explain any finding, then ask if they want to begin fixes
 
-While these references contain the security best practices for languages and frameworks, customers may have cases where they need to bypass or override these practices. Pay attention to specific rules and instructions in the project's documentation and prompt files which may require you to override certain best practices. When overriding a best practice, you MAY report it to the user, but do not fight with them. If a security best practice needs to be bypassed / ignored for some project specific reason, you can also suggest to add documentation about this to the project so it is clear why the best practice is not being followed and to follow that bypass in the future.
+Fix one finding at a time. Confirm no regressions after each fix. Follow the project's commit and testing conventions.
 
-# Report Format
+## Override Handling
 
-When producing a report, you should write the report as a markdown file in `security_best_practices_report.md` or some other location if provided by the user. You can ask the user where they would like the report to be written to.
+Project documentation or user instructions may override specific security practices. When overriding:
+- Apply the override without arguing
+- Optionally note the security trade-off once
+- Suggest documenting the override reason in project files for future reference
 
-The report should have a short executive summary at the top.
+## TLS and Cookie Caveats
 
-The report should be clearly delineated into multiple sections based on severity of the vulnerability. The report should focus on the most critical findings as these have the highest impact for the user. All findings should be noted with an numeric ID to make them easier to reference.
+- Do NOT report lack of TLS as a finding -- most dev environments use TLS proxies out of scope
+- `Secure` cookie flag breaks non-TLS environments -- gate it behind a production/TLS flag
+- Do NOT recommend HSTS unless the user explicitly understands its permanent browser-caching implications -- HSTS misconfiguration causes major outages
 
-For critical findings include a one sentence impact statement.
+## Rationalization Table
 
-Once the report is written, also report it to the user directly, although you may be less verbose. You can offer to explain any of the findings or the reasons behind the security best practices guidance if the user wants more info on any findings.
+| Rationalization | Why It Fails |
+|---|---|
+| "This is just a prototype, security doesn't matter yet" | Prototypes become production code; insecure patterns established early persist because refactoring is deferred indefinitely |
+| "The framework handles security automatically" | Frameworks provide defaults, not guarantees; misconfiguration, custom endpoints, and raw queries bypass framework protections |
+| "We'll add security in the next sprint" | Security debt compounds faster than technical debt; each insecure endpoint is an active attack surface, not a future TODO |
+| "Only internal users will access this" | Internal tools get exposed through VPN splits, contractor access, lateral movement after breach; internal != trusted |
+| "I already know the common vulnerabilities" | Knowledge of vulnerabilities doesn't prevent them -- structured reference checklists catch what tired developers miss |
+| "The input is always clean because we control the client" | Clients can be bypassed with curl, browser devtools, or a compromised frontend; server-side validation is mandatory |
 
-Important: When referencing code in the report, make sure to find and include line numbers for the code you are referencing.
+## Red Flags
 
-After you write the report file, summarize the findings to the user.
+- No input validation on any API endpoint -- every external input must be validated server-side
+- SQL queries built with string concatenation or f-strings instead of parameterized queries
+- Secrets (API keys, database passwords) hardcoded in source files or committed .env files
+- Application running as root in production containers
+- CORS configured with `*` wildcard on authenticated endpoints
+- Authentication tokens stored in localStorage instead of httpOnly cookies
+- Error messages exposing stack traces, file paths, or database schema to end users
+- No rate limiting on authentication endpoints (login, password reset, OTP verification)
 
-Also tell the user where the final report was written to
+## NEVER
 
-# Fixes
-
-If you produced a report, let the user read the report and ask to begin performing fixes.
-
-If you passively found a critical finding, notify the user and ask if they would like you to fix this finding.
-
-When producing fixes, focus on fixing a single finding at a time. The fixes should have concise clear comments explaining that the new code is based on the specific security best practice, and perhaps a very short reason why it would be dangerous to not do it in this way.
-
-Always consider if the changes you want to make will impact the functionality of the user's code. Consider if the changes may cause regressions with how the project works currently. It is often the case that insecure code is relied on for other reasons (and this is why insecure code lives on for so long). Avoid breaking the user's project as this may make them not want to apply security fixes in the future. It is better to write a well thought out, well informed by the rest of the project, fix, then a quick slapdash change.
-
-Always follow any normal change or commit flow the user has configured. If making git commits, provide clear commit messages explaining this is to align with security best practices. Try to avoid bunching a number of unrelated findings into a single commit.
-
-Always follow any normal testing flows the user has configured (if any) to confirm that your changes are not introducing regressions. Consider the second order impacts the changes may have and inform the user before making them if there are any.
-
-# General Security Advice
-
-Below is a few bits of secure coding advice that applies to almost any language or framework.
-
-### Avoid Using Incrementing IDs for Public IDs of Resources
-
-When assigning an ID for some resource, which will then be used by exposed to the internet, avoid using small auto-incrementing IDs. Use longer, random UUID4 or random hex string instead. This will prevent users from learning the quantity of a resource and being able to guess resource IDs.
-
-### A note on TLS
-
-While TLS is important for production deployments, most development work will be with TLS disabled or provided by some out-of-scope TLS proxy. Due to this, be very careful about not reporting lack of TLS as a security issue. Also be very careful around use of "secure" cookies. They should only be set if the application will actually be over TLS. If they are set on non-TLS applications (such as when deployed for local dev or testing), it will break the application. You can provide a env or other flag to override setting secure as a way to keep it off until on a TLS production deployment. Additionally avoid recommending HSTS. It is dangerous to use without full understanding of the lasting impacts (can cause major outages and user lockout) and it is not generally recommended for the scope of projects being reviewed by codex.
+- Report lack of TLS or recommend HSTS without explicit user understanding of the implications
+- Skip loading the framework-specific reference file when one exists for the detected stack
+- Bundle multiple unrelated security fixes into a single commit -- each finding gets its own commit
+- Apply a security fix without considering whether it breaks existing functionality -- insecure code is often load-bearing
+- Generate a vulnerability report without including specific file paths and line numbers for each finding

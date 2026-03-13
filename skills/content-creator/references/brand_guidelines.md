@@ -1,199 +1,65 @@
-# Brand Voice & Style Guidelines
+# Voice Calibration Reference
 
-## Brand Voice Framework
+Expert decision layer for calibrating and maintaining brand voice. Generic advice says "be consistent." This reference tells you HOW to calibrate, verify, and adapt voice across content types and platforms.
 
-### 1. Voice Dimensions
+## Voice Dimension Framework
 
-#### Formality Spectrum
-- **Formal**: Legal documents, investor communications, crisis responses
-- **Professional**: B2B content, whitepapers, case studies
-- **Conversational**: Blog posts, social media, email newsletters
-- **Casual**: Community engagement, behind-the-scenes content
+Every brand voice sits at a point on three independent axes. Calibrate all three before writing.
 
-#### Tone Attributes
-Choose 3-5 primary attributes for your brand:
-- **Authoritative**: Position as industry expert
-- **Friendly**: Approachable and warm
-- **Innovative**: Forward-thinking and creative
-- **Trustworthy**: Reliable and transparent
-- **Inspiring**: Motivational and uplifting
-- **Educational**: Informative and helpful
-- **Witty**: Clever and entertaining (use sparingly)
+```
+Formality:  Casual ---|---|---|---|--- Formal
+Energy:     Reserved ---|---|---|---|--- Energetic
+Authority:  Peer ---|---|---|---|--- Expert
+```
 
-#### Perspective
-- **First Person Plural (We/Our)**: Creates partnership feeling
-- **Second Person (You/Your)**: Direct and engaging
-- **Third Person**: Objective and professional
+**Calibration rules by audience:**
+- C-Suite: Formal 4-5, Energy 2-3, Authority 4-5. They want confidence without hype.
+- Practitioners: Formal 2-3, Energy 3-4, Authority 3-4. They want useful, not stiff.
+- General consumer: Formal 1-2, Energy 3-4, Authority 2-3. They want relatable, not lecturing.
+- Technical: Formal 3-4, Energy 1-2, Authority 4-5. Precision matters more than warmth.
+- Social media: Formal 1-2, Energy 4-5, Authority 2-3. Platform-native energy, conversational trust.
 
-### 2. Brand Personality Archetypes
+**The calibration error Claude makes:** Without explicit voice direction, Claude writes at Formal 3, Energy 2, Authority 3 for everything. This produces "corporate pleasant" -- readable but forgettable. Force the adjustment by specifying the three dimensions in your prompt or outline.
 
-Choose one primary and one secondary archetype:
+## Voice Consistency Test
 
-**The Expert**
-- Tone: Knowledgeable, confident, informative
-- Content: Data-driven, research-backed, educational
-- Example: "Our research shows that 87% of businesses..."
+Use this when writing a multi-piece campaign or content series to verify voice stays calibrated:
 
-**The Friend**
-- Tone: Warm, supportive, conversational
-- Content: Relatable, helpful, encouraging
-- Example: "We get it - marketing can be overwhelming..."
+1. **Sentence length test:** Pull 5 random sentences from piece 1 and 5 from piece 2. If average sentence length differs by more than 5 words, the voice has drifted.
+2. **Pronoun test:** Count "you/your" vs "we/our" ratio. If piece 1 is 3:1 and piece 2 is 1:2, the perspective shifted. Pick one ratio and hold it.
+3. **Opening pattern test:** Line up the first sentence of each piece. If they share the same structure (e.g., all start with a question, or all start with "We"), the voice is consistent but the content feels repetitive. Same voice, different hooks.
+4. **Read-aloud test:** Read a paragraph from each piece aloud, back to back. If they sound like different people wrote them, recalibrate the outlier.
 
-**The Innovator**
-- Tone: Visionary, bold, forward-thinking
-- Content: Cutting-edge, disruptive, trendsetting
-- Example: "The future of marketing is here..."
+## Common Voice Miscalibration Patterns
 
-**The Guide**
-- Tone: Wise, patient, instructive
-- Content: Step-by-step, clear, actionable
-- Example: "Let's walk through this together..."
+| Pattern | What It Looks Like | Fix |
+|---------|-------------------|-----|
+| **Corporate creep** | Casual brief, but output reads like a press release | Reset: write the first draft as if explaining to a friend, then adjust formality UP one notch only |
+| **Enthusiasm inflation** | Every feature is "incredible," every update is "exciting" | Ban superlatives. Use specific impact instead: "cuts setup time by 60%" not "incredibly fast setup" |
+| **Authority collapse** | Expert positioning, but hedging everywhere ("might," "could," "perhaps") | Remove hedge words. If the claim needs hedging, the claim is too strong -- rewrite the claim, not the hedge |
+| **Tone whiplash** | Professional whitepaper suddenly drops a joke or casual aside | One register per piece. Humor is fine in casual content but must be sustained, not sporadic |
+| **Jargon drift** | Consumer content that gradually introduces industry terms without explanation | Every jargon term gets a plain-language parenthetical on first use, or gets cut |
 
-**The Motivator**
-- Tone: Energetic, positive, inspiring
-- Content: Empowering, action-oriented, transformative
-- Example: "You have the power to transform your business..."
+## Platform Voice Adaptation
 
-### 3. Writing Principles
+Same brand, different platforms require voice ADJUSTMENTS (not voice changes):
 
-#### Clarity First
-- Use simple words when possible
-- Break complex ideas into digestible pieces
-- Lead with the main point
-- Use active voice (80% of the time)
+**LinkedIn:** Shift Authority up +1, Energy down -1 from baseline. Professional context demands slightly more gravitas. Personal stories are fine but frame them as lessons, not anecdotes.
 
-#### Customer-Centric
-- Focus on benefits, not features
-- Address pain points directly
-- Use "you" more than "we"
-- Include customer success stories
+**Twitter/X:** Shift Formality down -1, Energy up +1. Compression forces directness. Remove qualifiers. One idea per tweet. The voice should feel like the brand speaking off the cuff, not reading a script.
 
-#### Consistency
-- Maintain voice across all channels
-- Use approved terminology
-- Follow formatting standards
-- Apply style rules uniformly
+**Instagram:** Shift Energy up +1, Authority down -1. Visual platform rewards enthusiasm and relatability. Captions should feel like a caption, not a blog paragraph reformatted.
 
-### 4. Language Guidelines
+**Email:** Keep all three dimensions at baseline. Email is the closest to your "natural" brand voice. The reader opted in; they expect the voice they signed up for.
 
-#### Words We Use
-- **Action verbs**: Transform, accelerate, optimize, unlock, elevate
-- **Positive descriptors**: Seamless, powerful, intuitive, strategic
-- **Outcome-focused**: Results, growth, success, impact, ROI
+**Blog/Website:** This IS the baseline. All other platforms adjust relative to this.
 
-#### Words We Avoid
-- **Jargon**: Synergy, leverage (as verb), bandwidth (for availability)
-- **Overused**: Innovative, disruptive, cutting-edge (unless truly applicable)
-- **Weak**: Very, really, just, maybe, hopefully
-- **Negative**: Can't, won't, impossible, problem (use "challenge")
+## Voice Inference Heuristics
 
-### 5. Content Structure Templates
+When the user provides no voice guidance, infer it rather than defaulting to corporate-pleasant:
 
-#### Blog Post Structure
-1. **Hook** (1-2 sentences): Grab attention with a question, statistic, or bold statement
-2. **Context** (1 paragraph): Explain why this matters now
-3. **Main Content** (3-5 sections): Deliver value with clear subheadings
-4. **Conclusion** (1 paragraph): Summarize key points
-5. **Call to Action**: Clear next step for readers
-
-#### Social Media Framework
-- **LinkedIn**: Professional insights, industry news, thought leadership
-- **Twitter/X**: Quick tips, engaging questions, thread stories
-- **Instagram**: Visual storytelling, behind-the-scenes, inspiration
-- **Facebook**: Community building, longer narratives, events
-
-### 6. Messaging Pillars
-
-Define 3-4 core themes that appear consistently:
-
-1. **Innovation & Technology**
-   - AI-powered solutions
-   - Data-driven insights
-   - Future-ready strategies
-
-2. **Customer Success**
-   - Real results and ROI
-   - Partnership approach
-   - Tailored solutions
-
-3. **Expertise & Trust**
-   - Industry leadership
-   - Proven methodologies
-   - Transparent communication
-
-4. **Growth & Transformation**
-   - Scaling businesses
-   - Digital transformation
-   - Continuous improvement
-
-### 7. Audience Personas
-
-#### Decision Makers (C-Suite)
-- **Tone**: Professional, strategic, ROI-focused
-- **Content**: High-level insights, business impact, competitive advantages
-- **Pain Points**: Growth, efficiency, competition
-
-#### Practitioners (Marketing Managers)
-- **Tone**: Practical, supportive, educational
-- **Content**: How-to guides, best practices, tools
-- **Pain Points**: Time, resources, skills
-
-#### Innovators (Early Adopters)
-- **Tone**: Exciting, cutting-edge, visionary
-- **Content**: Trends, new features, future predictions
-- **Pain Points**: Staying ahead, differentiation
-
-### 8. Channel-Specific Guidelines
-
-#### Website Copy
-- Headlines: 6-12 words, benefit-focused
-- Body: Short paragraphs (2-3 sentences)
-- CTAs: Action-oriented, specific
-
-#### Email Marketing
-- Subject Lines: 30-50 characters, personalized
-- Preview Text: Complement subject, add urgency
-- Body: Scannable, one main message
-
-#### Blog Content
-- Title: Include primary keyword, under 60 characters
-- Introduction: Hook within first 50 words
-- Sections: 200-300 words each
-- Lists: 5-7 items optimal
-
-### 9. Grammar & Mechanics
-
-#### Punctuation
-- Oxford comma: Always use
-- Em dashes: For emphasis—like this
-- Exclamation points: Maximum one per piece
-
-#### Capitalization
-- Headlines: Title Case for H1, Sentence case for H2-H6
-- Product names: As trademarked
-- Job titles: Lowercase unless before name
-
-#### Numbers
-- Spell out one through nine
-- Use numerals for 10 and above
-- Always use numerals for percentages
-
-### 10. Inclusivity Guidelines
-
-- Use gender-neutral language
-- Avoid idioms that don't translate
-- Consider global audience
-- Ensure accessibility in formatting
-- Represent diverse perspectives
-
-## Quick Reference Checklist
-
-Before publishing any content, verify:
-- [ ] Matches brand voice and tone
-- [ ] Free of jargon and complex terms
-- [ ] Includes clear value proposition
-- [ ] Has appropriate CTA
-- [ ] Follows grammar guidelines
-- [ ] Mobile-friendly formatting
-- [ ] Accessible to all audiences
-- [ ] Proofread and fact-checked
+1. **Check their existing content first.** If the user has a website or previous content, analyze it for the three voice dimensions. Match what they already have unless they ask for a change.
+2. **Industry norms as fallback.** Finance/legal = Formal 4, Energy 2. SaaS/tech = Formal 2-3, Energy 3. Consumer brands = Formal 1-2, Energy 4. Use as starting point, not final answer.
+3. **Audience signals.** If the user mentions their audience is "developers," shift to Technical voice. If they mention "small business owners," shift to Practitioner voice. The audience determines the calibration more than the brand does.
+4. **Content type signals.** A case study request implies Authority 4+. A social media post request implies Formality 1-2. Let the content type nudge the calibration.
+5. **When truly ambiguous:** Ask one question: "Who is reading this, and what should they feel after reading it?" The answer sets all three dimensions.
