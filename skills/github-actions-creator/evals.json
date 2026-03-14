@@ -1,0 +1,52 @@
+[
+  {
+    "question": "Create a CI workflow for a Node.js monorepo with packages/frontend and packages/backend that only runs tests for changed packages",
+    "criteria": [
+      "Uses dorny/paths-filter or similar to detect changed packages",
+      "Runs frontend and backend jobs conditionally based on changes",
+      "Sets working-directory per job to the correct package path",
+      "Includes cache-dependency-path for correct package-lock.json",
+      "Sets permissions, concurrency, and timeout-minutes"
+    ]
+  },
+  {
+    "question": "Set up a deployment workflow that deploys to staging on push to develop and production on push to main, with manual approval required for production",
+    "criteria": [
+      "Uses environment protection rules for production",
+      "Separates staging and production deployment logic",
+      "Sets concurrency group per environment to prevent parallel deploys",
+      "Uses cancel-in-progress: false for deploy concurrency",
+      "Includes proper permissions block"
+    ]
+  },
+  {
+    "question": "Create a reusable workflow for running tests that can be called by multiple repos in the org",
+    "criteria": [
+      "Uses workflow_call trigger with typed inputs and optional secrets",
+      "Defines outputs for test results or coverage",
+      "Caller example uses secrets: inherit or explicit secret passing",
+      "Includes timeout-minutes in the reusable workflow",
+      "Documents required permissions for callers"
+    ]
+  },
+  {
+    "question": "Set up keyless AWS deployment using OIDC instead of stored access keys",
+    "criteria": [
+      "Sets id-token: write permission",
+      "Uses aws-actions/configure-aws-credentials with role-to-assume",
+      "Does NOT use access-key-id or secret-access-key inputs",
+      "Explains or provides the AWS trust policy with condition on repo",
+      "Restricts the OIDC subject claim to specific repo/branch"
+    ]
+  },
+  {
+    "question": "My GitHub Actions workflow keeps failing with 'Resource not accessible by integration'. How do I fix it?",
+    "criteria": [
+      "Identifies missing permissions block as the likely cause",
+      "Lists the specific permission needed for the failing operation",
+      "Mentions that org-level settings can restrict default permissions",
+      "Shows the correct permissions block syntax",
+      "Warns about fork PR limitations with secrets/permissions"
+    ]
+  }
+]

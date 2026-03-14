@@ -1,0 +1,52 @@
+[
+  {
+    "question": "Set up a production-ready Kubernetes deployment for a Node.js microservice with auto-scaling and zero-downtime deploys.",
+    "criteria": [
+      "Deployment includes resource requests AND limits (both CPU and memory) with realistic values",
+      "HPA configured with appropriate target CPU (60-80%), minReplicas >= 2, and scaleDown stabilization window",
+      "PodDisruptionBudget defined with minAvailable or maxUnavailable to protect against node drains",
+      "Readiness and liveness probes configured with correct timing (liveness initialDelaySeconds > readiness initialDelaySeconds)",
+      "Rolling update strategy specified with maxSurge and maxUnavailable, plus preStop lifecycle hook for graceful shutdown"
+    ]
+  },
+  {
+    "question": "Our Terraform state file is 15MB and takes 3 minutes to plan. How do we fix this?",
+    "criteria": [
+      "Recommends splitting state into smaller, domain-specific state files (networking, compute, data) rather than one monolithic state",
+      "Explains module decomposition strategy with separate root modules per environment and domain",
+      "Suggests using -target for immediate relief while working on structural split",
+      "Describes terraform state mv workflow for migrating resources between state files without recreation",
+      "Addresses state locking and backend configuration for the new split structure"
+    ]
+  },
+  {
+    "question": "Design a CI/CD pipeline for a monorepo with 5 services that only builds and deploys changed services.",
+    "criteria": [
+      "Implements path-based change detection (git diff or CI-native path filters) to identify which services changed",
+      "Each service has an independent pipeline that can build, test, and deploy without affecting others",
+      "Includes environment promotion strategy (dev -> staging -> production) with gates between stages",
+      "Describes rollback mechanism (revert commit, redeploy previous image tag, or feature flags)",
+      "Addresses shared library changes that should trigger rebuilds of all dependent services"
+    ]
+  },
+  {
+    "question": "We are getting paged 50 times a week and most alerts are noise. How do we fix alert fatigue?",
+    "criteria": [
+      "Recommends shifting from cause-based alerts (CPU, memory) to symptom-based alerts (error rate, latency, SLO burn rate)",
+      "Defines severity levels with clear routing (critical = page, warning = ticket, info = dashboard only)",
+      "Implements alert grouping and inhibition rules to reduce duplicate notifications",
+      "Establishes error budget-based alerting with multi-window burn rate thresholds",
+      "Sets measurable target (fewer than 5 pages per on-call shift) and process for deleting alerts that are always ignored"
+    ]
+  },
+  {
+    "question": "Migrate a manually-configured EC2 instance to Infrastructure as Code without downtime.",
+    "criteria": [
+      "Starts with discovery: documenting running services, installed packages, open ports, and configuration files on the existing instance",
+      "Uses terraform import to bring the existing EC2 instance and its dependencies (security groups, IAM roles, EBS volumes) into state",
+      "Iterates on terraform plan until output shows zero changes, confirming HCL matches actual infrastructure",
+      "Describes blue-green cutover strategy: new IaC-managed instance runs parallel, traffic switches via DNS or load balancer, old instance stays warm",
+      "Addresses state management and secret handling (no secrets in HCL, use SSM Parameter Store or Vault)"
+    ]
+  }
+]

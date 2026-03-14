@@ -1,302 +1,239 @@
 ---
 name: github-actions-creator
-description: "Use when the user wants to create, generate, or set up a GitHub Actions workflow. Handles CI/CD pipelines, testing, deployment, linting, security scanning, release automation, Docker builds, scheduled tasks, and any custom workflow for any language or framework."
+description: |
+  Use when the user wants to create, debug, or optimize a GitHub Actions workflow.
+  TRIGGER: "github actions", "CI/CD pipeline", "workflow", "deploy workflow", "CI workflow",
+  "github action", "reusable workflow", "composite action", "workflow_dispatch",
+  "matrix strategy", "self-hosted runner", "OIDC deployment"
+  EXCLUDE: General git operations, GitHub API usage, non-Actions CI systems (Jenkins, CircleCI)
 ---
 
 # GitHub Actions Creator
 
-You are an expert at creating GitHub Actions workflows. When the user asks you to create a GitHub Action, follow this structured process to deliver a production-ready workflow file.
+## File Index
+
+| File | Load When | Do NOT Load |
+|------|-----------|-------------|
+| `references/workflow-templates.md` | User needs a complete workflow for a specific language/platform | Simple questions about syntax or triggers |
+| `references/advanced-patterns.md` | Reusable workflows, composite actions, OIDC, dynamic matrices, self-hosted runners | Basic CI/CD setup |
+| `references/debugging-guide.md` | Workflow is failing, debugging errors, cost optimization | Creating new workflows from scratch |
+| `evals.json` | Evaluating skill output quality | Normal usage |
+
+---
 
 ## Workflow Creation Process
 
-### Step 1: Analyze the Project
+### Step 1: Detect the Stack
 
-Before writing any YAML, scan the project to understand the stack:
+Scan the project before writing YAML:
 
-1. **Check for language/framework indicators:**
-   - `package.json` → Node.js (check for React, Next.js, Vue, Angular, Svelte, etc.)
-   - `requirements.txt` / `pyproject.toml` / `setup.py` → Python
-   - `go.mod` → Go
-   - `Cargo.toml` → Rust
-   - `pom.xml` / `build.gradle` → Java/Kotlin
-   - `Gemfile` → Ruby
-   - `composer.json` → PHP
-   - `pubspec.yaml` → Dart/Flutter
-   - `Package.swift` → Swift
-   - `*.csproj` / `*.sln` → .NET
+| Indicator File | Stack | Setup Action |
+|---------------|-------|-------------|
+| `package.json` | Node.js | `actions/setup-node@v4` (check for React, Next.js, etc.) |
+| `pyproject.toml` / `requirements.txt` | Python | `actions/setup-python@v5` |
+| `go.mod` | Go | `actions/setup-go@v5` |
+| `Cargo.toml` | Rust | `dtolnay/rust-toolchain@stable` |
+| `pom.xml` / `build.gradle` | Java/Kotlin | `actions/setup-java@v4` |
+| `*.csproj` / `*.sln` | .NET | `actions/setup-dotnet@v4` |
+| `Dockerfile` | Container builds | `docker/build-push-action@v6` |
 
-2. **Check for existing CI/CD:**
-   - `.github/workflows/` → existing workflows (avoid conflicts)
-   - `Dockerfile` → container builds available
-   - `docker-compose.yml` → multi-service setup
-   - `vercel.json` / `netlify.toml` → deployment targets
-   - `terraform/` / `pulumi/` → infrastructure as code
+Also check: `.github/workflows/` (existing workflows), `vercel.json`/`netlify.toml` (deploy targets), `Makefile`, test configs.
 
-3. **Check for tooling:**
-   - `.eslintrc*` / `eslint.config.*` → ESLint configured
-   - `prettier*` → Prettier configured
-   - `jest.config*` / `vitest.config*` / `pytest.ini` → test framework
-   - `.env.example` → environment variables needed
-   - `Makefile` → build commands available
+### Step 2: Route by Use Case
 
-### Step 2: Ask Clarifying Questions (if needed)
+**IF user wants basic CI (test + lint):**
+- Trigger: `pull_request` + `push` to main
+- Parallel jobs: lint, test. Sequential: build after both pass
+- Load `references/workflow-templates.md` for language-specific template
 
-If the user's request is ambiguous, ask ONE focused question. Common clarifications:
+**IF user wants deployment:**
+- Trigger: `push` to main (or release tags)
+- Sequential: test -> build -> deploy (with `needs`)
+- Use environment protection rules for production
+- Load `references/advanced-patterns.md` for OIDC auth
 
-- **"Create a CI pipeline"** → "Should it run tests only, or also lint and type-check?"
-- **"Add deployment"** → "Where does this deploy? (Vercel, AWS, GCP, Docker Hub, etc.)"
-- **"Set up tests"** → "Should tests run on PR only, or also on push to main?"
+**IF user wants reusable/shared workflows:**
+- Load `references/advanced-patterns.md` for `workflow_call` patterns
+- Decide: reusable workflow (full jobs) vs composite action (shared steps)
 
-If the intent is clear, skip this step and proceed.
+**IF user is debugging a failing workflow:**
+- Load `references/debugging-guide.md`
+- Check exit codes, permissions, cache keys first
+
+**IF user wants scheduled automation:**
+- Trigger: `schedule` with cron + `workflow_dispatch` for manual trigger
+- Always add failure notifications
 
 ### Step 3: Generate the Workflow
 
-Create the `.github/workflows/{name}.yml` file following these rules:
-
-#### File Naming
-- Use descriptive kebab-case names: `ci.yml`, `deploy-production.yml`, `release.yml`
-- For simple CI: `ci.yml`
-- For deployment: `deploy.yml` or `deploy-{target}.yml`
-- For scheduled tasks: `scheduled-{task}.yml`
-
-#### YAML Structure Rules
+Every workflow MUST include these structural elements:
 
 ```yaml
-name: Human-readable name        # Always include
+name: Descriptive Name
 
-on:                               # Use the most specific triggers
+on:
+  # Most specific triggers possible
   push:
-    branches: [main]              # Specify branches explicitly
-    paths-ignore:                 # Skip docs-only changes when appropriate
-      - '**.md'
-      - 'docs/**'
+    branches: [main]
+    paths-ignore: ['**.md', 'docs/**']
   pull_request:
     branches: [main]
 
-permissions:                      # Always set minimal permissions
+permissions:          # NEVER omit — always explicit minimal
   contents: read
 
-concurrency:                      # Prevent duplicate runs on PRs
+concurrency:          # Prevent duplicate runs
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: true  # false for deploys
 
 jobs:
   job-name:
-    runs-on: ubuntu-latest        # Default to ubuntu-latest
-    timeout-minutes: 15           # Always set a timeout
+    runs-on: ubuntu-latest
+    timeout-minutes: 15   # ALWAYS set
     steps:
-      - uses: actions/checkout@v4 # Always pin to major version
+      - uses: actions/checkout@v4
 ```
 
-## Core Patterns by Use Case
+---
 
-### CI (Test + Lint)
+## Anti-Patterns (Named)
 
-**Trigger:** `pull_request` + `push` to main
-**Jobs:** lint, test (parallel when possible)
-**Key features:** dependency caching, matrix testing for multiple versions
+### The Naked Workflow
+Omitting `permissions` block entirely. GitHub defaults may be `write-all` in older repos, creating a massive attack surface. **Always declare explicit minimal permissions.**
 
-### Deployment
+### The Infinite Runner
+No `timeout-minutes` on jobs. Default is 6 hours. A hung test suite burns 6 hours of billable minutes before failing. **Always set timeout-minutes (5-15 for CI, 20-30 for builds, 60 max for deploys).**
 
-**Trigger:** `push` to main (or release tags)
-**Jobs:** test → build → deploy (sequential with `needs`)
-**Key features:** environment protection, secrets for credentials, status checks
-
-### Release / Publish
-
-**Trigger:** `push` tags matching `v*` or `workflow_dispatch`
-**Jobs:** test → build → publish → create GitHub Release
-**Key features:** changelog generation, artifact upload, npm/PyPI/Docker publish
-
-### Scheduled Tasks
-
-**Trigger:** `schedule` with cron expression
-**Jobs:** single job with the task
-**Key features:** `workflow_dispatch` for manual trigger too, failure notifications
-
-### Security Scanning
-
-**Trigger:** `pull_request` + `schedule` (weekly)
-**Jobs:** dependency audit, SAST, secret scanning
-**Key features:** SARIF upload to GitHub Security tab, fail on critical
-
-### Docker Build & Push
-
-**Trigger:** `push` to main + tags
-**Jobs:** build → push to registry
-**Key features:** multi-platform builds, layer caching, image tagging strategy
-
-## Essential Actions Reference
-
-### Setup Actions (always pin to major version)
-| Action | Purpose |
-|--------|---------|
-| `actions/checkout@v4` | Clone repository |
-| `actions/setup-node@v4` | Node.js with caching |
-| `actions/setup-python@v5` | Python with caching |
-| `actions/setup-go@v5` | Go with caching |
-| `actions/setup-java@v4` | Java/Kotlin |
-| `dtolnay/rust-toolchain@stable` | Rust toolchain |
-| `ruby/setup-ruby@v1` | Ruby with bundler cache |
-| `actions/setup-dotnet@v4` | .NET SDK |
-
-### Build & Deploy Actions
-| Action | Purpose |
-|--------|---------|
-| `docker/build-push-action@v6` | Docker multi-platform builds |
-| `docker/login-action@v3` | Docker registry authentication |
-| `aws-actions/configure-aws-credentials@v4` | AWS authentication |
-| `google-github-actions/auth@v2` | GCP authentication |
-| `azure/login@v2` | Azure authentication |
-| `cloudflare/wrangler-action@v3` | Cloudflare Workers deploy |
-| `amondnet/vercel-action@v25` | Vercel deployment |
-
-### Quality & Security Actions
-| Action | Purpose |
-|--------|---------|
-| `github/codeql-action/analyze@v3` | CodeQL SAST scanning |
-| `aquasecurity/trivy-action@master` | Container vulnerability scan |
-| `codecov/codecov-action@v4` | Coverage upload |
-| `actions/dependency-review-action@v4` | Dependency audit on PRs |
-
-### Utility Actions
-| Action | Purpose |
-|--------|---------|
-| `actions/cache@v4` | Generic caching |
-| `actions/upload-artifact@v4` | Store build artifacts |
-| `actions/download-artifact@v4` | Retrieve artifacts between jobs |
-| `softprops/action-gh-release@v2` | Create GitHub Releases |
-| `slackapi/slack-github-action@v2` | Slack notifications |
-| `peter-evans/create-pull-request@v7` | Automated PR creation |
-
-## Security Best Practices (ALWAYS follow)
-
-1. **Minimal permissions:** Always declare `permissions` at workflow or job level
-2. **Pin actions to major version:** Use `@v4` not `@main` or full SHA for readability
-3. **Never echo secrets:** Secrets are masked but avoid `echo ${{ secrets.X }}`
-4. **Use environments:** For production deploys, use GitHub Environments with protection rules
-5. **Validate inputs:** For `workflow_dispatch`, validate input values
-6. **Avoid script injection:** Never use `${{ github.event.*.body }}` directly in `run:` — pass via environment variables
-7. **Use GITHUB_TOKEN:** Prefer `${{ secrets.GITHUB_TOKEN }}` over PATs when possible
-8. **Concurrency controls:** Use `concurrency` to prevent parallel deploys
+### The Secret Leaker
+Using `${{ github.event.issue.title }}` or `${{ github.event.pull_request.body }}` directly in `run:` blocks. This is a script injection vulnerability — attacker-controlled input becomes shell code.
 
 ```yaml
-# WRONG - script injection vulnerability
-- run: echo "${{ github.event.issue.title }}"
+# VULNERABLE — attacker controls issue title
+- run: echo "Processing ${{ github.event.issue.title }}"
 
-# CORRECT - pass through environment variable
-- run: echo "$ISSUE_TITLE"
+# SAFE — passed through environment variable (shell-escaped)
+- run: echo "Processing $ISSUE_TITLE"
   env:
     ISSUE_TITLE: ${{ github.event.issue.title }}
 ```
 
-## Caching Strategies
+### The Main Pinner
+Pinning actions to `@main` or `@master` instead of version tags. A compromised upstream action runs arbitrary code in your workflow. Use `@v4` minimum; SHA pins for high-security repos.
 
-### Node.js
+### The Eager Deployer
+Using `cancel-in-progress: true` on deployment workflows. Canceling a mid-flight deploy can leave infrastructure in a broken state. **Use `cancel-in-progress: false` for any job that mutates remote state.**
+
+### The Fork Blinder
+Assuming secrets exist in fork PRs. GitHub strips secrets from fork PRs for security. Workflows that require secrets silently fail or error on community contributions. **Always check `github.event.pull_request.head.repo.full_name == github.repository`.**
+
+### The Cache Buster
+Using volatile values in cache keys (run IDs, timestamps, `runner.os` when runner images update). Every run gets a cache miss, negating all caching benefit. **Use deterministic keys based on lock file hashes and pinned OS versions.**
+
+---
+
+## Security Checklist (Non-Negotiable)
+
+1. **Explicit permissions** at workflow or job level — never rely on defaults
+2. **Pin actions** to major version tags (`@v4`), SHA for critical paths
+3. **Never interpolate untrusted input** in `run:` blocks — use `env:` passthrough
+4. **Use OIDC** for cloud auth — eliminate stored access keys (see advanced-patterns.md)
+5. **Use GitHub Environments** for production deploys — require approvals
+6. **Set concurrency** — prevent parallel deploys, cancel duplicate CI runs
+7. **Never use self-hosted runners on public repos** — any fork PR runs code on your machine
+8. **Validate `workflow_dispatch` inputs** — don't trust manual trigger values blindly
+
+---
+
+## Essential Actions Reference
+
+### Setup (pin to major version)
+
+| Action | Purpose | Cache |
+|--------|---------|-------|
+| `actions/checkout@v4` | Clone repo | N/A |
+| `actions/setup-node@v4` | Node.js | `cache: 'npm'` / `'pnpm'` / `'yarn'` |
+| `actions/setup-python@v5` | Python | `cache: 'pip'` / `'poetry'` |
+| `actions/setup-go@v5` | Go | `cache: true` |
+| `actions/setup-java@v4` | Java/Kotlin | `cache: 'maven'` / `'gradle'` |
+| `dtolnay/rust-toolchain@stable` | Rust | Manual `actions/cache@v4` |
+| `actions/setup-dotnet@v4` | .NET | `cache: true` |
+
+### Build & Deploy
+
+| Action | Purpose |
+|--------|---------|
+| `docker/build-push-action@v6` | Multi-platform Docker builds |
+| `docker/login-action@v3` | Registry auth (GHCR, DockerHub, ECR) |
+| `aws-actions/configure-aws-credentials@v4` | AWS auth (supports OIDC) |
+| `google-github-actions/auth@v2` | GCP auth (supports OIDC) |
+| `cloudflare/wrangler-action@v3` | Cloudflare Workers |
+| `hashicorp/setup-terraform@v3` | Terraform CLI |
+
+### Quality & Utility
+
+| Action | Purpose |
+|--------|---------|
+| `github/codeql-action/analyze@v3` | SAST scanning |
+| `aquasecurity/trivy-action@master` | Container vulnerability scan |
+| `codecov/codecov-action@v4` | Coverage upload |
+| `actions/dependency-review-action@v4` | Dependency audit on PRs |
+| `softprops/action-gh-release@v2` | Create GitHub Releases |
+| `dorny/paths-filter@v3` | Detect changed files/paths |
+| `googleapis/release-please-action@v4` | Automated versioning + changelogs |
+
+---
+
+## Caching Quick Reference
+
 ```yaml
+# Node.js — built into setup-node
 - uses: actions/setup-node@v4
-  with:
-    node-version: 20
-    cache: 'npm'  # or 'yarn' or 'pnpm'
-```
+  with: { node-version: 20, cache: 'npm' }
 
-### Python
-```yaml
+# Python — built into setup-python
 - uses: actions/setup-python@v5
-  with:
-    python-version: '3.12'
-    cache: 'pip'  # or 'poetry' or 'pipenv'
-```
+  with: { python-version: '3.12', cache: 'pip' }
 
-### Go
-```yaml
+# Go — built into setup-go
 - uses: actions/setup-go@v5
-  with:
-    go-version: '1.22'
-    cache: true
-```
+  with: { go-version: '1.22', cache: true }
 
-### Rust
-```yaml
+# Docker — GHA cache backend
+- uses: docker/build-push-action@v6
+  with: { cache-from: 'type=gha', cache-to: 'type=gha,mode=max' }
+
+# Rust — manual cache required
 - uses: actions/cache@v4
   with:
     path: |
       ~/.cargo/bin/
-      ~/.cargo/registry/index/
-      ~/.cargo/registry/cache/
+      ~/.cargo/registry/
       target/
     key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 ```
 
-### Docker
-```yaml
-- uses: docker/build-push-action@v6
-  with:
-    cache-from: type=gha
-    cache-to: type=gha,mode=max
-```
+---
 
-## Matrix Testing Patterns
+## Cron Syntax
 
-### Multiple Node.js versions
-```yaml
-strategy:
-  matrix:
-    node-version: [18, 20, 22]
-  fail-fast: false
-```
-
-### Multiple OS
-```yaml
-strategy:
-  matrix:
-    os: [ubuntu-latest, macos-latest, windows-latest]
-runs-on: ${{ matrix.os }}
-```
-
-### Complex matrix with exclusions
-```yaml
-strategy:
-  matrix:
-    os: [ubuntu-latest, windows-latest]
-    node-version: [18, 20]
-    exclude:
-      - os: windows-latest
-        node-version: 18
-```
-
-## Cron Syntax Quick Reference
-
-| Schedule | Cron |
-|----------|------|
-| Every hour | `0 * * * *` |
-| Daily at midnight UTC | `0 0 * * *` |
-| Weekdays at 9am UTC | `0 9 * * 1-5` |
-| Weekly on Sunday | `0 0 * * 0` |
+| Schedule | Expression |
+|----------|-----------|
+| Hourly | `0 * * * *` |
+| Daily midnight UTC | `0 0 * * *` |
+| Weekdays 9am UTC | `0 9 * * 1-5` |
+| Weekly Sunday | `0 0 * * 0` |
 | Monthly 1st | `0 0 1 * *` |
 
-## Output Format
+Note: GitHub cron can be delayed up to 15 minutes under load. Not suitable for time-critical tasks.
 
-After creating the workflow file, provide:
+---
 
-1. **What the workflow does** — one-paragraph summary
-2. **Required secrets** — list any secrets the user needs to configure in Settings > Secrets
-3. **Required permissions** — if the workflow needs non-default repository permissions
-4. **How to test** — how to trigger the workflow (push, create PR, manual dispatch)
+## Output Checklist
 
-## Common Patterns to Combine
+After creating a workflow, always provide:
 
-When the user asks for something generic like "set up CI/CD", create a single workflow with multiple jobs:
-
-```yaml
-jobs:
-  lint:        # Fast feedback
-  test:        # Core validation
-  build:       # Ensure it compiles/bundles
-    needs: [lint, test]
-  deploy:      # Only after everything passes
-    needs: build
-    if: github.ref == 'refs/heads/main'
-```
-
-Keep workflows focused. Prefer one workflow per concern over one massive workflow, unless the jobs are tightly coupled.
+1. **Summary** — what the workflow does in one paragraph
+2. **Required secrets** — list secrets to configure in Settings > Secrets
+3. **Required permissions** — if the workflow needs non-default repo settings
+4. **How to trigger** — how to test the workflow (push, PR, manual dispatch)
+5. **Cost estimate** — approximate minutes per run (e.g., "~3 min on ubuntu-latest")

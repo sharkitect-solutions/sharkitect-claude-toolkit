@@ -1,0 +1,52 @@
+[
+  {
+    "input": "Audit this React e-commerce product page for WCAG 2.2 AA compliance and provide a prioritized remediation plan.",
+    "criteria": [
+      "References the 4-phase audit methodology (automated scan, keyboard navigation, screen reader testing, expert manual review) and explains why automated tools alone catch only ~30% of issues",
+      "Tests keyboard navigation through the full purchase flow (product selection, add to cart, checkout) and verifies visible focus indicators, tab order, and skip links",
+      "Performs screen reader verification of product images (alt text), prices, form labels, error messages, and dynamic cart updates using aria-live regions",
+      "References specific WCAG 2.2 AA criteria by number (e.g., 1.1.1, 1.4.3, 2.1.1, 2.4.7, 4.1.2) for each finding, not just generic descriptions",
+      "Produces a prioritized remediation plan with severity classification (critical/major/minor), effort estimates, and a risk-vs-effort ordering that addresses blocking issues first"
+    ]
+  },
+  {
+    "input": "Build an accessible autocomplete/combobox component that works with screen readers.",
+    "criteria": [
+      "Uses correct ARIA roles (combobox on input, listbox on suggestions container, option on each suggestion) with aria-expanded, aria-autocomplete, aria-controls, and aria-activedescendant",
+      "Implements complete keyboard patterns: Down/Up Arrow to navigate suggestions, Enter to select, Escape to close, typing to filter, Home/End for first/last option",
+      "Includes live region announcement of results count (e.g., '5 results available') and 'No results found' state, with the live region container pre-existing in the DOM",
+      "Manages focus correctly: keeps DOM focus on the input while using aria-activedescendant to communicate the highlighted option to screen readers",
+      "Addresses screen reader rendering differences (JAWS forms mode, VoiceOver aria-activedescendant requirements, NVDA browse mode behavior) and tests with at least two combinations"
+    ]
+  },
+  {
+    "input": "Our company received a demand letter about ADA web accessibility. What do we need to do?",
+    "criteria": [
+      "Recommends creating a VPAT/ACR with proper conformance levels (Supports, Partially Supports, Does Not Support, Not Applicable) and specifies which assistive technologies to test with",
+      "Outlines a realistic remediation timeline with severity-based SLAs (P0 critical within 2 weeks, P1 major within 30 days) and emphasizes 'substantial compliance' as the legal standard",
+      "Explains legal defensibility requirements: documented remediation effort, accessibility statement with contact info, conformance roadmap, regular re-auditing schedule, and accessible alternative pathways",
+      "Identifies immediate high-impact fixes (keyboard access, form labels, alt text, color contrast, page language) that demonstrate good faith effort with minimal development time",
+      "Warns against accessibility overlays (AccessiBe, UserWay) as a remediation strategy, citing NFB opposition and their documented failure in ADA lawsuits, and recommends source code fixes instead"
+    ]
+  },
+  {
+    "input": "Convert this div-based navigation menu to be fully accessible.",
+    "criteria": [
+      "Replaces div structure with semantic HTML (nav element with aria-label, ul/li list structure, a elements for links) rather than applying ARIA roles to divs",
+      "Implements keyboard support with arrow keys for moving within the menu, Tab for moving between top-level items or out of the menu, Escape to close submenus, and Enter/Space to activate items",
+      "Applies correct ARIA attributes for any non-native behavior (aria-expanded on items with submenus, aria-haspopup for dropdown triggers, aria-current='page' for current page indicator)",
+      "Handles focus management for submenus (focus moves into submenu on open, returns to parent on close, roving tabindex or aria-activedescendant for item navigation)",
+      "Addresses mobile touch support with appropriate touch target sizes (minimum 44x44 CSS pixels per platform guidelines) and ensures the menu works with mobile screen readers (VoiceOver gestures, TalkBack)"
+    ]
+  },
+  {
+    "input": "Set up automated accessibility testing in our CI/CD pipeline.",
+    "criteria": [
+      "Recommends axe-core as the primary engine with specific configuration: tag filters (wcag2a, wcag2aa), exclusion patterns for third-party content, and threshold settings (zero violations for new projects, baseline regression for legacy)",
+      "Configures rules to handle false positives: exclusion list with documented justifications, custom rule overrides for known edge cases, and separation of gate-blocking (critical/major) from warning-only (minor) findings",
+      "Includes testing of dynamic content by running axe after user interactions (page load alone misses SPA route changes, lazy-loaded content, and AJAX updates)",
+      "Specifies reporting format with WCAG criterion reference, severity, affected element selector, and remediation guidance -- not just pass/fail",
+      "Addresses integration with the broader testing strategy: axe-core catches ~30% of issues, CI gates provide regression prevention, but manual keyboard and screen reader testing are still required on a scheduled cadence"
+    ]
+  }
+]

@@ -1,148 +1,103 @@
 ---
 name: shopify-development
 description: |
-  Build Shopify apps, extensions, themes using GraphQL Admin API, Shopify CLI, Polaris UI, and Liquid.
+  Build Shopify apps, extensions, themes using GraphQL Admin API, Shopify CLI, and Liquid.
   TRIGGER: "shopify", "shopify app", "checkout extension", "admin extension", "POS extension",
   "shopify theme", "liquid template", "polaris", "shopify graphql", "shopify webhook",
   "shopify billing", "app subscription", "metafields", "shopify functions"
+  EXCLUDE: General e-commerce advice without Shopify context, payment processing (use stripe-best-practices), generic React/Node.js questions
 ---
 
-# Shopify Development Skill
+# Shopify Development
 
-Use this skill when the user asks about:
+## File Index
 
-- Building Shopify apps or extensions
-- Creating checkout/admin/POS UI customizations
-- Developing themes with Liquid templating
-- Integrating with Shopify GraphQL or REST APIs
-- Implementing webhooks or billing
-- Working with metafields or Shopify Functions
-
----
-
-## ROUTING: What to Build
-
-**IF user wants to integrate external services OR build merchant tools OR charge for features:**
-→ Build an **App** (see `references/app-development.md`)
-
-**IF user wants to customize checkout OR add admin UI OR create POS actions OR implement discount rules:**
-→ Build an **Extension** (see `references/extensions.md`)
-
-**IF user wants to customize storefront design OR modify product/collection pages:**
-→ Build a **Theme** (see `references/themes.md`)
-
-**IF user needs both backend logic AND storefront UI:**
-→ Build **App + Theme Extension** combination
+| File | Load When | Do NOT Load |
+|------|-----------|-------------|
+| `references/app-development.md` | Building apps: OAuth, GraphQL API, webhooks, billing | Theme-only or extension-only work |
+| `references/extensions.md` | Checkout/admin/POS UI extensions, Shopify Functions | Theme development, app backend |
+| `references/themes.md` | Theme development: Liquid, sections, snippets, layout | App development, extensions |
+| `evals.json` | Evaluating skill output quality | Normal usage |
 
 ---
 
-## Shopify CLI Commands
+## Routing: What Are You Building?
 
-Install CLI:
+**IF integrating external services OR building merchant tools OR charging for features:**
+- Build an **App** -- load `references/app-development.md`
+- Apps live on your server, connect via OAuth, use GraphQL Admin API
+
+**IF customizing checkout UI OR adding admin dashboard widgets OR creating POS actions OR implementing discount/validation rules:**
+- Build an **Extension** -- load `references/extensions.md`
+- Extensions run inside Shopify's sandboxed environment using React components
+
+**IF customizing storefront design OR modifying product/collection pages OR editing the online store look:**
+- Build a **Theme** -- load `references/themes.md`
+- Themes use Liquid templating with JSON templates and section architecture
+
+**IF you need backend logic AND storefront UI together:**
+- Build **App + Theme App Extension** combo
+- App handles API logic; theme extension renders storefront blocks
+
+---
+
+## Shopify CLI Quick Reference
 
 ```bash
-npm install -g @shopify/cli@latest
-```
+# App development
+shopify app init                                    # Scaffold new app
+shopify app dev                                     # Dev server with ngrok tunnel
+shopify app deploy                                  # Build + upload to Shopify
+shopify app generate extension --type <TYPE>         # Add extension to app
 
-Create and run app:
+# Extension types: checkout_ui_extension, admin_action,
+#   admin_block, pos_ui_extension, function
 
-```bash
-shopify app init          # Create new app
-shopify app dev           # Start dev server with tunnel
-shopify app deploy        # Build and upload to Shopify
-```
-
-Generate extension:
-
-```bash
-shopify app generate extension --type checkout_ui_extension
-shopify app generate extension --type admin_action
-shopify app generate extension --type admin_block
-shopify app generate extension --type pos_ui_extension
-shopify app generate extension --type function
-```
-
-Theme development:
-
-```bash
-shopify theme init        # Create new theme
-shopify theme dev         # Start local preview at localhost:9292
-shopify theme pull --live # Pull live theme
-shopify theme push --development  # Push to dev theme
+# Theme development
+shopify theme init                                  # Scaffold new theme
+shopify theme dev                                   # Local preview at localhost:9292
+shopify theme pull --live                           # Download live theme
+shopify theme push --development                    # Upload to dev theme
+shopify theme check                                 # Lint theme code
 ```
 
 ---
 
-## Access Scopes
+## GraphQL Admin API (2026-01)
 
-Configure in `shopify.app.toml`:
+API endpoint: `https://{shop}/admin/api/2026-01/graphql.json`
+Auth header: `X-Shopify-Access-Token: {token}`
 
-```toml
-[access_scopes]
-scopes = "read_products,write_products,read_orders,write_orders,read_customers"
-```
-
-Common scopes:
-
-- `read_products`, `write_products` - Product catalog access
-- `read_orders`, `write_orders` - Order management
-- `read_customers`, `write_customers` - Customer data
-- `read_inventory`, `write_inventory` - Stock levels
-- `read_fulfillments`, `write_fulfillments` - Order fulfillment
-
----
-
-## GraphQL Patterns (Validated against API 2026-01)
-
-### Query Products
+### Query Products (with pagination)
 
 ```graphql
-query GetProducts($first: Int!, $query: String) {
-  products(first: $first, query: $query) {
+query GetProducts($first: Int!, $after: String, $query: String) {
+  products(first: $first, after: $after, query: $query) {
     edges {
       node {
         id
         title
         handle
         status
-        variants(first: 5) {
+        variants(first: 10) {
           edges {
-            node {
-              id
-              price
-              inventoryQuantity
-            }
+            node { id price sku inventoryQuantity }
           }
         }
       }
     }
-    pageInfo {
-      hasNextPage
-      endCursor
-    }
+    pageInfo { hasNextPage endCursor }
   }
 }
 ```
 
-### Query Orders
+### Create Product
 
 ```graphql
-query GetOrders($first: Int!) {
-  orders(first: $first) {
-    edges {
-      node {
-        id
-        name
-        createdAt
-        displayFinancialStatus
-        totalPriceSet {
-          shopMoney {
-            amount
-            currencyCode
-          }
-        }
-      }
-    }
+mutation CreateProduct($input: ProductInput!) {
+  productCreate(input: $input) {
+    product { id title handle }
+    userErrors { field message }
   }
 }
 ```
@@ -152,109 +107,30 @@ query GetOrders($first: Int!) {
 ```graphql
 mutation SetMetafields($metafields: [MetafieldsSetInput!]!) {
   metafieldsSet(metafields: $metafields) {
-    metafields {
-      id
-      namespace
-      key
-      value
-    }
-    userErrors {
-      field
-      message
-    }
+    metafields { id namespace key value }
+    userErrors { field message }
   }
 }
 ```
 
-Variables example:
+Variables: `{ "metafields": [{ "ownerId": "gid://shopify/Product/123", "namespace": "custom", "key": "care_instructions", "value": "Hand wash only", "type": "single_line_text_field" }] }`
 
-```json
-{
-  "metafields": [
-    {
-      "ownerId": "gid://shopify/Product/123",
-      "namespace": "custom",
-      "key": "care_instructions",
-      "value": "Handle with care",
-      "type": "single_line_text_field"
-    }
-  ]
+### Bulk Operations (for 250+ items)
+
+```graphql
+mutation BulkExportProducts {
+  bulkOperationRunQuery(
+    query: """
+    { products { edges { node { id title variants { edges { node { id price } } } } } } }
+    """
+  ) {
+    bulkOperation { id status }
+    userErrors { field message }
+  }
 }
 ```
 
----
-
-## Checkout Extension Example
-
-```tsx
-import {
-  reactExtension,
-  BlockStack,
-  TextField,
-  Checkbox,
-  useApplyAttributeChange,
-} from "@shopify/ui-extensions-react/checkout";
-
-export default reactExtension("purchase.checkout.block.render", () => (
-  <GiftMessage />
-));
-
-function GiftMessage() {
-  const [isGift, setIsGift] = useState(false);
-  const [message, setMessage] = useState("");
-  const applyAttributeChange = useApplyAttributeChange();
-
-  useEffect(() => {
-    if (isGift && message) {
-      applyAttributeChange({
-        type: "updateAttribute",
-        key: "gift_message",
-        value: message,
-      });
-    }
-  }, [isGift, message]);
-
-  return (
-    <BlockStack spacing="loose">
-      <Checkbox checked={isGift} onChange={setIsGift}>
-        This is a gift
-      </Checkbox>
-      {isGift && (
-        <TextField
-          label="Gift Message"
-          value={message}
-          onChange={setMessage}
-          multiline={3}
-        />
-      )}
-    </BlockStack>
-  );
-}
-```
-
----
-
-## Liquid Template Example
-
-```liquid
-{% comment %} Product Card Snippet {% endcomment %}
-<div class="product-card">
-  <a href="{{ product.url }}">
-    {% if product.featured_image %}
-      <img
-        src="{{ product.featured_image | img_url: 'medium' }}"
-        alt="{{ product.title | escape }}"
-        loading="lazy"
-      >
-    {% endif %}
-    <h3>{{ product.title }}</h3>
-    <p class="price">{{ product.price | money }}</p>
-    {% if product.compare_at_price > product.price %}
-      <p class="sale-badge">Sale</p>
-    {% endif %}
-  </a>
-</div>
-```
+Poll status via `currentBulkOperation { status url }`, download JSONL from the URL.
 
 ---
 
@@ -274,93 +150,165 @@ uri = "/webhooks/orders"
 topics = ["products/update"]
 uri = "/webhooks/products"
 
-# GDPR mandatory webhooks (required for app approval)
+# MANDATORY for app store approval
 [webhooks.privacy_compliance]
 customer_data_request_url = "/webhooks/gdpr/data-request"
 customer_deletion_url = "/webhooks/gdpr/customer-deletion"
 shop_deletion_url = "/webhooks/gdpr/shop-deletion"
 ```
 
+### HMAC Verification (Non-Negotiable)
+
+```javascript
+import crypto from 'crypto';
+
+function verifyWebhook(req) {
+  const hmac = req.headers['x-shopify-hmac-sha256'];
+  const hash = crypto
+    .createHmac('sha256', process.env.SHOPIFY_API_SECRET)
+    .update(req.rawBody, 'utf8')
+    .digest('base64');
+  return crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(hash));
+}
+```
+
+Use `crypto.timingSafeEqual` -- string comparison (`===`) is vulnerable to timing attacks.
+
 ---
 
-## Best Practices
+## Access Scopes
 
-### API Usage
+Configure in `shopify.app.toml`:
 
-- Use GraphQL over REST for new development
-- Request only fields you need (reduces query cost)
-- Implement cursor-based pagination with `pageInfo.endCursor`
-- Use bulk operations for processing more than 250 items
-- Handle rate limits with exponential backoff
+```toml
+[access_scopes]
+scopes = "read_products,write_products,read_orders"
+```
 
-### Security
+| Scope | Access |
+|-------|--------|
+| `read_products` / `write_products` | Product catalog |
+| `read_orders` / `write_orders` | Order management |
+| `read_customers` / `write_customers` | Customer data (GDPR implications) |
+| `read_inventory` / `write_inventory` | Stock levels |
+| `read_fulfillments` / `write_fulfillments` | Fulfillment tracking |
+| `read_checkouts` / `write_checkouts` | Checkout data |
 
-- Store API credentials in environment variables
-- Always verify webhook HMAC signatures before processing
-- Validate OAuth state parameter to prevent CSRF
-- Request minimal access scopes
-- Use session tokens for embedded apps
+**Principle of least privilege:** Request only scopes you actively use. Excessive scopes slow app review and reduce merchant trust.
 
-### Performance
+---
 
-- Cache API responses when data doesn't change frequently
-- Use lazy loading in extensions
-- Optimize images in themes using `img_url` filter
-- Monitor GraphQL query costs via response headers
+## Anti-Patterns (Named)
+
+### The REST Holdout
+Using REST API for new development when GraphQL is available. REST is maintenance-mode; GraphQL gets new features first, supports field selection (lower bandwidth), and has cost-based rate limiting instead of call-count limits. **Always use GraphQL for new work.**
+
+### The Scope Hoarder
+Requesting every access scope "just in case." Merchants see your scope list during install. Requesting `write_customers` + `write_orders` when you only read products kills install conversion. **Request minimum scopes; add more via OAuth re-authorization when needed.**
+
+### The Webhook Truther
+Processing webhooks without verifying the HMAC signature. Any HTTP client can POST fake webhook payloads to your endpoint. **Always verify before processing.** Use `crypto.timingSafeEqual`, not `===`.
+
+### The Pagination Skipper
+Fetching products with `first: 250` and assuming that's all of them. Stores can have 100,000+ products. **Always check `pageInfo.hasNextPage` and paginate with `after: endCursor`.** For 250+ items, use bulk operations.
+
+### The Sync Looper
+Polling the API every 30 seconds for changes instead of using webhooks. Burns rate limit budget, adds latency, and misses events during downtime. **Use webhooks for real-time events; poll only as a reconciliation fallback.**
+
+### The Version Pinner
+Hardcoding API version and never updating. Shopify versions have 12-month deprecation windows. After deprecation, your app breaks. **Track quarterly releases, test against new versions, update within 6 months.**
+
+### The Monolith Extension
+Putting all checkout customization into a single extension with every hook and feature. Extensions have performance budgets -- a bloated single extension loads slowly and degrades checkout conversion. **One extension per concern.**
+
+---
+
+## Rate Limiting
+
+GraphQL uses cost-based throttling:
+- **Bucket:** 2000 points
+- **Restore rate:** 100 points/second (full bucket in 20s)
+- **Max single query cost:** 2000 points
+
+Check cost in response:
+```javascript
+const cost = response.extensions?.cost;
+console.log(`Used ${cost.actualQueryCost} of ${cost.throttleStatus.maximumAvailable}`);
+```
+
+**When throttled:** Implement exponential backoff starting at 1 second. Read `Retry-After` header when present.
+
+---
+
+## Checkout Extension Quick Example
+
+```tsx
+import {
+  reactExtension, BlockStack, TextField, Checkbox,
+  useApplyAttributeChange
+} from '@shopify/ui-extensions-react/checkout';
+
+export default reactExtension('purchase.checkout.block.render', () => <GiftMessage />);
+
+function GiftMessage() {
+  const [isGift, setIsGift] = useState(false);
+  const [message, setMessage] = useState('');
+  const applyChange = useApplyAttributeChange();
+
+  useEffect(() => {
+    if (isGift && message) {
+      applyChange({ type: 'updateAttribute', key: 'gift_message', value: message });
+    }
+  }, [isGift, message]);
+
+  return (
+    <BlockStack spacing="loose">
+      <Checkbox checked={isGift} onChange={setIsGift}>This is a gift</Checkbox>
+      {isGift && <TextField label="Gift Message" value={message} onChange={setMessage} multiline={3} />}
+    </BlockStack>
+  );
+}
+```
 
 ---
 
 ## Troubleshooting
 
-**IF you see rate limit errors:**
-→ Implement exponential backoff retry logic
-→ Switch to bulk operations for large datasets
-→ Monitor `X-Shopify-Shop-Api-Call-Limit` header
+**IF rate limit errors (`429` or `THROTTLED`):**
+- Switch to bulk operations for large datasets
+- Implement exponential backoff with jitter
+- Monitor `X-Shopify-Shop-Api-Call-Limit` header
+- Reduce query complexity (fewer nested connections)
 
-**IF authentication fails:**
-→ Verify the access token is still valid
-→ Check that all required scopes were granted
-→ Ensure OAuth flow completed successfully
+**IF authentication fails (`401` or `UNAUTHORIZED`):**
+- Verify access token is not expired (offline tokens don't expire, online tokens do)
+- Confirm required scopes were granted during OAuth
+- Check that shop domain matches the token's shop
 
-**IF extension is not appearing:**
-→ Verify the extension target is correct
-→ Check that extension is published via `shopify app deploy`
-→ Confirm the app is installed on the test store
+**IF extension not appearing in checkout:**
+- Verify `shopify.extension.toml` target is correct
+- Run `shopify app deploy` (not just `dev`)
+- Confirm app is installed on the development store
+- Check browser console for JavaScript errors
 
-**IF webhook is not receiving events:**
-→ Verify the webhook URL is publicly accessible
-→ Check HMAC signature validation logic
-→ Review webhook logs in Partner Dashboard
+**IF webhook events not arriving:**
+- Verify endpoint is publicly accessible (not localhost)
+- Check HMAC verification isn't rejecting valid payloads
+- Review webhook delivery logs in Partner Dashboard > Webhooks
+- Webhooks retry 19 times over 48 hours on failure
 
-**IF GraphQL query fails:**
-→ Validate query against schema (use GraphiQL explorer)
-→ Check for deprecated fields in error message
-→ Verify you have required access scopes
-
----
-
-## Reference Files
-
-For detailed implementation guides, read these files:
-
-- `references/app-development.md` - OAuth authentication flow, GraphQL mutations for products/orders/billing, webhook handlers, billing API integration
-- `references/extensions.md` - Checkout UI components, Admin UI extensions, POS extensions, Shopify Functions for discounts/payment/delivery
-- `references/themes.md` - Liquid syntax reference, theme directory structure, sections and snippets, common patterns
+**IF GraphQL query returns errors:**
+- Validate query in GraphiQL explorer (Partners Dashboard)
+- Check for deprecated fields (error message includes alternatives)
+- Verify access scopes cover the requested resource
+- Watch for `userErrors` array (mutations succeed at HTTP level but fail logically)
 
 ---
 
-## Scripts
+## Key Links
 
-- `scripts/shopify_init.py` - Interactive project scaffolding. Run: `python scripts/shopify_init.py`
-- `scripts/shopify_graphql.py` - GraphQL utilities with query templates, pagination, rate limiting. Import: `from shopify_graphql import ShopifyGraphQL`
-
----
-
-## Official Documentation Links
-
-- Shopify Developer Docs: https://shopify.dev/docs
-- GraphQL Admin API Reference: https://shopify.dev/docs/api/admin-graphql
-- Shopify CLI Reference: https://shopify.dev/docs/api/shopify-cli
+- API Reference: https://shopify.dev/docs/api/admin-graphql
+- CLI Reference: https://shopify.dev/docs/api/shopify-cli
+- Extensions Components: https://shopify.dev/docs/api/checkout-ui-extensions/components
 - Polaris Design System: https://polaris.shopify.com
-
-API Version: 2026-01 (quarterly releases, 12-month deprecation window)
+- API Version: **2026-01** (quarterly releases, 12-month deprecation)

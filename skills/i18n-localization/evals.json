@@ -1,0 +1,52 @@
+[
+  {
+    "question": "Set up internationalization for a Next.js App Router application supporting English, Spanish, Arabic (RTL), and Japanese. The app has both server and client components.",
+    "criteria": [
+      "Recommends next-intl with middleware-based locale routing and correct matcher config for all 4 locales",
+      "Implements RTL support using CSS logical properties and sets dir attribute on html element conditionally for Arabic",
+      "Shows locale detection chain (URL segment > cookie > Accept-Language > default) with language switcher that persists preference",
+      "Includes hreflang tags and canonical URLs for SEO across all 4 locales including x-default",
+      "Differentiates between Server Component translations (getTranslations) and Client Component translations (useTranslations) with correct async patterns"
+    ]
+  },
+  {
+    "question": "We have a React app with 500+ hardcoded English strings. Plan the migration to react-i18next without breaking production.",
+    "criteria": [
+      "Provides phased migration strategy prioritized by user impact (high-traffic pages first, admin last, logs never)",
+      "Recommends namespace organization matching feature/route structure with lazy loading via i18next-http-backend",
+      "Specifies AST-based extraction tooling (i18next-parser or similar) rather than manual find-and-replace",
+      "Includes validation step: deploy with English-only first to confirm plumbing works before adding second language",
+      "Recommends CI/CD integration for missing translation detection and coverage reporting per locale"
+    ]
+  },
+  {
+    "question": "Implement proper pluralization for a shopping cart that shows item counts in English, Polish, and Arabic. The message should say something like '3 items in your cart'.",
+    "criteria": [
+      "Uses ICU MessageFormat with all required CLDR plural categories: English (one/other), Polish (one/few/many/other), Arabic (zero/one/two/few/many/other)",
+      "Explains why simple one/other is insufficient: Polish cycles (2-4=few, 5-21=many, 22-24=few again) and Arabic has 6 categories",
+      "Provides concrete ICU message strings showing correct plural forms for all three languages with actual translated examples",
+      "Warns about The String Concatenator anti-pattern: never build pluralized sentences by concatenating fragments",
+      "Recommends testing with specific count values that exercise each plural category (0, 1, 2, 3, 5, 11, 21, 22, 100)"
+    ]
+  },
+  {
+    "question": "Our translated German pages are breaking layouts because text is longer than English. How do we fix this systematically?",
+    "criteria": [
+      "Cites specific expansion factor: German text is 30-40% longer than English and provides expansion table for other languages",
+      "Recommends CSS techniques: min-width + padding instead of fixed width, flex/grid layouts, text-overflow with ellipsis as last resort",
+      "Introduces pseudo-localization as the primary testing strategy with implementation details for detecting expansion issues before real translation",
+      "Provides design guidelines: plan for longest language, avoid fixed-width containers, test with pseudo-locale during development",
+      "Addresses both horizontal expansion (wider text) and vertical expansion (more line wraps) with specific container strategies"
+    ]
+  },
+  {
+    "question": "Set up a translation workflow with Crowdin that integrates with our GitHub CI/CD pipeline. We have a React app using react-i18next with 12 supported languages.",
+    "criteria": [
+      "Configures Crowdin CLI with crowdin.yml mapping source files to translation paths matching the namespace structure",
+      "Implements CI pipeline: upload new source strings on merge to main, download approved translations as automated PR",
+      "Includes quality checks: missing translation detection, ICU syntax validation, and unused key cleanup in CI",
+      "Recommends screenshot context and description metadata to improve translation quality and reduce revision cycles",
+      "Addresses branch-based translation workflow: feature branch strings uploaded separately, merged when PR merges"
+    ]
+  }
+]

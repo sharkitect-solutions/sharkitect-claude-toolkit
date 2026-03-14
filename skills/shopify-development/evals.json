@@ -1,0 +1,53 @@
+[
+  {
+    "question": "Build a checkout UI extension that shows a loyalty points balance and lets customers redeem points for a discount",
+    "criteria": [
+      "Uses reactExtension with purchase.checkout.block.render target",
+      "Fetches loyalty data via sessionToken + authenticated API call",
+      "Uses useApplyCartLinesChange or useApplyDiscountCodeChange for redemption",
+      "Includes loading state while fetching loyalty balance",
+      "Handles error case when API is unreachable or points insufficient",
+      "Uses BlockStack, Text, Button from @shopify/ui-extensions-react/checkout"
+    ]
+  },
+  {
+    "question": "Set up webhooks for order processing that handles GDPR compliance requirements",
+    "criteria": [
+      "Configures webhooks in shopify.app.toml with correct TOML syntax",
+      "Includes all 3 mandatory GDPR webhooks (data request, customer deletion, shop deletion)",
+      "Implements HMAC signature verification using X-Shopify-Hmac-Sha256 header",
+      "Shows webhook handler with proper 200 response and async processing",
+      "Mentions idempotency for duplicate webhook deliveries"
+    ]
+  },
+  {
+    "question": "Create a Shopify Function that gives 15% off when cart total exceeds $100 and customer has tag 'vip'",
+    "criteria": [
+      "Creates input.graphql querying cart.cost.totalAmount and customer tags",
+      "Returns proper discount object with percentage value",
+      "Returns empty discounts array when conditions not met",
+      "Uses correct function export signature",
+      "Targets all cart lines or uses appropriate targeting strategy"
+    ]
+  },
+  {
+    "question": "I'm getting rate limited on the Shopify GraphQL API when syncing 5000 products. How do I fix this?",
+    "criteria": [
+      "Recommends bulk operations (bulkOperationRunQuery) instead of paginated queries",
+      "Explains cost-based throttling (2000 points, 100/sec restore)",
+      "Shows how to check query cost via extensions.cost in response",
+      "Implements exponential backoff retry pattern",
+      "Mentions monitoring X-Shopify-Shop-Api-Call-Limit header"
+    ]
+  },
+  {
+    "question": "Build a product page section in a Shopify theme that shows variant-specific metafield data and handles variant switching with JavaScript",
+    "criteria": [
+      "Uses Liquid section with {% schema %} block defining settings",
+      "Accesses variant metafields via product.variants and metafields namespace",
+      "Includes JavaScript for variant change event handling",
+      "Uses proper Liquid filters (money, img_url, escape)",
+      "Handles case where metafield doesn't exist (nil check)"
+    ]
+  }
+]
