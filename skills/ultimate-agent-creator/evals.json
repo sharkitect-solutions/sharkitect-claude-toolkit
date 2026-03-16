@@ -1,0 +1,50 @@
+[
+  {
+    "prompt": "Create a new agent for conducting security audits on code repositories",
+    "expected_behavior": "Follows 4-layer process: writes description with 3 varied examples + exclusions first, then writes expert body with decision trees + named anti-patterns + output format, scopes tools to read-only (Read, Glob, Grep), selects appropriate model (sonnet)"
+  },
+  {
+    "prompt": "Build an agent that reviews database schemas for optimization opportunities",
+    "expected_behavior": "Creates agent with: trigger conditions for database/schema work, examples distinguishing from database-architect agent, exclusions referencing overlapping agents, expert body with schema analysis decision tree, read-only tools"
+  },
+  {
+    "prompt": "This agent never triggers. The description is 'Expert debugging agent'. Fix it.",
+    "expected_behavior": "Identifies the description problem (no trigger conditions, no examples, no exclusions), rewrites description with 3 varied example blocks + commentary, adds exclusions for overlapping agents (code-reviewer, test-engineer)"
+  },
+  {
+    "prompt": "Rewrite this agent's body -- it's all bullet lists and scores D2=3",
+    "expected_behavior": "Applies Pattern A fix: strips bullet lists, replaces with decision trees and conditional logic, adds 5-8 named anti-patterns with WHY, adds structured output format, targets <40% bullet ratio"
+  },
+  {
+    "prompt": "This agent has 800 lines of code examples. How should I fix it?",
+    "expected_behavior": "Identifies Pattern C (code-heavy), applies compression decision tree: removes code Claude can generate from training, keeps only non-obvious gotchas and provider-specific quirks, targets 200-350 lines with <20% code"
+  },
+  {
+    "prompt": "Make an agent that coordinates between the frontend-developer and backend-architect agents",
+    "expected_behavior": "Creates coordination agent with Task tool for delegation, defines delegation map in output format, cross-references both agents in description, scopes tools to Read + Glob + Grep + Task (no Write/Bash since it delegates, not executes)"
+  },
+  {
+    "prompt": "Score this agent for quality",
+    "expected_behavior": "Recognizes this is a scoring/evaluation request, redirects to agent-judge, does NOT attempt to score the agent"
+  },
+  {
+    "prompt": "Create a new skill for handling PDF files",
+    "expected_behavior": "Recognizes this is a SKILL creation request not agent, redirects to ultimate-skill-creator, does NOT attempt to create an agent"
+  },
+  {
+    "prompt": "Add an output format to this agent that only has a body with decision trees but no structured output",
+    "expected_behavior": "Adds appropriate output format template based on agent type (analysis, creation, or coordination template), includes Summary, Findings/Results with severity, Recommendations, and Confidence Level"
+  },
+  {
+    "prompt": "This agent has Write, Edit, Bash, WebSearch, and Task tools but it only reads code and provides reviews. Fix the tool scoping.",
+    "expected_behavior": "Removes Write, Edit, Bash, WebSearch, and Task (none needed for read-only review). Keeps only Read, Glob, Grep. Verifies body-tool alignment."
+  },
+  {
+    "prompt": "Create an agent for the n8n cluster that handles webhook testing",
+    "expected_behavior": "Creates agent with cross-references to n8n sibling agents in description, adds exclusions for n8n-workflow-architect/builder/debugger, includes n8n-specific expert content, ensures output format is composable with other n8n agents"
+  },
+  {
+    "prompt": "The agent body is good but it's 450 lines. Should I use dynamic references?",
+    "expected_behavior": "Evaluates against Layer 3 conditions: body >350 lines (yes), has Read tool? (check), not haiku? (check), body alone can't reach B gate? (evaluate). If conditions met, recommends extracting detailed content into 2-3 reference files at ~/.claude/agents/references/<name>/"
+  }
+]

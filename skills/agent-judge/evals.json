@@ -1,0 +1,62 @@
+[
+  {
+    "prompt": "Score this agent for quality: ~/.claude/agents/debugger.md",
+    "expected_behavior": "Reads the agent file, applies 8-dimension rubric (D1-D8, 120 points), provides dimension-by-dimension scores with justification, calculates total with arithmetic verification, assigns grade, identifies failure pattern (A/B/C/D), lists top weaknesses"
+  },
+  {
+    "prompt": "Evaluate this agent: ~/.claude/agents/backend-architect.md",
+    "expected_behavior": "Detects Pattern B (thin agent ~31 lines), scores D1-D8 appropriately (low scores for thin content), identifies missing examples, missing anti-patterns, missing output format as key weaknesses"
+  },
+  {
+    "prompt": "How good is this agent? ~/.claude/agents/n8n-workflow-architect.md",
+    "expected_behavior": "Recognizes Pattern D (strong agent), scores D1 high for n8n-specific content, notes any missing exclusions or anti-pattern gaps, provides targeted improvement suggestions rather than full rebuild"
+  },
+  {
+    "prompt": "Audit all my agents for quality",
+    "expected_behavior": "Proposes systematic batch approach, references the 8-dimension rubric, explains grading scale (A=108+, B=96+, etc.), offers to start with highest-priority agents"
+  },
+  {
+    "prompt": "Compare the debugger agent and the code-reviewer agent",
+    "expected_behavior": "Reads both agents, scores each independently on all 8 dimensions, highlights where they differ (description quality, body depth, tool scoping), identifies which needs more optimization work"
+  },
+  {
+    "prompt": "Which of my agents need the most work?",
+    "expected_behavior": "Proposes reading agent files to identify weakest ones, uses failure pattern classification (A/B/C/D), prioritizes by severity, suggests reading agent-pre-analysis.json if available"
+  },
+  {
+    "prompt": "Rate this skill for quality: ~/.claude/skills/docker-expert/SKILL.md",
+    "expected_behavior": "Recognizes this is a SKILL not an agent, redirects to skill-judge for skill evaluation, does NOT attempt to score with agent rubric"
+  },
+  {
+    "prompt": "Create a new agent for DevOps tasks",
+    "expected_behavior": "Recognizes this is a creation request not evaluation, redirects to ultimate-agent-creator, does NOT attempt to create the agent"
+  },
+  {
+    "prompt": "Test this agent's runtime performance and response quality",
+    "expected_behavior": "Recognizes this is runtime evaluation not structural quality scoring, redirects to agent-evaluation skill, does NOT attempt runtime testing"
+  },
+  {
+    "prompt": "Score this agent that has 935 lines of mostly code blocks: ~/.claude/agents/test-engineer.md",
+    "expected_behavior": "Detects Pattern C (code-heavy), penalizes D1 for redundant code Claude can generate, notes bloated body exceeding 350-line sweet spot, recommends stripping code and adding expert decision trees"
+  },
+  {
+    "prompt": "This agent has great examples but a bullet-list body. How would you score it?",
+    "expected_behavior": "Explains D5 would score well (8-13 depending on example quality) but D1/D2 would be low due to bullet lists, identifies Pattern A failure, notes body rewrite needed while keeping description"
+  },
+  {
+    "prompt": "I added 3 example blocks with commentary to my agent. Did that help the D5 score?",
+    "expected_behavior": "Explains D5 scoring scale, asks about phrasing variety, reactive vs proactive coverage, and exclusion presence, notes that 3 examples with varied phrasings + commentary typically scores D5=10-12"
+  },
+  {
+    "prompt": "Score the n8n-workflow-builder agent. It delegates to n8n-workflow-architect.",
+    "expected_behavior": "Evaluates the agent on all 8 dimensions, checks for proper cross-references to collaborating agents, verifies delegation chain is documented, notes n8n cluster context"
+  },
+  {
+    "prompt": "Why does my agent score low on D7 when it has all the tools listed?",
+    "expected_behavior": "Explains D7 scores LEAST-PRIVILEGE, not tool presence. Having all tools is worse than having minimum necessary tools. Guides user to audit which tools the body actually references vs which are listed"
+  },
+  {
+    "prompt": "The agent body is 290 lines with decision trees and anti-patterns but the description is one sentence. What would it score?",
+    "expected_behavior": "Notes D1/D2/D3 could be high (good body), but D4/D5 would be very low (poor description), explains that description is highest-leverage dimension for agents, emphasizes that great body behind bad description is invisible"
+  }
+]
