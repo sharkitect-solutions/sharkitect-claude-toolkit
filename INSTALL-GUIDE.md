@@ -2,7 +2,7 @@
 
 Complete setup guide to restore or replicate this Claude Code environment from scratch.
 
-**Last updated:** 2026-03-09
+**Last updated:** 2026-03-31
 
 ---
 
@@ -33,7 +33,7 @@ Run these inside a Claude Code session:
 > A machine-readable manifest of all plugins with install commands
 > is available at `plugins-manifest.json` in this repo.
 
-### Tier 1 — Core (install these first, always)
+### Tier 1 -- Core (install these first, always)
 
 These are non-negotiable. They make Claude Code fundamentally better.
 
@@ -43,7 +43,7 @@ These are non-negotiable. They make Claude Code fundamentally better.
 
 > **IMPORTANT:** Restart your session after installing Superpowers.
 > It uses a SessionStart hook that only activates on new sessions.
-> This is the [Obra Superpowers](https://github.com/obra/superpowers) plugin — auto-triggered
+> This is the [Obra Superpowers](https://github.com/obra/superpowers) plugin -- auto-triggered
 > brainstorming, TDD, systematic debugging, and code review.
 
 Then install the rest of Tier 1:
@@ -59,7 +59,7 @@ Then install the rest of Tier 1:
 /plugin install context7@claude-plugins-official
 ```
 
-### Tier 2 — Highly Recommended
+### Tier 2 -- Highly Recommended
 
 ```
 /plugin install plugin-dev@claude-plugins-official
@@ -72,7 +72,7 @@ Then install the rest of Tier 1:
 /plugin install conductor@claude-code-workflows
 ```
 
-### Tier 3 — Stack & Domain Specific
+### Tier 3 -- Stack & Domain Specific
 
 **Language servers (install based on your stack):**
 ```
@@ -127,7 +127,139 @@ Then install the rest of Tier 1:
 
 ---
 
-## Step 3: MCP Servers
+## Step 3: Install Custom Skills
+
+Copy the `skills/` and `core/` folders from this repo into your Claude home:
+
+```bash
+# Mac/Linux
+cp -r skills/* ~/.claude/skills/
+cp -r core/* ~/.claude/skills/
+
+# Windows (Command Prompt)
+xcopy /E /I skills "%USERPROFILE%\.claude\skills"
+xcopy /E /I core "%USERPROFILE%\.claude\skills"
+
+# Windows (PowerShell)
+Copy-Item -Path "skills\*" -Destination "$env:USERPROFILE\.claude\skills" -Recurse -Force
+Copy-Item -Path "core\*" -Destination "$env:USERPROFILE\.claude\skills" -Recurse -Force
+```
+
+Skills are immediately available in the next Claude Code session.
+
+---
+
+## Step 4: Install Custom Agents
+
+Copy the `agents/` folder from this repo into your Claude home:
+
+```bash
+# Mac/Linux
+cp -r agents/* ~/.claude/agents/
+
+# Windows (Command Prompt)
+xcopy /E /I agents "%USERPROFILE%\.claude\agents"
+
+# Windows (PowerShell)
+Copy-Item -Path "agents\*" -Destination "$env:USERPROFILE\.claude\agents" -Recurse -Force
+```
+
+Agents are available immediately for the Task tool in your next session.
+
+---
+
+## Step 5: Install Custom Plugins
+
+Three custom local plugins provide session lifecycle automation:
+
+```bash
+# Mac/Linux
+mkdir -p ~/.claude/plugins/cache/local
+cp -r custom-plugins/aios-core ~/.claude/plugins/cache/local/aios-core
+cp -r custom-plugins/quality-gate ~/.claude/plugins/cache/local/quality-gate
+cp -r custom-plugins/auto-sync ~/.claude/plugins/cache/local/auto-sync
+
+# Windows (PowerShell)
+New-Item -ItemType Directory -Path "$env:USERPROFILE\.claude\plugins\cache\local" -Force
+Copy-Item -Path "custom-plugins\aios-core" -Destination "$env:USERPROFILE\.claude\plugins\cache\local\aios-core" -Recurse -Force
+Copy-Item -Path "custom-plugins\quality-gate" -Destination "$env:USERPROFILE\.claude\plugins\cache\local\quality-gate" -Recurse -Force
+Copy-Item -Path "custom-plugins\auto-sync" -Destination "$env:USERPROFILE\.claude\plugins\cache\local\auto-sync" -Recurse -Force
+```
+
+Then register them in `~/.claude/plugins/installed_plugins.json`. Add these entries to the `plugins` object:
+
+```json
+{
+  "aios-core@local": [{"version": "1.0.0", "scope": "global", "installPath": "~/.claude/plugins/cache/local/aios-core"}],
+  "quality-gate@local": [{"version": "1.0.0", "scope": "global", "installPath": "~/.claude/plugins/cache/local/quality-gate"}],
+  "auto-sync@local": [{"version": "1.0.0", "scope": "global", "installPath": "~/.claude/plugins/cache/local/auto-sync"}]
+}
+```
+
+> **Note:** Replace `~` with your actual home directory path (e.g., `C:\Users\YourName` on Windows).
+
+| Plugin | Purpose |
+|--------|---------|
+| `aios-core` | Session lifecycle: workspace detection, sync reminders, context preservation |
+| `quality-gate` | Structural validation for skill/agent files on Write/Edit |
+| `auto-sync` | Tracks skill/agent changes, prompts sync before session end |
+
+---
+
+## Step 6: Install Hooks
+
+Copy hook scripts and configure them in settings:
+
+```bash
+# Mac/Linux
+mkdir -p ~/.claude/hooks
+cp hooks/* ~/.claude/hooks/
+
+# Windows (PowerShell)
+New-Item -ItemType Directory -Path "$env:USERPROFILE\.claude\hooks" -Force
+Copy-Item -Path "hooks\*" -Destination "$env:USERPROFILE\.claude\hooks" -Recurse -Force
+```
+
+Then add the hook configuration to `~/.claude/settings.json`. See `settings-template.json` for the structure. The key entries are:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [{"type": "command", "command": "python \"~/.claude/hooks/check-line-count.py\""}]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [{"type": "command", "command": "python \"~/.claude/hooks/checkpoint-reminder.py\""}]
+      }
+    ]
+  }
+}
+```
+
+> **Note:** On Windows, use the full path with forward slashes: `"python \"C:/Users/YourName/.claude/hooks/check-line-count.py\""`
+
+---
+
+## Step 7: Install Rules
+
+```bash
+# Mac/Linux
+mkdir -p ~/.claude/rules
+cp rules/* ~/.claude/rules/
+
+# Windows (PowerShell)
+New-Item -ItemType Directory -Path "$env:USERPROFILE\.claude\rules" -Force
+Copy-Item -Path "rules\*" -Destination "$env:USERPROFILE\.claude\rules" -Recurse -Force
+```
+
+---
+
+## Step 8: MCP Servers
 
 ### GitHub MCP (recommended for repo management)
 
@@ -136,7 +268,7 @@ claude mcp add -s user --transport http github-mcp "https://api.githubcopilot.co
 ```
 
 > Requires a GitHub Personal Access Token with `repo` scope.
-> Create at: github.com → Settings → Developer settings → Personal access tokens
+> Create at: github.com -> Settings -> Developer settings -> Personal access tokens
 
 ### Essential MCPs
 
@@ -164,41 +296,22 @@ claude mcp add --transport http cloudinary https://asset-management.mcp.cloudina
 claude mcp add --transport http make https://mcp.make.com
 ```
 
-### Credential-Based MCPs (require API keys)
+### Credential-Based MCPs
 
-Add to `~/.claude/mcp.json`:
+Copy `mcp-template.json` from this repo to `~/.claude/mcp.json` and fill in your API keys:
 
-```json
-{
-  "mcpServers": {
-    "notionApi": {
-      "command": "npx",
-      "args": ["-y", "@notionhq/notion-mcp-server"],
-      "env": {
-        "NOTION_TOKEN": "YOUR_NOTION_TOKEN"
-      }
-    },
-    "airtable": {
-      "command": "airtable-mcp-server",
-      "args": [],
-      "env": {
-        "AIRTABLE_API_KEY": "YOUR_AIRTABLE_API_KEY"
-      }
-    },
-    "n8n-mcp": {
-      "command": "npx",
-      "args": ["n8n-mcp"],
-      "env": {
-        "MCP_MODE": "stdio",
-        "LOG_LEVEL": "error",
-        "DISABLE_CONSOLE_OUTPUT": "true",
-        "N8N_API_URL": "YOUR_N8N_URL",
-        "N8N_API_KEY": "YOUR_N8N_API_KEY"
-      }
-    }
-  }
-}
+```bash
+# Mac/Linux
+cp mcp-template.json ~/.claude/mcp.json
+
+# Windows (PowerShell)
+Copy-Item -Path "mcp-template.json" -Destination "$env:USERPROFILE\.claude\mcp.json"
 ```
+
+Then edit `~/.claude/mcp.json` and replace the placeholder values:
+- `YOUR_AIRTABLE_API_KEY` -- from Airtable account settings
+- `YOUR_N8N_CLOUD_URL` -- your n8n cloud instance URL
+- `YOUR_N8N_API_KEY` -- from n8n Settings -> API
 
 ### Claude.ai Remote MCPs (configured via web UI)
 
@@ -207,45 +320,7 @@ These are configured at https://claude.ai settings, not locally:
 
 ---
 
-## Step 4: Install Custom Skills
-
-Copy the `skills/` folder from this repo into your Claude home:
-
-```bash
-# Mac/Linux
-cp -r skills/* ~/.claude/skills/
-
-# Windows (Command Prompt)
-xcopy /E /I skills "%USERPROFILE%\.claude\skills"
-
-# Windows (PowerShell)
-Copy-Item -Path "skills\*" -Destination "$env:USERPROFILE\.claude\skills" -Recurse -Force
-```
-
-Skills are immediately available in the next Claude Code session.
-
----
-
-## Step 5: Install Custom Agents
-
-Copy the `agents/` folder from this repo into your Claude home:
-
-```bash
-# Mac/Linux
-cp -r agents/* ~/.claude/agents/
-
-# Windows (Command Prompt)
-xcopy /E /I agents "%USERPROFILE%\.claude\agents"
-
-# Windows (PowerShell)
-Copy-Item -Path "agents\*" -Destination "$env:USERPROFILE\.claude\agents" -Recurse -Force
-```
-
-Agents are available immediately for the Task tool in your next session.
-
----
-
-## Step 6: Install Marketplace Skills (optional)
+## Step 9: Install Marketplace Skills (optional)
 
 Browse available community skills at https://www.aitmpl.com/skills
 
@@ -265,6 +340,8 @@ After setup, start a new Claude Code session and verify:
 2. Run `/help` to see available skills listed
 3. Check MCP tools are discoverable (Claude will show them as deferred tools)
 4. Test GitHub MCP: ask Claude to read a file from your repo
+5. Verify hooks: edit a file and confirm check-line-count and checkpoint-reminder fire
+6. Verify aios-core: check session start output shows workspace detection
 
 ---
 
@@ -272,11 +349,16 @@ After setup, start a new Claude Code session and verify:
 
 | Directory/File | Contents | Count |
 |----------------|----------|-------|
-| `skills/` | Custom Claude Code skills (SKILL.md files) | 110 |
-| `agents/` | Global subagent definitions (.md files) | 38 |
-| `core/` | Core framework files | — |
-| `plugins-manifest.json` | Machine-readable plugin inventory with install commands | 44 plugins |
-| `INSTALL-GUIDE.md` | This file | — |
+| `skills/` | Custom Claude Code skills (SKILL.md files) | 138 |
+| `agents/` | Global subagent definitions (.md files) | 51 |
+| `core/` | Core framework skills | 4 |
+| `custom-plugins/` | Custom local plugins | 3 |
+| `hooks/` | Hook scripts for settings.json | 2 |
+| `rules/` | Global rule files | 1 |
+| `plugins-manifest.json` | Machine-readable plugin inventory with install commands | 47 plugins |
+| `settings-template.json` | Hook configuration template | -- |
+| `mcp-template.json` | MCP server configuration template | -- |
+| `INSTALL-GUIDE.md` | This file | -- |
 
 ---
 

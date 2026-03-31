@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "airtable": {
+      "command": "airtable-mcp-server",
+      "args": [],
+      "env": {
+        "AIRTABLE_API_KEY": "YOUR_AIRTABLE_API_KEY"
+      }
+    },
+    "n8n-mcp": {
+      "command": "npx",
+      "args": ["n8n-mcp"],
+      "env": {
+        "MCP_MODE": "stdio",
+        "LOG_LEVEL": "error",
+        "DISABLE_CONSOLE_OUTPUT": "true",
+        "N8N_API_URL": "YOUR_N8N_CLOUD_URL",
+        "N8N_API_KEY": "YOUR_N8N_API_KEY"
+      }
+    }
+  }
+}

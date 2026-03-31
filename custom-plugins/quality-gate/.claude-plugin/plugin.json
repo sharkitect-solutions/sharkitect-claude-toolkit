@@ -1,0 +1,6 @@
+{
+  "name": "quality-gate",
+  "version": "1.0.0",
+  "description": "Quality Gate - Automated structural validation for skill and agent files on Write/Edit",
+  "author": "Sharkitect Digital"
+}
