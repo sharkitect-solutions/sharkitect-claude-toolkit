@@ -1,6 +1,6 @@
 # Sharkitect Claude Toolkit
 
-Complete Claude Code environment backup: 138 custom skills, 51 agents, 3 custom plugins, hooks, rules, and full setup automation. Clone this repo to restore or replicate the environment on any machine.
+Complete Claude Code environment backup: 139 custom skills, 52 agents, 4 custom plugins, hooks, rules, and full setup automation. Clone this repo to restore or replicate the environment on any machine.
 
 **Last updated:** 2026-03-31
 
@@ -47,11 +47,13 @@ mkdir -p ~/.claude/plugins/cache/local
 cp -r custom-plugins/aios-core ~/.claude/plugins/cache/local/aios-core
 cp -r custom-plugins/quality-gate ~/.claude/plugins/cache/local/quality-gate
 cp -r custom-plugins/auto-sync ~/.claude/plugins/cache/local/auto-sync
+cp -r custom-plugins/phase-gate ~/.claude/plugins/cache/local/phase-gate
 # Windows (PowerShell)
 New-Item -ItemType Directory -Path "$env:USERPROFILE\.claude\plugins\cache\local" -Force
 Copy-Item -Path "custom-plugins\aios-core" -Destination "$env:USERPROFILE\.claude\plugins\cache\local\aios-core" -Recurse -Force
 Copy-Item -Path "custom-plugins\quality-gate" -Destination "$env:USERPROFILE\.claude\plugins\cache\local\quality-gate" -Recurse -Force
 Copy-Item -Path "custom-plugins\auto-sync" -Destination "$env:USERPROFILE\.claude\plugins\cache\local\auto-sync" -Recurse -Force
+Copy-Item -Path "custom-plugins\phase-gate" -Destination "$env:USERPROFILE\.claude\plugins\cache\local\phase-gate" -Recurse -Force
 
 # 7. Configure hooks in settings.json (merge with existing or copy template)
 # See settings-template.json for the hook configuration structure
@@ -72,10 +74,10 @@ For detailed step-by-step instructions including plugin marketplace registration
 
 | Directory/File | Contents | Count |
 |----------------|----------|-------|
-| `skills/` | Custom Claude Code skills (SKILL.md + companions) | 138 |
-| `agents/` | Global subagent definitions (.md files) | 51 |
+| `skills/` | Custom Claude Code skills (SKILL.md + companions) | 139 |
+| `agents/` | Global subagent definitions (.md files) | 52 |
 | `core/` | Core framework skills | 4 |
-| `custom-plugins/` | Custom local plugins (aios-core, quality-gate, auto-sync) | 3 |
+| `custom-plugins/` | Custom local plugins (aios-core, quality-gate, auto-sync, phase-gate) | 4 |
 | `hooks/` | Hook scripts (line-count guard, checkpoint reminder) | 2 |
 | `rules/` | Global rules (context7 MCP enforcement) | 1 |
 | `plugins-manifest.json` | Machine-readable plugin inventory with install commands | 47 plugins |
@@ -108,7 +110,7 @@ The `core/` directory contains foundational skills that power the toolkit:
 
 ---
 
-## Skills (138)
+## Skills (139)
 
 ### Development & Architecture
 ab-test-setup, accessibility-auditor, agent-development, agent-evaluation, agents-autogpt, agents-crewai, agents-llamaindex, ai-agents-architect, api-patterns, app-builder, canvas-design, clean-code, database, deslop, docker-expert, error-resolver, figma, figma-implement-design, find-bugs, frontend-design, gemini-api-dev, git-commit-helper, github-actions-creator, hook-development, i18n-localization, interactive-portfolio, mcp-integration, nestjs-expert, nextjs-best-practices, programmatic-seo, prompt-engineering-guidance, scroll-experience, security-best-practices, senior-architect, senior-backend, senior-devops, shopify-development, stripe-best-practices, supabase-postgres-best-practices, telegram-bot-builder, testing-strategy, twilio-communications, vulnerability-scanner
@@ -145,7 +147,7 @@ hq-brand-review, hq-knowledge-governance, hq-operations, hq-orchestrator, hq-rev
 
 ---
 
-## Agents (51)
+## Agents (52)
 
 ai-systems-architect, analytics-engineer, api-integration-researcher, architect-review, backend-architect, brand-reviewer, business-analyst, code-reviewer, communication-excellence-coach, competitive-intelligence-analyst, content-strategist, context-manager, cro-analyst, customer-success-manager, customer-support, database-architect, debugger, devops-engineer, email-campaign-architect, financial-analyst, frontend-developer, fullstack-developer, knowledge-governance, legal-advisor, market-research-analyst, marketing-attribution-analyst, marketing-strategist, mcp-expert, mcp-server-architect, mobile-developer, multi-agent-coordinator, n8n-mcp-tester, n8n-webhook-tester, n8n-workflow-architect, n8n-workflow-builder, n8n-workflow-debugger, n8n-workflow-explorer, product-manager, project-manager, prompt-engineer, research-synthesizer, reverse-engineer, sales-researcher, scrum-master, search-specialist, seo-analyzer, social-media-clip-creator, social-media-copywriter, supabase-realtime-optimizer, test-engineer, ui-ux-designer
 

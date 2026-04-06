@@ -170,7 +170,7 @@ Agents are available immediately for the Task tool in your next session.
 
 ## Step 5: Install Custom Plugins
 
-Three custom local plugins provide session lifecycle automation:
+Four custom local plugins provide session lifecycle automation:
 
 ```bash
 # Mac/Linux
@@ -178,12 +178,14 @@ mkdir -p ~/.claude/plugins/cache/local
 cp -r custom-plugins/aios-core ~/.claude/plugins/cache/local/aios-core
 cp -r custom-plugins/quality-gate ~/.claude/plugins/cache/local/quality-gate
 cp -r custom-plugins/auto-sync ~/.claude/plugins/cache/local/auto-sync
+cp -r custom-plugins/phase-gate ~/.claude/plugins/cache/local/phase-gate
 
 # Windows (PowerShell)
 New-Item -ItemType Directory -Path "$env:USERPROFILE\.claude\plugins\cache\local" -Force
 Copy-Item -Path "custom-plugins\aios-core" -Destination "$env:USERPROFILE\.claude\plugins\cache\local\aios-core" -Recurse -Force
 Copy-Item -Path "custom-plugins\quality-gate" -Destination "$env:USERPROFILE\.claude\plugins\cache\local\quality-gate" -Recurse -Force
 Copy-Item -Path "custom-plugins\auto-sync" -Destination "$env:USERPROFILE\.claude\plugins\cache\local\auto-sync" -Recurse -Force
+Copy-Item -Path "custom-plugins\phase-gate" -Destination "$env:USERPROFILE\.claude\plugins\cache\local\phase-gate" -Recurse -Force
 ```
 
 Then register them in `~/.claude/plugins/installed_plugins.json`. Add these entries to the `plugins` object:
@@ -192,7 +194,8 @@ Then register them in `~/.claude/plugins/installed_plugins.json`. Add these entr
 {
   "aios-core@local": [{"version": "1.0.0", "scope": "global", "installPath": "~/.claude/plugins/cache/local/aios-core"}],
   "quality-gate@local": [{"version": "1.0.0", "scope": "global", "installPath": "~/.claude/plugins/cache/local/quality-gate"}],
-  "auto-sync@local": [{"version": "1.0.0", "scope": "global", "installPath": "~/.claude/plugins/cache/local/auto-sync"}]
+  "auto-sync@local": [{"version": "1.0.0", "scope": "global", "installPath": "~/.claude/plugins/cache/local/auto-sync"}],
+  "phase-gate@local": [{"version": "1.0.0", "scope": "global", "installPath": "~/.claude/plugins/cache/local/phase-gate"}]
 }
 ```
 
@@ -200,9 +203,10 @@ Then register them in `~/.claude/plugins/installed_plugins.json`. Add these entr
 
 | Plugin | Purpose |
 |--------|---------|
-| `aios-core` | Session lifecycle: workspace detection, sync reminders, context preservation |
+| `aios-core` | Session lifecycle: workspace detection, phase awareness, context preservation |
 | `quality-gate` | Structural validation for skill/agent files on Write/Edit |
 | `auto-sync` | Tracks skill/agent changes, prompts sync before session end |
+| `phase-gate` | Phase lifecycle enforcer: plan change detection, artifact tracking, stop gating, pre-compact state preservation |
 
 ---
 
@@ -256,6 +260,14 @@ cp rules/* ~/.claude/rules/
 New-Item -ItemType Directory -Path "$env:USERPROFILE\.claude\rules" -Force
 Copy-Item -Path "rules\*" -Destination "$env:USERPROFILE\.claude\rules" -Recurse -Force
 ```
+
+### What the rules do
+
+| Rule | Purpose |
+|------|---------|
+| `context7.md` | Instructs Claude to use Context7 MCP for library documentation lookups |
+| `api-limitations.md` | Protocol for handling API/MCP limitations with manual workarounds |
+| `universal-protocols.md` | **Core operating protocols** -- pre-task, post-task, memory, session lifecycle, git backup. Auto-loaded into every session. Workspace CLAUDE.md files extend these with workspace-specific additions only. |
 
 ---
 
@@ -345,17 +357,37 @@ After setup, start a new Claude Code session and verify:
 
 ---
 
+## Setting Up a New Workspace
+
+1. Copy `BOOTSTRAP.md` from this repo to your new workspace root
+2. Rename to `CLAUDE.md`
+3. Open Claude Code in the workspace and say "instantiate"
+4. The bootstrap process will:
+   - Check prerequisites (Python, Node.js)
+   - Create directories and tool files
+   - Verify universal protocols rule is installed (flags if missing)
+   - Run skills evaluation for the project
+   - Populate workspace-specific checklist items based on PROJECT_PURPOSE
+
+> **Note:** Universal protocols (`~/.claude/rules/universal-protocols.md`) must be
+> installed first (Step 7 above). The bootstrap process validates this and warns
+> if the rule is missing.
+
+---
+
 ## What's in This Repo
 
 | Directory/File | Contents | Count |
 |----------------|----------|-------|
-| `skills/` | Custom Claude Code skills (SKILL.md files) | 138 |
-| `agents/` | Global subagent definitions (.md files) | 51 |
+| `skills/` | Custom Claude Code skills (SKILL.md files) | 139 |
+| `agents/` | Global subagent definitions (.md files) | 52 |
 | `core/` | Core framework skills | 4 |
-| `custom-plugins/` | Custom local plugins | 3 |
+| `custom-plugins/` | Custom local plugins | 4 |
 | `hooks/` | Hook scripts for settings.json | 2 |
-| `rules/` | Global rule files | 1 |
-| `plugins-manifest.json` | Machine-readable plugin inventory with install commands | 47 plugins |
+| `rules/` | Global rule files (includes universal-protocols.md) | 3 |
+| `BOOTSTRAP.md` | Workspace template -- copy to new workspace root, rename to CLAUDE.md | -- |
+| `plugins-manifest.json` | Machine-readable plugin inventory with install commands | 48 plugins |
+| `lessons-learned-template.md` | Global lessons-learned template for cross-project learnings | -- |
 | `settings-template.json` | Hook configuration template | -- |
 | `mcp-template.json` | MCP server configuration template | -- |
 | `INSTALL-GUIDE.md` | This file | -- |

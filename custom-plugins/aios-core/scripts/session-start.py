@@ -12,9 +12,11 @@ Exit codes: 0 = success, 2 = blocking error
 Target: sub-50ms execution
 """
 
+import json
 import os
 import re
 import sys
+from pathlib import Path
 
 
 # ---------------------------------------------------------------------------
@@ -154,14 +156,101 @@ def check_compact_recovery(cwd):
 # Main
 # ---------------------------------------------------------------------------
 
+def check_active_phase(cwd):
+    """Check if a project phase is currently in progress or paused."""
+    phase_file = os.path.join(cwd, ".tmp", "active-phase.json")
+    if not os.path.isfile(phase_file):
+        return None
+    try:
+        with open(phase_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        status = data.get("status", "unknown")
+        name = data.get("name", "unknown")
+        number = data.get("number", "?")
+        tasks_done = data.get("tasks_done", 0)
+        tasks_total = data.get("tasks_total", 0)
+        return (
+            "[aios-core] Active phase: Phase %s (%s) - %s - %s/%s tasks done. "
+            "Check MEMORY.md for resume instructions."
+            % (number, name, status, tasks_done, tasks_total)
+        )
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def check_human_actions(cwd):
+    """Check if HUMAN-ACTION-REQUIRED.md exists with pending items."""
+    har_file = os.path.join(cwd, "HUMAN-ACTION-REQUIRED.md")
+    if not os.path.isfile(har_file):
+        return None
+    try:
+        with open(har_file, "r", encoding="utf-8") as f:
+            content = f.read()
+        if "- [ ]" in content:
+            count = content.count("- [ ]")
+            return (
+                "[aios-core] HUMAN-ACTION-REQUIRED.md has %s pending item(s). "
+                "Review before starting work." % count
+            )
+    except (OSError, UnicodeDecodeError):
+        pass
+    return None
+
+
+def check_universal_protocols():
+    """Verify universal-protocols.md rule exists."""
+    rule_path = Path.home() / ".claude" / "rules" / "universal-protocols.md"
+    if not rule_path.exists():
+        return (
+            "[aios-core] WARN: ~/.claude/rules/universal-protocols.md not found. "
+            "Universal protocols (pre-task, post-task, memory, session-end) may be missing. "
+            "Install from toolkit repo: INSTALL-GUIDE.md Step 7."
+        )
+    return None
+
+
+def check_global_lessons(home_dir):
+    """Check if global lessons-learned.md exists."""
+    global_ll = os.path.join(home_dir, ".claude", "lessons-learned.md")
+    if os.path.isfile(global_ll):
+        return (
+            "[aios-core] Global lessons-learned available at "
+            "~/.claude/lessons-learned.md -- check before retrying known failures."
+        )
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
 def main():
     cwd = os.getcwd()
+    home_dir = str(Path.home())
     workspace = detect_workspace(cwd)
     lines = get_workspace_context(workspace, cwd)
 
     recovery = check_compact_recovery(cwd)
     if recovery:
         lines.append(recovery)
+
+    # Phase awareness (project-lifecycle + phase-gate integration)
+    phase_msg = check_active_phase(cwd)
+    if phase_msg:
+        lines.append(phase_msg)
+
+    human_msg = check_human_actions(cwd)
+    if human_msg:
+        lines.append(human_msg)
+
+    global_msg = check_global_lessons(home_dir)
+    if global_msg:
+        lines.append(global_msg)
+
+    # Universal protocols validation
+    proto_msg = check_universal_protocols()
+    if proto_msg:
+        lines.append(proto_msg)
 
     # stdout gets injected into session context
     print("\n".join(lines))

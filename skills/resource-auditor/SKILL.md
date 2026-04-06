@@ -1,0 +1,219 @@
+---
+name: resource-auditor
+description: "Use after completing ANY significant deliverable, task, or output in ANY workspace. Detects three gap types: (1) UNUSED -- available skills, docs, or tools that were relevant but not invoked, (2) MISSING -- no purpose-built resource exists and Claude had to improvise with general knowledge, (3) FALLBACK -- generic/adjacent resource used when a specialized tool would produce meaningfully better results. Writes structured gap reports to the Skill Management Hub for permanent resolution. Do NOT use for: mid-task skill discovery (check ACTIVE_SKILLS in CLAUDE.md), content enforcement in HQ (use hq-content-enforcer), code review or testing (use code-reviewer or test-engineer agents)."
+---
+
+# Resource Auditor
+
+Post-task self-audit detecting gaps between what resources SHOULD have been used and what WAS used. Universal across all workspaces.
+
+## File Index
+
+| File | Load When | Do NOT Load |
+|---|---|---|
+| `references/gap-report-schema.md` | Writing a gap report, need field definitions and valid values | Just checking if gaps exist without writing reports |
+| `references/resource-mapping-defaults.md` | Workspace CLAUDE.md lacks ACTIVE_SKILLS or task category not covered by installed skills | Workspace has comprehensive ACTIVE_SKILLS covering the task |
+| `references/fallback-detection-guide.md` | Suspect a generic resource was used where specialized would be better, need signal patterns | Clear UNUSED or MISSING gap already identified |
+
+## Scope Boundary
+
+| Request | This Skill | Use Instead |
+|---|---|---|
+| "Audit what resources I used for this task" | YES | -- |
+| "Check if I missed any skills" | YES | -- |
+| "Write a gap report" | YES | -- |
+| "What skills should I use for this task?" | NO | Check ACTIVE_SKILLS in CLAUDE.md |
+| "Am I using brand voice correctly?" | NO | hq-content-enforcer + hq-brand-review |
+| "Review this code for quality" | NO | code-reviewer agent |
+| "Score this skill" | NO | skill-judge |
+
+## The Three Gap Types
+
+```
+TASK COMPLETE
+  |
+  v
+[1] UNUSED CHECK -- Did I have resources and NOT use them?
+  |                  Skill existed, doc existed, tool existed -- skipped.
+  |                  FIX TYPE: Enforcement (hook, CLAUDE.md rule)
+  |
+  v
+[2] MISSING CHECK -- Did I improvise because nothing exists?
+  |                   No skill, no doc, no tool for this need.
+  |                   FIX TYPE: Creation (new skill, tool, companion)
+  |
+  v
+[3] FALLBACK CHECK -- Did I use a generic substitute?
+                      Used copywriting for API docs. Used general SEO
+                      for local SEO. "It worked but wasn't ideal."
+                      FIX TYPE: Specialization (new skill or companion)
+```
+
+## Audit Mindset
+
+**Default assumption: you MISSED something.** Your job is to prove yourself innocent, not confirm you were right.
+
+Three thinking traps that cause audits to fail:
+- **Confirmation bias:** "I did good work, so I must have used the right tools." Challenge this. Trace each resource explicitly.
+- **Availability bias:** "I can't think of what I missed, so nothing was missed." You can't see your own blind spots. That's why the audit checks ACTIVE_SKILLS mechanically, not from memory.
+- **Satisficing:** "The output was good enough." Good enough for whom? Would a domain expert say the same? Would the user, if they knew a specialized skill existed, accept "I used general knowledge"?
+
+**The acid test:** For every aspect of the output, can you name the SPECIFIC resource (skill, doc, tool) that informed it? If you can't -- that's a gap.
+
+## Audit Procedure
+
+### Step 1: Read Workspace Context
+
+Read CLAUDE.md from the current workspace. Extract:
+- **PROJECT_PURPOSE** -- what this workspace does
+- **ACTIVE_SKILLS** -- what skills are designated for this workspace
+- **Post-task checklist** -- any workspace-specific audit requirements
+
+If CLAUDE.md lacks ACTIVE_SKILLS: load `references/resource-mapping-defaults.md` for default category-to-resource mappings.
+
+### Step 2: Classify the Completed Task
+
+Determine the work category: content, technical-content, code, automation, analysis, design, strategy, operations, data.
+
+**Category traps -- when the obvious category is WRONG:**
+
+| Task | Obvious Category | Actual Scope | What Gets Missed |
+|---|---|---|---|
+| Rewrite landing page | content | content + design + CRO + SEO | CRO skills, SEO optimization, design review |
+| Build API endpoint | code | code + security + technical-content | Security review, API documentation skills |
+| Create email sequence | content | content + automation + analysis | Email systems skill, analytics tracking |
+| Set up monitoring | operations | operations + strategy | Architecture decisions about what to monitor |
+| Redesign signup flow | design | design + CRO + code + data | signup-flow-cro, analytics tracking, form-cro |
+
+**Rule:** If a task touches user-facing output AND technical implementation, it's ALWAYS multi-category. Audit each category separately.
+
+### Step 3: UNUSED Check
+
+For each ACTIVE_SKILL in the workspace CLAUDE.md:
+1. Was this skill relevant to the task category?
+2. If relevant -- was it actually invoked during this task?
+3. If not invoked -- why? Legitimate skip or oversight?
+
+**Legitimate skip reasons (NOT a gap):**
+- Task was too small to warrant the skill (< 5 minutes of work)
+- Skill covers a sub-aspect not present in this task
+- User explicitly said to skip it
+
+**Actual gap signals:**
+- Skill directly maps to the task but wasn't invoked
+- Output lacks qualities the skill would have provided
+- User had to ask "did you use X?" after the fact
+
+Also check for relevant KB docs, MCP tools, and companion files that should have been loaded.
+
+### Step 4: MISSING Check
+
+For each aspect of the completed task, ask:
+- Did I rely on general training knowledge for any domain-specific decision?
+- Did I produce output that an expert would say "this is generic, not tailored"?
+- Did I have to reason from first principles where a reference would have helped?
+
+**MISSING signals:**
+- "I applied general best practices" for a task with domain-specific requirements
+- No installed skill covers this task category at all
+- Output lacks industry-specific patterns, terminology, or standards
+- Had to search the web for information a skill could have provided
+
+### Step 5: FALLBACK Check
+
+Load `references/fallback-detection-guide.md` if uncertain.
+
+For each resource that WAS used:
+- Was it the best-fit resource, or was it adjacent/generic?
+- Would a more specialized resource produce meaningfully better output?
+- Did the resource lack patterns specific to this task's domain?
+
+**FALLBACK signals:**
+- Used `copywriting` for technical documentation
+- Used `seo-optimizer` for local SEO (lacks geo-targeting, NAP, service-area patterns)
+- Used a general template where an industry-specific template would differ significantly
+- The resource "worked" but required significant manual adaptation
+
+### Step 6: Severity Classification
+
+| Severity | Criteria | Action Timeline |
+|---|---|---|
+| **critical** | Output quality significantly impacted. Client/user would notice. | Address before next similar task |
+| **warning** | Output functional but suboptimal. Expert would see the gap. | Address within current build cycle |
+| **info** | Minor improvement opportunity. Output acceptable as-is. | Queue for future enhancement |
+
+### Step 7: Write Gap Reports
+
+For each gap found, write a structured JSON report.
+
+**Report destination:** Read `~/.claude/config/skill-hub-path.txt` for the Skill Management Hub path. Write reports to `{skill-hub-path}/.gap-reports/inbox/`.
+
+**Filename format:** `{date}_{workspace}_{brief-description}.json`
+
+Load `references/gap-report-schema.md` for the complete field specification.
+
+**CRITICAL:** Every gap report must include `recommended_fix` with enough detail that the Skill Hub can build the solution without re-investigating the problem. Include:
+- Fix type (skill, hook, plugin, CLAUDE.md rule, or package)
+- Specific description of what to build
+- Component list (files to create/modify)
+
+### Step 8: Report Summary
+
+After writing all gap reports (or finding no gaps), produce a summary:
+
+```
+RESOURCE AUDIT COMPLETE
+  Workspace: {workspace name}
+  Task: {brief description}
+  
+  UNUSED gaps: {count} ({critical}/{warning}/{info})
+  MISSING gaps: {count} ({critical}/{warning}/{info})  
+  FALLBACK gaps: {count} ({critical}/{warning}/{info})
+  
+  Reports written to: {skill-hub-path}/.gap-reports/inbox/
+  {list filenames}
+```
+
+If zero gaps found: "No resource gaps detected. All relevant resources were used appropriately."
+
+## Worked Example: Landing Page Rewrite in HQ
+
+**Task completed:** Rewrote hero section and contact form for Sharkitect Digital website.
+
+**Step 1 -- Context:** HQ CLAUDE.md shows ACTIVE_SKILLS includes hq-content-enforcer, hq-brand-review, page-cro, seo-optimizer, copywriting.
+
+**Step 2 -- Category trap:** "Landing page rewrite" looks like `content` but is actually content + CRO + SEO + design. Must audit all four.
+
+**Step 3 -- UNUSED check:**
+- `hq-content-enforcer`: NOT invoked. **GAP.** This is the orchestrator -- skipping it means no brand guide loaded, no skill routing.
+- `hq-brand-review`: NOT invoked. **GAP.** Client-facing content shipped without brand voice verification.
+- `page-cro`: NOT invoked. **GAP.** Hero section has no conversion optimization.
+- `seo-optimizer`: NOT invoked. **GAP (warning).** SEO matters but page isn't new -- existing URLs retain ranking.
+- `copywriting`: Invoked. OK.
+
+**Step 4 -- MISSING check:** No design review skill was available to check visual hierarchy. Used general knowledge. **FALLBACK candidate.**
+
+**Step 5 -- FALLBACK check:** Used `copywriting` for form labels/microcopy. Copywriting is marketing-focused; form microcopy benefits from `form-cro` which has field-specific conversion patterns. **FALLBACK confirmed.**
+
+**Step 6 -- Severity:** Brand review = critical (client would notice). CRO = critical. SEO = warning. Design = info.
+
+**Result:** 3 UNUSED gaps (2 critical, 1 warning), 1 FALLBACK gap (warning). Reports written to `.gap-reports/inbox/`.
+
+## Anti-Patterns
+
+| Name | What It Is | Why It Fails | Fix |
+|---|---|---|---|
+| **The Rubber Stamp** | Running audit but marking everything "no gaps" without checking | Defeats the purpose. Gaps go undetected, system doesn't improve | Actually trace each skill against the task. If you can't explain WHY a skill wasn't needed, it's a gap |
+| **The Kitchen Sink** | Flagging every unused skill as a gap regardless of relevance | Floods inbox with noise. Real gaps get buried | Only flag skills that would have MEANINGFULLY changed the output |
+| **The Vague Report** | Writing "could use a better skill" without specifics | Skill Hub can't build a fix from vague descriptions | Every report needs: what was needed, why existing resources fell short, what to build |
+| **The Self-Forgiver** | "I used general knowledge and it was fine" without checking | The whole point is catching when "fine" could have been "excellent" | Compare output against what a specialized skill would have provided |
+| **The Scope Creep** | Auditing tasks that haven't finished yet | Premature auditing produces false MISSING gaps | Only audit completed deliverables |
+| **The Island** | Finding a gap and trying to fix it locally instead of reporting | Bypasses the Skill Hub's quality gate. Fix won't be available to other workspaces | Always write gap reports. Local workspaces don't build global artifacts |
+
+## Edge Cases
+
+- **No CLAUDE.md in workspace:** Use `references/resource-mapping-defaults.md` for category mappings. Flag this as an info-level gap (workspace not properly bootstrapped).
+- **skill-hub-path.txt missing:** Write gap reports to `.tmp/pending-gap-reports/` locally. Note that reports need manual delivery to Skill Hub.
+- **Task spans multiple categories:** Audit each category separately. A landing page task touches content + design + SEO -- check resources for all three.
+- **User explicitly chose not to use a skill:** Not a gap. Document in audit summary as "intentional skip per user direction."
+- **Workspace has no ACTIVE_SKILLS:** Every skill is potentially relevant. Use default mappings. This itself is a warning-level gap (workspace needs skills evaluation).

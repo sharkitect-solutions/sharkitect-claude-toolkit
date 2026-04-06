@@ -1,6 +1,6 @@
 {
   "generated_at": "2026-03-31T16:26:02Z",
-  "total_plugins": 47,
+  "total_plugins": 48,
   "marketplaces": {
     "agentic-forge": {
       "repo": "e-stpierre/agentic-forge",
@@ -46,6 +46,14 @@
       "key": "auto-sync@local",
       "version": "1.0.0",
       "install_command": "/plugin install --path <local-path-to-auto-sync>",
+      "tier": "custom"
+    },
+    {
+      "name": "phase-gate",
+      "marketplace": "local",
+      "key": "phase-gate@local",
+      "version": "1.0.0",
+      "install_command": "/plugin install --path <local-path-to-phase-gate>",
       "tier": "custom"
     },
     {
