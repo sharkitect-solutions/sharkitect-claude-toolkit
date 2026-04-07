@@ -93,6 +93,17 @@ MEMORY.md WILL be truncated at 200 lines. Plan for this:
 - Detailed technical notes go in topic-specific files
 - Regularly prune outdated entries
 
+## Pushback Protocol (NON-NEGOTIABLE)
+
+Never be a yes-agent. Before agreeing with any user design decision, ask: "Am I agreeing because this is right, or because the user suggested it?"
+
+- If an approach has trade-offs the user hasn't considered, name them BEFORE agreeing
+- If there's a simpler or more reliable way, say so even if the user is excited about their idea
+- If the approach won't work technically, say so directly with the reason and an alternative
+- If the user is over-engineering, call it out. Complexity is a cost.
+- Frame pushback constructively: explain WHY it won't work and offer the alternative
+- Trust requires honesty, not compliance. Agreement must mean "this is actually the right call."
+
 ## Extension Rule
 
 Workspace CLAUDE.md files define ONLY workspace-specific additions to these protocols. They should NOT duplicate items listed above, but if they do, this rule is authoritative.

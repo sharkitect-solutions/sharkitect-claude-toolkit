@@ -25,6 +25,9 @@ Complete field specification for gap reports written by the resource-auditor ski
 | `severity` | enum | YES | `critical`, `warning`, or `info` |
 | `recommended_fix` | object | YES | See Recommended Fix Object below |
 | `status` | enum | YES | Always `new` when created by auditor |
+| `edit_count_at_audit` | integer | YES | Value of the Write/Edit counter when the audit ran. Shows total deliverable edits in the task. |
+| `nudges_delivered` | integer | YES | How many nudge reminders were injected during the task (edit_count // 5). |
+| `nudges_acted_on` | integer | YES | How many nudges resulted in a mid-task audit (0 if only the post-task audit ran). |
 
 ## UNUSED-Specific Fields
 
@@ -106,6 +109,9 @@ the user's experience meaningfully?
   ],
   "impact_assessment": "Output lacked brand voice consistency and had no CRO optimization. Would need rework.",
   "severity": "critical",
+  "edit_count_at_audit": 12,
+  "nudges_delivered": 2,
+  "nudges_acted_on": 0,
   "recommended_fix": {
     "type": "package",
     "description": "Content creation in HQ needs mandatory enforcement skill + PreToolUse hook",
@@ -133,6 +139,9 @@ the user's experience meaningfully?
   "capability_gap": "No skill for local SEO, service-area pages, or home services industry patterns",
   "impact_assessment": "Output functional but generic. Specialized skill would produce 3-5x better content.",
   "severity": "warning",
+  "edit_count_at_audit": 8,
+  "nudges_delivered": 1,
+  "nudges_acted_on": 0,
   "recommended_fix": {
     "type": "skill",
     "description": "Build local-seo-optimizer with service-area templates and geo-targeting patterns",
@@ -161,6 +170,9 @@ the user's experience meaningfully?
   "what_would_be_better": "Dedicated technical-documentation skill with endpoint tables, auth flow docs, SDK examples",
   "impact_assessment": "Documentation readable but lacked developer-focused patterns experts expect.",
   "severity": "warning",
+  "edit_count_at_audit": 15,
+  "nudges_delivered": 3,
+  "nudges_acted_on": 0,
   "recommended_fix": {
     "type": "skill",
     "description": "Build technical-documentation skill with API reference templates",

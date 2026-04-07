@@ -157,6 +157,39 @@ Load `references/gap-report-schema.md` for the complete field specification.
 - Specific description of what to build
 - Component list (files to create/modify)
 
+### Step 7.5: Read and Reset Edit Counter
+
+The resource-audit-hook tracks Write/Edit operations on deliverable files and nudges every 5 edits. The counter only resets when this audit actually runs -- not on nudge. This means the counter value tells you how many edits happened and how many nudges were delivered but not acted on.
+
+**Read the counter:**
+```python
+import os, tempfile
+counter_file = os.path.join(tempfile.gettempdir(), "claude_resource_audit_counter.txt")
+try:
+    with open(counter_file, "r") as f:
+        edit_count = int(f.read().strip())
+except (FileNotFoundError, ValueError):
+    edit_count = 0
+nudges_delivered = edit_count // 5
+```
+
+**Include in gap reports:** Add these fields to every gap report JSON:
+- `"edit_count_at_audit"`: the counter value when the audit ran
+- `"nudges_delivered"`: how many nudge reminders were injected (edit_count // 5)
+- `"nudges_acted_on"`: 0 (if this is the post-task audit and counter was never reset mid-task)
+
+**Include in summary** (even when no gaps found): Report the counter value so the session has a record.
+
+**Reset the counter after the audit completes:**
+```python
+try:
+    os.remove(counter_file)
+except FileNotFoundError:
+    pass
+```
+
+**CRITICAL:** Always reset the counter. If you skip this, the next task inherits a stale count and the nudge data becomes meaningless.
+
 ### Step 8: Report Summary
 
 After writing all gap reports (or finding no gaps), produce a summary:
@@ -165,6 +198,7 @@ After writing all gap reports (or finding no gaps), produce a summary:
 RESOURCE AUDIT COMPLETE
   Workspace: {workspace name}
   Task: {brief description}
+  Edit counter: {edit_count} edits, {nudges_delivered} nudges delivered
   
   UNUSED gaps: {count} ({critical}/{warning}/{info})
   MISSING gaps: {count} ({critical}/{warning}/{info})  
@@ -174,7 +208,7 @@ RESOURCE AUDIT COMPLETE
   {list filenames}
 ```
 
-If zero gaps found: "No resource gaps detected. All relevant resources were used appropriately."
+If zero gaps found: "No resource gaps detected. All relevant resources were used appropriately. Edit counter: {edit_count} edits, {nudges_delivered} nudges delivered."
 
 ## Worked Example: Landing Page Rewrite in HQ
 
