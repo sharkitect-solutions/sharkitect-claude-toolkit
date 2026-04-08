@@ -67,7 +67,7 @@ The complete 9-step protocol. Load `references/full-checkout-protocol.md` for de
 
 | # | Step | Check | If Missing |
 |---|------|-------|------------|
-| 1 | Resource audit | Was resource-auditor invoked this session? | Run it now if deliverables were produced |
+| 1 | Resource audit | Was resource-auditor invoked this session? | Run it now if significant work was done |
 | 2 | MEMORY.md | Updated with session learnings? | Update with decisions, patterns, outcomes |
 | 3 | Lessons learned | Any resolved errors in `.tmp/session-errors.json`? | Write to ~/.claude/lessons-learned.md |
 | 4 | Plan status | Active plan reflects current state? | Update plan with completed/remaining items |
@@ -75,6 +75,7 @@ The complete 9-step protocol. Load `references/full-checkout-protocol.md` for de
 | 6 | Workspace checklist | CLAUDE.md post-task items completed? | Execute remaining items |
 | 7 | Git checkpoint | `checkpoint.py create "end of session"` | Commits + pushes all changes |
 | 8 | Supabase sync | Brain state pushed? | checkpoint.py handles this |
+| 8.5 | Session brief | Summary written to Supabase + git? | Generate and push (see below) |
 | 9 | Summary | Pass/fail per step | Report what failed and why |
 
 ### Graceful Degradation Rules
@@ -108,7 +109,7 @@ Resume instructions are only useful if they pass this test: **Can a cold-start s
 ### Critical Decision: Resource Audit (Step 1)
 
 ```
-WERE DELIVERABLES PRODUCED THIS SESSION?
+WAS SIGNIFICANT WORK DONE THIS SESSION?
   |
   +--> YES --> Was resource-auditor invoked?
   |              |
@@ -123,10 +124,10 @@ WERE DELIVERABLES PRODUCED THIS SESSION?
   |              |
   |              NO --> Run resource-auditor now before closing
   |
-  +--> NO --> SKIP (no deliverables = nothing to audit)
+  +--> NO --> SKIP (no significant work = nothing to audit)
 ```
 
-"Deliverables produced" = user-facing outputs (documents, code, configs, reports). Internal-only changes (memory updates, plan edits) don't count.
+"Significant work" = any task that produced outputs, modified code, created scripts, changed configs, or built infrastructure. This includes internal tools, automation scripts, CLAUDE.md changes, n8n workflows, and system architecture — not just client-facing deliverables. Only SKIP for pure conversation (Q&A, discussion) or trivial edits (typo fixes, memory-only updates).
 
 ### MEMORY.md Update (Step 2)
 
@@ -203,6 +204,21 @@ SESSION CHECKPOINT COMPLETE
 ---
 6 passed, 1 failed, 1 warning. Fix MEMORY.md before closing.
 ```
+
+### Session Brief (Step 8.5)
+
+After Supabase sync, generate and push a session brief so other sessions (especially Sentinel's morning report) can see what happened.
+
+**Generate:** Write a 2-4 sentence summary covering:
+- What was accomplished (specific deliverables, not "worked on things")
+- Key decisions made
+- What remains for next session
+
+**Push:** `python <supabase-sync-path> write-session-brief "<summary>"`
+
+This writes to both Supabase (`activity_stream` with `event_type: session_brief`) and a local file (`.tmp/session-brief-YYYY-MM-DD.md`) for git.
+
+**If supabase-sync.py doesn't have `write-session-brief` command** (older deployment): SKIP this step, WARN in summary.
 
 ## aios-core Script Locations
 
