@@ -38,9 +38,10 @@ Run this checklist after completing any task. No task is "done" until post-task 
 
 ### Session Start
 1. Read MEMORY.md -- check pending items, patterns, preferences.
-2. `git pull` if remote exists (cross-computer sync).
-3. Refresh document cache: `python ~/.claude/scripts/doc-cache-builder.py --path "$(pwd)" --merge --quiet`
-4. Resume from where last session left off.
+2. Sync from global lessons: Read `~/.claude/lessons-learned.md`. Check Preferences, Process Decisions, and Architecture Direction sections for entries not yet reflected in this workspace's memory. Pull relevant new entries into workspace MEMORY.md or topic files. This ensures learnings from other workspaces propagate here.
+3. `git pull` if remote exists (cross-computer sync).
+4. Refresh document cache: `python ~/.claude/scripts/doc-cache-builder.py --path "$(pwd)" --merge --quiet`
+5. Resume from where last session left off.
 
 ### During Session (at stage completions / checkpoints)
 1. Update MEMORY.md with decisions and progress.
@@ -69,9 +70,9 @@ Run this checklist after completing any task. No task is "done" until post-task 
 
 ### Session Memory Protocol
 **Every session, without exception:**
-1. **Start of session:** Read MEMORY.md. Understand what was learned before. Check for pending items, known patterns, and user preferences.
+1. **Start of session:** Read MEMORY.md. Then sync from `~/.claude/lessons-learned.md` -- pull any new Preferences, Process Decisions, or Architecture Direction entries into workspace memory if relevant and not already reflected.
 2. **During session:** When a significant decision is made, a pattern is discovered, or a task outcome is known -- update memory immediately. Do not wait until the end.
-3. **End of session:** Append a session log entry. Update patterns if confirmed. Record what worked, what failed, and what was learned.
+3. **End of session:** Push new learnings (preferences, process decisions, architecture direction, errors) to `~/.claude/lessons-learned.md` via session-checkpoint Step 3. Update workspace MEMORY.md with session-specific decisions and progress.
 
 ### What to Record
 - Decisions made and the reasoning behind them

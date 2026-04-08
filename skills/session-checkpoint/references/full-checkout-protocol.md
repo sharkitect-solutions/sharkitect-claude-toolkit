@@ -69,7 +69,11 @@ Was MEMORY.md modified this session?
 
 ## Step 3: Lessons Learned Capture
 
-**Goal:** Convert resolved errors into reusable knowledge.
+**Goal:** Capture ALL reusable knowledge from this session -- not just errors.
+
+Lessons-learned.md has 7 sections. Check each:
+
+### 3A. Resolved Errors
 
 **Source:** `.tmp/session-errors.json` (written by error-tracker-hook when available)
 
@@ -77,11 +81,11 @@ Was MEMORY.md modified this session?
 - `resolved: true` -- the error was eventually fixed
 - `retry_count >= 2` -- it took multiple attempts (knowledge worth capturing)
 
-**If error-tracker-hook is not yet installed** (Phase 2 dependency):
+**If error-tracker-hook is not yet installed:**
 - Ask: "Were there any errors this session that took multiple attempts to fix?"
 - If yes, manually format as a lesson entry
 
-**Lesson entry format** (matches existing ~/.claude/lessons-learned.md):
+**Format:**
 ```markdown
 ### [YYYY-MM-DD] category: short description
 
@@ -93,11 +97,60 @@ Was MEMORY.md modified this session?
 
 **Categories:** api-limitation, tool-usage, platform, approach
 
-**After writing:**
+### 3B. Preferences Discovered
+
+**Reflect:** Did the user express a preference about communication channels, output formats, workflow choices, tool selections, or how they want things done?
+
+**Format:**
+```markdown
+### [YYYY-MM-DD] preference: short description
+
+**Context:** What the preference is about
+**Apply when:** When to use this preference
+**Tags:** comma, separated, keywords
+```
+
+**Section:** `## Preferences` in lessons-learned.md
+
+### 3C. Process Decisions
+
+**Reflect:** Did we try an approach that didn't work and pivot to something better? Did we validate that a certain process works well?
+
+**Format:**
+```markdown
+### [YYYY-MM-DD] process: short description
+
+**Context:** What was decided
+**Apply when:** When to apply this decision
+**Why:** The reasoning behind it
+**Tags:** comma, separated, keywords
+```
+
+**Section:** `## Process Decisions` in lessons-learned.md
+
+### 3D. Architecture Direction
+
+**Reflect:** Did the user state or confirm a standing principle about how systems should be designed?
+
+**Format:**
+```markdown
+### [YYYY-MM-DD] direction: short description
+
+**Context:** The principle
+**Apply when:** When this applies
+**Design principles:** Bullet list of specific guidelines
+**Tags:** comma, separated, keywords
+```
+
+**Section:** `## Architecture Direction` in lessons-learned.md
+
+### After writing any lesson:
 ```bash
-# Lesson is global -- push to brain so all workspaces benefit
+# Lessons are global -- push to brain so all workspaces benefit
 python <aios-core>/scripts/checkpoint.py sync
 ```
+
+**PASS condition:** No qualifying errors AND no preferences/process/architecture learnings. Most sessions surface at least one -- reflect carefully before passing.
 
 ---
 

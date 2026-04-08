@@ -69,7 +69,7 @@ The complete 9-step protocol. Load `references/full-checkout-protocol.md` for de
 |---|------|-------|------------|
 | 1 | Resource audit | Was resource-auditor invoked this session? | Run it now if significant work was done |
 | 2 | MEMORY.md | Updated with session learnings? | Update with decisions, patterns, outcomes |
-| 3 | Lessons learned | Any resolved errors in `.tmp/session-errors.json`? | Write to ~/.claude/lessons-learned.md |
+| 3 | Lessons learned | Errors, preferences, process decisions, or architecture learnings? | Write to ~/.claude/lessons-learned.md |
 | 4 | Plan status | Active plan reflects current state? | Update plan with completed/remaining items |
 | 5 | Pending items | Anything incomplete documented? | Add resume instructions to MEMORY.md |
 | 6 | Workspace checklist | CLAUDE.md post-task items completed? | Execute remaining items |
@@ -162,14 +162,26 @@ INFORMATION LEARNED THIS SESSION
 
 ### Lessons Capture (Step 3)
 
-Check `.tmp/session-errors.json` for entries where `resolved: true` AND `retry_count >= 2`.
+Lessons are NOT just errors. Capture anything learned this session across ALL categories:
 
-For each qualifying entry:
-1. Format as lessons-learned.md entry (date, category, attempted, error, solution, tags)
-2. Append to `~/.claude/lessons-learned.md`
+**3A. Resolved Errors** -- Check `.tmp/session-errors.json` for `resolved: true` AND `retry_count >= 2`.
+Format: date, category (api-limitation/tool-usage/platform/approach), attempted, error, solution, tags.
+
+**3B. Preferences Discovered** -- Did the user express a preference about communication channels, output formats, workflow choices, tool selections, or how they want things done?
+Format: date, `preference:` prefix, context, apply-when, tags. Section: `## Preferences`
+
+**3C. Process Decisions** -- Did we try an approach that didn't work and pivot? Did we validate that a process works well?
+Format: date, `process:` prefix, context, why, tags. Section: `## Process Decisions`
+
+**3D. Architecture Direction** -- Did the user state or confirm a standing principle about system design?
+Format: date, `direction:` prefix, context, apply-when, design principles, tags. Section: `## Architecture Direction`
+
+For each qualifying entry (any category):
+1. Format per category template above
+2. Append to the correct section in `~/.claude/lessons-learned.md`
 3. Push to Supabase brain via checkpoint.py sync
 
-**If no session-errors.json exists** or no qualifying entries: PASS (not every session has lessons).
+**PASS condition:** No session-errors.json AND no preferences/process/architecture learnings. But most sessions surface at least one -- reflect carefully before passing.
 
 ### Summary Output (Step 9)
 
