@@ -39,7 +39,8 @@ Run this checklist after completing any task. No task is "done" until post-task 
 ### Session Start
 1. Read MEMORY.md -- check pending items, patterns, preferences.
 2. `git pull` if remote exists (cross-computer sync).
-3. Resume from where last session left off.
+3. Refresh document cache: `python ~/.claude/scripts/doc-cache-builder.py --path "$(pwd)" --merge --quiet`
+4. Resume from where last session left off.
 
 ### During Session (at stage completions / checkpoints)
 1. Update MEMORY.md with decisions and progress.
@@ -92,6 +93,64 @@ MEMORY.md WILL be truncated at 200 lines. Plan for this:
 - Session history summaries go in a separate `session-history.md` file
 - Detailed technical notes go in topic-specific files
 - Regularly prune outdated entries
+
+## Gap Detection Protocol (NON-NEGOTIABLE)
+
+When you detect a missing capability, broken infrastructure, or dead configuration during ANY work -- report it immediately. Do NOT wait for a post-task audit.
+
+### What Triggers a Gap Report
+- You need a skill, hook, or workflow that doesn't exist
+- A hook or tool exists but isn't functioning (missing config, empty cache, wrong path)
+- You used general knowledge where a specialized skill would produce better output
+- A document was updated but related documents weren't flagged for update
+- Infrastructure is in place but a key component is missing (e.g., cache file, config, registration)
+
+### How to Report
+Run the gap reporter script from any workspace:
+```bash
+python ~/.claude/scripts/gap-reporter.py \
+  --type MISSING \
+  --severity warning \
+  --workspace "YOUR WORKSPACE NAME" \
+  --workspace-path "$(pwd)" \
+  --task "Brief description of what you were doing" \
+  --category operations \
+  --needed "What capability was needed" \
+  --gap "What specifically is missing or broken" \
+  --impact "How this affected the work" \
+  --fix-type hook \
+  --fix-desc "Description of recommended fix" \
+  --fix-components "component1, component2"
+```
+
+Gap types: `MISSING` (nothing exists), `UNUSED` (exists but wasn't used), `FALLBACK` (used generic instead of specialized).
+
+### Where Reports Go
+All gap reports land in the Skill Management Hub's `.gap-reports/inbox/`. The Skill Hub processes them autonomously -- builds fixes, deploys globally, and notifies all workspaces.
+
+### Do NOT Fix Gaps Locally
+Workspaces do not build global artifacts. If you detect a gap, REPORT it. The Skill Hub handles triage, building, quality gating, and deployment. Local fixes bypass the quality gate and won't be available to other workspaces.
+
+## Cross-Document Integrity Protocol
+
+When you update any business document, check whether related documents need updating too.
+
+### How It Works
+1. `doc-cache-builder.py` runs at session start and builds `.tmp/doc-lifecycle-cache.json`
+2. `drift-detection-hook.py` fires on every Write/Edit and checks if the content relates to tracked documents
+3. If drift is detected, you get a reminder to check related documents
+
+### Your Responsibility
+- When you add/change a product, service, pricing, team member, or process: think about what OTHER documents reference this information
+- If drift-detection reminds you about related documents: check them and update if needed
+- If drift-detection is NOT firing (empty cache, no reminders): that itself is a gap -- report it via gap-reporter.py
+
+### Session Start: Cache Refresh
+Every session start should refresh the document cache:
+```bash
+python ~/.claude/scripts/doc-cache-builder.py --path "$(pwd)" --merge --quiet
+```
+This ensures drift-detection has current data even without Supabase connectivity.
 
 ## Pushback Protocol (NON-NEGOTIABLE)
 
