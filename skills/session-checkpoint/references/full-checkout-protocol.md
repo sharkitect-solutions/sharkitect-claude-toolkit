@@ -147,7 +147,7 @@ Lessons-learned.md has 7 sections. Check each:
 ### After writing any lesson:
 ```bash
 # Lessons are global -- push to brain so all workspaces benefit
-python <aios-core>/scripts/checkpoint.py sync
+python tools/supabase-sync.py push
 ```
 
 **PASS condition:** No qualifying errors AND no preferences/process/architecture learnings. Most sessions surface at least one -- reflect carefully before passing.
@@ -187,7 +187,7 @@ ls ~/.claude/plans/*.md 2>/dev/null
 4. Any prerequisites or dependencies for the next step
 
 **Bad resume instruction:** "Continue with Phase 2"
-**Good resume instruction:** "Phase 2A (error-tracker-hook.py) ready to build. Pattern: PostToolUse on Bash, scans for error signatures, writes to .tmp/session-errors.json. Reference: checkpoint.py for similar hook registration in settings.json."
+**Good resume instruction:** "Phase 2A (error-tracker-hook.py) ready to build. Pattern: PostToolUse on Bash, scans for error signatures, writes to .tmp/session-errors.json. Reference: supabase-sync.py for similar hook registration in settings.json."
 
 ---
 
@@ -213,22 +213,18 @@ Read CLAUDE.md -> Find "Post-Task Checklist" section -> Execute uncompleted item
 
 **Goal:** Commit and push all changes for backup and cross-computer continuity.
 
-**Command:**
+**Commands:**
 ```bash
-python "<aios-core>/scripts/checkpoint.py" create "session end: <brief description>"
+git add <changed files>
+git commit -m "session end: <brief description>"
+git push
 ```
 
-**What checkpoint.py does internally:**
-1. `git add -A` (stages everything)
-2. `git commit -m "checkpoint: <description>"`
-3. `git push` (if remote configured)
-4. Writes `.tmp/last-checkpoint.json` with commit hash and timestamp
-
 **Edge cases:**
-- No git repo initialized: WARN (checkpoint.py handles gracefully, still does brain sync)
+- No git repo initialized: WARN, skip to Supabase sync
 - No remote configured: Local commit only, WARN about no off-machine backup
 - Push fails (auth, network): Local commit preserved, WARN about manual push needed
-- No changes to commit: PASS (checkpoint.py reports "no changes")
+- No changes to commit: PASS
 
 **Description format:** `"session end: <what was accomplished>"` -- e.g., `"session end: built session-checkpoint skill, enhanced session-end-check"`
 
@@ -238,9 +234,13 @@ python "<aios-core>/scripts/checkpoint.py" create "session end: <brief descripti
 
 **Goal:** Push memory state to Supabase so other workspaces and computers see updates.
 
-**This is handled by checkpoint.py** in Step 7 (it calls supabase-sync.py push internally).
+**Commands:**
+```bash
+python tools/supabase-sync.py push
+python tools/supabase-sync.py write-session-brief "<summary of what was accomplished>"
+```
 
-**Verification:** checkpoint.py output includes "Brain sync complete" on success.
+**Verification:** Output includes "Synced X memories to Supabase" and "Session brief written" on success.
 
 **If Supabase sync fails:**
 - Check if `.env` has SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
@@ -275,6 +275,6 @@ python "<aios-core>/scripts/checkpoint.py" create "session end: <brief descripti
 | 5. Pending items | 10-20s | Writing resume instructions |
 | 6. Workspace checklist | 5-30s | Depends on items |
 | 7. Git checkpoint | 5-15s | Commit + push |
-| 8. Supabase sync | 2-5s | Handled by checkpoint.py |
+| 8. Supabase sync | 2-5s | Handled by supabase-sync.py |
 | 9. Summary | 2-5s | Report generation |
 | **Total** | **~1-3 min** | Most sessions under 2 minutes |

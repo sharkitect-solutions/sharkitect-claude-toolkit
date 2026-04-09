@@ -78,7 +78,7 @@ Summary Skipper <-- "I already know it passed"
    - Git diff (what changed)
    - `.tmp/compact-context.md` (if compaction happened)
    - `.tmp/session-errors.json` (if errors were tracked)
-5. Create a recovery checkpoint: `python checkpoint.py create "recovery after crash"`
+5. Create a recovery checkpoint: `git add . && git commit -m "recovery after crash" && git push`
 6. Update MEMORY.md with whatever context you can reconstruct
 
 ---

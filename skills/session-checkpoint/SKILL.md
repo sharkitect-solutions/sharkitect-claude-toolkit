@@ -25,7 +25,7 @@ Complete end-of-session protocol that ensures nothing is lost between sessions. 
 | "Check if docs are still accurate" | NO | document-lifecycle |
 | "Did I use all available resources?" | NO | resource-auditor |
 | "Push memories to Supabase" | NO | supabase-sync.py push |
-| "Revert to previous state" | NO | checkpoint.py revert |
+| "Revert to previous state" | NO | supabase-sync.py revert |
 
 ## Mode Detection
 
@@ -52,10 +52,10 @@ USER SAYS "checkpoint" / "end session" / "wrap up"
 For mid-session saves and pre-modification checkpoints. Fast, minimal, non-disruptive.
 
 **Steps:**
-1. Run `python <aios-core>/scripts/checkpoint.py create "<description>"`
-   - Auto-generates description from git diff if none provided
-   - Commits all changes, pushes to remote, syncs brain
-2. Report: commit hash, push status, any warnings
+1. Stage and commit: `git add <changed files> && git commit -m "<description>"`
+2. Push: `git push`
+3. Sync brain: `python tools/supabase-sync.py push`
+4. Report: commit hash, push status, any warnings
 
 **That's it.** No auditing, no memory updates, no lesson capture. Get back to work.
 
@@ -73,8 +73,8 @@ The complete 9-step protocol. Load `references/full-checkout-protocol.md` for de
 | 4 | Plan status | Active plan reflects current state? | Update plan with completed/remaining items |
 | 5 | Pending items | Anything incomplete documented? | Add resume instructions to MEMORY.md |
 | 6 | Workspace checklist | CLAUDE.md post-task items completed? | Execute remaining items |
-| 7 | Git checkpoint | `checkpoint.py create "end of session"` | Commits + pushes all changes |
-| 8 | Supabase sync | Brain state pushed? | checkpoint.py handles this |
+| 7 | Git checkpoint | `git add . && git commit && git push` | Commits + pushes all changes |
+| 8 | Supabase sync | Brain state pushed? | `python tools/supabase-sync.py push` |
 | 8.5 | Session brief | Summary written to Supabase + git? | Generate and push (see below) |
 | 9 | Summary | Pass/fail per step | Report what failed and why |
 
@@ -179,7 +179,7 @@ Format: date, `direction:` prefix, context, apply-when, design principles, tags.
 For each qualifying entry (any category):
 1. Format per category template above
 2. Append to the correct section in `~/.claude/lessons-learned.md`
-3. Push to Supabase brain via checkpoint.py sync
+3. Push to Supabase brain via supabase-sync.py sync
 
 **PASS condition:** No session-errors.json AND no preferences/process/architecture learnings. But most sessions surface at least one -- reflect carefully before passing.
 
@@ -232,13 +232,11 @@ This writes to both Supabase (`activity_stream` with `event_type: session_brief`
 
 **If supabase-sync.py doesn't have `write-session-brief` command** (older deployment): SKIP this step, WARN in summary.
 
-## aios-core Script Locations
+## Script Locations
 
 These are the tools this skill orchestrates:
 
 | Script | Location | Purpose |
 |--------|----------|---------|
-| `checkpoint.py` | `~/.claude/plugins/cache/local/aios-core/scripts/` | Git commit + push + brain sync |
-| `supabase-sync.py` | Same directory or `tools/supabase-sync.py` in workspace | Brain memory operations |
-| `session-end-check.py` | Same directory | SessionEnd hook (runs automatically) |
-| `lesson-writer.py` | Same directory (Phase 2) | Auto-writes lessons from resolved errors |
+| `supabase-sync.py` | `tools/supabase-sync.py` in each workspace | Brain memory operations (push, pull, write-session-brief, status) |
+| `session-end-check.py` | `~/.claude/plugins/cache/local/aios-core/scripts/` | SessionEnd hook (runs automatically) |

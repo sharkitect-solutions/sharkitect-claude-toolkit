@@ -8,6 +8,38 @@
 > takes precedence. Workspace CLAUDE.md extends these protocols with
 > workspace-specific additions only.
 
+## Workspace Directory (NON-NEGOTIABLE)
+
+Every workspace has a defined scope. Work MUST happen in the correct workspace. If the task you're about to do falls outside this workspace's scope, STOP and tell the user: "This belongs in [correct workspace]. Reason: [scope rule]."
+
+| # | Workspace | Scope | Owns | Does NOT Do |
+|---|-----------|-------|------|-------------|
+| 1 | **Workforce HQ** | Client work, business operations, revenue | Client deliverables, proposals, SOPs, invoicing, CRM, client projects, CEO daily briefs (n8n), fallback briefs (Task Scheduler), error-autofix bridge | Skills/hooks/agents, brain monitoring |
+| 2 | **Skill Management Hub** | Capability infrastructure | Skills, hooks, agents, plugins, gap detection + alerting + processing, sync to GitHub toolkit repo | Client work, brain monitoring |
+| 3 | **Sentinel** | Oversight, intelligence, monitoring | Brain health monitoring, dream consolidation, system intelligence reports, Supabase brain queries, document freshness auditing, morning system report, repo monitor, Watcher's Watcher (n8n) | Client work, skill creation, business automation |
+
+### Automation Ownership
+Each workspace owns the scheduled tasks and automations that support its purpose. See `~/.claude/docs/autonomous-systems-inventory.md` for the full ownership map.
+
+### Routing Rules
+- **Building a skill, hook, or agent?** --> Skill Hub
+- **Building or fixing a business n8n workflow (briefs, error handler)?** --> Workforce HQ
+- **Building or fixing a monitoring n8n workflow (watcher)?** --> Sentinel
+- **Working on a client deliverable?** --> Workforce HQ
+- **Monitoring system health or running audits?** --> Sentinel
+- **Processing a gap report (building the fix)?** --> Skill Hub
+- **Setting up gap alerting or detection?** --> Skill Hub
+- **Modifying a Task Scheduler job?** --> The workspace that owns the system it supports
+
+### When You Detect Out-of-Scope Work
+If you realize the current task belongs in another workspace:
+1. STOP before creating files or making changes
+2. Tell the user which workspace owns this work and why
+3. Suggest: "Open [workspace name] and continue there"
+4. If the user insists on continuing here, note it in MEMORY.md as a scope exception with the reason
+
+---
+
 ## Pre-Task Checklist (before ANY work)
 
 Run this checklist before starting any task. These items are non-negotiable.
@@ -30,6 +62,7 @@ Run this checklist after completing any task. No task is "done" until post-task 
 - [ ] Update MEMORY.md with session learnings (decisions, patterns, preferences discovered).
 - [ ] If new patterns or processes were discovered, record them.
 - [ ] Confirm nothing is left in an inconsistent or half-finished state.
+- [ ] If a plan was created, completed, or abandoned: update `~/.claude/docs/plans-registry.md` (see Plan Lifecycle Protocol).
 - [ ] Run `/session-checkpoint` before closing the session.
 
 > Workspace CLAUDE.md may define additional workspace-specific post-task items. Run those too.
@@ -163,6 +196,67 @@ Never be a yes-agent. Before agreeing with any user design decision, ask: "Am I 
 - If the user is over-engineering, call it out. Complexity is a cost.
 - Frame pushback constructively: explain WHY it won't work and offer the alternative
 - Trust requires honesty, not compliance. Agreement must mean "this is actually the right call."
+
+## Scheduling Tool Rules (NON-NEGOTIABLE)
+
+Before using ANY tool for scheduling or automation, verify what it actually does. Never assume from the name.
+
+**Ownership:** Each workspace owns the scheduled tasks and automations that support its systems. See `~/.claude/docs/autonomous-systems-inventory.md` for the full ownership map. Modify automations from the workspace that owns them.
+
+**Tool hierarchy (verified 2026-04-09):**
+- **n8n cloud** = PRIMARY for 24/7 tasks that don't need local filesystem (CEO briefs, cloud monitoring). Runs at sharkitect-solutions.app.n8n.cloud regardless of machine state.
+- **Windows Task Scheduler** = PERSISTENT LOCAL for tasks needing local filesystem when computer is on (gap alerting, brief fallbacks, freshness audits). Use full python.exe path in .bat files.
+- **CronCreate** = IN-SESSION ONLY for tasks needing AI reasoning + local filesystem (gap processing, skill building). Dies on session close. 7-day auto-expire. Recreated each session via startup guard.
+- **RemoteTrigger** = BROKEN for MCP-dependent tasks. MCP cold-start race condition (tools not registered at session init). Do NOT use for anything requiring Supabase, Gmail, Calendar MCPs. Documented in lessons-learned.md.
+- **ralph-loop** = Task iteration loop ONLY. Keeps AI working on one task by intercepting Stop event. Has NO timer, NO interval, NO cron. Use for: iterative code improvement, plan execution overnight. NEVER for polling or scheduling.
+- **session-startup-guard.py** = SessionStart hook. 3-state heartbeat. Checks inboxes and cron status. Creates CronCreate jobs if missing.
+
+Each workspace has a `workflows/cron-schedule.md` listing its specific CronCreate jobs.
+
+## Plan Lifecycle Protocol (NON-NEGOTIABLE)
+
+Plans use random hash filenames (e.g., `wise-sprouting-canyon.md`). Without a registry, sessions waste time searching. A single global registry tracks ALL plans across ALL workspaces.
+
+**Global registry:** `~/.claude/docs/plans-registry.md` -- ONE file, ONE source of truth. All workspaces read and write to this same file. No workspace-local copies.
+
+### When a plan is CREATED:
+1. Add a row to the Active Plans table in `~/.claude/docs/plans-registry.md` immediately (path, status, workspaces involved)
+2. Reference it in the creating workspace's MEMORY.md Resume Instructions with the full path
+
+### When a plan phase COMPLETES:
+1. Update the Status and Phase columns in `~/.claude/docs/plans-registry.md`
+
+### When a plan is FULLY COMPLETED:
+1. Move the row from Active Plans to Completed Plans in the registry. Fill in Outcome and Lessons columns.
+2. Archive the plan file to `plans/archive/` if it lives in `~/.claude/plans/`
+3. Update MEMORY.md to reflect completion, not active status
+
+### When a plan is ABANDONED:
+1. Move to Completed Plans with status ABANDONED. Document why in Lessons column.
+2. Follow Pivot Cleanup Protocol below for any artifacts it created
+3. Add a lessons-learned.md entry for why it was abandoned
+
+### Session-end responsibility:
+Every workspace checks `~/.claude/docs/plans-registry.md` at session end and updates any plans it worked on during the session. This is part of the session-end protocol. Future: Supabase `documents` table will mirror this registry (Phase 4B of Foundation Reset).
+
+**Why this exists:** Plans with hash filenames get lost. Sessions waste time searching the filesystem. Completed plans sit in registries misleading future sessions. Multiple workspace copies drift apart -- one global file eliminates that.
+
+## Pivot Cleanup Protocol (NON-NEGOTIABLE)
+
+When a build fails, an approach is abandoned, or a system is superseded by a new one:
+
+1. **DELETE** all Windows Task Scheduler registrations created for the abandoned approach
+2. **DELETE** all .bat files, Python scripts, and config files created for it
+3. **DELETE** all RemoteTrigger configs created for it
+4. **REMOVE** all CLAUDE.md references to it across affected workspaces
+5. **UPDATE** MEMORY.md to remove false claims about it working
+6. **UPDATE** workflow docs to remove references to the abandoned approach
+7. **ADD** a lessons-learned.md entry documenting WHY it failed and what replaced it
+8. **VERIFY** no remaining files, configs, or documentation reference the deleted artifacts
+
+**Only exception:** The lessons-learned.md entry stays forever.
+
+**Why this exists:** Multiple automation rebuilds left behind 7 dead Task Scheduler tasks, 3 broken RemoteTrigger configs, orphaned .bat files, and MEMORY.md entries claiming systems worked when they never ran. This accumulation misleads future sessions and erodes trust.
 
 ## Extension Rule
 
