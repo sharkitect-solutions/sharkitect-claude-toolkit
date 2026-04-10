@@ -197,6 +197,17 @@ Never be a yes-agent. Before agreeing with any user design decision, ask: "Am I 
 - Frame pushback constructively: explain WHY it won't work and offer the alternative
 - Trust requires honesty, not compliance. Agreement must mean "this is actually the right call."
 
+## Verify Before Acting Protocol (NON-NEGOTIABLE)
+
+Before running ANY script, tool, or command referenced in a skill, workflow, MEMORY.md, or doc:
+
+1. **Verify it exists on disk.** Run `ls` or `find` on the path. If the file doesn't exist, STOP.
+2. **Check what DOES exist.** Look in `tools/`, `scripts/`, and the workspace directory for alternatives that serve the same purpose.
+3. **Never report "blocked" or "missing" without checking alternatives.** The tool you need may exist under a different name or path.
+4. **Never claim a system is broken because a skill told you to run something that doesn't exist.** The skill is wrong, not the system.
+
+**Why this exists:** During Foundation Reset Phase 3, a skill referenced `checkpoint.py` -- a script that was planned but never built. The session followed the instruction blindly, reported "blocked by missing plugin," and failed to recognize that `supabase-sync.py` (the actual working tool) was right there in `tools/`. This happened during a cleanup session, eroding trust in the system's ability to self-correct. Phantom references in skills and docs must be caught at execution time, not trusted blindly.
+
 ## Scheduling Tool Rules (NON-NEGOTIABLE)
 
 Before using ANY tool for scheduling or automation, verify what it actually does. Never assume from the name.
