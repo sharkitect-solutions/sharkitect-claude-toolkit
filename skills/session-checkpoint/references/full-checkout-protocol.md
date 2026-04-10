@@ -248,6 +248,50 @@ python tools/supabase-sync.py write-session-brief "<summary of what was accompli
 
 ---
 
+## Step 8B: Project/Task Status Sync
+
+**Goal:** Update Supabase project and task statuses to reflect what was accomplished this session.
+
+**Reflect:** Did any project or task change status during this session? Common signals:
+- A project phase was completed or advanced
+- A project became blocked or was unblocked
+- Tasks were finished, started, or deferred
+- A project was completed entirely
+
+**Commands:**
+```bash
+# List current projects to see what needs updating
+python ~/.claude/scripts/update-project-status.py list-projects
+
+# Update a project status
+python ~/.claude/scripts/update-project-status.py project "<name>" <status> --phase "<phase>" --notes "<notes>"
+
+# Update a task status
+python ~/.claude/scripts/update-project-status.py task "<task-text>" <status> --project "<project>"
+
+# Valid project statuses: active, paused, complete, blocked, pending
+# Valid task statuses: pending, in_progress, completed, blocked, deferred
+```
+
+**Decision flow:**
+```
+Did any project/task status change this session?
+  |
+  YES --> Run update commands for each changed item
+  |         |
+  |         Verify update succeeded (stdout shows "UPDATED: ...")
+  |         |
+  |         PASS
+  |
+  NO --> PASS (no status changes needed)
+```
+
+**Common failure:** A major deliverable was completed but the project status still shows the old phase. CEO briefs pull from these tables -- stale data makes it look like nothing happened.
+
+**If Supabase is unreachable:** WARN, note in summary. Git backup has the work; status can be updated next session.
+
+---
+
 ## Step 9: Summary Generation
 
 **Goal:** Clear pass/fail report so you and the user know the session state.
@@ -276,5 +320,6 @@ python tools/supabase-sync.py write-session-brief "<summary of what was accompli
 | 6. Workspace checklist | 5-30s | Depends on items |
 | 7. Git checkpoint | 5-15s | Commit + push |
 | 8. Supabase sync | 2-5s | Handled by supabase-sync.py |
+| 8B. Project/task status | 5-15s | Only if statuses changed |
 | 9. Summary | 2-5s | Report generation |
 | **Total** | **~1-3 min** | Most sessions under 2 minutes |

@@ -1,6 +1,6 @@
 ---
 name: resource-auditor
-description: "Use after completing ANY significant deliverable, task, or output in ANY workspace. Detects three gap types: (1) UNUSED -- available skills, docs, or tools that were relevant but not invoked, (2) MISSING -- no purpose-built resource exists and Claude had to improvise with general knowledge, (3) FALLBACK -- generic/adjacent resource used when a specialized tool would produce meaningfully better results. Writes structured gap reports to the Skill Management Hub for permanent resolution. Do NOT use for: mid-task skill discovery (check ACTIVE_SKILLS in CLAUDE.md), content enforcement in HQ (use hq-content-enforcer), code review or testing (use code-reviewer or test-engineer agents)."
+description: "Use after completing ANY significant deliverable, task, or output in ANY workspace. Detects four gap types: (1) UNUSED -- available skills, docs, or tools that were relevant but not invoked, (2) PROCESS -- methodology skills not followed for the task type (brainstorming skipped for creative work, systematic-debugging skipped for bugs, writing-plans skipped for multi-step work), (3) MISSING -- no purpose-built resource exists and Claude had to improvise with general knowledge, (4) FALLBACK -- generic/adjacent resource used when a specialized tool would produce meaningfully better results. Reads tool usage journal to verify methodology compliance. Writes structured gap reports to the Skill Management Hub for permanent resolution. Do NOT use for: mid-task skill discovery (check ACTIVE_SKILLS in CLAUDE.md), content enforcement in HQ (use hq-content-enforcer), code review or testing (use code-reviewer or test-engineer agents)."
 ---
 
 # Resource Auditor
@@ -27,7 +27,7 @@ Post-task self-audit detecting gaps between what resources SHOULD have been used
 | "Review this code for quality" | NO | code-reviewer agent |
 | "Score this skill" | NO | skill-judge |
 
-## The Three Gap Types
+## The Four Gap Types
 
 ```
 TASK COMPLETE
@@ -38,12 +38,18 @@ TASK COMPLETE
   |                  FIX TYPE: Enforcement (hook, CLAUDE.md rule)
   |
   v
-[2] MISSING CHECK -- Did I improvise because nothing exists?
+[2] PROCESS CHECK -- Did I follow the right methodology?
+  |                   Planning without brainstorming. Debugging without
+  |                   systematic-debugging. Building without a plan.
+  |                   FIX TYPE: Enforcement (protocol, hook)
+  |
+  v
+[3] MISSING CHECK -- Did I improvise because nothing exists?
   |                   No skill, no doc, no tool for this need.
   |                   FIX TYPE: Creation (new skill, tool, companion)
   |
   v
-[3] FALLBACK CHECK -- Did I use a generic substitute?
+[4] FALLBACK CHECK -- Did I use a generic substitute?
                       Used copywriting for API docs. Used general SEO
                       for local SEO. "It worked but wasn't ideal."
                       FIX TYPE: Specialization (new skill or companion)
@@ -105,6 +111,57 @@ For each ACTIVE_SKILL in the workspace CLAUDE.md:
 - User had to ask "did you use X?" after the fact
 
 Also check for relevant KB docs, MCP tools, and companion files that should have been loaded.
+
+### Step 3.5: PROCESS Check
+
+Process gaps detect when methodology-appropriate skills were NOT invoked for the type of work performed. Unlike UNUSED (which checks workspace ACTIVE_SKILLS), PROCESS checks whether the right *approach* was followed.
+
+**Read the tool usage journal:**
+```python
+import os, json, tempfile
+journal_file = os.path.join(tempfile.gettempdir(), "claude_tool_usage_journal.jsonl")
+invocations = []
+try:
+    with open(journal_file, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                invocations.append(json.loads(line))
+except FileNotFoundError:
+    invocations = []
+skills_used = [e["skill"] for e in invocations if e.get("tool") == "Skill"]
+agents_used = [e.get("subagent_type", "") for e in invocations if e.get("tool") == "Agent"]
+```
+
+**Process methodology matrix -- match task nature to expected skills:**
+
+| Task Nature | Expected Skill | Gap If Missing |
+|---|---|---|
+| Creating a new feature, designing something, creative work | `brainstorming` (or `superpowers:brainstorming`) | Jumped to implementation without divergent thinking |
+| Multi-step implementation requiring a plan | `writing-plans` (or `superpowers:writing-plans`) | Started coding without a structured plan |
+| Bug, test failure, unexpected behavior | `systematic-debugging` (or `superpowers:systematic-debugging`) | Guessed at fixes instead of following diagnostic methodology |
+| Executing a written plan | `executing-plans` (or `superpowers:executing-plans`) | Plan exists but execution wasn't structured |
+| 2+ independent parallel tasks | `dispatching-parallel-agents` (or `superpowers:dispatching-parallel-agents`) | Sequential execution when parallel was possible |
+| Completing a task (about to say "done") | `verification-before-completion` (or `superpowers:verification-before-completion`) | Claimed completion without verification |
+
+**How to check:**
+1. Determine the task nature from context (what did this session actually DO?)
+2. Look up expected skills in the matrix above
+3. Check if those skills appear in `skills_used`
+4. If missing AND the task clearly matches the nature: **PROCESS gap**
+
+**Legitimate skip reasons (NOT a PROCESS gap):**
+- Task was trivially small (single file edit, quick lookup)
+- User explicitly directed a different approach
+- The methodology was followed manually without the skill (rare, but valid if traceable)
+
+**PROCESS gap signals:**
+- Built a feature without brainstorming -- no alternatives were considered
+- Fixed a bug by trial-and-error without systematic-debugging
+- Executed a 5-step plan without executing-plans structure
+- Session involved 4 independent tasks done sequentially without parallel dispatch
+
+**Report as:** gap_type `PROCESS`, fix_type `enforcement` (add protocol/hook to ensure invocation).
 
 ### Step 4: MISSING Check
 
@@ -180,15 +237,19 @@ nudges_delivered = edit_count // 5
 
 **Include in summary** (even when no gaps found): Report the counter value so the session has a record.
 
-**Reset the counter after the audit completes:**
+**Reset the counter AND journal after the audit completes:**
 ```python
 try:
     os.remove(counter_file)
 except FileNotFoundError:
     pass
+try:
+    os.remove(os.path.join(tempfile.gettempdir(), "claude_tool_usage_journal.jsonl"))
+except FileNotFoundError:
+    pass
 ```
 
-**CRITICAL:** Always reset the counter. If you skip this, the next task inherits a stale count and the nudge data becomes meaningless.
+**CRITICAL:** Always reset both files. If you skip this, the next task inherits stale counts and journal data becomes meaningless.
 
 ### Step 8: Report Summary
 
@@ -199,8 +260,10 @@ RESOURCE AUDIT COMPLETE
   Workspace: {workspace name}
   Task: {brief description}
   Edit counter: {edit_count} edits, {nudges_delivered} nudges delivered
+  Tool journal: {N} skills invoked, {M} agents dispatched
   
   UNUSED gaps: {count} ({critical}/{warning}/{info})
+  PROCESS gaps: {count} ({critical}/{warning}/{info})
   MISSING gaps: {count} ({critical}/{warning}/{info})  
   FALLBACK gaps: {count} ({critical}/{warning}/{info})
   
@@ -208,7 +271,7 @@ RESOURCE AUDIT COMPLETE
   {list filenames}
 ```
 
-If zero gaps found: "No resource gaps detected. All relevant resources were used appropriately. Edit counter: {edit_count} edits, {nudges_delivered} nudges delivered."
+If zero gaps found: "No resource gaps detected. All relevant resources were used appropriately. Edit counter: {edit_count} edits, {nudges_delivered} nudges delivered. Tool journal: {N} skills, {M} agents."
 
 ## Worked Example: Landing Page Rewrite in HQ
 
@@ -233,6 +296,20 @@ If zero gaps found: "No resource gaps detected. All relevant resources were used
 
 **Result:** 3 UNUSED gaps (2 critical, 1 warning), 1 FALLBACK gap (warning). Reports written to `.gap-reports/inbox/`.
 
+## Worked Example: Feature Build Without Methodology
+
+**Task completed:** Built a new marketplace-scanner tool and evaluation workflow in Skill Hub.
+
+**Step 3.5 -- PROCESS check:** Read tool usage journal. Skills invoked: none. Agents dispatched: none.
+
+**Task nature:** Creating a new tool (creative work + multi-step implementation).
+
+**Expected skills:**
+- `brainstorming` -- new tool design has multiple valid approaches. Was it invoked? NO. **PROCESS gap.** Jumped straight to implementation without considering alternatives (web scraping vs API, scan frequency, report format options).
+- `writing-plans` -- multi-file deliverable (tool + workflow + cron config). Was it invoked? NO. **PROCESS gap (info).** Task was small enough that a plan wasn't strictly needed, but structured execution would have caught the evaluation workflow being thin.
+
+**Result:** 1 PROCESS gap (warning), 1 PROCESS gap (info). The tool works, but no evidence alternatives were considered. Future similar tasks should brainstorm before building.
+
 ## Anti-Patterns
 
 | Name | What It Is | Why It Fails | Fix |
@@ -243,6 +320,7 @@ If zero gaps found: "No resource gaps detected. All relevant resources were used
 | **The Self-Forgiver** | "I used general knowledge and it was fine" without checking | The whole point is catching when "fine" could have been "excellent" | Compare output against what a specialized skill would have provided |
 | **The Scope Creep** | Auditing tasks that haven't finished yet | Premature auditing produces false MISSING gaps | Only audit completed deliverables |
 | **The Island** | Finding a gap and trying to fix it locally instead of reporting | Bypasses the Skill Hub's quality gate. Fix won't be available to other workspaces | Always write gap reports. Local workspaces don't build global artifacts |
+| **The Methodology Dodger** | Got the right result without invoking the methodology skill (brainstorming, debugging, etc.) | No audit trail, pattern isn't reproducible, and "it worked this time" masks that alternatives weren't considered | If the task matched a methodology, invoke the skill even if you think you know the answer |
 
 ## Edge Cases
 

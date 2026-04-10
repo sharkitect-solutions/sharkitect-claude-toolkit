@@ -224,6 +224,30 @@ Before using ANY tool for scheduling or automation, verify what it actually does
 
 Each workspace has a `workflows/cron-schedule.md` listing its specific CronCreate jobs.
 
+## Iterative Work Protocol (NON-NEGOTIABLE)
+
+When work requires build-test-fix cycles, invoke `/ralph-loop` BEFORE starting the first attempt. Do NOT make one attempt, report the result, and wait for the user to say "try again."
+
+### What triggers ralph-loop:
+- **Building a new tool or script** -- run it, check output, fix errors, re-run until it works
+- **Fixing a bug or broken system** -- apply fix, test, verify, iterate if still broken
+- **n8n workflow fixes** -- apply change, test execution, check result, iterate
+- **Skill/agent creation or optimization** -- build, judge, fix issues, re-judge until gate passes
+- **Any task where "did it work?" requires testing** -- don't guess, test and iterate
+
+### What does NOT need ralph-loop:
+- Pure research, reading, or analysis (no test step)
+- Simple file edits where correctness is obvious (updating a config value, fixing a typo)
+- Tasks the user explicitly says they want to review before iteration
+
+### The rule:
+1. Recognize that the task is iterative (has a test/verify step)
+2. Invoke `/ralph-loop` at the start
+3. Build -> Test -> Check result -> Fix if broken -> Repeat
+4. Report to user only when it's DONE and working, or when you're genuinely stuck after multiple attempts
+
+**Why this exists:** The user should not have to sit through attempt -> fail -> "try again" -> fail -> "try again" cycles. The system handles iteration autonomously. The goal is 98% of work arriving at the user already fixed and verified.
+
 ## Plan Lifecycle Protocol (NON-NEGOTIABLE)
 
 Plans use random hash filenames (e.g., `wise-sprouting-canyon.md`). Without a registry, sessions waste time searching. A single global registry tracks ALL plans across ALL workspaces.
