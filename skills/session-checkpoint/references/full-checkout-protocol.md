@@ -6,28 +6,29 @@ Complete reference for the 9-step end-of-session checkpoint. Each step includes 
 
 ## Step 1: Resource Audit Verification
 
-**Goal:** Confirm that resource-auditor was invoked if deliverables were produced.
+**Goal:** Confirm that resource-auditor was invoked if significant work was done.
 
-**Detection heuristic -- "deliverables produced":**
-- User-facing documents written (proposals, reports, guides, emails)
-- Code files created or substantially modified for user's project
+**Detection heuristic -- "significant work":**
+- ANY task that produced outputs, modified code, created scripts, changed configs, or built infrastructure
+- This includes internal tools, automation scripts, CLAUDE.md changes, n8n workflows, system architecture, skill building, hook development, and system config
+- Client-facing deliverables (proposals, reports, guides, emails, published content)
+- Code files created or substantially modified
 - Configurations deployed to production systems
-- Content published or prepared for publication
 
-**NOT deliverables** (skip audit): memory updates, plan edits, skill modifications, internal tooling changes.
+**NOT significant work** (skip audit): pure conversation (Q&A, discussion), trivial edits (typo fixes), memory-only updates, plan-only edits with no implementation.
 
 **Commands:**
 ```bash
 # Check if resource-auditor ran (look for its output)
 ls .tmp/resource-audit-*.json 2>/dev/null
 
-# If no audit file exists and deliverables were produced:
+# If no audit file exists and significant work was done:
 # Invoke resource-auditor skill now
 ```
 
 **Edge cases:**
 - Resource-auditor found gaps but user chose not to address them: PASS (gap reports were written, processing is Skill Hub's job)
-- Session was entirely internal work (skill building, system config): SKIP
+- Session was entirely internal work (skill building, system config): RUN AUDIT (internal work uses skills and tools too -- audit catches missed resources)
 - Resource-auditor is not installed in this workspace: WARN and note in summary
 
 ---

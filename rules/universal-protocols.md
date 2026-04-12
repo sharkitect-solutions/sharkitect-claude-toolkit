@@ -248,6 +248,42 @@ When work requires build-test-fix cycles, invoke `/ralph-loop` BEFORE starting t
 
 **Why this exists:** The user should not have to sit through attempt -> fail -> "try again" -> fail -> "try again" cycles. The system handles iteration autonomously. The goal is 98% of work arriving at the user already fixed and verified.
 
+## Supabase Status Sync Protocol (NON-NEGOTIABLE)
+
+Supabase is the source of truth for project and task status. Local plan files, MEMORY.md, and todo lists are working copies. If Supabase is stale, other workstations and CEO briefs see outdated information.
+
+### When to update Supabase immediately (do NOT wait for session-checkpoint):
+- **Plan phase completed** -- update project status/phase AND mark related tasks as `completed`
+- **Task finished** -- update task status to `completed` immediately after verifying the work
+- **Project paused/blocked/unblocked** -- update project status immediately when the decision is made
+- **New task discovered** -- add it to Supabase when identified, not at session end
+
+### How to update:
+```bash
+# Update project status + phase
+python ~/.claude/scripts/update-project-status.py project "<name>" <status> --phase "<phase>" --notes "<notes>"
+
+# Update task status
+python ~/.claude/scripts/update-project-status.py task "<task-text>" <status> --project "<project>"
+```
+
+### Automatic cascades (handled by the script):
+- **Project set to `paused`** -- all non-completed tasks automatically drop to `low` priority
+
+### Carried days recalculation (runs at session start):
+On FULL_STARTUP (first session of a new day), the session-startup-guard triggers:
+```bash
+python ~/.claude/scripts/update-project-status.py recalc-carried-days
+```
+This sets `carried_days = (today - created_at)` for ALL non-completed tasks — including paused and deferred. We track everything; CEO briefs filter which statuses to display at query time.
+
+**Stale review**: Tasks paused or deferred for 30+ days are flagged in the script output. When flagged, review each one: reactivate, keep deferred/paused (which resets the counter next time the status is explicitly set), or delete from the task list. This prevents stale projects and ideas from sitting indefinitely.
+
+### Session-checkpoint Step 8B is the BACKUP, not the primary sync:
+Step 8B catches anything missed during the session. But the goal is: by the time session-checkpoint runs, Supabase should already be current. Step 8B should find nothing to update.
+
+**Why this exists:** Sessions completed work but never updated Supabase. CEO briefs showed zero completions. Work done in one workspace was invisible to others. Supabase must stay current as the cross-machine source of truth.
+
 ## Plan Lifecycle Protocol (NON-NEGOTIABLE)
 
 Plans use random hash filenames (e.g., `wise-sprouting-canyon.md`). Without a registry, sessions waste time searching. A single global registry tracks ALL plans across ALL workspaces.

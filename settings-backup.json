@@ -1,0 +1,150 @@
+{
+  "enabledPlugins": {
+    "pyright-lsp@claude-plugins-official": true,
+    "github@claude-plugins-official": true,
+    "pr-review-toolkit@claude-plugins-official": true,
+    "slack@claude-plugins-official": true,
+    "sentry@claude-plugins-official": true,
+    "claude-md-management@claude-plugins-official": true,
+    "code-simplifier@claude-plugins-official": true,
+    "feature-dev@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true,
+    "hookify@claude-plugins-official": true,
+    "python-development@claude-code-workflows": true,
+    "customer-sales-automation@claude-code-workflows": true,
+    "data-validation-suite@claude-code-workflows": true,
+    "llm-application-dev@claude-code-workflows": true,
+    "seo-content-creation@claude-code-workflows": true,
+    "security-scanning@claude-code-workflows": true,
+    "data-engineering@claude-code-workflows": true,
+    "business-analytics@claude-code-workflows": true,
+    "content-marketing@claude-code-workflows": true,
+    "conductor@claude-code-workflows": true,
+    "superpowers@claude-plugins-official": true,
+    "sow-generator@claude-code-plugins-plus": true,
+    "discovery-questionnaire@claude-code-plugins-plus": true,
+    "roi-calculator@claude-code-plugins-plus": true,
+    "make-scenario-builder@claude-code-plugins-plus": true,
+    "zapier-zap-builder@claude-code-plugins-plus": true,
+    "excel-analyst-pro@claude-code-plugins-plus": true,
+    "prettier-markdown-hook@claude-code-plugins-plus": true,
+    "customerio-pack@claude-code-plugins-plus": true,
+    "deepgram-pack@claude-code-plugins-plus": true,
+    "documenso-pack@claude-code-plugins-plus": true,
+    "gamma-pack@claude-code-plugins-plus": true,
+    "retellai-pack@claude-code-plugins-plus": true,
+    "frontend-design@claude-plugins-official": true,
+    "claude-code-setup@claude-plugins-official": true,
+    "plugin-dev@claude-plugins-official": true,
+    "Notion@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true,
+    "firecrawl@claude-plugins-official": true,
+    "brand-strategy-framework@claude-code-plugins-plus": true,
+    "context7@claude-plugins-official": true,
+    "ralph-loop@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "playwright@claude-plugins-official": true,
+    "aios-core@local": true,
+    "quality-gate@local": true,
+    "auto-sync@local": true,
+    "phase-gate@local": true
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/check-line-count.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/content-enforcer-hook.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/drift-detection-hook.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/pre-modify-checkpoint.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/workspace-scope-guard.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/mcp-limitation-guard.py\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/checkpoint-reminder.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/quality-gate-hook.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/resource-audit-hook.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|mcp__",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/error-tracker-hook.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/iterative-work-nudge.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/iterative-work-nudge.py\""
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/session-startup-guard.py\"",
+            "timeout": 15000
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/session-start-lifecycle.py\"",
+            "timeout": 15000
+          }
+        ]
+      }
+    ]
+  },
+  "autoUpdatesChannel": "latest",
+  "effortLevel": "medium"
+}
