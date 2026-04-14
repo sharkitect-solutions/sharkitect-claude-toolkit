@@ -110,6 +110,10 @@
           {
             "type": "command",
             "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/resource-audit-hook.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/skill-sync-nudge.py\""
           }
         ]
       },
