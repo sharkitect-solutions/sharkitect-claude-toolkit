@@ -84,6 +84,15 @@
             "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/mcp-limitation-guard.py\""
           }
         ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/deep-interview-gate.py\""
+          }
+        ]
       }
     ],
     "PostToolUse": [

@@ -257,6 +257,7 @@ Supabase is the source of truth for project and task status. Local plan files, M
 - **Task finished** -- update task status to `completed` immediately after verifying the work
 - **Project paused/blocked/unblocked** -- update project status immediately when the decision is made
 - **New task discovered** -- add it to Supabase when identified, not at session end
+- **New tasks from a plan** -- when a plan creates tasks for this workspace, add them to Supabase immediately
 
 ### How to update:
 ```bash
@@ -265,17 +266,41 @@ python ~/.claude/scripts/update-project-status.py project "<name>" <status> --ph
 
 # Update task status
 python ~/.claude/scripts/update-project-status.py task "<task-text>" <status> --project "<project>"
+
+# Create a new task (with workspace assignment)
+python ~/.claude/scripts/update-project-status.py add-task "<task-text>" --project "<project>" --workspace "<workspace>" [--priority high] [--depends-on "<id1,id2>"]
+
+# Add dependency: task A depends on task B completing first
+python ~/.claude/scripts/update-project-status.py add-dependency "<task-text>" --depends-on "<blocker-task-text>"
+
+# Check if your blockers have cleared
+python ~/.claude/scripts/update-project-status.py check-blockers --workspace "<workspace>"
+
+# See all tasks assigned to your workspace
+python ~/.claude/scripts/update-project-status.py my-tasks --workspace "<workspace>"
 ```
 
 ### Automatic cascades (handled by the script):
 - **Project set to `paused`** -- all non-completed tasks automatically drop to `low` priority
+- **Last task completed** -- project auto-completes when all its tasks are done
+
+### Cross-Workspace Task Tracking (NON-NEGOTIABLE)
+
+Every task in Supabase MUST have an `assigned_workspace`. This is how workspaces know what belongs to them and how CEO briefs show progress across the full operation.
+
+**Rules:**
+1. **Single-workspace projects:** Tasks inherit the project's workspace. Set `assigned_workspace` when creating tasks.
+2. **Global projects (multi-workspace):** Each task is assigned to the workspace responsible for completing it. Example: Foundation Reset Phase 5A = `workforce-hq`, Phase 5B = `skill-management-hub`, Phase 5C = `sentinel`.
+3. **Dependencies:** When a task can't start until another workspace finishes something, use `add-dependency` to encode it in Supabase. Never rely on verbal coordination through the user.
+4. **Session start blocker check:** Every workspace runs `check-blockers --workspace <name>` at session start (automated by session-startup-guard). If blockers have cleared, proceed with the unblocked work immediately without waiting for user instruction.
+5. **Visibility:** Any workspace can run `my-tasks --workspace <other>` to see another workspace's queue. This is how workspaces discover each other's progress autonomously.
 
 ### Carried days recalculation (runs at session start):
 On FULL_STARTUP (first session of a new day), the session-startup-guard triggers:
 ```bash
 python ~/.claude/scripts/update-project-status.py recalc-carried-days
 ```
-This sets `carried_days = (today - created_at)` for ALL non-completed tasks — including paused and deferred. We track everything; CEO briefs filter which statuses to display at query time.
+This sets `carried_days = (today - created_at)` for ALL non-completed tasks -- including paused and deferred. We track everything; CEO briefs filter which statuses to display at query time.
 
 **Stale review**: Tasks paused or deferred for 30+ days are flagged in the script output. When flagged, review each one: reactivate, keep deferred/paused (which resets the counter next time the status is explicitly set), or delete from the task list. This prevents stale projects and ideas from sitting indefinitely.
 
