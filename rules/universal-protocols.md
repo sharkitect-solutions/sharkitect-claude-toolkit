@@ -27,7 +27,7 @@ Each workspace owns the scheduled tasks and automations that support its purpose
 - **Building or fixing a monitoring n8n workflow (watcher)?** --> Sentinel
 - **Working on a client deliverable?** --> Workforce HQ
 - **Monitoring system health or running audits?** --> Sentinel
-- **Processing a gap report (building the fix)?** --> Skill Hub
+- **Processing a work request (building the fix)?** --> Skill Hub
 - **Setting up gap alerting or detection?** --> Skill Hub
 - **Modifying a Task Scheduler job?** --> The workspace that owns the system it supports
 
@@ -128,21 +128,23 @@ MEMORY.md WILL be truncated at 200 lines. Plan for this:
 - Detailed technical notes go in topic-specific files
 - Regularly prune outdated entries
 
-## Gap Detection Protocol (NON-NEGOTIABLE)
+## Work Request Protocol (NON-NEGOTIABLE)
 
-When you detect a missing capability, broken infrastructure, or dead configuration during ANY work -- report it immediately. Do NOT wait for a post-task audit.
+When you detect a missing capability, broken infrastructure, dead configuration, bug, or needed enhancement during ANY work -- report it immediately. Do NOT wait for a post-task audit.
 
-### What Triggers a Gap Report
-- You need a skill, hook, or workflow that doesn't exist
-- A hook or tool exists but isn't functioning (missing config, empty cache, wrong path)
-- You used general knowledge where a specialized skill would produce better output
-- A document was updated but related documents weren't flagged for update
-- Infrastructure is in place but a key component is missing (e.g., cache file, config, registration)
+### What Triggers a Work Request
+- You need a skill, hook, or workflow that doesn't exist (type: MISSING)
+- A hook or tool exists but isn't functioning (type: MISSING or BUG)
+- You used general knowledge where a specialized skill would produce better output (type: FALLBACK)
+- An existing resource exists but wasn't invoked when it should have been (type: UNUSED)
+- An existing artifact has a bug that needs fixing (type: BUG)
+- An existing system needs improvement (type: ENHANCE)
+- An operational task needs Skill Hub to handle it (type: TASK)
 
 ### How to Report
-Run the gap reporter script from any workspace:
+Run the work request script from any workspace:
 ```bash
-python ~/.claude/scripts/gap-reporter.py \
+python ~/.claude/scripts/work-request.py \
   --type MISSING \
   --severity warning \
   --workspace "YOUR WORKSPACE NAME" \
@@ -157,13 +159,130 @@ python ~/.claude/scripts/gap-reporter.py \
   --fix-components "component1, component2"
 ```
 
-Gap types: `MISSING` (nothing exists), `UNUSED` (exists but wasn't used), `FALLBACK` (used generic instead of specialized).
+Request types: `MISSING` (nothing exists), `UNUSED` (exists but wasn't used), `FALLBACK` (used generic instead of specialized), `TASK` (operational work), `BUG` (fix needed), `ENHANCE` (improvement needed).
 
-### Where Reports Go
-All gap reports land in the Skill Management Hub's `.gap-reports/inbox/`. The Skill Hub processes them autonomously -- builds fixes, deploys globally, and notifies all workspaces.
+### Where Requests Go
+All work requests land in the Skill Management Hub's `.work-requests/inbox/`. The Skill Hub processes them autonomously -- builds fixes, deploys globally, and notifies all workspaces. Items that belong to another workspace get routed via `.routed-tasks/` to the owning workspace.
 
 ### Do NOT Fix Gaps Locally
-Workspaces do not build global artifacts. If you detect a gap, REPORT it. The Skill Hub handles triage, building, quality gating, and deployment. Local fixes bypass the quality gate and won't be available to other workspaces.
+Workspaces do not build global artifacts. If you detect an issue, REPORT it via `work-request.py`. The Skill Hub handles triage, building, quality gating, and deployment. Local fixes bypass the quality gate and won't be available to other workspaces.
+
+## Cross-Workspace Routed Tasks Protocol (NON-NEGOTIABLE)
+
+When a workspace discovers an issue that belongs to another workspace, it routes a task.
+
+**Sending TO Skill Hub:** Use `work-request.py` (see Work Request Protocol above). Do NOT write to `.routed-tasks/` -- Skill Hub has no `.routed-tasks/` directory. All inbound work goes through `.work-requests/inbox/`.
+
+**Sending TO HQ or Sentinel:** Use `.routed-tasks/` as described below.
+
+**Skill Hub sending OUT:** Skill Hub routes work to other workspaces by writing to their `.routed-tasks/inbox/` and keeping audit trails in its own `.work-requests/outbox/`.
+
+### Directory Structure (HQ and Sentinel)
+```
+.routed-tasks/
+  inbox/       # Incoming tasks from other workspaces (JSON, machine-readable)
+  processed/   # Completed tasks with resolution notes
+  outbox/      # Human-readable reports of tasks THIS workspace sent (audit trail)
+```
+
+### Routing Flow
+1. **Source workspace** writes a human-readable `.md` file in its own `.routed-tasks/outbox/` describing the finding, what it already did, and what the target workspace needs to do
+2. **Source workspace** writes a `.json` file to the **target workspace's** `.routed-tasks/inbox/` with structured fields the AI can parse and act on
+3. **Target workspace** processes the JSON at session start (startup guard Step 3.5) or CronCreate poll
+4. **Target workspace** moves completed JSON to `.routed-tasks/processed/` with a `resolution` object appended
+
+### File Naming Convention
+- **Outbox (.md):** `{target}-{short-slug}.md` (e.g., `skillhub-gap-pipeline-stale-heartbeat.md`)
+- **Inbox/Processed (.json):** `rt-{date}-{short-slug}.json` (e.g., `rt-2026-04-14-gap-pipeline-stale-heartbeat.json`)
+- The `task_id` inside the JSON matches the filename (without `.json`)
+- Slugs should be descriptive enough to understand at a glance without opening the file
+
+### Required JSON Fields
+```json
+{
+  "task_id": "rt-2026-04-14-short-slug",
+  "task_summary": "One-line human-readable description",
+  "routed_from": "source-workspace-name",
+  "routed_to": "target-workspace-name",
+  "routed_date": "2026-04-14",
+  "priority": "low|medium|high|critical",
+  "context": "What was found and why it matters",
+  "what_source_already_did": "What the source workspace fixed on its side",
+  "fix_instructions": "What the target workspace needs to do",
+  "lessons_learned": "Optional: reusable pattern for workspace memory"
+}
+```
+
+When resolved, append a `resolution` object:
+```json
+{
+  "resolution": {
+    "resolved_date": "2026-04-14",
+    "resolved_by": "target-workspace-name",
+    "what_was_done": "Description of the fix",
+    "files_changed": ["path/to/file.py"],
+    "verified": true
+  }
+}
+```
+
+### Processing Rules
+- **Session start**: startup guard detects pending items -> process immediately BEFORE responding to user
+- **Mid-session CronCreate** (all workspaces): hourly triage poll -- see Mid-Session Inbox Polling Protocol below
+- **Manual**: if you notice items during work, process immediately
+- "Process" means: do the work, verify, move to processed. Not "list them and ask the user."
+
+## Mid-Session Inbox Polling Protocol (NON-NEGOTIABLE)
+
+CronCreate fires hourly in ALL workspaces to check inboxes. Behavior depends on session state.
+
+### Two Modes
+
+**Active Mode** (user is engaged -- recent messages, active task in progress):
+- **Triage only.** Check inboxes, classify each item by priority and time-to-fix.
+- Present a brief intelligent summary (not just "3 items pending" -- explain WHAT they are, WHY they matter, and whether they can wait).
+- **Recommendation required.** For each item, state: "Recommend: handle now" or "Recommend: defer to next session."
+- Include reasoning: "This blocks X" or "This is operational validation, not urgent."
+- User decides. If user says defer, move on. If user says handle, process it.
+- **Critical items**: always recommend handling immediately, but still let user decide.
+
+**Idle Mode** (user appears away -- no recent messages, no active task, session sitting idle):
+- **Process autonomously.** Do not wait for user response.
+- Follow the same processing rules as session start (full autonomous processing).
+- When the user returns, show a brief summary of what was processed while they were away.
+
+### How to Determine Mode
+Use conversation context -- no external timer needed:
+- If you have an active todo list with in-progress items: **Active Mode**
+- If the user sent a message in the last few exchanges and you're working on it: **Active Mode**
+- If the session is idle (last exchange was your output, no pending user request): **Idle Mode**
+- If the CronCreate prompt fires and there's no active work context: **Idle Mode**
+
+### Briefing Format (Active Mode)
+```
+Inbox check (2:15 PM): 1 routed task from Sentinel -- lifecycle review verification.
+  Priority: medium | Est. fix: ~10 min
+  Recommendation: DEFER. Operational validation, not blocking active work.
+  Will process at next session start.
+```
+
+```
+Inbox check (2:15 PM): 1 work request -- plugin cache wiped, 3 plugins missing.
+  Priority: critical | Est. fix: ~5 min
+  Recommendation: HANDLE NOW. Plugin loss compounds if we build skills
+  this session without noticing they're gone.
+```
+
+### What Each Workspace Checks
+| Workspace | Work Requests | Lifecycle Inbox | Routed Tasks Inbox |
+|-----------|---------------|-----------------|-------------------|
+| Skill Hub | YES | YES | N/A (no .routed-tasks/) |
+| Workforce HQ | N/A (sends via work-request.py) | YES | YES |
+| Sentinel | N/A (sends via work-request.py) | YES | YES |
+
+### CronCreate Setup (all workspaces)
+Each workspace creates a CronCreate durable job at session start if not already configured.
+The startup guard (Step 5) detects missing cron and instructs creation. The prompt varies per workspace -- see workspace CLAUDE.md for the exact prompt.
 
 ## Cross-Document Integrity Protocol
 
@@ -177,7 +296,7 @@ When you update any business document, check whether related documents need upda
 ### Your Responsibility
 - When you add/change a product, service, pricing, team member, or process: think about what OTHER documents reference this information
 - If drift-detection reminds you about related documents: check them and update if needed
-- If drift-detection is NOT firing (empty cache, no reminders): that itself is a gap -- report it via gap-reporter.py
+- If drift-detection is NOT firing (empty cache, no reminders): that itself is an issue -- report it via work-request.py
 
 ### Session Start: Cache Refresh
 Every session start should refresh the document cache:
@@ -196,6 +315,40 @@ Never be a yes-agent. Before agreeing with any user design decision, ask: "Am I 
 - If the user is over-engineering, call it out. Complexity is a cost.
 - Frame pushback constructively: explain WHY it won't work and offer the alternative
 - Trust requires honesty, not compliance. Agreement must mean "this is actually the right call."
+
+## Correction Capture Protocol (NON-NEGOTIABLE)
+
+When the user corrects you -- tone, style, approach, factual error, preference -- capture it immediately. Do NOT wait for session-checkpoint. Corrections are the highest-value learning signal.
+
+### What Triggers Capture
+- **Direct corrections:** "No, not like that" / "Too formal" / "More direct" / "That's wrong"
+- **Positive confirmations of non-obvious choices:** "Perfect" / "Yes, exactly like that" / "Keep doing that"
+- **Style/voice feedback:** "I wouldn't say it like that" / "More like how I'd actually say it"
+- **Behavioral corrections:** "Don't do X" / "Stop doing Y" / "Always do Z"
+
+### What To Capture
+For each correction, run TWO commands:
+
+**1. Voice sample** (captures the content for voice profile learning):
+```bash
+python tools/supabase-sync.py write-voice rejected <content_type> <audience> "<rejected content>" --reason "<user's exact words>"
+python tools/supabase-sync.py write-voice approved <content_type> <audience> "<corrected content>" --reason "<what user wanted instead>"
+```
+Content types: email, proposal, slack, documentation, social, internal, code, comment
+Audiences: client, prospect, internal, partner
+
+**2. Activity stream event** (tracks correction frequency for trend analysis):
+```bash
+python tools/supabase-sync.py write-activity correction "<what was corrected and why>"
+```
+
+### When NOT To Capture
+- Factual questions ("What does this function do?") -- not corrections
+- Task instructions ("Add a button here") -- not corrections
+- Bug reports ("This is broken") -- tracked by error-tracker, not this
+
+### Why This Exists
+Dream consolidation synthesizes voice samples nightly into distilled rules. Without input data, the voice phase finds 0 samples. Every uncaptured correction is a lost learning signal. The correction rate metric (trending down = system is learning) requires real-time capture to be meaningful.
 
 ## Verify Before Acting Protocol (NON-NEGOTIABLE)
 
@@ -217,7 +370,7 @@ Before using ANY tool for scheduling or automation, verify what it actually does
 **Tool hierarchy (verified 2026-04-09):**
 - **n8n cloud** = PRIMARY for 24/7 tasks that don't need local filesystem (CEO briefs, cloud monitoring). Runs at sharkitect-solutions.app.n8n.cloud regardless of machine state.
 - **Windows Task Scheduler** = PERSISTENT LOCAL for tasks needing local filesystem when computer is on (gap alerting, brief fallbacks, freshness audits). Use full python.exe path in .bat files.
-- **CronCreate** = IN-SESSION ONLY for tasks needing AI reasoning + local filesystem (gap processing, skill building). Dies on session close. 7-day auto-expire. Recreated each session via startup guard.
+- **CronCreate** = IN-SESSION ONLY for AI-powered inbox polling (all workspaces). Triage-only when user is active, autonomous processing when idle. Dies on session close. 7-day auto-expire. Recreated each session via startup guard. See Mid-Session Inbox Polling Protocol.
 - **RemoteTrigger** = BROKEN for MCP-dependent tasks. MCP cold-start race condition (tools not registered at session init). Do NOT use for anything requiring Supabase, Gmail, Calendar MCPs. Documented in lessons-learned.md.
 - **ralph-loop** = Task iteration loop ONLY. Keeps AI working on one task by intercepting Stop event. Has NO timer, NO interval, NO cron. Use for: iterative code improvement, plan execution overnight. NEVER for polling or scheduling.
 - **session-startup-guard.py** = SessionStart hook. 3-state heartbeat. Checks inboxes and cron status. Creates CronCreate jobs if missing.

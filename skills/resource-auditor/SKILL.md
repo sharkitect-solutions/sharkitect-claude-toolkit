@@ -203,7 +203,7 @@ For each resource that WAS used:
 
 For each gap found, write a structured JSON report.
 
-**Report destination:** Read `~/.claude/config/skill-hub-path.txt` for the Skill Management Hub path. Write reports to `{skill-hub-path}/.gap-reports/inbox/`.
+**Report destination:** Read `~/.claude/config/skill-hub-path.txt` for the Skill Management Hub path. Write reports to `{skill-hub-path}/.work-requests/inbox/`.
 
 **Filename format:** `{date}_{workspace}_{brief-description}.json`
 
@@ -267,7 +267,7 @@ RESOURCE AUDIT COMPLETE
   MISSING gaps: {count} ({critical}/{warning}/{info})  
   FALLBACK gaps: {count} ({critical}/{warning}/{info})
   
-  Reports written to: {skill-hub-path}/.gap-reports/inbox/
+  Reports written to: {skill-hub-path}/.work-requests/inbox/
   {list filenames}
 ```
 
@@ -294,7 +294,7 @@ If zero gaps found: "No resource gaps detected. All relevant resources were used
 
 **Step 6 -- Severity:** Brand review = critical (client would notice). CRO = critical. SEO = warning. Design = info.
 
-**Result:** 3 UNUSED gaps (2 critical, 1 warning), 1 FALLBACK gap (warning). Reports written to `.gap-reports/inbox/`.
+**Result:** 3 UNUSED gaps (2 critical, 1 warning), 1 FALLBACK gap (warning). Reports written to `.work-requests/inbox/`.
 
 ## Worked Example: Feature Build Without Methodology
 
