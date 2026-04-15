@@ -331,15 +331,15 @@ For each correction, run TWO commands:
 
 **1. Voice sample** (captures the content for voice profile learning):
 ```bash
-python tools/supabase-sync.py write-voice rejected <content_type> <audience> "<rejected content>" --reason "<user's exact words>"
-python tools/supabase-sync.py write-voice approved <content_type> <audience> "<corrected content>" --reason "<what user wanted instead>"
+python ~/.claude/scripts/voice-write.py voice rejected <content_type> <audience> "<rejected content>" --reason "<user's exact words>"
+python ~/.claude/scripts/voice-write.py voice approved <content_type> <audience> "<corrected content>" --reason "<what user wanted instead>"
 ```
 Content types: email, proposal, slack, documentation, social, internal, code, comment
 Audiences: client, prospect, internal, partner
 
 **2. Activity stream event** (tracks correction frequency for trend analysis):
 ```bash
-python tools/supabase-sync.py write-activity correction "<what was corrected and why>"
+python ~/.claude/scripts/voice-write.py correction "<what was corrected and why>" --workspace "<current-workspace>"
 ```
 
 ### When NOT To Capture
