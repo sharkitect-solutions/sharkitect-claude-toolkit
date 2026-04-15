@@ -55,17 +55,32 @@ Run this checklist before starting any task. These items are non-negotiable.
 
 ## Post-Task Checklist (after ANY work)
 
-Run this checklist after completing any task. No task is "done" until post-task passes.
+Run this checklist after completing any task. No task is "done" until post-task passes. Execute in this order -- Supabase first, then local, then push.
 
+### 1. Verify Work
 - [ ] Verify all outputs are saved, correct, and complete.
 - [ ] Check cross-references -- if Document A was updated and Document B references it, update B.
-- [ ] Update MEMORY.md with session learnings (decisions, patterns, preferences discovered).
-- [ ] If new patterns or processes were discovered, record them.
 - [ ] Confirm nothing is left in an inconsistent or half-finished state.
+
+### 2. Update Supabase (SOURCE OF TRUTH -- do this FIRST, not last)
+- [ ] If any task was completed: `python ~/.claude/scripts/update-project-status.py task "<task>" completed --project "<project>"`
+- [ ] If a project phase advanced: `python ~/.claude/scripts/update-project-status.py project "<name>" <status> --phase "<phase>" --notes "<notes>"`
+- [ ] If a project was completed, blocked, or unblocked: update project status immediately.
+- [ ] If new tasks were discovered: `python ~/.claude/scripts/update-project-status.py add-task "<task>" --project "<project>" --workspace "<workspace>"`
+
+### 3. Update Local Documents
+- [ ] Update MEMORY.md with session learnings (decisions, patterns, preferences discovered).
 - [ ] If a plan was created, completed, or abandoned: update `~/.claude/docs/plans-registry.md` (see Plan Lifecycle Protocol).
-- [ ] Run `/session-checkpoint` before closing the session.
+- [ ] If a plan file was worked on: update the plan's status header and individual task markers to match reality.
+- [ ] If new patterns, errors, preferences, or process decisions were discovered: write to `~/.claude/lessons-learned.md` (see 7 categories).
+- [ ] If new patterns or processes were discovered, record them in workspace MEMORY.md topic files.
+
+### 4. Push Everything
+- [ ] Git commit + push: `git add <changed files> && git commit -m "<description>" && git push`
+- [ ] Run `/session-checkpoint` before closing the session (this runs the full 9-step audit as a safety net).
 
 > Workspace CLAUDE.md may define additional workspace-specific post-task items. Run those too.
+> **Key principle:** A task is not complete when the code works. A task is complete when Supabase says it's complete, local docs reflect it, and git has it pushed. All three or it didn't happen.
 
 ## Session Lifecycle
 
@@ -506,6 +521,28 @@ When a build fails, an approach is abandoned, or a system is superseded by a new
 **Only exception:** The lessons-learned.md entry stays forever.
 
 **Why this exists:** Multiple automation rebuilds left behind 7 dead Task Scheduler tasks, 3 broken RemoteTrigger configs, orphaned .bat files, and MEMORY.md entries claiming systems worked when they never ran. This accumulation misleads future sessions and erodes trust.
+
+## Documentation Standards (NON-NEGOTIABLE)
+
+All workspaces follow the Documentation Standards SOP at `~/.claude/docs/documentation-standards.md`. This SOP defines:
+- Every entity type (projects, tasks, plans, system health, lessons learned, etc.)
+- Their allowed statuses (no inventing new ones)
+- Required metadata fields
+- Where each entity is stored (Supabase table + local file)
+- How to create, update, and transition entities
+- How to query for accurate, consistent data
+- Canonical workspace names for Supabase fields
+
+**Key rules from the SOP (summary — full details in the doc):**
+1. **Supabase is the source of truth** — update Supabase FIRST, before local files
+2. **Status updates are immediate** — not deferred to session end
+3. **Use canonical workspace names** in all Supabase writes: `workforce-hq`, `skill-management-hub`, `sentinel`
+4. **Every document needs metadata** — created date, updated date, owner. No exceptions.
+5. **Use only allowed statuses** — projects: `active/pending/paused/blocked/tabled/complete`. Tasks: `pending/in_progress/completed/blocked/deferred/tabled`.
+
+Sentinel audits compliance with these standards across all workspaces.
+
+---
 
 ## Extension Rule
 
