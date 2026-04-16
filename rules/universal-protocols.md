@@ -12,11 +12,13 @@
 
 Every workspace has a defined scope. Work MUST happen in the correct workspace. If the task you're about to do falls outside this workspace's scope, STOP and tell the user: "This belongs in [correct workspace]. Reason: [scope rule]."
 
-| # | Workspace | Scope | Owns | Does NOT Do |
-|---|-----------|-------|------|-------------|
-| 1 | **Workforce HQ** | Client work, business operations, revenue | Client deliverables, proposals, SOPs, invoicing, CRM, client projects, CEO daily briefs (n8n), fallback briefs (Task Scheduler), error-autofix bridge | Skills/hooks/agents, brain monitoring |
-| 2 | **Skill Management Hub** | Capability infrastructure | Skills, hooks, agents, plugins, gap detection + alerting + processing, sync to GitHub toolkit repo | Client work, brain monitoring |
-| 3 | **Sentinel** | Oversight, intelligence, monitoring | Brain health monitoring, dream consolidation, system intelligence reports, Supabase brain queries, document freshness auditing, morning system report, repo monitor, Watcher's Watcher (n8n) | Client work, skill creation, business automation |
+| # | Workspace | Filesystem Path | Scope | Owns | Does NOT Do |
+|---|-----------|----------------|-------|------|-------------|
+| 1 | **Workforce HQ** | `1.- SHARKITECT DIGITAL WORKFORCE HQ` | Client work, business operations, revenue | Client deliverables, proposals, SOPs, invoicing, CRM, client projects, CEO daily briefs (n8n), fallback briefs (Task Scheduler), error-autofix bridge | Skills/hooks/agents, brain monitoring |
+| 2 | **Skill Management Hub** | `3.- Skill Management Hub` | Capability infrastructure | Skills, hooks, agents, plugins, gap detection + alerting + processing, sync to GitHub toolkit repo | Client work, brain monitoring |
+| 3 | **Sentinel** | `4.- Sentinel` | Oversight, intelligence, monitoring | Brain health monitoring, dream consolidation, system intelligence reports, Supabase brain queries, document freshness auditing, morning system report, repo monitor, Watcher's Watcher (n8n) | Client work, skill creation, business automation |
+
+> **CRITICAL:** The filesystem path column above is the EXACT directory name under `Claude Code Workspaces/`. When writing files to another workspace, ALWAYS use this exact name. NEVER guess, abbreviate, or construct paths from the shorthand workspace name. If unsure, run `ls` on the workspaces directory first. NEVER create a new workspace directory -- if the path doesn't exist, STOP and ask the user.
 
 ### Automation Ownership
 Each workspace owns the scheduled tasks and automations that support its purpose. See `~/.claude/docs/autonomous-systems-inventory.md` for the full ownership map.
@@ -246,6 +248,26 @@ When resolved, append a `resolution` object:
 - **Mid-session CronCreate** (all workspaces): hourly triage poll -- see Mid-Session Inbox Polling Protocol below
 - **Manual**: if you notice items during work, process immediately
 - "Process" means: do the work, verify, move to processed. Not "list them and ask the user."
+- **DEFERRED ≠ PROCESSED (NON-NEGOTIABLE):** If a task cannot be completed right now (waiting on another workspace, waiting on a phase to finish, waiting on external input), it STAYS IN THE INBOX. Do NOT move it to `processed/`. A task in `processed/` is a task no session will ever pick up again. Deferred tasks must remain visible in the inbox so every future session sees them and checks whether the blocker has cleared. Only move to `processed/` when the actual work described in `fix_instructions` is DONE and VERIFIED.
+
+### Inbox-Driven Coordination (NON-NEGOTIABLE)
+
+ALL cross-workspace task dispatch goes through inboxes. Never copy-paste prompts between workspaces.
+
+**The rule:** When workspace A needs workspace B to do something, A writes a task to B's inbox (work request or routed task). A does NOT generate a "paste this prompt into workspace B" instruction. The user should never have to copy anything between workspaces.
+
+**Urgency encoding:**
+- `severity: critical` + `"immediate": true` in the JSON = Must be done NOW, blocks current work
+- `severity: high` = Should be done this session, blocks a phase or project
+- `severity: medium` / `low` = Can be deferred, process when time is right
+
+**How it works:**
+1. Source workspace writes the task to the target's inbox with full context and urgency level
+2. User opens target workspace and says "run your inbox tasks" -- or the idle CronCreate poll picks it up automatically
+3. If the user says "defer that," the request stays in the inbox. Add a `"deferred_until"` field with reason. It gets processed when the time is right.
+4. No copy-paste. No "here's a prompt for workspace X." The inbox IS the coordination mechanism.
+
+**Why:** Copy-pasting prompts is manual, error-prone, and defeats the autonomy model. The inbox system provides: context that travels with the request, automatic pickup via CronCreate when idle, an audit trail (processed/ with resolution), and urgency that the target workspace can act on without asking.
 
 ## Mid-Session Inbox Polling Protocol (NON-NEGOTIABLE)
 

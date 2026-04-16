@@ -1,6 +1,6 @@
 ---
 name: session-checkpoint
-description: "Use when (1) user says 'end session', 'wrap up', 'let's stop', or 'checkpoint', (2) before risky system file modifications when pre-modify-checkpoint hook fires, (3) mid-session when significant progress was made and user wants to save state, (4) before compacting context to preserve session knowledge. Two modes: full end-of-session (/session-checkpoint) runs complete audit + backup; quick mid-session (/session-checkpoint --mid) does git commit + Supabase push only. Do NOT use for: skill syncing (use sync-skills.py), brain memory queries (use supabase-sync.py pull), document freshness reviews (use document-lifecycle), resource gap detection (use resource-auditor)."
+description: "Use when (1) user says 'end session', 'wrap up', 'let's stop', or 'checkpoint', (2) mid-session when significant progress was made and user wants to save state, (3) before compacting context to preserve session knowledge. Two modes: full end-of-session (/session-checkpoint) runs complete audit + backup; quick mid-session (/session-checkpoint --mid) does git commit + Supabase push only. Do NOT use for: skill syncing (use sync-skills.py), brain memory queries (use supabase-sync.py pull), document freshness reviews (use document-lifecycle), resource gap detection (use resource-auditor)."
 ---
 
 # Session Checkpoint

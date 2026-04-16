@@ -68,10 +68,6 @@
           },
           {
             "type": "command",
-            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/pre-modify-checkpoint.py\""
-          },
-          {
-            "type": "command",
             "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/workspace-scope-guard.py\""
           }
         ]
@@ -82,6 +78,10 @@
           {
             "type": "command",
             "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/mcp-limitation-guard.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/deferred-move-guard.py\""
           }
         ]
       },
