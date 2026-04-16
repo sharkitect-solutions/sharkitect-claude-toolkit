@@ -69,6 +69,10 @@
           {
             "type": "command",
             "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/workspace-scope-guard.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/inbox-move-guard.py\""
           }
         ]
       },
@@ -81,7 +85,7 @@
           },
           {
             "type": "command",
-            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/deferred-move-guard.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/inbox-move-guard.py\""
           }
         ]
       },

@@ -14,11 +14,30 @@ Every workspace has a defined scope. Work MUST happen in the correct workspace. 
 
 | # | Workspace | Filesystem Path | Scope | Owns | Does NOT Do |
 |---|-----------|----------------|-------|------|-------------|
-| 1 | **Workforce HQ** | `1.- SHARKITECT DIGITAL WORKFORCE HQ` | Client work, business operations, revenue | Client deliverables, proposals, SOPs, invoicing, CRM, client projects, CEO daily briefs (n8n), fallback briefs (Task Scheduler), error-autofix bridge | Skills/hooks/agents, brain monitoring |
+| 1 | **SHARKITECT DIGITAL WORKFORCE HQ** | `1.- SHARKITECT DIGITAL WORKFORCE HQ` | Client work, business operations, revenue | Client deliverables, proposals, SOPs, invoicing, CRM, client projects, CEO daily briefs (n8n), fallback briefs (Task Scheduler), error-autofix bridge | Skills/hooks/agents, brain monitoring |
 | 2 | **Skill Management Hub** | `3.- Skill Management Hub` | Capability infrastructure | Skills, hooks, agents, plugins, gap detection + alerting + processing, sync to GitHub toolkit repo | Client work, brain monitoring |
 | 3 | **Sentinel** | `4.- Sentinel` | Oversight, intelligence, monitoring | Brain health monitoring, dream consolidation, system intelligence reports, Supabase brain queries, document freshness auditing, morning system report, repo monitor, Watcher's Watcher (n8n) | Client work, skill creation, business automation |
 
 > **CRITICAL:** The filesystem path column above is the EXACT directory name under `Claude Code Workspaces/`. When writing files to another workspace, ALWAYS use this exact name. NEVER guess, abbreviate, or construct paths from the shorthand workspace name. If unsure, run `ls` on the workspaces directory first. NEVER create a new workspace directory -- if the path doesn't exist, STOP and ask the user.
+
+### Canonical Naming Standard (NON-NEGOTIABLE)
+
+Each workspace has exactly THREE identifiers. No aliases. No abbreviations. No alternatives.
+
+| Workspace | Filesystem Path (for file ops) | Canonical Name (for Supabase, scripts, references) |
+|-----------|-------------------------------|-----------------------------------------------------|
+| SHARKITECT DIGITAL WORKFORCE HQ | `1.- SHARKITECT DIGITAL WORKFORCE HQ` | `workforce-hq` |
+| Skill Management Hub | `3.- Skill Management Hub` | `skill-management-hub` |
+| Sentinel | `4.- Sentinel` | `sentinel` |
+
+**Rules:**
+1. **Supabase writes, script arguments, JSON fields, and all programmatic references** use the Canonical Name column. Always. No exceptions.
+2. **Filesystem operations** (writing files, reading paths) use the Filesystem Path column. Always. No exceptions.
+3. **Human-readable text** (MEMORY.md, conversation, commit messages) uses the Workspace column.
+4. **There are NO other valid names.** Not "Skill Hub", not "HQ", not abbreviations. If a script receives a non-canonical name, it must reject it -- not silently convert it. Silent conversion enables drift.
+5. **Scripts enforce this.** Both `work-request.py` and `update-project-status.py` validate workspace names against the canonical list and exit with an error on mismatch.
+
+**Why:** A previous incident created a duplicate workspace directory because the AI constructed a path from an abbreviated name instead of using the exact filesystem path. Aliases enable this class of error. One name per context, enforced programmatically.
 
 ### Automation Ownership
 Each workspace owns the scheduled tasks and automations that support its purpose. See `~/.claude/docs/autonomous-systems-inventory.md` for the full ownership map.
@@ -91,7 +110,8 @@ Run this checklist after completing any task. No task is "done" until post-task 
 2. Sync from global lessons: Read `~/.claude/lessons-learned.md`. Check Preferences, Process Decisions, and Architecture Direction sections for entries not yet reflected in this workspace's memory. Pull relevant new entries into workspace MEMORY.md or topic files. This ensures learnings from other workspaces propagate here.
 3. `git pull` if remote exists (cross-computer sync).
 4. Refresh document cache: `python ~/.claude/scripts/doc-cache-builder.py --path "$(pwd)" --merge --quiet`
-5. Resume from where last session left off.
+5. **Supabase ownership audit (FULL_STARTUP only):** Verify that all known projects, plans, and tasks for THIS workspace are accurately represented in Supabase. Check statuses, priorities, blockers, and phase descriptions. If anything is missing, stale, or inaccurate -- fix it immediately. Plans count as projects (status `pending` until active). If it exists as a plan, it must exist as a Supabase project.
+6. Resume from where last session left off.
 
 ### During Session (at stage completions / checkpoints)
 1. Update MEMORY.md with decisions and progress.
@@ -527,6 +547,28 @@ This sets `carried_days = (today - created_at)` for ALL non-completed tasks -- i
 Step 8B catches anything missed during the session. But the goal is: by the time session-checkpoint runs, Supabase should already be current. Step 8B should find nothing to update.
 
 **Why this exists:** Sessions completed work but never updated Supabase. CEO briefs showed zero completions. Work done in one workspace was invisible to others. Supabase must stay current as the cross-machine source of truth.
+
+### Supabase Ownership Protocol (NON-NEGOTIABLE)
+
+Each workspace owns its own Supabase records -- ALL tables, not just projects and tasks. This includes documents, health components, brain memories, kb_docs, and any future tables. No workspace creates, modifies, or deletes another workspace's records in ANY Supabase table unless the user explicitly authorizes it.
+
+**Rules:**
+1. **Only the owning workspace writes its own records.** If Skill Hub discovers that HQ needs a project, document, or any Supabase entry, it routes a task to HQ's inbox describing what's needed. HQ creates it. Skill Hub does NOT insert HQ rows into any Supabase table.
+2. **Only the owning workspace updates its own records.** If Sentinel notices that an HQ project is stale or a document is outdated, it routes a finding to HQ. Sentinel does NOT update HQ's records.
+3. **Read is global, write is local.** Any workspace can query any other workspace's records for visibility (briefs, audits, blocker checks). But writes are local -- you only touch your own rows. The ONLY exception is explicit user authorization ("go ahead and update HQ's project from here").
+4. **No implicit exceptions.** Convenience is not authorization. "It would be faster to do it from here" is not a valid reason to write to another workspace's records. Route the task and let the owning workspace handle it.
+4. **Plans = projects in Supabase.** Any planned initiative, even if not yet started, gets a Supabase project entry with status `pending`. This ensures full operational visibility. If a plan exists, a project must exist. CEO briefs can't report on what isn't in Supabase.
+5. **Session-start Supabase audit.** Every workspace, on FULL_STARTUP, verifies that all its known projects, plans, and tasks are accurately represented in Supabase. If anything is missing, stale, or has wrong statuses/priorities/blockers -- fix it immediately. This is part of the session startup protocol.
+6. **Scaffolding exception.** If a workspace creates a placeholder project for another workspace (e.g., during cross-workspace planning), it MUST flag this in the routed task as "scaffolded -- review and take ownership." The owning workspace reviews, adjusts, and confirms ownership at its next session.
+
+**Why this exists:** When one workspace creates another's projects, it lacks full context -- wrong priorities, missing blockers, inaccurate descriptions. The workspace doing the work knows best. Ownership also ensures accountability: if a project is stale, exactly one workspace is responsible. Cross-workspace writes also risk conflicting updates. Read globally, write locally.
+
+**What this enables:** HQ can pull from Supabase for morning/afternoon/evening briefs and accurately show:
+- What each workspace is working on right now
+- Upcoming projects and plans across the entire operation
+- What was completed today
+- What's blocked and by whom
+- Full operational transparency without any workspace working in a silo
 
 ## Plan Lifecycle Protocol (NON-NEGOTIABLE)
 
