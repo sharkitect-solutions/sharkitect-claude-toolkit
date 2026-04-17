@@ -1,14 +1,18 @@
 """
 drift-detection-hook.py - PreToolUse hook for document drift detection
 
-Two-layer detection:
-  Layer 1 (Relationship map): If the file being edited is a source-of-truth
-    document, surfaces ALL downstream documents that must be checked.
-  Layer 2 (Keyword fallback): For files not in the relationship map, falls
-    back to the original keyword-overlap approach using doc-lifecycle-cache.
+Three-layer detection:
+  Layer 1 (Relationship map):  Local JSON of source-of-truth docs (legacy,
+    workspace-local, hand-curated).
+  Layer 2 (Supabase relationship cache):  Cross-workspace document_relationships
+    table contents, sync'd to ~/.claude/.tmp/doc-relationships.json by
+    tools/populate-document-relationships.py. Surfaces docs that reference
+    the file being edited (i.e., dependents that need re-checking).
+  Layer 3 (Keyword fallback):  For files not covered by 1 or 2, fall back
+    to the original keyword-overlap approach using doc-lifecycle-cache.
 
 Non-blocking: injects additional context only.
-Works in ALL workspaces that have tracked documents.
+Works in ALL workspaces.
 
 Input: JSON on stdin with tool_name and tool_input
 Output: JSON on stdout with hookSpecificOutput.additionalContext (if drift signal)
@@ -17,10 +21,13 @@ Output: JSON on stdout with hookSpecificOutput.additionalContext (if drift signa
 import json
 import os
 import sys
+from pathlib import Path
 
 
 CACHE_PATH = os.path.join(os.getcwd(), ".tmp", "doc-lifecycle-cache.json")
 RELATIONSHIP_MAP_PATH = os.path.join(os.getcwd(), ".tmp", "document-relationship-map.json")
+SUPABASE_CACHE_PATH = str(Path.home() / ".claude" / ".tmp" / "doc-relationships.json")
+WORKSPACES_ROOT = Path.home() / "Documents" / "Claude Code Workspaces"
 
 
 def load_json(path):
@@ -115,6 +122,91 @@ def check_relationship_map(rel_map, edited_path):
             }
 
     return None
+
+
+def find_doc_id_by_path(supabase_cache, file_path):
+    """Match the edited file_path to a doc_id in the Supabase cache.
+    Tries multiple normalizations: workspace-relative, full relative, basename."""
+    if not supabase_cache:
+        return None
+    docs = supabase_cache.get("docs", {})
+    norm_edited = file_path.replace("\\", "/").lower()
+
+    # Try to extract the workspace-relative portion (strip everything before
+    # 'Claude Code Workspaces/')
+    marker = "claude code workspaces/"
+    idx = norm_edited.find(marker)
+    workspace_relative = None
+    if idx >= 0:
+        workspace_relative = norm_edited[idx + len(marker):]
+
+    for doc_id, info in docs.items():
+        doc_fp = (info.get("file_path") or "").replace("\\", "/").lower()
+        if not doc_fp:
+            continue
+        # Exact match (workspace-relative form)
+        if workspace_relative and doc_fp == workspace_relative:
+            return doc_id
+        # Endswith match (handles different absolute prefixes)
+        if norm_edited.endswith("/" + doc_fp):
+            return doc_id
+        if norm_edited == doc_fp:
+            return doc_id
+    return None
+
+
+def check_supabase_cache(supabase_cache, file_path):
+    """Find docs that REFERENCE the file being edited.
+    Returns dict {sources: [list of {file_path, filename, workspace}]} or None."""
+    if not supabase_cache:
+        return None
+
+    target_id = find_doc_id_by_path(supabase_cache, file_path)
+    if not target_id:
+        return None
+
+    docs = supabase_cache.get("docs", {})
+    edges = supabase_cache.get("edges", [])
+
+    # Edges where the edited doc is the TARGET = docs that reference it
+    sources = []
+    for edge in edges:
+        if edge.get("target_id") == target_id:
+            src_id = edge.get("source_id")
+            src_info = docs.get(src_id, {})
+            if src_info:
+                sources.append({
+                    "file_path": src_info.get("file_path"),
+                    "filename": src_info.get("filename"),
+                    "workspace": src_info.get("workspace"),
+                    "type": edge.get("type", "references"),
+                })
+    if not sources:
+        return None
+    return {"sources": sources}
+
+
+def format_supabase_reminder(result):
+    """Format the Supabase-cache result into a human-readable reminder."""
+    sources = result["sources"]
+    count = len(sources)
+    sample = sources[:8]
+    sample_lines = []
+    for s in sample:
+        ws = s.get("workspace") or "?"
+        fp = s.get("file_path") or s.get("filename") or "?"
+        sample_lines.append(f"  - [{ws}] {fp}")
+    more = ""
+    if count > 8:
+        more = f"\n  ... and {count - 8} more dependents."
+    return (
+        "DRIFT DETECTION (Supabase cross-reference graph)\n"
+        f"This document is referenced by {count} other tracked document(s). "
+        "Changes here may invalidate them. After this edit, review:\n"
+        + "\n".join(sample_lines)
+        + more
+        + "\n(Re-run tools/populate-document-relationships.py to refresh the graph.)"
+    )
 
 
 def keyword_fallback(cache, tool_input):
@@ -231,7 +323,7 @@ def main():
         if pattern in normalized:
             return 0
 
-    # --- Layer 1: Relationship map (precise, directional) ---
+    # --- Layer 1: Relationship map (precise, directional, hand-curated) ---
     rel_map = load_json(RELATIONSHIP_MAP_PATH)
     rel_result = check_relationship_map(rel_map, file_path)
 
@@ -247,7 +339,22 @@ def main():
             print(json.dumps(output))
             return 0
 
-    # --- Layer 2: Keyword fallback (broad, less precise) ---
+    # --- Layer 2: Supabase document_relationships cache (cross-workspace) ---
+    supabase_cache = load_json(SUPABASE_CACHE_PATH)
+    sb_result = check_supabase_cache(supabase_cache, file_path)
+    if sb_result:
+        reminder = format_supabase_reminder(sb_result)
+        if reminder:
+            output = {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "additionalContext": reminder,
+                }
+            }
+            print(json.dumps(output))
+            return 0
+
+    # --- Layer 3: Keyword fallback (broad, less precise) ---
     cache = load_json(CACHE_PATH)
     if isinstance(cache, list):
         matches = keyword_fallback(cache, tool_input)
