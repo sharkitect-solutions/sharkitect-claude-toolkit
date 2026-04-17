@@ -268,7 +268,33 @@ When resolved, append a `resolution` object:
 - **Mid-session CronCreate** (all workspaces): hourly triage poll -- see Mid-Session Inbox Polling Protocol below
 - **Manual**: if you notice items during work, process immediately
 - "Process" means: do the work, verify, move to processed. Not "list them and ask the user."
-- **DEFERRED ≠ PROCESSED (NON-NEGOTIABLE):** If a task cannot be completed right now (waiting on another workspace, waiting on a phase to finish, waiting on external input), it STAYS IN THE INBOX. Do NOT move it to `processed/`. A task in `processed/` is a task no session will ever pick up again. Deferred tasks must remain visible in the inbox so every future session sees them and checks whether the blocker has cleared. Only move to `processed/` when the actual work described in `fix_instructions` is DONE and VERIFIED.
+- **DEFERRED ≠ PROCESSED (NON-NEGOTIABLE):** If a task cannot be completed right now, it STAYS IN THE INBOX. Do NOT move it to `processed/`. A task in `processed/` is a task no session will ever pick up again. Only move to `processed/` when the actual work described in `fix_instructions` is DONE and VERIFIED.
+
+### Blocked vs Deferred (NON-NEGOTIABLE)
+
+Two distinct inbox states with different behaviors. Do NOT confuse them.
+
+| Status | Meaning | `blocked_by` required? | Auto-process when idle? |
+|--------|---------|----------------------|------------------------|
+| **deferred** | "Not now, busy with other work" | No | **YES** -- pick up immediately when idle |
+| **blocked** | "Cannot proceed until dependency completes" | **YES** (Supabase UUID) | **YES**, but ONLY after Supabase confirms blocker is completed |
+
+**Deferred:** Item CAN be done, just not right now. When the session goes idle (no active user work), deferred items are processed autonomously. No user instruction needed. "Deferred" means "when we're free" -- idle IS free.
+
+**Blocked:** Item CANNOT be done until a specific dependency completes. The `blocked_by` field must contain the Supabase UUID of the blocking record (task, project, or cross_workspace_request). The `blocked_by_type` field indicates the table (`task`, `project`, or `cross_workspace_request`). The `blocked_by_description` field provides a human-readable explanation. At startup and during idle polls, check Supabase for the blocker's status. If completed -> unblock and process. If still pending -> leave blocked.
+
+**JSON fields for blocked items:**
+```json
+{
+  "status": "blocked",
+  "blocked_by": "<supabase-uuid-of-blocking-record>",
+  "blocked_by_type": "task|project|cross_workspace_request",
+  "blocked_by_description": "Human-readable: what this is waiting on",
+  "blocker_cleared_notes": []
+}
+```
+
+**Neither deferred NOR blocked can move to processed/.** Both stay in inbox until the work is actually done. The inbox-move-guard enforces this.
 
 ### Inbox-Driven Coordination (NON-NEGOTIABLE)
 
@@ -302,10 +328,20 @@ CronCreate fires hourly in ALL workspaces to check inboxes. Behavior depends on 
 - Include reasoning: "This blocks X" or "This is operational validation, not urgent."
 - User decides. If user says defer, move on. If user says handle, process it.
 - **Critical items**: always recommend handling immediately, but still let user decide.
+- **Deferred items**: Do NOT mention in triage briefing (they auto-process when idle). EXCEPTION: If a deferred item is critical OR is blocking another task/workspace, include it in triage with recommendation to handle now.
+- **Blocked items**: Check each item's `blocked_by` UUID against Supabase. If a blocker has cleared, mention it: "Blocker cleared for [item]. Recommend: handle now." If still blocked, do not mention.
 
 **Idle Mode** (user appears away -- no recent messages, no active task, session sitting idle):
-- **Process autonomously.** Do not wait for user response.
-- Follow the same processing rules as session start (full autonomous processing).
+- **Process autonomously.** Full processing, not triage. Do not wait for user response.
+- **Processing order (dependency-aware priority):**
+  1. Items blocking other items go FIRST (unblock downstream work)
+  2. Within that: critical -> high -> medium -> low (see Priority Escalation Protocol)
+  3. Same priority, no dependencies: FIFO (oldest first)
+- **Deferred items:** Process them. "Deferred" means "when we're free" -- idle IS free. No special treatment -- they're just regular items that were delayed.
+- **Blocked items:** Check each item's `blocked_by` UUID against Supabase.
+  - If blocker status = completed -> mark item as unblocked (status -> "pending"), process it
+  - If blocker still pending/in_progress -> leave blocked, skip
+  - If `blocker_cleared_notes` exist, run the Blocker-Cleared Verification (see protocol below)
 - When the user returns, show a brief summary of what was processed while they were away.
 
 ### How to Determine Mode
@@ -340,6 +376,68 @@ Inbox check (2:15 PM): 1 work request -- plugin cache wiped, 3 plugins missing.
 ### CronCreate Setup (all workspaces)
 Each workspace creates a CronCreate durable job at session start if not already configured.
 The startup guard (Step 5) detects missing cron and instructs creation. The prompt varies per workspace -- see workspace CLAUDE.md for the exact prompt.
+
+## Priority Escalation Protocol (NON-NEGOTIABLE)
+
+When an item blocks another item, its effective priority automatically escalates. This applies to inbox items, Supabase tasks, and Supabase projects.
+
+### Rules
+1. Find the HIGHEST priority among ALL items this one blocks (walk the full cascade chain)
+2. Set the blocker's effective priority to ONE LEVEL ABOVE that highest
+3. Ceiling: `critical` (cannot exceed)
+4. Tiebreaker: at same effective priority, items with documented dependencies (blockers) take precedence over regular items
+
+### Priority ladder
+`low` -> `medium` -> `high` -> `critical` (max)
+
+### Example
+Item A (`low`) blocks Item B (`medium`) which blocks Item C (`high`).
+- Highest cascaded dependency = `high`
+- One level above `high` = `critical`
+- Item A's effective priority = `critical`
+- If another regular `critical` item exists in the queue, Item A goes first (blocker precedence)
+
+### Computation
+Escalation is computed at triage time, not stored. The original `priority` field stays unchanged in the record. The effective priority is calculated by checking what depends on this item. This keeps records clean while ensuring blockers are processed in the right order.
+
+### Where this applies
+- **Inbox items** (work requests, routed tasks, lifecycle reviews) -- during triage and idle processing
+- **Supabase tasks** (via `update-project-status.py check-blockers`) -- during session-start blocker checks
+- **Supabase projects** -- if project X blocks project Y, project X gets escalated
+
+## Blocker-Cleared Notification Protocol (NON-NEGOTIABLE)
+
+When a workspace completes work that another workspace's inbox item is blocked on:
+
+### Completing workspace responsibilities
+1. Update Supabase (mark task/project/request as completed)
+2. Find the blocked item in the waiting workspace's inbox
+3. Open the EXISTING JSON file and add a note to the `blocker_cleared_notes` array:
+   ```json
+   {
+     "timestamp": "<ISO timestamp>",
+     "signed_by": "<completing workspace canonical name>",
+     "note": "Blocker cleared: <description of what was completed>",
+     "supabase_record_id": "<UUID of the completed record>"
+   }
+   ```
+4. Do NOT change the item's `status` from `blocked` -- the owning workspace verifies and changes it
+
+### Receiving workspace responsibilities (at next startup/idle poll)
+1. Read the `blocker_cleared_notes` in the inbox item
+2. **VERIFY against Supabase:** Query the `blocked_by` UUID, confirm status = `completed`
+3. **If MATCH** (note says cleared AND Supabase confirms):
+   - Change item status from `blocked` to `pending` (unblocked)
+   - Process it (if idle) or include in triage (if active) with "Blocker cleared" note
+4. **If MISMATCH** (note says cleared BUT Supabase still shows pending/in_progress):
+   - Do NOT process the item
+   - Send a work request to the signing workspace: "Mismatch detected: blocker_cleared_notes says [X] but Supabase record [UUID] shows status [Y]. Please investigate and correct."
+   - Document the discrepancy in the inbox item's `blocker_cleared_notes`
+   - The signing workspace investigates root cause, fixes the gap, and files a work request to whoever owns the broken update process
+   - Both workspaces document findings in local memory and Supabase
+
+### Why this exists
+Trust-but-verify prevents cascading errors from stale Supabase data. If a workspace says "done" but Supabase disagrees, something is broken in the update pipeline. Catching it immediately prevents downstream workspaces from acting on false information.
 
 ## Cross-Document Integrity Protocol
 
