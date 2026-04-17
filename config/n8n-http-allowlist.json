@@ -1,0 +1,15 @@
+{
+  "hosts": [
+    "api.firecrawl.dev",
+    "firecrawl.dev",
+    "localhost",
+    "127.0.0.1",
+    "host.docker.internal"
+  ],
+  "host_suffixes": [
+    ".sharkitectdigital.com",
+    ".internal",
+    ".local"
+  ],
+  "notes": "Hosts/suffixes that legitimately require HTTP because no native n8n node exists. Add new entries when a service is verified to lack a native node. Reviewed by Skill Hub; HQ proposes additions via work request."
+}
