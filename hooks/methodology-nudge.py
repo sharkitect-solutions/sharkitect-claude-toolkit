@@ -64,6 +64,25 @@ N8N_PATH_RE = re.compile(r"(?:[/\\]n8n[/\\]|[._-]n8n\.json$|[/\\]workflows[/\\]n
 N8N_CONTENT_RE = re.compile(r"n8n-nodes-base\.|n8n-nodes-langchain\.|\"nodes\"\s*:\s*\[", re.I)
 N8N_SKILLS = ("n8n-workflow-patterns", "n8n-mcp-tools-expert", "n8n-node-configuration")
 
+# Supabase schema-work triggers
+# Match any tool whose name contains 'supabase' (case-insensitive) AND is a
+# schema-altering operation: apply_migration, execute_sql with CREATE/ALTER/DROP,
+# create_branch, merge_branch, reset_branch, deploy_edge_function (function = schema-adjacent).
+SUPABASE_TOOL_RE = re.compile(r"supabase", re.I)
+SUPABASE_SCHEMA_OP_RE = re.compile(
+    r"(?:apply_migration|create_branch|merge_branch|reset_branch|rebase_branch|deploy_edge_function)$",
+    re.I,
+)
+SUPABASE_SCHEMA_SQL_RE = re.compile(
+    r"\b(?:CREATE|ALTER|DROP)\s+(?:OR\s+REPLACE\s+)?(?:TABLE|INDEX|VIEW|MATERIALIZED\s+VIEW|TYPE|TRIGGER|FUNCTION|POLICY|SCHEMA|EXTENSION|SEQUENCE|DOMAIN|ROLE)\b",
+    re.I,
+)
+# Strip SQL comments before scanning (-- single-line, /* */ block) to avoid
+# false positives from "CREATE TABLE..." mentioned in commentary
+SQL_COMMENT_LINE_RE = re.compile(r"--[^\n]*", re.M)
+SQL_COMMENT_BLOCK_RE = re.compile(r"/\*.*?\*/", re.S)
+SUPABASE_SKILL = "supabase-postgres-best-practices"
+
 # Marketing keywords for content scanning (Bash/Write/Edit content)
 MARKETING_KEYWORDS_RE = re.compile(
     r"\b(lead\s*magnet|funnel|qualif(?:y|ication)|positioning|"
@@ -248,6 +267,29 @@ def main():
                     "funnel, positioning, GTM, ICP). Invoke `marketing-strategy-pmm` "
                     "to apply April Dunford-style positioning + qualification frame "
                     "instead of freestyling. See docs/mandatory-skill-invocations.md."
+                )
+                mark_nudged(state, key)
+
+    # ---- Triggers on Supabase MCP schema-work calls -----------------------
+    if SUPABASE_TOOL_RE.search(tool_name) and not skill_invoked(SUPABASE_SKILL, log):
+        is_schema_op = bool(SUPABASE_SCHEMA_OP_RE.search(tool_name))
+        is_schema_sql = False
+        # execute_sql: scan the SQL for CREATE/ALTER/DROP (after stripping comments)
+        if "execute_sql" in tool_name.lower():
+            sql = str(tool_input.get("query") or tool_input.get("sql") or "")
+            if sql:
+                clean = SQL_COMMENT_LINE_RE.sub("", sql)
+                clean = SQL_COMMENT_BLOCK_RE.sub("", clean)
+                is_schema_sql = bool(SUPABASE_SCHEMA_SQL_RE.search(clean))
+        if is_schema_op or is_schema_sql:
+            key = f"supabase:{tool_name}"
+            if not already_nudged(state, key):
+                op_kind = "apply_migration / branch op" if is_schema_op else "execute_sql with CREATE/ALTER/DROP"
+                nudges.append(
+                    f"SUPABASE SCHEMA WORK detected ({op_kind} via {tool_name}). "
+                    f"Invoke `{SUPABASE_SKILL}` BEFORE proceeding -- the canonical source "
+                    "for Supabase schema decisions (constraints, RLS, indexes, triggers, naming, "
+                    "tenant_id discipline). See docs/mandatory-skill-invocations.md."
                 )
                 mark_nudged(state, key)
 

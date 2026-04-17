@@ -64,6 +64,18 @@
           },
           {
             "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/content-enforcement-gate.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/methodology-nudge.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/n8n-httpRequest-guard.py\""
+          },
+          {
+            "type": "command",
             "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/drift-detection-hook.py\""
           },
           {
@@ -86,6 +98,18 @@
           {
             "type": "command",
             "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/inbox-move-guard.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/methodology-nudge.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/n8n-httpRequest-guard.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/content-enforcement-gate.py\""
           }
         ]
       },
@@ -95,6 +119,10 @@
           {
             "type": "command",
             "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/deep-interview-gate.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/skill-invocation-tracker.py\""
           }
         ]
       }

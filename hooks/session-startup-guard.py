@@ -7,9 +7,9 @@ Fires on every SessionStart. Three states:
 3. Heartbeat exists, OLD DATE -> FULL STARTUP (new day, update heartbeat)
 
 Workspace-aware: each step shows only what's relevant to the current workspace.
-  - Gap Inbox: Skill Hub only (other workspaces show N/A)
-  - Routed Tasks: HQ and Sentinel only (Skill Hub is the sender, not receiver)
-  - Cron Polling: Skill Hub only (other workspaces show N/A)
+  - Work Requests: Skill Hub only (unified inbox replacing gap-reports + routed-tasks)
+  - Routed Tasks: HQ and Sentinel only (receive work routed FROM Skill Hub)
+  - Cron Polling: ALL workspaces (triage when active, autonomous when idle)
   - Manifest: auto-refreshed when stale in ANY workspace
   - Sync Flag: Skill Hub only (checks if skills/agents need syncing to toolkit)
 
@@ -89,24 +89,39 @@ def write_heartbeat(tmp_dir, workspace):
 # Inbox checks
 # ---------------------------------------------------------------------------
 
-def check_gap_inbox():
-    inbox = Path.cwd() / ".gap-reports" / "inbox"
+def check_work_requests_inbox():
+    """Check Skill Hub's unified work requests inbox.
+    Returns (total_count, critical_count, items_list, blocked_count, deferred_count).
+    Items list includes status tags for blocked/deferred items."""
+    inbox = Path.cwd() / ".work-requests" / "inbox"
     if not inbox.exists():
-        return 0, 0, []
+        return 0, 0, [], 0, 0
     files = sorted(inbox.glob("*.json"))
     critical = 0
+    blocked = 0
+    deferred = 0
     items = []
     for f in files:
         try:
             data = json.loads(f.read_text(encoding="utf-8"))
             sev = data.get("severity", "info")
+            status = str(data.get("status", "new")).lower()
             if sev == "critical":
                 critical += 1
+            if status == "blocked":
+                blocked += 1
+                blocked_desc = data.get("blocked_by_description", "unknown")
+                tag = f"BLOCKED: {blocked_desc}"
+            elif status == "deferred":
+                deferred += 1
+                tag = "DEFERRED"
+            else:
+                tag = sev.upper()
             desc = data.get("what_was_needed", f.name)
-            items.append(f"{str(desc)[:60]} [{sev.upper()}]")
+            items.append(f"{str(desc)[:60]} [{tag}]")
         except (json.JSONDecodeError, OSError):
             items.append(f.name)
-    return len(files), critical, items
+    return len(files), critical, items, blocked, deferred
 
 
 def check_lifecycle_inbox():
@@ -169,6 +184,55 @@ def check_workspace_blockers(workspace):
         return cleared, blocked, summary
     except Exception:
         return 0, 0, []
+
+
+# ---------------------------------------------------------------------------
+# Supabase reconciliation -- detect drift between plan files and Supabase
+# ---------------------------------------------------------------------------
+
+def check_supabase_reconciliation(workspace):
+    """Compare Supabase task statuses against plan file completion markers.
+
+    Returns (mismatches, details) where mismatches is a count and details
+    is a list of human-readable strings describing each discrepancy.
+    """
+    script = Path.home() / ".claude" / "scripts" / "update-project-status.py"
+    if not script.exists():
+        return 0, []
+
+    ws_name = workspace if workspace else "unknown"
+    mismatches = []
+
+    try:
+        python_exe = sys.executable or "python"
+        # Get all tasks for this workspace
+        result = subprocess.run(
+            [python_exe, str(script), "my-tasks", "--workspace", ws_name],
+            capture_output=True, text=True, timeout=15
+        )
+        output = result.stdout.strip()
+        if not output:
+            return 0, []
+
+        # Count pending tasks with carry days >= 3 (likely stale)
+        for line in output.splitlines():
+            line = line.strip()
+            if line.startswith("[ ]") and "carry" in line.lower():
+                # Extract carry days
+                import re
+                carry_match = re.search(r"\[(\d+)d carry\]", line)
+                if carry_match:
+                    days = int(carry_match.group(1))
+                    if days >= 3:
+                        task_text = line.replace("[ ] ", "").strip()
+                        mismatches.append(
+                            f"STALE ({days}d): {task_text} -- "
+                            "verify if this was actually completed"
+                        )
+
+        return len(mismatches), mismatches
+    except Exception:
+        return 0, []
 
 
 # ---------------------------------------------------------------------------
@@ -309,7 +373,7 @@ def check_cron_config():
         jobs = data if isinstance(data, list) else data.get("jobs", [])
         for j in jobs:
             prompt = j.get("prompt", "").lower()
-            if "gap" in prompt or "inbox" in prompt or "lifecycle" in prompt:
+            if "work-request" in prompt or "inbox" in prompt or "lifecycle" in prompt or "gap" in prompt:
                 return True
         return False
     except (json.JSONDecodeError, OSError):
@@ -322,6 +386,23 @@ def check_cron_config():
 
 def main():
     workspace = detect_workspace()
+
+    # If we're not in a known workspace, skip all artifact creation.
+    # This prevents ghost .tmp/ and heartbeat files in random directories
+    # (e.g., when Claude Code desktop app opens at the parent folder).
+    if workspace == "unknown":
+        print("=== SESSION STARTUP GUARD ===")
+        print(f"Mode: SKIPPED | Date: {datetime.now().strftime('%Y-%m-%d')} | Workspace: unknown")
+        print("")
+        print("WARNING: Not inside a known workspace directory.")
+        print("  Known workspaces: 1.- SHARKITECT DIGITAL WORKFORCE HQ, "
+              "3.- Skill Management Hub, 4.- Sentinel")
+        print("  Current directory:", os.getcwd())
+        print("  Skipping all startup checks and artifact creation.")
+        print("  If this is a new workspace, add it to detect_workspace() "
+              "in session-startup-guard.py.")
+        sys.exit(0)
+
     is_skill_hub = workspace == "skill-management-hub"
 
     tmp_dir = Path.cwd() / ".tmp"
@@ -333,16 +414,16 @@ def main():
     # Step 1: Heartbeat
     mode, hb_data = check_heartbeat(tmp_dir)
 
-    # Step 2: Gap Inbox (Skill Hub only)
+    # Step 2: Work Requests Inbox (Skill Hub only -- unified inbox)
     if is_skill_hub:
-        gap_count, gap_critical, gap_items = check_gap_inbox()
+        wr_count, wr_critical, wr_items, wr_blocked, wr_deferred = check_work_requests_inbox()
     else:
-        gap_count, gap_critical, gap_items = 0, 0, []
+        wr_count, wr_critical, wr_items, wr_blocked, wr_deferred = 0, 0, [], 0, 0
 
     # Step 3: Lifecycle Inbox (all workspaces)
     lifecycle_count, lifecycle_items = check_lifecycle_inbox()
 
-    # Step 3.5: Routed Tasks (HQ and Sentinel only -- Skill Hub is sender)
+    # Step 3.5: Routed Tasks (HQ and Sentinel only -- receive from Skill Hub)
     if not is_skill_hub:
         routed_count, routed_items = check_routed_tasks_inbox()
     else:
@@ -350,6 +431,12 @@ def main():
 
     # Step 3.7: Blockers (all workspaces)
     blocker_cleared, blocker_waiting, blocker_lines = check_workspace_blockers(workspace)
+
+    # Step 3.8: Supabase reconciliation (all workspaces, FULL_STARTUP only)
+    if mode == "FULL_STARTUP":
+        recon_count, recon_items = check_supabase_reconciliation(workspace)
+    else:
+        recon_count, recon_items = 0, []
 
     # Step 4: Manifest (all workspaces, auto-refresh when stale)
     manifest_status, manifest_ok = check_manifest()
@@ -366,11 +453,8 @@ def main():
     else:
         sync_needed, sync_file_count, _ = False, 0, None
 
-    # Step 5: Cron config (Skill Hub only)
-    if is_skill_hub:
-        cron_active = check_cron_config()
-    else:
-        cron_active = None  # N/A
+    # Step 5: Cron config (all workspaces)
+    cron_active = check_cron_config()
 
     today = datetime.now().strftime("%Y-%m-%d")
     last_date = hb_data.get("date", "never") if hb_data else "never"
@@ -401,16 +485,25 @@ def main():
     else:
         lines.append(f"STEP 1 - Heartbeat: SAME DAY ({today})")
 
-    # -- Step 2: Gap Inbox --
+    # -- Step 2: Work Requests Inbox --
     if not is_skill_hub:
-        lines.append("STEP 2 - Gap Inbox: N/A (Skill Hub only)")
-    elif gap_count > 0:
-        crit_tag = f" [CRITICAL: {gap_critical}]" if gap_critical else ""
-        lines.append(f"STEP 2 - Gap Inbox: {gap_count} PENDING{crit_tag}")
-        for item in gap_items:
+        lines.append("STEP 2 - Work Requests: N/A (Skill Hub only)")
+    elif wr_count > 0:
+        crit_tag = f" [CRITICAL: {wr_critical}]" if wr_critical else ""
+        status_tags = []
+        if wr_blocked:
+            status_tags.append(f"{wr_blocked} BLOCKED")
+        if wr_deferred:
+            status_tags.append(f"{wr_deferred} DEFERRED")
+        actionable = wr_count - wr_blocked - wr_deferred
+        if actionable > 0:
+            status_tags.insert(0, f"{actionable} ACTIONABLE")
+        status_detail = f" ({', '.join(status_tags)})" if status_tags else ""
+        lines.append(f"STEP 2 - Work Requests: {wr_count} PENDING{crit_tag}{status_detail}")
+        for item in wr_items:
             lines.append(f"  - {item}")
     else:
-        lines.append("STEP 2 - Gap Inbox: CLEAR")
+        lines.append("STEP 2 - Work Requests: CLEAR")
 
     # -- Step 3: Lifecycle Inbox --
     if lifecycle_count > 0:
@@ -421,9 +514,7 @@ def main():
         lines.append("STEP 3 - Lifecycle Inbox: CLEAR")
 
     # -- Step 3.5: Routed Tasks --
-    if is_skill_hub:
-        lines.append("STEP 3.5 - Routed Tasks: N/A (Skill Hub is sender)")
-    elif routed_count > 0:
+    if routed_count > 0:
         lines.append(f"STEP 3.5 - Routed Tasks: {routed_count} PENDING")
         for item in routed_items:
             lines.append(f"  - {item}")
@@ -442,6 +533,15 @@ def main():
     else:
         lines.append("STEP 3.7 - Blockers: CLEAR")
 
+    # -- Step 3.8: Supabase Reconciliation --
+    if recon_count > 0:
+        lines.append(f"STEP 3.8 - Supabase Recon: {recon_count} STALE TASK(S)")
+        for item in recon_items:
+            lines.append(f"  - {item}")
+    elif mode == "FULL_STARTUP":
+        lines.append("STEP 3.8 - Supabase Recon: CLEAN")
+    # Skip display on VERIFY_ONLY (not run)
+
     # -- Step 4: Manifest --
     lines.append(f"STEP 4 - Manifest: {manifest_status}")
 
@@ -452,10 +552,8 @@ def main():
         else:
             lines.append("STEP 4.5 - Toolkit Sync: UP TO DATE")
 
-    # -- Step 5: Cron Jobs --
-    if not is_skill_hub:
-        lines.append("STEP 5 - Cron Polling: N/A (Skill Hub only)")
-    elif cron_active:
+    # -- Step 5: Cron Jobs (all workspaces) --
+    if cron_active:
         lines.append("STEP 5 - Cron Polling: ACTIVE")
     else:
         lines.append("STEP 5 - Cron Polling: NOT CONFIGURED")
@@ -465,10 +563,10 @@ def main():
     # -- Actions required --
     actions = []
 
-    if is_skill_hub and gap_count > 0:
+    if is_skill_hub and wr_count > 0:
         actions.append(
-            f"Process {gap_count} gap report(s): run 'python tools/gap-watcher.py --context' "
-            "then follow workflows/gap-processing.md"
+            f"Process {wr_count} work request(s): run 'python tools/request-watcher.py --context' "
+            "then follow workflows/work-request-processing.md"
         )
 
     if lifecycle_count > 0:
@@ -478,7 +576,7 @@ def main():
             "then follow workflows/lifecycle-review-processing.md"
         )
 
-    if not is_skill_hub and routed_count > 0:
+    if routed_count > 0:
         actions.append(
             f"Process {routed_count} routed task(s): read each JSON in "
             ".routed-tasks/inbox/, follow the fix_instructions in each file, "
@@ -493,6 +591,16 @@ def main():
             "then proceed with the unblocked tasks immediately."
         )
 
+    if recon_count > 0:
+        actions.append(
+            f"{recon_count} Supabase task(s) appear stale (pending 3+ days). "
+            "For each: verify if the task was actually completed by checking "
+            "the plan file. If completed, run: "
+            "'python ~/.claude/scripts/update-project-status.py task "
+            "\"<task>\" completed --project \"<project>\"' to fix the drift. "
+            "If genuinely still pending, no action needed."
+        )
+
     if is_skill_hub and sync_needed:
         actions.append(
             f"Sync {sync_file_count} unsynced skill/agent file(s) to toolkit: "
@@ -501,20 +609,36 @@ def main():
             "Then delete .tmp/.sync-needed after successful sync."
         )
 
-    if not cron_active and is_skill_hub:
+    if not cron_active:
+        # Build workspace-appropriate inbox list
+        if is_skill_hub:
+            inbox_list = ".work-requests/inbox/, .lifecycle-reviews/inbox/"
+            wr_step = (
+                "For work requests: run python tools/request-watcher.py --context then follow "
+                "workflows/work-request-processing.md. "
+            )
+        else:
+            inbox_list = ".lifecycle-reviews/inbox/, .routed-tasks/inbox/"
+            wr_step = ""
+
         actions.append(
             "Set up durable cron polling: use CronCreate tool with cron='3 * * * *', "
             "durable=true. Use this EXACT prompt: "
-            "'AUTONOMOUS GAP PROCESSING -- DO NOT REPORT AND WAIT. ACT NOW. "
-            "Step 1: Run python tools/gap-watcher.py --context. "
-            "Step 2: If gaps exist, follow workflows/gap-processing.md Steps 1-8 FULLY. "
-            "Build every fix (skill/hook/agent). Run through the judge. Deploy globally. "
-            "Move processed reports from inbox/ to processed/. "
-            "Step 3: Check .lifecycle-reviews/inbox/. If files exist, follow "
-            "workflows/lifecycle-review-processing.md. "
-            "Step 4: If both inboxes were empty, respond: Autonomous check complete. "
-            "CRITICAL: Do NOT just list the gaps and stop. PROCESS THEM. "
-            "Build the fixes. Deploy them. This is fully autonomous.'"
+            "'MID-SESSION INBOX POLL. Follow the Mid-Session Inbox Polling Protocol "
+            "from universal-protocols.md. "
+            "Step 1: Determine session mode -- ACTIVE (user engaged, task in progress) "
+            "or IDLE (no active work, user appears away). "
+            f"Step 2: Check inboxes: {inbox_list}. "
+            "Step 3: If inboxes are empty, respond: Autonomous check complete -- "
+            "all inboxes clear. "
+            "Step 4: If items found and IDLE MODE: process autonomously. "
+            f"{wr_step}"
+            "For lifecycle: follow workflows/lifecycle-review-processing.md. "
+            "For routed tasks: read JSON, follow fix_instructions, move to processed "
+            "with resolution notes. "
+            "Step 5: If items found and ACTIVE MODE: present triage briefing with "
+            "priority, estimated fix time, and recommendation (handle now vs defer). "
+            "Do NOT process -- wait for user decision.'"
         )
 
     if mode == "FULL_STARTUP":
@@ -543,17 +667,22 @@ def main():
     )
 
     if not is_skill_hub:
-        gap_display = "N/A"
-    elif gap_count:
-        gap_display = f"{gap_count} PENDING" + (f" [{gap_critical} CRITICAL]" if gap_critical else "")
+        wr_display = "N/A"
+    elif wr_count:
+        parts = [f"{wr_count} PENDING"]
+        if wr_critical:
+            parts.append(f"[{wr_critical} CRITICAL]")
+        if wr_blocked:
+            parts.append(f"[{wr_blocked} BLOCKED]")
+        if wr_deferred:
+            parts.append(f"[{wr_deferred} DEFERRED]")
+        wr_display = " ".join(parts)
     else:
-        gap_display = "CLEAR"
+        wr_display = "CLEAR"
 
     lc_display = f"{lifecycle_count} PENDING" if lifecycle_count else "CLEAR"
 
-    if is_skill_hub:
-        rt_display = "N/A"
-    elif routed_count:
+    if routed_count:
         rt_display = f"{routed_count} PENDING"
     else:
         rt_display = "CLEAR"
@@ -563,9 +692,7 @@ def main():
     else:
         mf_display = manifest_status
 
-    if not is_skill_hub:
-        cron_display = "N/A"
-    elif cron_active:
+    if cron_active:
         cron_display = "ACTIVE"
     else:
         cron_display = "SETTING UP"
@@ -588,10 +715,13 @@ def main():
     lines.append("DISPLAY TO USER (show this status table at session start):")
     lines.append(f"  Step 0: Plugin Integrity ... {plugin_display}")
     lines.append(f"  Step 1: Heartbeat .......... {hb_display}")
-    lines.append(f"  Step 2: Gap Inbox .......... {gap_display}")
+    lines.append(f"  Step 2: Work Requests ...... {wr_display}")
     lines.append(f"  Step 3: Lifecycle Inbox .... {lc_display}")
     lines.append(f"  Step 3.5: Routed Tasks ..... {rt_display}")
     lines.append(f"  Step 3.7: Blockers ......... {blocker_display}")
+    if mode == "FULL_STARTUP":
+        recon_display = f"{recon_count} STALE" if recon_count > 0 else "CLEAN"
+        lines.append(f"  Step 3.8: Supabase Recon ... {recon_display}")
     lines.append(f"  Step 4: Manifest ........... {mf_display}")
     if is_skill_hub:
         if sync_needed:
