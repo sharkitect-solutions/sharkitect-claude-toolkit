@@ -67,6 +67,7 @@ Run this checklist before starting any task. These items are non-negotiable.
 
 - [ ] Read the request carefully. Confirm understanding before acting.
 - [ ] Check your toolkit -- review all available skills, agents, tools, plugins, and MCPs. Identify which ones are relevant to this task. Use them.
+- [ ] **Named-skill enforcement (NON-NEGOTIABLE):** If the task spec, routed-task `fix_instructions`, work request, or inbox JSON literally names a skill to invoke (phrases like "invoke X skill", "Relevant skill:", "See <skill>'s <companion>.md", "use the X skill"), you MUST invoke that skill via the `Skill` tool BEFORE starting implementation. Do NOT substitute inline spec reading or general knowledge. The whole point of curated skills is the reinforced, up-to-date patterns they encode. Silent skip degrades the system.
 - [ ] Check MEMORY.md -- review prior learnings, patterns, and preferences that apply to this task.
 - [ ] Check workflows/ -- is there an existing SOP for this type of work? Follow it.
 - [ ] Plan before executing -- identify what needs to be done, in what order, and present the plan before starting.
