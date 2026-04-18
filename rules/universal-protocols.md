@@ -345,22 +345,39 @@ CronCreate fires hourly in ALL workspaces to check inboxes. Behavior depends on 
 - When the user returns, show a brief summary of what was processed while they were away.
 
 ### How to Determine Mode
-Use conversation context -- no external timer needed:
-- If you have an active todo list with in-progress items: **Active Mode**
-- If the user sent a message in the last few exchanges and you're working on it: **Active Mode**
-- If the session is idle (last exchange was your output, no pending user request): **Idle Mode**
-- If the CronCreate prompt fires and there's no active work context: **Idle Mode**
+
+**Primary signal: cron-to-cron user activity.** Scan conversation history backward for the previous CronCreate poll firing (recognizable by the standard "MID-SESSION INBOX POLL. Follow the Mid-Session Inbox Polling Protocol..." prompt). Then look at what happened between that prior cron and now:
+
+- **IDLE if:** No user message exists between the previous cron fire and this one. Long-running tasks in the background (tests, deploys, agent dispatches, builds) do NOT count as user activity -- a card-funnel test mid-flight while the user is away is still IDLE.
+- **ACTIVE if:** User sent at least one message between the previous cron fire and now.
+- **First cron fire of session:** Default to ACTIVE -- the user is fresh in the session.
+
+**Secondary signals (use only when cron-to-cron signal is ambiguous):**
+- An unanswered question YOU asked the user that's still pending in the most recent assistant turn -> treat as ACTIVE (user is reading/composing).
+- The user said "end session" / "wrap up" / "go away for X" / similar disengagement signal -> IDLE on the next poll.
+
+**Do NOT use these signals (they are unreliable):**
+- "Active todos with in_progress items" -- todos can sit in_progress while the user is away. Mode reflects USER state, not task state.
+- "Last exchange was my output" -- normal during multi-step work where the user is reading. This alone does not mean idle.
+
+### Anti-Hallucination Rules (NON-NEGOTIABLE)
+
+**You have no clock.** No tool gives you wall-clock time, and you cannot measure minutes since the user's last message. Therefore:
+
+- **NEVER** claim a specific elapsed time ("no activity for 45 minutes", "Chris has been away ~20 min", "since 2:15 PM"). These are hallucinations -- you have no source for them.
+- **NEVER** prefix briefings or summaries with a clock time you fabricated. If you reference timing, use ONLY relative qualitative terms: "recent", "this session", "earlier", "since last poll", "since you ended the previous task".
+- If you genuinely need a real timestamp (e.g., for a Supabase write), call a script that returns one (`date`, `python -c "import datetime; print(datetime.datetime.now())"`). Never invent the value yourself.
 
 ### Briefing Format (Active Mode)
 ```
-Inbox check (2:15 PM): 1 routed task from Sentinel -- lifecycle review verification.
+Inbox check: 1 routed task from Sentinel -- lifecycle review verification.
   Priority: medium | Est. fix: ~10 min
   Recommendation: DEFER. Operational validation, not blocking active work.
   Will process at next session start.
 ```
 
 ```
-Inbox check (2:15 PM): 1 work request -- plugin cache wiped, 3 plugins missing.
+Inbox check: 1 work request -- plugin cache wiped, 3 plugins missing.
   Priority: critical | Est. fix: ~5 min
   Recommendation: HANDLE NOW. Plugin loss compounds if we build skills
   this session without noticing they're gone.
