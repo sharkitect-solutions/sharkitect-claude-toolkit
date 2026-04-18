@@ -92,6 +92,79 @@ MARKETING_KEYWORDS_RE = re.compile(
 )
 MARKETING_SKILL = "marketing-strategy-pmm"
 
+# Routed-task named-skill detection
+# Matches: "invoke supabase skill", "use the skill-creator skill", "call `hook-development` skill"
+ROUTED_INVOKE_SKILL_RE = re.compile(
+    r"(?:invoke|use|call|consult)\s+(?:the\s+)?[`'\"]?([a-zA-Z][a-zA-Z0-9_:-]{2,})[`'\"]?\s+skill\b",
+    re.I,
+)
+# Matches: "Relevant skill: supabase", "Relevant skills: foo, bar" (first token)
+ROUTED_RELEVANT_SKILL_RE = re.compile(
+    r"[Rr]elevant\s+skill[s]?:\s*[`'\"]?([a-zA-Z][a-zA-Z0-9_:-]{2,})[`'\"]?",
+    re.I,
+)
+# Words that show up in the capture group but aren't real skill names
+ROUTED_SKILL_STOPWORDS = {
+    "a", "an", "the", "this", "that", "any", "some", "specific", "appropriate",
+    "invoke", "use", "call", "consult", "relevant", "correct", "right", "proper",
+    "our", "your", "their", "its", "my", "his", "her",
+}
+
+
+def scan_routed_task_named_skills():
+    """Scan {cwd}/.routed-tasks/inbox/*.json for fix_instructions that name a skill.
+
+    Returns list of dicts: [{"task_id": str, "skill": str, "file": str}, ...]
+    Deduped per (task_id, skill) pair. Silent on any parse/IO error.
+    """
+    try:
+        inbox = Path(os.getcwd()) / ".routed-tasks" / "inbox"
+    except OSError:
+        return []
+    if not inbox.is_dir():
+        return []
+
+    results = []
+    seen = set()
+    try:
+        files = list(inbox.glob("*.json"))
+    except OSError:
+        return []
+
+    for jf in files:
+        try:
+            data = json.loads(jf.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+            continue
+        if not isinstance(data, dict):
+            continue
+
+        # Only consider items still actionable
+        status = str(data.get("status", "")).lower()
+        if status in ("processed", "completed", "done", "resolved"):
+            continue
+
+        instructions = str(data.get("fix_instructions", "") or "")
+        if not instructions:
+            continue
+
+        task_id = str(data.get("task_id") or jf.stem)
+        for rx in (ROUTED_INVOKE_SKILL_RE, ROUTED_RELEVANT_SKILL_RE):
+            for match in rx.finditer(instructions):
+                name = match.group(1).strip().lower()
+                if not name or name in ROUTED_SKILL_STOPWORDS:
+                    continue
+                # Skip tokens that look like prose artefacts (too short, digits only)
+                if len(name) < 3 or name.isdigit():
+                    continue
+                key = (task_id, name)
+                if key in seen:
+                    continue
+                seen.add(key)
+                results.append({"task_id": task_id, "skill": name, "file": jf.name})
+
+    return results
+
 
 def load_skill_log():
     """Return list of skill names invoked today (lowercased)."""
@@ -269,6 +342,64 @@ def main():
                     "instead of freestyling. See docs/mandatory-skill-invocations.md."
                 )
                 mark_nudged(state, key)
+
+    # ---- Triggers on routed-task fix_instructions naming a skill ----------
+    # Fires when any tool is invoked while a pending routed task in this
+    # workspace's .routed-tasks/inbox/ has a fix_instructions field that
+    # names a skill ("invoke X skill", "Relevant skill: X") AND that skill
+    # has not yet been invoked this session. Nudges once per (task_id, skill)
+    # pair per session. Soft nudge only.
+    #
+    # Safety: validates the extracted skill name exists under ~/.claude/skills/
+    # or any plugin skill dir before nudging, to suppress regex false positives.
+    try:
+        routed_named = scan_routed_task_named_skills()
+    except Exception:
+        routed_named = []
+
+    if routed_named:
+        skills_root = Path.home() / ".claude" / "skills"
+        plugins_root = Path.home() / ".claude" / "plugins"
+        for entry in routed_named:
+            name = entry["skill"]
+            task_id = entry["task_id"]
+
+            # Skip if already invoked (handles namespaced forms like plugin:name)
+            if skill_invoked(name, log):
+                continue
+
+            # Plausibility gate: skill directory must exist somewhere, OR the
+            # name must match an invoked skill's namespaced form. Suppresses
+            # regex over-matching on prose.
+            name_installed = False
+            if (skills_root / name).is_dir():
+                name_installed = True
+            elif plugins_root.is_dir():
+                # Check any plugin skill dir ending with this name
+                try:
+                    for plugin_skill in plugins_root.rglob(f"skills/{name}"):
+                        if plugin_skill.is_dir():
+                            name_installed = True
+                            break
+                except OSError:
+                    pass
+            if not name_installed:
+                continue
+
+            key = f"routed-task-skill:{task_id}:{name}"
+            if already_nudged(state, key):
+                continue
+            nudges.append(
+                f"ROUTED-TASK NAMED SKILL: inbox task `{task_id}` names "
+                f"`{name}` skill in its fix_instructions, but it has not been "
+                "invoked this session. Per universal-protocols.md Pre-Task "
+                "Checklist, invoke the named skill BEFORE starting "
+                "implementation. Task authors name skills precisely because "
+                "the reasoning, patterns, and edge-cases encoded there are "
+                "load-bearing for the work -- general knowledge bypasses "
+                "them."
+            )
+            mark_nudged(state, key)
 
     # ---- Triggers on Supabase MCP schema-work calls -----------------------
     if SUPABASE_TOOL_RE.search(tool_name) and not skill_invoked(SUPABASE_SKILL, log):
