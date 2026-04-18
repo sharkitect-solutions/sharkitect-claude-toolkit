@@ -545,6 +545,19 @@ Before running ANY script, tool, or command referenced in a skill, workflow, MEM
 
 **Why this exists:** During Foundation Reset Phase 3, a skill referenced `checkpoint.py` -- a script that was planned but never built. The session followed the instruction blindly, reported "blocked by missing plugin," and failed to recognize that `supabase-sync.py` (the actual working tool) was right there in `tools/`. This happened during a cleanup session, eroding trust in the system's ability to self-correct. Phantom references in skills and docs must be caught at execution time, not trusted blindly.
 
+## MCP Auth Errors -- Check Inputs FIRST (NON-NEGOTIABLE)
+
+When ANY MCP tool returns "permission denied", "unauthorized", "auth failed", "invalid token", or similar credential errors, the FIRST hypothesis to check is YOUR INPUT, not the provider. Before speculating about OAuth revocation, integration downgrade, API rollouts, or scope changes:
+
+1. Verify the credential value (look up in .env, compare to what you passed)
+2. Verify the target identifier (project_id, workspace_id, account_id) matches what your .env / docs say
+3. Look up your own audit/inventory docs (workforce-hq/.tmp/credential-audit-workforce-hq.md, etc.)
+4. THEN, if input is verified correct, escalate to provider hypotheses
+
+The cheapest, highest-prior cause is "wrong input." Provider-side regressions are rare. If the cron-fired `mcp-auth-error-guard.py` hook injects a reminder, treat it as authoritative -- invoke `superpowers:systematic-debugging` immediately.
+
+Past incident (2026-04-17): Sentinel session ran 10+ turns of unstructured provider speculation when Supabase MCP rejected calls. Real cause: wrong project_id (passed wkbpstfbilfhhcabqfdj, actual was dgnjfamhwfyogmgcpedb). User had to interrupt with "are you confused?" The mcp-auth-error-guard.py hook now enforces this.
+
 ## Scheduling Tool Rules (NON-NEGOTIABLE)
 
 Before using ANY tool for scheduling or automation, verify what it actually does. Never assume from the name.

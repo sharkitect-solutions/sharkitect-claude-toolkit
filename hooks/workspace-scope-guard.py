@@ -15,6 +15,16 @@ Scope violations detected:
 - Writing client deliverables from non-HQ workspace
 - Writing monitoring/audit tools from non-Sentinel workspace
 - Writing to another workspace's directory from current workspace
+
+Protocol-sanctioned cross-workspace writes (NOT blocked):
+- Universal-protocols Blocker-Cleared Notification Protocol:
+  Append-only Edit on another workspace's .work-requests/inbox/*.json that
+  extends the `blocker_cleared_notes` array.
+- Cross-Workspace Routed Tasks Protocol:
+  Write of a NEW file to another workspace's .routed-tasks/inbox/ (already
+  covered by ALWAYS_ALLOWED). Also: Write of a NEW file to another
+  workspace's .work-requests/inbox/ (parallel pattern -- new files in
+  another workspace's inbox are coordination, not scope violation).
 """
 
 import json
@@ -109,6 +119,59 @@ def check_cross_workspace_write(file_path, current_workspace):
     return None, None
 
 
+def is_protocol_sanctioned_write(tool_name, tool_input):
+    """
+    Detect protocol-sanctioned cross-workspace writes that should NOT be blocked.
+
+    Two patterns are sanctioned by universal-protocols.md:
+
+    1. Write a NEW file to another workspace's .work-requests/inbox/
+       (parallel to .routed-tasks/inbox/ pattern -- coordination, not violation).
+       Detected via tool_name == "Write" AND path matches the inbox pattern.
+       NOTE: ALWAYS_ALLOWED already covers .routed-tasks/inbox/ via prefix match.
+
+    2. Append-only Edit on another workspace's .work-requests/inbox/*.json
+       that extends the `blocker_cleared_notes` array (Blocker-Cleared
+       Notification Protocol).
+
+       Heuristic detection (deliberately conservative):
+       - tool_name == "Edit"
+       - file_path matches "*/.work-requests/inbox/*.json"
+       - both old_string and new_string contain "blocker_cleared_notes"
+       - new_string is meaningfully longer than old_string (suggests append,
+         not modify-in-place or delete)
+
+       Known false-positive risk: an Edit that REPLACES an existing
+       blocker_cleared_notes entry with a longer one (e.g., editing a typo
+       in a previously-signed note) would also be allowed. This is acceptable
+       because (a) such edits are rare, (b) protocol violations of this kind
+       are easily auditable from git history, and (c) a non-blocking warning
+       is preferable to blocking legitimate signing work.
+    """
+    file_path = tool_input.get("file_path", "")
+    if not file_path:
+        return False
+    normalized = normalize_path(file_path)
+
+    # Pattern 1: Write to ANY .work-requests/inbox/ in another workspace
+    if tool_name == "Write" and "/.work-requests/inbox/" in normalized:
+        return True
+
+    # Pattern 2: Edit appending to blocker_cleared_notes
+    if tool_name == "Edit" and "/.work-requests/inbox/" in normalized and normalized.endswith(".json"):
+        old_string = tool_input.get("old_string", "")
+        new_string = tool_input.get("new_string", "")
+        # Both sides reference the array name AND the new content extends it
+        if (
+            "blocker_cleared_notes" in old_string
+            and "blocker_cleared_notes" in new_string
+            and len(new_string) > len(old_string) + 20
+        ):
+            return True
+
+    return False
+
+
 def main():
     try:
         data = json.load(sys.stdin)
@@ -127,8 +190,13 @@ def main():
     if not file_path:
         return 0
 
-    # Skip always-allowed paths
+    # Skip always-allowed paths (covers .routed-tasks/, .lifecycle-reviews/, etc.)
     if is_always_allowed(file_path):
+        return 0
+
+    # Skip protocol-sanctioned cross-workspace writes
+    # (blocker_cleared_notes appends, new work request drops)
+    if is_protocol_sanctioned_write(tool_name, tool_input):
         return 0
 
     # Detect current workspace

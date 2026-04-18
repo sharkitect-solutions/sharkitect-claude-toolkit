@@ -110,6 +110,10 @@
           {
             "type": "command",
             "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/content-enforcement-gate.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/supabase-ddl-skill-nudge.py\""
           }
         ]
       },
@@ -163,6 +167,10 @@
           {
             "type": "command",
             "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/iterative-work-nudge.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/mcp-auth-error-guard.py\""
           }
         ]
       },
