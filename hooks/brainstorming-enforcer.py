@@ -84,7 +84,7 @@ IDEATION_KEYWORDS = [
     re.compile(r"\bname\s+(?:it|options?|candidates?|for\s+(?:the|this|our))\b", re.I),
     re.compile(r"\bnaming\s+(?:exercise|options?|candidates?|round|ideas?|conventions?)\b", re.I),
     re.compile(r"\bwhat\s+(?:should|could)\s+we\s+(?:call|name)\b", re.I),
-    re.compile(r"\bsuggest\s+(?:a\s+)?name[s]?\b", re.I),
+    re.compile(r"\bsuggest\s+(?:a\s+|some\s+|\d+\s+|(?:a\s+)?few\s+)?name[s]?\b", re.I),
 ]
 
 # Plan-file path patterns. Forward and back slashes both supported.
