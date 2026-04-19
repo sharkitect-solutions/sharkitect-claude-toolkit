@@ -92,6 +92,68 @@ MARKETING_KEYWORDS_RE = re.compile(
 )
 MARKETING_SKILL = "marketing-strategy-pmm"
 
+# Path filter: documentation / internal notes / plans / operational artifacts.
+# When a file path matches this, marketing keyword content matches are SKIPPED
+# because the file is documentation ABOUT marketing, not a marketing deliverable.
+# Prevents false positives on internal planning docs that reference positioning,
+# funnel, GTM, etc. as concepts rather than producing positioning output.
+DOCUMENTATION_PATH_RE = re.compile(
+    r"(?:"
+    r"[/\\]docs?[/\\]"
+    r"|[/\\]knowledge-base[/\\]"
+    r"|[/\\]memory[/\\]"
+    r"|[/\\]workflows?[/\\]"
+    r"|[/\\]\.routed-tasks[/\\]"
+    r"|[/\\]\.work-requests[/\\]"
+    r"|[/\\]\.lifecycle-reviews[/\\]"
+    r"|[/\\]projects[/\\]"
+    r"|[/\\]plans?[/\\]"
+    r"|[/\\]notes?[/\\]"
+    r"|[/\\]rules[/\\]"
+    r"|[/\\]lessons[/\\]"
+    r"|[/\\]README\.md$"
+    r"|[/\\]MEMORY\.md$"
+    r"|[/\\]CLAUDE\.md$"
+    r"|[/\\]plan\.md$"
+    r"|[/\\]roadmap\.md$"
+    r"|[/\\]lessons-learned\.md$"
+    r")",
+    re.I,
+)
+
+# Path signal: actual marketing deliverables where marketing-strategy-pmm DOES apply.
+# Used to require the nudge even if content keywords are weak.
+MARKETING_DELIVERABLE_PATH_RE = re.compile(
+    r"(?:"
+    r"[/\\]ads?[/\\]"
+    r"|[/\\]landing(?:-page)?[/\\]"
+    r"|[/\\]sales-?scripts?[/\\]"
+    r"|[/\\]pitch(?:-deck)?[/\\]"
+    r"|[/\\]email-?campaigns?[/\\]"
+    r"|[/\\]positioning[/\\]"
+    r"|[/\\]gtm[/\\]"
+    r"|[/\\]one-pagers?[/\\]"
+    r"|[/\\]sales-collateral[/\\]"
+    r")",
+    re.I,
+)
+
+# Plan file trigger: single-file plan / roadmap writes should nudge writing-plans.
+# Complements the existing "3+ Writes" multi-file trigger. Fires on these patterns:
+#   plan.md / roadmap.md at any depth
+#   plans/<something>.md
+#   roadmap/<something>.md
+#   **/projects/<name>/plan.md
+PLAN_FILE_RE = re.compile(
+    r"(?:"
+    r"[/\\](?:plan|roadmap)\.md$"
+    r"|[/\\]plans?[/\\][^/\\]+\.md$"
+    r"|[/\\]roadmaps?[/\\][^/\\]+\.md$"
+    r"|[/\\]projects[/\\][^/\\]+[/\\]plan\.md$"
+    r")",
+    re.I,
+)
+
 # Routed-task named-skill detection
 # Matches: "invoke supabase skill", "use the skill-creator skill", "call `hook-development` skill"
 ROUTED_INVOKE_SKILL_RE = re.compile(
@@ -331,15 +393,51 @@ def main():
                     )
                     mark_nudged(state, key)
 
-        # Marketing content keyword detection (in file content)
-        if content and MARKETING_KEYWORDS_RE.search(content[:2000]) and not skill_invoked(MARKETING_SKILL, log):
+        # Marketing content keyword detection (in file content).
+        # Path-aware precision: skip if path is documentation/plan/notes (file
+        # is ABOUT marketing concepts, not a marketing deliverable). Elevate
+        # to REQUIRED language if path is a known marketing deliverable.
+        is_doc_path = bool(DOCUMENTATION_PATH_RE.search(file_path))
+        is_marketing_deliverable = bool(MARKETING_DELIVERABLE_PATH_RE.search(file_path))
+        keyword_hit = content and MARKETING_KEYWORDS_RE.search(content[:2000])
+
+        if keyword_hit and not is_doc_path and not skill_invoked(MARKETING_SKILL, log):
             key = f"marketing:{file_path}"
             if not already_nudged(state, key):
+                tier = "REQUIRED" if is_marketing_deliverable else "RECOMMENDED"
+                extra = (
+                    " Do NOT rationalize applicability -- invoke the skill and let it "
+                    "self-exempt if the content is out of scope. Per user memory "
+                    "feedback_never_skip_protocols.md, silent skip on nudges is a "
+                    "trust failure even when the rationalization is correct."
+                    if tier == "REQUIRED"
+                    else ""
+                )
                 nudges.append(
-                    "MARKETING / FUNNEL CONTENT detected (keywords like lead magnet, "
-                    "funnel, positioning, GTM, ICP). Invoke `marketing-strategy-pmm` "
-                    "to apply April Dunford-style positioning + qualification frame "
-                    "instead of freestyling. See docs/mandatory-skill-invocations.md."
+                    f"{tier}: MARKETING / FUNNEL CONTENT detected (keywords like lead "
+                    "magnet, funnel, positioning, GTM, ICP). Invoke "
+                    "`marketing-strategy-pmm` to apply April Dunford-style positioning "
+                    "+ qualification frame instead of freestyling. See "
+                    f"docs/mandatory-skill-invocations.md.{extra}"
+                )
+                mark_nudged(state, key)
+
+        # Plan file trigger: single-file writes to plan.md / roadmap.md / plans/*.md
+        # complement the existing 3+ writes -> writing-plans trigger. Catches the
+        # case where a multi-thread plan is drafted in one single large file.
+        if PLAN_FILE_RE.search(file_path) \
+                and not skill_invoked("writing-plans", log) \
+                and not skill_invoked("superpowers:writing-plans", log):
+            key = f"writing-plans:plan-file:{file_path}"
+            if not already_nudged(state, key):
+                nudges.append(
+                    "RECOMMENDED: PLAN FILE WRITE detected "
+                    f"({os.path.basename(file_path)}). Invoke `writing-plans` BEFORE "
+                    "drafting so the plan hits the quality checklist (risk register, "
+                    "rollback, measurable completion signals per thread, review "
+                    "cadence). 'I know what a plan looks like' is the rationalization "
+                    "superpowers explicitly flags as a red flag. Invoke the skill and "
+                    "let it self-exempt for trivial or status-update-only plan edits."
                 )
                 mark_nudged(state, key)
 
