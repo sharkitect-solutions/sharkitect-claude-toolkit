@@ -96,6 +96,10 @@
           },
           {
             "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/content-pitching-detector.py\""
+          },
+          {
+            "type": "command",
             "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/writing-plans-enforcer.py\""
           }
         ]

@@ -78,6 +78,13 @@ IDEATION_KEYWORDS = [
     re.compile(r"\b(?:lets|let'?s)\s+plan\b", re.I),
     re.compile(r"\bfeature\s+ideas?\b", re.I),
     re.compile(r"\broadmap\b", re.I),
+    # Naming-work triggers -- wr-2026-04-19 brainstorming-skipped-naming (HQ):
+    # multi-round name options (5+ for CardOps) without brainstorming skill.
+    # Naming = divergent thinking, matches the skill's expected-input matrix.
+    re.compile(r"\bname\s+(?:it|options?|candidates?|for\s+(?:the|this|our))\b", re.I),
+    re.compile(r"\bnaming\s+(?:exercise|options?|candidates?|round|ideas?|conventions?)\b", re.I),
+    re.compile(r"\bwhat\s+(?:should|could)\s+we\s+(?:call|name)\b", re.I),
+    re.compile(r"\bsuggest\s+(?:a\s+)?name[s]?\b", re.I),
 ]
 
 # Plan-file path patterns. Forward and back slashes both supported.
@@ -92,6 +99,41 @@ PLAN_PATH_RE = re.compile(
 
 # Look-back window for transcript user messages.
 TRANSCRIPT_USER_LOOKBACK = 3
+
+# System-injected blocks to strip BEFORE keyword matching. Fixes a false
+# positive where hook-injected system reminders (e.g., RESOURCE AUDIT
+# REMINDER) contained words like "alternatives", "plans", "options" and
+# got matched as user ideation keywords. Source: wr-2026-04-19
+# brainstorming-hook-false-positive (HQ).
+SYSTEM_BLOCK_TAGS = (
+    "system-reminder",
+    "user-prompt-submit-hook",
+    "command-message",
+    "command-name",
+    "command-args",
+    "command-stdout",
+    "command-stderr",
+    "ide_selection",
+    "local-command-stdout",
+    "local-command-stderr",
+)
+SYSTEM_BLOCK_RE = re.compile(
+    r"<(?:" + "|".join(SYSTEM_BLOCK_TAGS) + r")\b[^>]*>.*?</(?:"
+    + "|".join(SYSTEM_BLOCK_TAGS) + r")\s*>",
+    re.S | re.I,
+)
+
+
+def strip_system_blocks(text):
+    """Remove system-injected tag blocks so their text is not scanned as user
+    intent. Handles unclosed/nested tags gracefully (non-greedy match).
+    """
+    if not text:
+        return ""
+    try:
+        return SYSTEM_BLOCK_RE.sub("", text)
+    except Exception:
+        return text
 
 
 def load_skill_log():
@@ -154,7 +196,8 @@ def read_recent_user_messages(transcript_path):
 
 def has_bypass_phrase(messages):
     for txt in messages:
-        low = txt.lower()
+        clean = strip_system_blocks(txt)
+        low = clean.lower()
         if any(phrase in low for phrase in BYPASS_PHRASES):
             return True
     return False
@@ -162,8 +205,9 @@ def has_bypass_phrase(messages):
 
 def has_ideation_keyword(messages):
     for txt in messages:
+        clean = strip_system_blocks(txt)
         for pat in IDEATION_KEYWORDS:
-            if pat.search(txt):
+            if pat.search(clean):
                 return True
     return False
 

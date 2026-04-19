@@ -214,21 +214,35 @@ def check_supabase_reconciliation(workspace):
         if not output:
             return 0, []
 
-        # Count pending tasks with carry days >= 3 (likely stale)
+        # Count tasks with carry days >= 3 that are likely stale.
+        # Markers per update-project-status.py my-tasks output:
+        #   [ ] = pending (include in STALE)
+        #   [!] = in_progress / active (include in STALE)
+        #   [T] = tabled  (EXCLUDE -- intentional pause)
+        #   [x] = completed (EXCLUDE -- done)
+        #   [B] = blocked (EXCLUDE -- waiting on dependency)
+        #   [D] = deferred (EXCLUDE -- intentionally postponed)
+        # Source: wr-2026-04-19 startup-guard-stale-detection-includes-tabled (HQ).
+        STALE_MARKERS = ("[ ]", "[!]")
         for line in output.splitlines():
             line = line.strip()
-            if line.startswith("[ ]") and "carry" in line.lower():
-                # Extract carry days
-                import re
-                carry_match = re.search(r"\[(\d+)d carry\]", line)
-                if carry_match:
-                    days = int(carry_match.group(1))
-                    if days >= 3:
-                        task_text = line.replace("[ ] ", "").strip()
-                        mismatches.append(
-                            f"STALE ({days}d): {task_text} -- "
-                            "verify if this was actually completed"
-                        )
+            marker = next((m for m in STALE_MARKERS if line.startswith(m)), None)
+            if not marker or "carry" not in line.lower():
+                continue
+            # Extract carry days
+            import re
+            carry_match = re.search(r"\[(\d+)d carry\]", line)
+            if not carry_match:
+                continue
+            days = int(carry_match.group(1))
+            if days < 3:
+                continue
+            task_text = line[len(marker):].strip()
+            status_label = "pending" if marker == "[ ]" else "in_progress"
+            mismatches.append(
+                f"STALE ({days}d, {status_label}): {task_text} -- "
+                "verify if this was actually completed"
+            )
 
         return len(mismatches), mismatches
     except Exception:
