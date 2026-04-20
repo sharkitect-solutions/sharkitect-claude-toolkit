@@ -377,6 +377,28 @@ def check_plugin_integrity():
 # Cron config check
 # ---------------------------------------------------------------------------
 
+def check_orphan_processes():
+    """
+    Step 3.9: Detect orphan claude.exe processes (Windows-only). Calls the
+    standalone check-orphan-claude-processes.py script in --summary mode.
+    Returns one-line summary string or None on failure.
+    """
+    script = Path.home() / ".claude" / "scripts" / "check-orphan-claude-processes.py"
+    if not script.exists():
+        return None
+    try:
+        import subprocess
+        result = subprocess.run(
+            [sys.executable, str(script), "--summary"],
+            capture_output=True, text=True, timeout=15,
+        )
+        if result.returncode == 0 and result.stdout:
+            return result.stdout.strip()
+    except Exception:
+        return None
+    return None
+
+
 def check_cron_config():
     """Check if durable cron jobs exist in .claude/scheduled_tasks.json."""
     cron_file = Path.cwd() / ".claude" / "scheduled_tasks.json"
@@ -451,6 +473,9 @@ def main():
         recon_count, recon_items = check_supabase_reconciliation(workspace)
     else:
         recon_count, recon_items = 0, []
+
+    # Step 3.9: Orphan claude.exe processes (all workspaces, both modes)
+    orphan_summary = check_orphan_processes()
 
     # Step 4: Manifest (all workspaces, auto-refresh when stale)
     manifest_status, manifest_ok = check_manifest()
@@ -555,6 +580,10 @@ def main():
     elif mode == "FULL_STARTUP":
         lines.append("STEP 3.8 - Supabase Recon: CLEAN")
     # Skip display on VERIFY_ONLY (not run)
+
+    # -- Step 3.9: Orphan claude.exe Processes --
+    if orphan_summary:
+        lines.append(f"STEP 3.9 - {orphan_summary}")
 
     # -- Step 4: Manifest --
     lines.append(f"STEP 4 - Manifest: {manifest_status}")
@@ -736,6 +765,9 @@ def main():
     if mode == "FULL_STARTUP":
         recon_display = f"{recon_count} STALE" if recon_count > 0 else "CLEAN"
         lines.append(f"  Step 3.8: Supabase Recon ... {recon_display}")
+    if orphan_summary:
+        # orphan_summary already starts with "Orphan check: ..."
+        lines.append(f"  Step 3.9: {orphan_summary[:80]}")
     lines.append(f"  Step 4: Manifest ........... {mf_display}")
     if is_skill_hub:
         if sync_needed:

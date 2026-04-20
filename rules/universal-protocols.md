@@ -270,6 +270,7 @@ When resolved, append a `resolution` object:
 - **Manual**: if you notice items during work, process immediately
 - "Process" means: do the work, verify, move to processed. Not "list them and ask the user."
 - **DEFERRED ≠ PROCESSED (NON-NEGOTIABLE):** If a task cannot be completed right now, it STAYS IN THE INBOX. Do NOT move it to `processed/`. A task in `processed/` is a task no session will ever pick up again. Only move to `processed/` when the actual work described in `fix_instructions` is DONE and VERIFIED.
+- **USE close-inbox-item.py (NON-NEGOTIABLE):** Every workspace closes inbox items via `python ~/.claude/scripts/close-inbox-item.py --file <path> --status processed --resolved-by <workspace> --what-was-done "<description>"`. This script atomically (a) sets the top-level `status` field to one of `processed | completed | resolved | rejected`, (b) writes/merges the `resolution` object with required fields, (c) appends a `status_history` entry, (d) moves the file to `processed/`, and (e) best-effort updates the matching Supabase `cross_workspace_requests` row. Do NOT use ad-hoc `python json.dump` + file move -- this caused 13+ records of status-field drift across 3 workspaces (Sentinel wr-2026-04-19-002 audit). Allowed close statuses: `processed | completed | resolved | rejected`. PROHIBITED at close: `pending | in_progress | deferred | new | blocked | awaiting_decision`. The script rejects vague `what_was_done` like "acknowledged" or "deferred" to prevent fake-completion records.
 
 ### Blocked vs Deferred (NON-NEGOTIABLE)
 
@@ -351,7 +352,8 @@ CronCreate fires hourly in ALL workspaces to check inboxes. Behavior depends on 
 
 - **IDLE if:** No user message exists between the previous cron fire and this one. Long-running tasks in the background (tests, deploys, agent dispatches, builds) do NOT count as user activity -- a card-funnel test mid-flight while the user is away is still IDLE.
 - **ACTIVE if:** User sent at least one message between the previous cron fire and now.
-- **First cron fire of session:** Default to ACTIVE -- the user is fresh in the session.
+- **First cron fire of session: ALWAYS ACTIVE, TRIAGE-ONLY (NON-NEGOTIABLE).** The first cron fire of any session must default to ACTIVE mode. NO autonomous processing on first fire, regardless of any other signal you might infer. Triage only -- present brief intelligent summary with handle-now-vs-defer recommendations, then wait. The cron has no clock and no reliable user-activity signal at first fire. Past incident (2026-04-19): cron-fired session classified itself as IDLE on first fire and processed 2 routed tasks autonomously while user was actively watching, breaking the user-visibility principle. Hook `cron-context-enforcer.py` enforces this at runtime by injecting an ACTIVE-mode reminder when it detects the first fire.
+- **Orphan process awareness (NON-NEGOTIABLE).** If `cron-context-enforcer.py` flags the parent claude.exe process as 4+ hours old, it is likely an orphan from a prior session that closed abnormally. Orphans NEVER have user activity to detect. Default to triage-only mode and log every action to `.tmp/cron-activity-log.jsonl`. Do NOT process inbox items in suspect-orphan state unless they are critical AND blocking other work.
 
 **Secondary signals (use only when cron-to-cron signal is ambiguous):**
 - An unanswered question YOU asked the user that's still pending in the most recent assistant turn -> treat as ACTIVE (user is reading/composing).
@@ -562,6 +564,23 @@ Before running ANY script, tool, or command referenced in a skill, workflow, MEM
 4. **Never claim a system is broken because a skill told you to run something that doesn't exist.** The skill is wrong, not the system.
 
 **Why this exists:** During Foundation Reset Phase 3, a skill referenced `checkpoint.py` -- a script that was planned but never built. The session followed the instruction blindly, reported "blocked by missing plugin," and failed to recognize that `supabase-sync.py` (the actual working tool) was right there in `tools/`. This happened during a cleanup session, eroding trust in the system's ability to self-correct. Phantom references in skills and docs must be caught at execution time, not trusted blindly.
+
+## Investigation Protocol (NON-NEGOTIABLE)
+
+When investigating bugs, unexpected behavior, system failures, recurring issues, or any situation requiring a hypothesis-test cycle -- INVOKE `superpowers:systematic-debugging` BEFORE generating hypotheses.
+
+The skill enforces structured root-cause analysis: gather evidence first, enumerate hypotheses, test cheapest first, document falsifications. Without it, ad-hoc debugging tends to anchor on the first plausible-sounding cause and miss systemic issues.
+
+**Triggers:**
+- Unexpected file states (items moving without action, stale data, missing artifacts)
+- Tool/script failures or unexpected output
+- "This is weird" / "I can't figure out why" / "It worked yesterday"
+- Recurring pattern of the same symptom across sessions
+- Any time you start a sentence with "I think the problem is..."
+
+**Past incident (2026-04-19, HQ):** Investigation of cron-fired autonomous inbox processing succeeded in finding root cause, but skipped systematic-debugging skill. Pattern at-risk: ad-hoc debugging without methodology might miss systemic issues that the formal skill would surface. Filed as wr-2026-04-19_workforce-hq_systematic-debugging-skipped-during-cron-investigation.
+
+The `methodology-nudge.py` global hook enforces this at runtime by detecting 2+ edits to the same file (a typical patch-iteratively-instead-of-investigate signal) and nudging the skill.
 
 ## MCP Auth Errors -- Check Inputs FIRST (NON-NEGOTIABLE)
 

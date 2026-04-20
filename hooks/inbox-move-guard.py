@@ -348,6 +348,12 @@ def main():
     # Original Bash mv/move/git-mv detection
     if tool_name == "Bash":
         command = tool_input.get("command", "")
+        # Exemption: close-inbox-item.py is the canonical, validated mechanism
+        # for inbox closure (created in response to Sentinel wr-2026-04-19-002).
+        # It performs all the validation this hook would enforce, so suppress
+        # the move-detection layer when this script is being invoked.
+        if "close-inbox-item.py" in command:
+            return 0
         is_move, source_files = is_inbox_to_processed_move(command)
 
         if is_move:
