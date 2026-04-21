@@ -272,6 +272,23 @@ When resolved, append a `resolution` object:
 - **DEFERRED ≠ PROCESSED (NON-NEGOTIABLE):** If a task cannot be completed right now, it STAYS IN THE INBOX. Do NOT move it to `processed/`. A task in `processed/` is a task no session will ever pick up again. Only move to `processed/` when the actual work described in `fix_instructions` is DONE and VERIFIED.
 - **USE close-inbox-item.py (NON-NEGOTIABLE):** Every workspace closes inbox items via `python ~/.claude/scripts/close-inbox-item.py --file <path> --status processed --resolved-by <workspace> --what-was-done "<description>"`. This script atomically (a) sets the top-level `status` field to one of `processed | completed | resolved | rejected`, (b) writes/merges the `resolution` object with required fields, (c) appends a `status_history` entry, (d) moves the file to `processed/`, and (e) best-effort updates the matching Supabase `cross_workspace_requests` row. Do NOT use ad-hoc `python json.dump` + file move -- this caused 13+ records of status-field drift across 3 workspaces (Sentinel wr-2026-04-19-002 audit). Allowed close statuses: `processed | completed | resolved | rejected`. PROHIBITED at close: `pending | in_progress | deferred | new | blocked | awaiting_decision`. The script rejects vague `what_was_done` like "acknowledged" or "deferred" to prevent fake-completion records.
 
+### Rejected vs Drift-Correction (NON-NEGOTIABLE)
+
+Two distinct closure paths for inbox items that will NOT be worked on. Choose correctly -- the metrics depend on it.
+
+| Path | Use When | How to Close | Timeline it lives in |
+|------|----------|--------------|----------------------|
+| **Closed as rejected** | Request is VALID but declined on merits (wrong priority, duplicate of existing work, out of scope, won't-fix, author stands by the request) | `close-inbox-item.py --file <path> --status rejected --resolved-by <workspace> --what-was-done "<reason for rejection>"` | Request-trend timeline (legitimate requests that got declined) |
+| **Deleted + drift_correction** | Request was INVALID FROM ORIGIN (misfiled, wrong pattern, author mistake, filed off a single transient error, wrong directory, author withdraws on review) | Delete the JSON file, delete the matching Supabase `cross_workspace_requests` row, then insert an `activity_stream` row with `event_type='drift_correction'` citing the filed request id and reason | Filer-quality timeline (signal that filing process needs tightening) |
+
+**Why both paths exist:** Both close the work, but they measure different things. "Rejected" lives in the request-trend timeline -- it tells us which kinds of valid requests we're declining and why (and is therefore visible in briefs and dashboards). "Drift-correction" lives in the filer-quality timeline -- it tells us which workspaces or hooks are producing noise. Mixing them inflates the rejection rate and hides the filer-drift signal. Both metrics matter; they must stay separate.
+
+**Decision rule:** Ask "would this request have been correctly filed if the author had the information they have now?" If YES, it's a real request the author still stands behind -> reject on merits. If NO (the request should never have been created -- author withdraws, pattern was wrong, triggered by a transient fluke), it's drift -> delete + drift_correction.
+
+**Source incident:** 2026-04-21 Sentinel filed wr-2026-04-21-002 (bash PATH error off a single transient failure without retrying) and wr-2026-04-21-003 (wrong directory pattern). Both were invalid from origin -- the author (Sentinel) reviewed and withdrew both. If closed with `--status rejected`, rejection-rate metrics would have shown "2 declined requests" -- false signal, hiding the real lesson (filer drift). Chris authorized delete + drift_correction event (logged as `b51dca5f-754a-450b-a1f5-ca205900a944`).
+
+**Enforcement:** `close-inbox-item.py` accepts `--status rejected` directly. Drift-correction requires a manual delete (JSON + Supabase row) plus an `activity_stream` INSERT with `event_type='drift_correction'`. Sentinel owns the schema/CHECK constraint for `event_type`.
+
 ### Blocked vs Deferred (NON-NEGOTIABLE)
 
 Two distinct inbox states with different behaviors. Do NOT confuse them.
@@ -762,6 +779,48 @@ When a build fails, an approach is abandoned, or a system is superseded by a new
 **Only exception:** The lessons-learned.md entry stays forever.
 
 **Why this exists:** Multiple automation rebuilds left behind 7 dead Task Scheduler tasks, 3 broken RemoteTrigger configs, orphaned .bat files, and MEMORY.md entries claiming systems worked when they never ran. This accumulation misleads future sessions and erodes trust.
+
+## .tmp/ Hygiene Protocol (NON-NEGOTIABLE)
+
+`.tmp/` is a disposable folder. Only two kinds of files belong there: (a) files regenerated on demand by tools, and (b) genuine in-flight scratch for the current task. Anything else is a bug in file placement.
+
+### What qualifies for .tmp/
+
+| Category | Examples | Allowed? |
+|----------|----------|----------|
+| Tool-regenerated cache | `doc-lifecycle-cache.json`, `skills-manifest.json`, `capability-updates.json`, `last-sync.json` | YES -- re-created on demand, safe to delete |
+| Active in-flight scratch | test output, intermediate audit data being used this session | YES -- must be pruned at task/session end |
+| Config files tools depend on | `document-relationship-map.json`, any file a hook/script reads as config | **NO** -- move to workspace `.claude/<component>/` |
+| Valuable artifacts | credential audits, Supabase schema exports, reusable scripts, n8n code exports | **NO** -- promote to `docs/`, `resources/`, or `tools/` |
+| Delivered outputs | client deliverables, committed plans, published docs | **NO** -- these are not scratch |
+
+Rule of thumb: if another tool/hook/script reads it, it is NOT scratch. If you would be upset if it disappeared, it is NOT scratch.
+
+### Project-end prune rule
+
+When a project, plan, or major task completes, audit `.tmp/` before closing:
+
+1. List all `.tmp/` contents with size and purpose
+2. Classify each: **keep** (active tool cache) | **promote** (valuable -> move to permanent home) | **delete** (true scratch)
+3. Promote valuable files to their correct location BEFORE deleting anything
+4. Delete remaining scratch
+5. Verify: the post-audit `.tmp/` should be small (typically <1MB) and contain only regenerable caches
+
+The `session-checkpoint` skill runs this audit as Step 6.5 -- do not skip it.
+
+### Config-in-scratch is a bug
+
+If a tool or hook reads its config from `.tmp/`, the tool is wrong, not the folder. Config files must live in `<workspace>/.claude/<component>/` (workspace-specific config) or `~/.claude/config/<component>/` (global config). Example migration: `drift-detection-hook.py` now reads `document-relationship-map.json` from `<workspace>/.claude/drift-detection/` (with `.tmp/` fallback only during the transition). Any other tool found reading config from `.tmp/` gets filed as a work request and migrated the same way.
+
+### Source incident
+
+2026-04-21 HQ session: `.tmp/` grew to 7MB with 54 items, including a credential audit, Supabase schema export, reusable template-builder scripts, and n8n code exports -- all sitting in a folder named "disposable." Also discovered `drift-detection-hook.py` was reading `document-relationship-map.json` from `.tmp/`, making a load-bearing config file vulnerable to accidental wipe. HQ filed wr-2026-04-21-002; Skill Hub owns the global rule and the hook fix.
+
+### Enforcement
+
+- **session-checkpoint Step 6.5:** `.tmp/` audit runs at every full-mode checkpoint, before git commit
+- **drift-detection-hook.py:** reads `document-relationship-map.json` from `<workspace>/.claude/drift-detection/` first, falls back to `.tmp/` only during migration window
+- **Gitignore posture:** `.tmp/` stays gitignored -- that is correct. The fix for "valuable file in .tmp/" is to move the file, not to track `.tmp/`.
 
 ## Documentation Standards (NON-NEGOTIABLE)
 

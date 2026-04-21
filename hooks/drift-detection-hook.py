@@ -25,9 +25,27 @@ from pathlib import Path
 
 
 CACHE_PATH = os.path.join(os.getcwd(), ".tmp", "doc-lifecycle-cache.json")
-RELATIONSHIP_MAP_PATH = os.path.join(os.getcwd(), ".tmp", "document-relationship-map.json")
+# Config file -- canonical location is workspace .claude/drift-detection/; .tmp/ is a
+# migration-era fallback only. Per ~/.claude/rules/universal-protocols.md .tmp/ Hygiene
+# Protocol: config files tools depend on MUST NOT live in .tmp/.
+RELATIONSHIP_MAP_PATH_CANONICAL = os.path.join(os.getcwd(), ".claude", "drift-detection", "document-relationship-map.json")
+RELATIONSHIP_MAP_PATH_LEGACY = os.path.join(os.getcwd(), ".tmp", "document-relationship-map.json")
 SUPABASE_CACHE_PATH = str(Path.home() / ".claude" / ".tmp" / "doc-relationships.json")
 WORKSPACES_ROOT = Path.home() / "Documents" / "Claude Code Workspaces"
+
+
+def resolve_relationship_map_path():
+    """Return the first existing relationship-map path, preferring the canonical location.
+
+    Canonical: <workspace>/.claude/drift-detection/document-relationship-map.json
+    Legacy (transition): <workspace>/.tmp/document-relationship-map.json
+    """
+    if os.path.isfile(RELATIONSHIP_MAP_PATH_CANONICAL):
+        return RELATIONSHIP_MAP_PATH_CANONICAL
+    if os.path.isfile(RELATIONSHIP_MAP_PATH_LEGACY):
+        return RELATIONSHIP_MAP_PATH_LEGACY
+    # Neither exists; return the canonical path (load_json will return None gracefully)
+    return RELATIONSHIP_MAP_PATH_CANONICAL
 
 
 def load_json(path):
@@ -324,7 +342,7 @@ def main():
             return 0
 
     # --- Layer 1: Relationship map (precise, directional, hand-curated) ---
-    rel_map = load_json(RELATIONSHIP_MAP_PATH)
+    rel_map = load_json(resolve_relationship_map_path())
     rel_result = check_relationship_map(rel_map, file_path)
 
     if rel_result:
