@@ -103,6 +103,31 @@ WORKSPACE_FORBIDDEN_PATHS = {
             ".work-requests/outbox/ (for outbound audit) or another workspace's .routed-tasks/inbox/ (for routing TO them)",
         ),
     ],
+    # Sentinel hallucination 2026-04-21: the Sentinel session invented
+    # .work-requests/outbox/ inside Sentinel's workspace and filed two
+    # WRs based on that false mental model. Mirror of the Skill Hub rule:
+    # HQ and Sentinel have NO .work-requests/ directory -- that name is
+    # exclusive to Skill Hub (whose inbox is the canonical destination
+    # for capability-ask requests). HQ and Sentinel use .routed-tasks/
+    # for all inbound + outbound audit.
+    "hq": [
+        (
+            ".work-requests/",
+            "HQ has no .work-requests/ directory per universal-protocols.md -- "
+            "that name is exclusive to Skill Hub. HQ's coordination folder is "
+            ".routed-tasks/{inbox,processed,outbox}/.",
+            ".routed-tasks/outbox/ (for outbound audit to any workspace) or Skill Hub's .work-requests/inbox/ (for filing work requests TO Skill Hub via work-request.py)",
+        ),
+    ],
+    "sentinel": [
+        (
+            ".work-requests/",
+            "Sentinel has no .work-requests/ directory per universal-protocols.md -- "
+            "that name is exclusive to Skill Hub. Sentinel's coordination folder is "
+            ".routed-tasks/{inbox,processed,outbox}/.",
+            ".routed-tasks/outbox/ (for outbound audit to any workspace) or Skill Hub's .work-requests/inbox/ (for filing work requests TO Skill Hub via work-request.py)",
+        ),
+    ],
 }
 
 # Paths that are always allowed regardless of workspace (global shared infra)
@@ -154,12 +179,19 @@ def is_self_write(file_path_norm, cwd_norm, workspace_name):
     cross-workspace writes (subject to SCOPE_VIOLATIONS). A Write from
     Skill Hub CWD to HQ's .routed-tasks/inbox/ is NOT a self-write --
     that's protocol-sanctioned coordination.
+
+    Uses path-prefix matching (not substring) so that filenames containing
+    workspace names -- e.g. `2026-04-21_sentinel-foo.json` routed TO Skill
+    Hub -- don't false-positive as "inside Sentinel's dir."
     """
-    ws_marker = WORKSPACE_PATHS.get(workspace_name, "")
-    if not ws_marker:
+    if not cwd_norm:
         return False
-    ws_marker_lower = ws_marker.lower()
-    return ws_marker_lower in file_path_norm and ws_marker_lower in cwd_norm
+    # workspace_name is only used for signalling which row of
+    # WORKSPACE_FORBIDDEN_PATHS applies -- the prefix check itself
+    # relies purely on the CWD's directory tree, not on the name.
+    del workspace_name
+    cwd_check = cwd_norm.rstrip("/")
+    return file_path_norm == cwd_check or file_path_norm.startswith(cwd_check + "/")
 
 
 def check_forbidden_self_path(file_path, current_workspace, cwd):
