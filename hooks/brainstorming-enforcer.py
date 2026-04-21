@@ -7,29 +7,50 @@ superpowers:brainstorming, the preferred form).
 
 Source: wr-2026-04-18 (workforce-hq -- agent skipped brainstorming during a
 7-thread feature roadmap session, defaulting to "organize + give feedback"
-instead of divergent thinking). Memory rule: "If a rule keeps getting
-violated, add detection, don't reinforce the rule."
+instead of divergent thinking). Extended by wr-2026-04-20-001 (HQ Paramount
+tagline pitch) to catch candidate-pitching in assistant tool output and to
+fix the recursion trap that blocked filing gap reports about the hook itself.
+Memory rule: "If a rule keeps getting violated, add detection, don't
+reinforce the rule."
 
-DETECTION (either signal triggers)
+DETECTION (any signal triggers)
   A. Recent user message in transcript contains feature-ideation keywords:
        brainstorm, plan out, think through, ideas for, what if we,
-       should we build, lets plan / let's plan, feature ideas, roadmap
+       should we build, lets plan / let's plan, feature ideas, roadmap,
+       naming patterns (name options, naming candidates, etc.)
   B. Write target path looks like a NEW plan file:
        **/plan.md OR **/plans/*.md OR **/projects/*/plan*.md
      AND the write is to a path that does not yet exist (genuine new plan)
+  C. Tool content (Write content / TodoWrite todos) contains an
+     explicit candidate-pitching pattern: BOTH a domain keyword (tagline,
+     slogan, brand name, product name, campaign name, naming, rebrand)
+     AND an ideation header ("Tagline options", "Naming candidates",
+     "Here are 5 campaign names", etc.). Requiring the header (not just
+     a nearby numbered list) honors the hook's false-negative bias:
+     decision records and style guides that happen to list things
+     without pitching them as candidates are allowed. Added by
+     wr-2026-04-20-001 after the Paramount tagline incident.
 
 DOES NOT TRIGGER ON
   - Edit (only Write/TodoWrite -- edits are usually status updates)
   - Read/Bash/Glob/Grep (no creative content involved)
   - Existing-file Writes that are pure overwrites of small files
     (we treat these as updates, not new plans)
+  - Writes to meta paths: /.work-requests/, /.lifecycle-reviews/,
+    /.routed-tasks/. These hold gap reports and cross-workspace
+    coordination docs that describe ideation workflows; blocking them
+    creates a recursion trap (wr-2026-04-20-001).
 
 BYPASS (any of these allows the operation)
   1. Skill already invoked today (brainstorming OR superpowers:brainstorming)
      read from ~/.claude/.tmp/skill-invocations-YYYY-MM-DD.json
   2. Recent user message contains: "skip brainstorming", "no brainstorm",
      "skip ideation", "skip brainstorm"
-  3. Hook removed from settings.json
+  3. The current Write content OR a TodoWrite todo contains one of the
+     same bypass phrases (lets the assistant file legitimate
+     reports/documentation about prior ideation without deadlock).
+     Added by wr-2026-04-20-001.
+  4. Hook removed from settings.json
 
 GRACEFUL DEGRADATION
   - Missing skill log -> ALLOW (no deadlock).
@@ -41,6 +62,8 @@ DESIGN TRADE-OFF (intentional false-negative bias)
   Borderline cases (e.g., a status-update edit on plan.md) ALLOW. We use
   Write-only + path-shape signals to keep status updates moving freely.
   False positives deadlock the agent; false negatives just skip a nudge.
+
+Tests: tests/test_brainstorming_enforcer.py in Skill Management Hub.
 
 Pure stdlib. ASCII-only. Input/output: JSON via stdin/stdout.
 """
@@ -96,6 +119,49 @@ PLAN_PATH_RE = re.compile(
     r")",
     re.I,
 )
+
+# Meta paths: structurally exempt. Gap reports, lifecycle reviews, and
+# cross-workspace routed tasks describe ideation workflows by nature;
+# blocking Writes to these paths makes it impossible to file bugs about
+# the ideation system itself. Source: wr-2026-04-20-001.
+META_PATH_MARKERS = (
+    "/.work-requests/",
+    "/.lifecycle-reviews/",
+    "/.routed-tasks/",
+)
+
+# Domain keywords scoped to branding/naming/campaign work where divergent
+# thinking is most commonly substituted for candidate-pitching. Kept
+# narrow to prevent false positives on generic numbered lists
+# (feature lists, steps, TODOs).
+DOMAIN_KEYWORDS_RE = re.compile(
+    r"\b(?:"
+    r"taglines?|slogans?|"
+    r"brand\s+names?|product\s+names?|company\s+names?|"
+    r"campaign\s+names?|project\s+names?|"
+    r"naming(?:\s+(?:exercise|round|convention))?s?|"
+    r"rebrand(?:ing)?|"
+    r"headline\s+options?"
+    r")\b",
+    re.I,
+)
+
+# Explicit ideation headers such as "Tagline options", "Name candidates",
+# "Here are 5 campaign names".
+IDEATION_HEADER_RE = re.compile(
+    r"\b(?:tagline|slogan|name|naming|campaign|headline)s?\s+"
+    r"(?:option|candidate|idea|choice|suggestion)s?\b"
+    r"|\bhere\s+are\s+(?:\d+|a\s+few|some)\s+"
+    r"(?:tagline|slogan|name|naming|campaign|headline)",
+    re.I,
+)
+
+# Note: a numbered-list signal was considered (domain keyword + adjacent
+# 2-5 short items) but rejected for this iteration. It false-positives on
+# style guides ("Tagline conventions: 1. short, 2. active voice") and
+# decision records ("Product name: X. Reasons: 1. ..."). If a
+# header-less candidate pitch slips through in the wild, file a follow-up
+# WR and reconsider with a commit-language exclusion.
 
 # Look-back window for transcript user messages.
 TRANSCRIPT_USER_LOOKBACK = 3
@@ -234,6 +300,69 @@ def is_new_plan_write(file_path, tool_name):
     return True
 
 
+def is_meta_path(file_path):
+    """True if Write target is a work-request / lifecycle / routed-task
+    path. These paths hold meta-documentation that describes ideation
+    workflows by nature; blocking Writes to them creates a recursion trap
+    where the system cannot file bugs about itself (wr-2026-04-20-001).
+    """
+    if not file_path:
+        return False
+    norm = file_path.replace("\\", "/").lower()
+    return any(marker in norm for marker in META_PATH_MARKERS)
+
+
+def extract_write_content(tool_name, tool_input):
+    """Return the textual content being written by this tool call.
+    For Write: the content field. For TodoWrite: concatenated todo
+    content + activeForm fields. Returns "" for anything else.
+    """
+    if not isinstance(tool_input, dict):
+        return ""
+    if tool_name == "Write":
+        content = tool_input.get("content", "")
+        return content if isinstance(content, str) else ""
+    if tool_name == "TodoWrite":
+        todos = tool_input.get("todos", [])
+        if not isinstance(todos, list):
+            return ""
+        parts = []
+        for t in todos:
+            if isinstance(t, dict):
+                parts.append(str(t.get("content", "")))
+                parts.append(str(t.get("activeForm", "")))
+        return "\n".join(parts)
+    return ""
+
+
+def has_ideation_content_pattern(text):
+    """Signal C: tool output contains an explicit candidate-pitching
+    pattern. Requires BOTH a domain keyword AND an ideation header.
+    Requiring the header (not just a nearby numbered list) honors the
+    hook's false-negative bias and avoids triggering on decision
+    records, style guides, or templates that mention naming topics.
+    """
+    if not text or len(text) < 20:
+        return False
+    if not DOMAIN_KEYWORDS_RE.search(text):
+        return False
+    if not IDEATION_HEADER_RE.search(text):
+        return False
+    return True
+
+
+def has_bypass_in_content(content):
+    """True if the current Write/TodoWrite content itself contains a
+    bypass phrase. Lets the assistant file legitimate reports or
+    documentation about prior ideation without deadlock
+    (wr-2026-04-20-001: gap reports were blocked by this very hook).
+    """
+    if not content:
+        return False
+    low = content.lower()
+    return any(phrase in low for phrase in BYPASS_PHRASES)
+
+
 def deny(reason):
     print(json.dumps({
         "hookSpecificOutput": {
@@ -263,14 +392,24 @@ def main():
 
     file_path = str(tool_input.get("file_path", "") or "")
 
+    # ---- Early exit: meta paths are structurally exempt -----------------
+    # Gap reports, lifecycle reviews, and routed tasks are meta-docs
+    # ABOUT ideation workflows; they contain the very keywords this hook
+    # detects. Blocking them creates a recursion trap where the system
+    # cannot file bugs about itself. Source: wr-2026-04-20-001.
+    if is_meta_path(file_path):
+        return 0
+
     # ---- Detect ----------------------------------------------------------
     transcript_path = data.get("transcript_path") or ""
     recent_msgs = read_recent_user_messages(transcript_path)
+    content = extract_write_content(tool_name, tool_input)
 
     signal_a = has_ideation_keyword(recent_msgs)
     signal_b = is_new_plan_write(file_path, tool_name)
+    signal_c = has_ideation_content_pattern(content)
 
-    if not (signal_a or signal_b):
+    if not (signal_a or signal_b or signal_c):
         return 0  # no trigger
 
     # ---- Bypass ----------------------------------------------------------
@@ -282,12 +421,19 @@ def main():
     if has_bypass_phrase(recent_msgs):
         return 0
 
+    # Also honor a bypass phrase embedded in the current tool content
+    # (wr-2026-04-20-001 -- gap reports need to describe prior ideation).
+    if has_bypass_in_content(content):
+        return 0
+
     # ---- Block -----------------------------------------------------------
     trigger_label = []
     if signal_a:
         trigger_label.append("user message with ideation keyword")
     if signal_b:
         trigger_label.append("new plan file: " + os.path.basename(file_path))
+    if signal_c:
+        trigger_label.append("candidate-pitching pattern in tool content")
     label = " + ".join(trigger_label) if trigger_label else "ideation context"
 
     deny(
@@ -296,9 +442,12 @@ def main():
         "creating new features. The skill applies divergent-thinking patterns "
         "that catch alternatives the default flow misses. Run "
         "`Skill superpowers:brainstorming` (preferred) or `Skill brainstorming`. "
-        "To bypass for status updates or pure execution, include "
-        "\"skip brainstorming\" in your message and retry. "
-        "Source: wr-2026-04-18. See docs/hook-classification-policy.md."
+        "To bypass: include \"skip brainstorming\" in your message OR in the "
+        "tool content itself. Gap reports, lifecycle reviews, and routed "
+        "tasks under /.work-requests/ /.lifecycle-reviews/ /.routed-tasks/ "
+        "are structurally exempt. "
+        "Source: wr-2026-04-18, wr-2026-04-20-001. "
+        "See docs/hook-classification-policy.md."
     )
     return 0
 
