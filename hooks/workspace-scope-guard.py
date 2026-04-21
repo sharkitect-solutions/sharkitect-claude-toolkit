@@ -15,6 +15,11 @@ Scope violations detected:
 - Writing client deliverables from non-HQ workspace
 - Writing monitoring/audit tools from non-Sentinel workspace
 - Writing to another workspace's directory from current workspace
+- Self-writing to a path the current workspace is not allowed to own
+  (e.g., Skill Hub writing to its own .routed-tasks/ -- no such dir
+  exists per universal-protocols.md). Added 2026-04-21 per
+  wr-2026-04-21-001 after 5 files drifted into .routed-tasks/outbox/
+  that belonged in .work-requests/outbox/.
 
 Protocol-sanctioned cross-workspace writes (NOT blocked):
 - Universal-protocols Blocker-Cleared Notification Protocol:
@@ -77,6 +82,29 @@ SCOPE_VIOLATIONS = {
     ],
 }
 
+# Workspace-specific STRUCTURAL forbidden paths. Different from
+# SCOPE_VIOLATIONS (which catches cross-workspace writes). This catches
+# self-writes to a path the workspace does not own structurally.
+#
+# Checked BEFORE ALWAYS_ALLOWED so global exemptions (e.g. .routed-tasks/)
+# do not bypass it. Only fires when the target path is INSIDE the current
+# workspace's own directory -- writing to ANOTHER workspace's
+# .routed-tasks/inbox/ remains legitimate coordination.
+#
+# Format: workspace_name -> [(path_pattern, reason, redirect)]
+# Source: wr-2026-04-21-001.
+WORKSPACE_FORBIDDEN_PATHS = {
+    "skill-hub": [
+        (
+            ".routed-tasks/",
+            "Skill Hub has no .routed-tasks/ directory per universal-protocols.md -- "
+            "its entire inbound channel is .work-requests/inbox/ and its outbound "
+            "audit trail is .work-requests/outbox/.",
+            ".work-requests/outbox/ (for outbound audit) or another workspace's .routed-tasks/inbox/ (for routing TO them)",
+        ),
+    ],
+}
+
 # Paths that are always allowed regardless of workspace (global shared infra)
 ALWAYS_ALLOWED = [
     "/.claude/rules/",
@@ -115,6 +143,47 @@ def check_cross_workspace_write(file_path, current_workspace):
     for pattern, description, correct_ws in violations:
         if pattern.lower() in normalized:
             return description, correct_ws
+
+    return None, None
+
+
+def is_self_write(file_path_norm, cwd_norm, workspace_name):
+    """True if file_path is inside the current workspace's own directory.
+
+    Distinguishes self-writes (subject to WORKSPACE_FORBIDDEN_PATHS) from
+    cross-workspace writes (subject to SCOPE_VIOLATIONS). A Write from
+    Skill Hub CWD to HQ's .routed-tasks/inbox/ is NOT a self-write --
+    that's protocol-sanctioned coordination.
+    """
+    ws_marker = WORKSPACE_PATHS.get(workspace_name, "")
+    if not ws_marker:
+        return False
+    ws_marker_lower = ws_marker.lower()
+    return ws_marker_lower in file_path_norm and ws_marker_lower in cwd_norm
+
+
+def check_forbidden_self_path(file_path, current_workspace, cwd):
+    """Check if writing to a workspace-specific structural forbidden path
+    inside the workspace's own directory.
+
+    Returns (reason, redirect) tuple or (None, None).
+
+    Source: wr-2026-04-21-001. Applied BEFORE is_always_allowed so that
+    global exemptions (e.g. .routed-tasks/) do not bypass this check.
+    """
+    forbidden = WORKSPACE_FORBIDDEN_PATHS.get(current_workspace, [])
+    if not forbidden:
+        return None, None
+
+    file_norm = normalize_path(file_path)
+    cwd_norm = normalize_path(cwd)
+
+    if not is_self_write(file_norm, cwd_norm, current_workspace):
+        return None, None
+
+    for pattern, reason, redirect in forbidden:
+        if pattern.lower() in file_norm:
+            return reason, redirect
 
     return None, None
 
@@ -190,6 +259,33 @@ def main():
     if not file_path:
         return 0
 
+    # Detect current workspace early -- needed for forbidden-path check.
+    cwd = os.getcwd()
+    current_workspace = detect_workspace(cwd)
+
+    # Workspace-specific STRUCTURAL forbidden paths (e.g. Skill Hub writing
+    # to its own .routed-tasks/). Runs BEFORE is_always_allowed so that
+    # global exemptions like .routed-tasks/ do not bypass this check.
+    # Source: wr-2026-04-21-001.
+    if current_workspace != "unknown":
+        forbidden_reason, redirect = check_forbidden_self_path(
+            file_path, current_workspace, cwd
+        )
+        if forbidden_reason is not None and redirect is not None:
+            warning = (
+                "WORKSPACE STRUCTURE VIOLATION. "
+                + forbidden_reason
+                + " Redirect to: " + redirect + ". "
+                "If the user explicitly overrides, note the exception in MEMORY.md."
+            )
+            print(json.dumps({
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "additionalContext": warning,
+                }
+            }))
+            return 0
+
     # Skip always-allowed paths (covers .routed-tasks/, .lifecycle-reviews/, etc.)
     if is_always_allowed(file_path):
         return 0
@@ -199,14 +295,10 @@ def main():
     if is_protocol_sanctioned_write(tool_name, tool_input):
         return 0
 
-    # Detect current workspace
-    cwd = os.getcwd()
-    current_workspace = detect_workspace(cwd)
-
     if current_workspace == "unknown":
         return 0
 
-    # Check for violations
+    # Check for cross-workspace violations
     violation, correct_ws = check_cross_workspace_write(file_path, current_workspace)
 
     if violation is None:
