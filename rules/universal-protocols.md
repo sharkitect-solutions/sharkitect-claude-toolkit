@@ -290,6 +290,31 @@ Two distinct closure paths for inbox items that will NOT be worked on. Choose co
 
 **Enforcement:** `close-inbox-item.py` accepts `--status rejected` directly. Drift-correction requires a manual delete (JSON + Supabase row) plus an `activity_stream` INSERT with `event_type='drift_correction'`. Sentinel owns the schema/CHECK constraint for `event_type`.
 
+### Superseded vs Duplicate (NON-NEGOTIABLE)
+
+Two additional close states for records that SHOULD NOT count as real rejections. Both are valid Supabase `cross_workspace_requests` close statuses (see Status Vocabulary Layers below). Use them when the decision rule in the previous subsection lands on "valid from origin" BUT the work is no longer live because newer work has absorbed or matched it.
+
+| Close state | Use when | Example | Timeline it feeds |
+|-------------|----------|---------|-------------------|
+| **superseded** | A LATER filing renders THIS one obsolete. The earlier work was legitimate; it just got absorbed into or outdated by newer work. | wr-001 proposes approach X; wr-002 supersedes X with approach Y after new context. wr-001 closes as `superseded` with a `superseded_by` reference to wr-002. | Request-trend timeline (legitimate requests that got absorbed). NOT rejection. |
+| **duplicate** | Another workspace independently filed the SAME thing. Whichever is older (or better-scoped) wins; the other closes as duplicate. | Sentinel files wr-X for a gap; HQ files wr-Y for the same gap two days later. Close the newer/weaker one as `duplicate`. | Filer-quality timeline as noise (both workspaces caught the same signal twice). NOT rejection. |
+
+**Neither is the same as:**
+- **rejected** -- declined on merits (valid but won't be done)
+- **drift_correction** -- filed in error (should never have existed)
+
+Both `superseded` and `duplicate` describe requests that were legitimate AND got completed elsewhere or absorbed -- no actual rejection signal.
+
+**Required resolution metadata:**
+- **superseded:** `resolution.superseded_by` = `item_id` of the newer request that absorbed this work. `resolution.resolved_by` = the closing workspace. `resolution.what_was_done` = short reason ("absorbed into wr-XXX after broader scoping discovered in [context]").
+- **duplicate:** `resolution.duplicate_of` = `item_id` of the surviving request. `resolution.resolved_by` = the closing workspace. `resolution.what_was_done` = short reason ("duplicate of wr-YYY; [this workspace] filed same gap 2 days later, [other workspace's] filing is better scoped / older").
+
+**Enforcement:** `close-inbox-item.py` accepts `--status superseded` and `--status duplicate` via the Supabase vocabulary. The script's status normalization (line ~116) collapses the three semantic close variants (`processed | completed | resolved`) into Supabase `completed`, but `superseded` and `duplicate` pass through as their own Supabase values -- so use the exact status flag to preserve the signal.
+
+**Why this matters:** Without these states, workspaces face a false choice: `rejected` (inflates decline rate; hides real rejection signal) or `drift_correction` (requires delete + activity_stream event, inappropriate for legitimate absorbed work). The three close states are distinct metrics and must stay separated in the request-trend and filer-quality timelines.
+
+**Source:** Sentinel wr-2026-04-22-018 (closed 2026-04-22). Sentinel flagged that three close states existed in Supabase without documented triggers; documented the disambiguation via Skill Hub (rule-file edits are Skill Hub territory per wr-2026-04-21-005 precedent).
+
 ### Blocked vs Deferred (NON-NEGOTIABLE)
 
 Two distinct inbox states with different behaviors. Do NOT confuse them.
