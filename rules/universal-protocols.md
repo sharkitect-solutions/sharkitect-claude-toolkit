@@ -612,11 +612,39 @@ The cheapest, highest-prior cause is "wrong input." Provider-side regressions ar
 
 Past incident (2026-04-17): Sentinel session ran 10+ turns of unstructured provider speculation when Supabase MCP rejected calls. Real cause: wrong project_id (passed wkbpstfbilfhhcabqfdj, actual was dgnjfamhwfyogmgcpedb). User had to interrupt with "are you confused?" The mcp-auth-error-guard.py hook now enforces this.
 
+## Operational Asset Registry (NON-NEGOTIABLE)
+
+Every scheduled task, automation, hook, script, report, workflow, plugin, and Supabase table MUST be registered in the Supabase `assets` table. The registry is the single queryable source of truth for "what exists, what it runs, what it does, what its purpose is, who owns it."
+
+**Registry table:** `assets` (Supabase). Owner: Sentinel (schema gatekeeper).
+**Registration helper:** `~/.claude/scripts/register-asset.py` -- callable from any workspace, writes only the caller's own rows.
+**Drift auditor:** `<Skill Hub>/tools/audit-autonomous-systems.py` -- compares registry against live Task Scheduler + n8n Cloud + `~/.claude/settings.json` hooks + CronCreate durable state. Run any time you want to verify the registry is accurate.
+
+**When to register (at CREATION TIME, not post-hoc):**
+- Any new `*.py` / `*.bat` / `*.sh` under `~/.claude/scripts/` or workspace `tools/` --> register as `script`.
+- Any new hook under `~/.claude/hooks/` or `.claude/hooks/` --> register as `hook`.
+- Any new Windows Task Scheduler job, n8n workflow, or CronCreate durable job --> register as `automation`.
+- Any new Supabase table --> register as `table` (AND coordinate with Sentinel per Supabase schema ownership protocol).
+- Any new brief, report, dashboard, or periodic output --> register as `report`.
+- Any new SOP markdown in `workflows/` --> register as `workflow`.
+- Any new Claude Code plugin --> register as `plugin`.
+
+**When to query the registry (BEFORE building new):**
+- Before writing a new automation: `python ~/.claude/scripts/register-asset.py list --type automation` -- does one already exist that does what you need?
+- Before writing a new hook: same with `--type hook`.
+- Before asking Sentinel to create a new Supabase table: same with `--type table`. Existing table may already fit.
+
+**Drift tolerance: zero.** Any asset present in runtime but missing from registry is a bug. Any asset in registry but missing from runtime is either orphaned config or a rename that wasn't reflected -- either way, fix it. Sentinel runs the drift audit at morning + evening report generation and surfaces drift to the user.
+
+**Hook enforcement (pending):** An `asset-registration-nudge.py` hook is planned (wr-2026-04-22-004) that will detect new files in `~/.claude/scripts/` and `~/.claude/hooks/` at write time and nudge registration. Until deployed, registration discipline is manual -- every session that builds infrastructure MUST register what it built before closing.
+
+**Past incident (2026-04-22):** User asked "I thought we had a database to log all our scheduled tasks and autonomous systems." Reality: the Supabase table existed with 345 assets, but 13 live hooks + automations weren't registered. Including `Claude-Orphan-Cleanup-Hourly` -- the very system that killed 4 real claude.exe sessions the same morning, which would have been easier to triage if registered. Drift audit caught all 13 and closed the gap. Lesson: registration at creation is the only sustainable discipline.
+
 ## Scheduling Tool Rules (NON-NEGOTIABLE)
 
 Before using ANY tool for scheduling or automation, verify what it actually does. Never assume from the name.
 
-**Ownership:** Each workspace owns the scheduled tasks and automations that support its systems. See `~/.claude/docs/autonomous-systems-inventory.md` for the full ownership map. Modify automations from the workspace that owns them.
+**Ownership:** Each workspace owns the scheduled tasks and automations that support its systems. The Supabase `assets` table is the authoritative ownership map (query by `owner_workspace`). The static doc at `~/.claude/docs/autonomous-systems-inventory.md` is a human-readable snapshot pointing at the registry; it is NOT the source of truth. Modify automations from the workspace that owns them.
 
 **Tool hierarchy (verified 2026-04-09):**
 - **n8n cloud** = PRIMARY for 24/7 tasks that don't need local filesystem (CEO briefs, cloud monitoring). Runs at sharkitect-solutions.app.n8n.cloud regardless of machine state.
