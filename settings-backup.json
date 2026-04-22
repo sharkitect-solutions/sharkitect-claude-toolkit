@@ -231,6 +231,10 @@
             "type": "command",
             "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/session-start-lifecycle.py\"",
             "timeout": 15000
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/session-start-register-pid.py\""
           }
         ]
       }
