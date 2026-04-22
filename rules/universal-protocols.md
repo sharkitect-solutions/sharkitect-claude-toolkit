@@ -67,6 +67,7 @@ Run this checklist before starting any task. These items are non-negotiable.
 
 - [ ] Read the request carefully. Confirm understanding before acting.
 - [ ] Check your toolkit -- review all available skills, agents, tools, plugins, and MCPs. Identify which ones are relevant to this task. Use them.
+- [ ] **Preflight check before building new infrastructure (NON-NEGOTIABLE):** If the task involves creating a new automation, hook, script, report, workflow, Supabase table, or plugin, run `python <Skill Hub>/tools/preflight-check.py "<description>"` BEFORE designing or writing code. Review matches. Extend existing assets rather than duplicating. See the Verification-Before-Building Protocol below.
 - [ ] **Named-skill enforcement (NON-NEGOTIABLE):** If the task spec, routed-task `fix_instructions`, work request, or inbox JSON literally names a skill to invoke (phrases like "invoke X skill", "Relevant skill:", "See <skill>'s <companion>.md", "use the X skill"), you MUST invoke that skill via the `Skill` tool BEFORE starting implementation. Do NOT substitute inline spec reading or general knowledge. The whole point of curated skills is the reinforced, up-to-date patterns they encode. Silent skip degrades the system.
 - [ ] Check MEMORY.md -- review prior learnings, patterns, and preferences that apply to this task.
 - [ ] Check workflows/ -- is there an existing SOP for this type of work? Follow it.
@@ -611,6 +612,53 @@ When ANY MCP tool returns "permission denied", "unauthorized", "auth failed", "i
 The cheapest, highest-prior cause is "wrong input." Provider-side regressions are rare. If the cron-fired `mcp-auth-error-guard.py` hook injects a reminder, treat it as authoritative -- invoke `superpowers:systematic-debugging` immediately.
 
 Past incident (2026-04-17): Sentinel session ran 10+ turns of unstructured provider speculation when Supabase MCP rejected calls. Real cause: wrong project_id (passed wkbpstfbilfhhcabqfdj, actual was dgnjfamhwfyogmgcpedb). User had to interrupt with "are you confused?" The mcp-auth-error-guard.py hook now enforces this.
+
+## Verification-Before-Building Protocol (NON-NEGOTIABLE)
+
+Before planning, suggesting, or building ANY new automation, hook, script, report, workflow, Supabase table, or plugin -- you MUST query the Operational Asset Registry first. Transparency about what exists is the whole point of the registry; building without checking defeats its purpose.
+
+**When this protocol fires (the trigger list):**
+- About to write a new file under `~/.claude/scripts/`, `~/.claude/hooks/`, workspace `tools/`, or workspace `workflows/`
+- About to register a new Windows Task Scheduler job, n8n workflow, or CronCreate durable job
+- About to request a new Supabase table from Sentinel
+- About to create a new Claude Code plugin, skill, or agent
+- About to propose an architecture that implies new infrastructure
+- About to suggest "we should build X" in conversation
+
+**When this protocol does NOT fire:**
+- Bug fixes to an existing registered asset (fix the thing, don't re-verify)
+- Config edits, doc updates, comment changes
+- Work explicitly scoped to an existing plan that already cited a preflight check
+
+**The check (the preflight step):**
+```bash
+# Free-text query across all 358+ registered assets:
+python <Skill Hub>/tools/preflight-check.py "description of what you plan to build"
+
+# Or restrict to a specific asset type:
+python <Skill Hub>/tools/preflight-check.py --type hook "logging tool usage"
+python <Skill Hub>/tools/preflight-check.py --type automation "daily digest"
+python <Skill Hub>/tools/preflight-check.py --type table "track something"
+```
+
+**What the output requires you to do:**
+- **Strong match found (score >= 5):** Review it. Default assumption: extend or reuse the existing asset. If you still need to build new, write down why in the plan/conversation so the decision is auditable.
+- **Partial match (score 2-4):** Inspect the candidate. Is your planned build a new companion / new parameter / new mode of the existing asset? If yes, extend. If no, proceed and note the distinction.
+- **No match (score 0 / empty):** Proceed with build. You have an explicit green light -- write it, and register the new asset at creation time per the Operational Asset Registry Protocol.
+
+**What you may NOT do:**
+- Skip the preflight check because "I know what's out there" -- memory drifts, registry is the truth.
+- Run the check and ignore the matches because "mine is different" -- if it's different, write down why BEFORE building.
+- Treat the protocol as optional for "small" work -- the marketing-content-detector was "a small nudge" and became a major enforcement mechanism. Scope creep is real; register at creation, check before creation.
+
+**Why this rule exists (incident record):**
+- 2026-04-22: User asked "do we have a database of all scheduled tasks and autonomous systems?" The registry (`assets` table) already existed with 345 rows, but 13 live hooks + automations were not registered because builders didn't check the registry before creating. Worse: the builders didn't even know the registry existed. Drift accumulated silently.
+- Earlier incidents: cross_workspace_requests vs work_requests table duplication (the original motivation for the registry); multiple Task Scheduler jobs for the same purpose with slightly different names accumulating across workspaces.
+- Pattern: every time we build without verifying, we either duplicate or break composition. The preflight is cheap (1 second); the cleanup is expensive (entire session).
+
+**Enforcement:**
+- **Documentation:** this protocol + the pre-task checklist item below. Necessary but not sufficient (past lesson: "Documentation without runtime detection is insufficient -- if a rule keeps getting violated, add detection, don't reinforce the rule").
+- **Runtime nudge (pending):** `verification-before-build-enforcer.py` PostToolUse hook, filed as wr-2026-04-22-006. Will fire on new-file creation under infrastructure paths and nudge preflight-check before the asset takes shape. Until that hook is deployed, discipline is manual.
 
 ## Operational Asset Registry (NON-NEGOTIABLE)
 
