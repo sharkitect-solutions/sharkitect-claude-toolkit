@@ -91,6 +91,35 @@ MARKETING_PATTERNS = [
 # Code-file extensions where keyword-in-string-literal should be ignored.
 CODE_EXTS = {".py", ".js", ".ts", ".tsx", ".jsx", ".go", ".rb", ".rs", ".java", ".c", ".cpp", ".h"}
 
+# Markdown-like extensions where code fences and inline backticks are
+# stripped before the keyword scan. Referential mentions inside
+# ```...``` or `...` are treated as non-triggering. Source: wr-2026-04-22-001.
+MD_EXTS = {".md", ".markdown", ".mdown", ".mkdn"}
+
+# Structural exemption: file paths under these meta-directories hold
+# cross-workspace coordination docs that legitimately reference the
+# vocabulary the hook detects. Source: wr-2026-04-22-001.
+META_PATH_MARKERS = (
+    "/.work-requests/",
+    "/.lifecycle-reviews/",
+    "/.routed-tasks/",
+)
+
+# Coordination-JSON schema detection. If a Write payload parses as JSON
+# with these field sets at the top level, it is a cross-workspace
+# coordination record, not authored prose. Source: wr-2026-04-22-001.
+ROUTED_TASK_SCHEMA_KEYS = {"task_id", "routed_from", "routed_to"}
+WORK_REQUEST_SCHEMA_KEYS = {"id", "request_type", "source_workspace"}
+
+# Fenced code blocks and inline backticks, for referential stripping
+# in markdown content before the keyword scan.
+MD_FENCED_CODE_RE = re.compile(r"```[\s\S]*?```")
+MD_INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
+
+# YAML frontmatter detection for the doc_type escape hatch.
+FRONTMATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*\n", re.DOTALL)
+DOC_TYPE_RE = re.compile(r"^\s*doc_type\s*:\s*(\S+)", re.MULTILINE)
+
 # Quote-stripping regex for code files (very rough, just to suppress obvious
 # false positives like a string literal containing "funnel"). We strip:
 #   "..." and '...' and `...` (one-line literals only)
@@ -172,6 +201,71 @@ def scan_transcript_for_bypass(transcript_path):
     return False
 
 
+def is_meta_path(file_path):
+    """True if file_path lives under a cross-workspace coordination directory.
+    Paths under /.work-requests/, /.lifecycle-reviews/, or /.routed-tasks/
+    are structurally exempt. Source: wr-2026-04-22-001.
+    """
+    if not file_path:
+        return False
+    norm = file_path.replace("\\", "/").lower()
+    return any(marker in norm for marker in META_PATH_MARKERS)
+
+
+def is_coordination_json(content):
+    """True if content parses as a JSON object that is a cross-workspace
+    coordination record: routed task, work request, or explicit
+    doc_type: internal_coordination marker. Source: wr-2026-04-22-001.
+    """
+    if not content:
+        return False
+    try:
+        stripped = content.strip()
+        if not stripped.startswith("{"):
+            return False
+        data = json.loads(stripped)
+    except (json.JSONDecodeError, ValueError, OSError):
+        return False
+    if not isinstance(data, dict):
+        return False
+    keys = set(data.keys())
+    if ROUTED_TASK_SCHEMA_KEYS.issubset(keys):
+        return True
+    if WORK_REQUEST_SCHEMA_KEYS.issubset(keys):
+        return True
+    dt = data.get("doc_type")
+    if isinstance(dt, str) and dt.strip().strip("\"'").lower().replace("-", "_") == "internal_coordination":
+        return True
+    return False
+
+
+def has_internal_coordination_doctype(content):
+    """True if markdown YAML frontmatter declares doc_type: internal_coordination.
+    Opt-in escape hatch for coordination docs that live outside meta paths.
+    Source: wr-2026-04-22-001.
+    """
+    if not content:
+        return False
+    m = FRONTMATTER_RE.match(content)
+    if not m:
+        return False
+    dm = DOC_TYPE_RE.search(m.group(1))
+    if not dm:
+        return False
+    value = dm.group(1).strip().strip("\"'").lower().replace("-", "_")
+    return value == "internal_coordination"
+
+
+def strip_md_code(text):
+    """Strip fenced code blocks and inline-backtick runs from markdown.
+    Referential mentions of detector vocabulary inside code formatting are
+    treated as non-triggering. Source: wr-2026-04-22-001.
+    """
+    text = MD_FENCED_CODE_RE.sub("", text)
+    text = MD_INLINE_CODE_RE.sub("", text)
+    return text
+
+
 def strip_quoted_literals(text):
     """For code files: remove single/double/backtick quoted strings on a line.
     This eliminates the most common false-positive pattern: keyword embedded
@@ -191,6 +285,8 @@ def find_marketing_match(content, file_path):
     ext = os.path.splitext((file_path or "").lower())[1]
     if ext in CODE_EXTS:
         snippet = strip_quoted_literals(snippet)
+    elif ext in MD_EXTS:
+        snippet = strip_md_code(snippet)
     for pat in MARKETING_PATTERNS:
         m = pat.search(snippet)
         if m:
@@ -238,6 +334,19 @@ def main():
 
     if not content:
         return 0  # nothing to scan
+
+    # ---- Structural exemptions (wr-2026-04-22-001) ----------------------
+    # 1. File paths under cross-workspace coordination directories.
+    if is_meta_path(file_path):
+        return 0
+
+    # 2. Content that is a coordination-record JSON object.
+    if is_coordination_json(content):
+        return 0
+
+    # 3. Markdown with a doc_type: internal_coordination declaration.
+    if has_internal_coordination_doctype(content):
+        return 0
 
     match = find_marketing_match(content, file_path)
     if not match:
