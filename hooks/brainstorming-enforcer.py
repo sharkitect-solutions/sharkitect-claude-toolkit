@@ -124,10 +124,19 @@ PLAN_PATH_RE = re.compile(
 # cross-workspace routed tasks describe ideation workflows by nature;
 # blocking Writes to these paths makes it impossible to file bugs about
 # the ideation system itself. Source: wr-2026-04-20-001.
+#
+# Auto-memory paths (~/.claude/projects/*/memory/) added 2026-04-22 per
+# wr-2026-04-21-010: memory files are fact capture (feedback memories,
+# user preferences, session notes), never feature ideation. Exempting
+# them eliminates the false positive where a feedback_*.md write gets
+# blocked because the session happened to discuss features earlier.
 META_PATH_MARKERS = (
     "/.work-requests/",
     "/.lifecycle-reviews/",
     "/.routed-tasks/",
+    "/.claude/projects/",  # auto-memory and per-project state
+    "/.claude/memory/",    # workspace memory topic files
+    "/memory/feedback_",   # explicit feedback file naming convention
 )
 
 # Domain keywords scoped to branding/naming/campaign work where divergent
@@ -380,7 +389,11 @@ def main():
         return 0
 
     tool_name = data.get("tool_name", "")
-    if tool_name not in ("TodoWrite", "Write"):
+    # Only Write is inspected now. TodoWrite was removed 2026-04-22 per
+    # wr-2026-04-21-010: TodoWrite is session-state tracking, never an
+    # ideation surface, and blocking it cost 1-2 turns per false positive
+    # when sessions touched ideation keywords earlier.
+    if tool_name != "Write":
         return 0
 
     tool_input = data.get("tool_input", {}) or {}
@@ -393,10 +406,11 @@ def main():
     file_path = str(tool_input.get("file_path", "") or "")
 
     # ---- Early exit: meta paths are structurally exempt -----------------
-    # Gap reports, lifecycle reviews, and routed tasks are meta-docs
-    # ABOUT ideation workflows; they contain the very keywords this hook
-    # detects. Blocking them creates a recursion trap where the system
-    # cannot file bugs about itself. Source: wr-2026-04-20-001.
+    # Gap reports, lifecycle reviews, routed tasks, and auto-memory files
+    # are meta-docs ABOUT workflows or fact-capture files, not ideation
+    # surfaces. Blocking them creates recursion traps (filing bugs about
+    # ideation = blocked; capturing user feedback about ideation = blocked).
+    # Source: wr-2026-04-20-001, wr-2026-04-21-010.
     if is_meta_path(file_path):
         return 0
 
@@ -445,8 +459,9 @@ def main():
         "To bypass: include \"skip brainstorming\" in your message OR in the "
         "tool content itself. Gap reports, lifecycle reviews, and routed "
         "tasks under /.work-requests/ /.lifecycle-reviews/ /.routed-tasks/ "
-        "are structurally exempt. "
-        "Source: wr-2026-04-18, wr-2026-04-20-001. "
+        "and auto-memory files under /.claude/projects/*/memory/ are "
+        "structurally exempt. TodoWrite is no longer inspected. "
+        "Source: wr-2026-04-18, wr-2026-04-20-001, wr-2026-04-21-010. "
         "See docs/hook-classification-policy.md."
     )
     return 0

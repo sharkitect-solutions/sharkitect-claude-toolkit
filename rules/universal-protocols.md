@@ -316,6 +316,31 @@ Two distinct inbox states with different behaviors. Do NOT confuse them.
 
 **Neither deferred NOR blocked can move to processed/.** Both stay in inbox until the work is actually done. The inbox-move-guard enforces this.
 
+### Status Vocabulary Layers (NON-NEGOTIABLE)
+
+Three distinct status vocabularies exist, one per layer. Mixing them produces CHECK-constraint rejections and silent data loss. Source: wr-2026-04-21-008.
+
+| Layer | Accepted values | Who uses it |
+|-------|-----------------|-------------|
+| **Local JSON inbox files** (`.work-requests/inbox/*.json`, `.routed-tasks/inbox/*.json`, etc.) | Open states: `new`, `pending`, `in_progress`, `deferred`, `blocked`. Close states: `processed`, `completed`, `resolved`, `rejected`. | AI agents writing inbox JSON directly |
+| **close-inbox-item.py output** | Close-only: `processed | completed | resolved | rejected`. Rejects all open-state values at close. | All workspaces closing inbox items |
+| **Supabase `cross_workspace_requests.inbox_items_status_check`** | `pending | in_progress | deferred | blocked | completed | superseded | duplicate | rejected`. (Does NOT accept `new` or `processed`.) | Supabase inserts/updates from any workspace |
+
+**close-inbox-item.py normalization (line ~116):**
+```python
+sb_status = 'completed' if status in {'processed', 'completed', 'resolved'} else 'rejected'
+```
+So the three semantic close variants collapse to `completed` in Supabase; only explicit `rejected` stays `rejected`.
+
+**Rules for direct Supabase writes (bypassing close-inbox-item.py):**
+1. Use Supabase vocabulary, NOT local JSON vocabulary. `new` -> use `pending`. `processed` -> use `completed`.
+2. Do NOT insert `blocked` until the accompanying schema migration ships (see Part A below). Filed 2026-04-21-008 Part A to Sentinel: add `blocked` to the CHECK constraint. Until that lands, local JSON may hold status=`blocked` but Supabase rows should stay at `pending` with `blocked_by` metadata until the blocker clears.
+3. `superseded` and `duplicate` are Supabase-only close states for records that should not count as real rejections. Use when a later filing supersedes earlier work or duplicates it.
+
+**Status-vocabulary drift prevention:**
+- Whenever you need to directly INSERT or UPDATE a row in `cross_workspace_requests`, reference this table first.
+- If a CHECK rejection occurs, re-read this subsection rather than guessing at the right value.
+
 ### Inbox-Driven Coordination (NON-NEGOTIABLE)
 
 ALL cross-workspace task dispatch goes through inboxes. Never copy-paste prompts between workspaces.
@@ -571,6 +596,90 @@ python ~/.claude/scripts/voice-write.py correction "<what was corrected and why>
 
 ### Why This Exists
 Dream consolidation synthesizes voice samples nightly into distilled rules. Without input data, the voice phase finds 0 samples. Every uncaptured correction is a lost learning signal. The correction rate metric (trending down = system is learning) requires real-time capture to be meaningful.
+
+## Human Action Required Protocol (NON-NEGOTIABLE)
+
+When any workspace closes work that requires a user-facing action before dependent work can proceed, it MUST surface that ask actively. Silent drift is prohibited.
+
+**Source:** wr-2026-04-21-006 (concrete incident: credential migration waited 3 days silently because next_user_action was buried in a closed record's resolution field, invisible to the user).
+
+### Trigger
+
+Any time a workspace closes a WR, routed task, lifecycle review, or Supabase task where the user must perform an action (execute migration, rotate API key, click UI button, update device config, approve deletion) before dependent work can proceed.
+
+### File location
+
+`<workspace-root>/HUMAN-ACTION-REQUIRED.md` -- one file per workspace, append-only, persists across sessions. If the file does not exist, create it with a standard header. If it exists, append a new entry.
+
+### Entry format
+
+Chronological entries. Each entry has these fields:
+
+```markdown
+## {ISO-DATE} -- {SHORT-ACTION-SUMMARY}
+
+- **Requesting workspace:** {source workspace}
+- **Execute from:** {workspace the user should run this from}
+- **Reference ID:** {WR / RT / task id}
+- **Action required:**
+  {what the user must do, step by step}
+- **Expected outcome:**
+  {what happens when the user completes it -- success signal to look for}
+- **Status:** open
+- **Filed:** {ISO timestamp}
+- **Done:** (pending -- to be filled on completion)
+```
+
+### Notification
+
+When filing an entry, notify the user via Telegram HQ bot synchronously with the file write. Message format:
+
+```
+[HUMAN ACTION NEEDED]
+Workspace: {name}
+Action: {short summary}
+Details: {workspace}/HUMAN-ACTION-REQUIRED.md
+```
+
+Use `~/.claude/scripts/notify-human-action.py` (see helper below) to append entry + send Telegram in one atomic call.
+
+### Completion flow
+
+When the user signals done in the relevant workspace:
+1. Verify the precondition signal (e.g. for credential migration: `~/.claude/.env` exists with expected keys).
+2. Update the entry's `Status:` to `done` and fill the `Done:` timestamp.
+3. Append a short resolution line describing what was verified.
+4. Execute the downstream work that was blocked.
+5. (Optional) Notify completing via Telegram if the blocked work produces output the user should see.
+
+### Append-only rule
+
+Later user actions append NEW entries. Never overwrite or delete prior entries -- they are the historical record used by the trend surfacing pass.
+
+### Trend surfacing
+
+Sentinel's morning report scans all workspaces' `HUMAN-ACTION-REQUIRED.md` files and:
+- Lists entries with `Status: open` older than 24 hours.
+- Flags patterns (same action class repeating across workspaces = automation candidate).
+
+### Enforcement hook (planned, optional)
+
+A PostToolUse close-guard hook (`~/.claude/hooks/human-action-close-guard.py`) should warn when a WR/RT closes with a `next_user_action` field but no matching open entry in the filer workspace's `HUMAN-ACTION-REQUIRED.md`. Not yet built; file a follow-up WR if the current discipline drifts.
+
+### Helper script
+
+`~/.claude/scripts/notify-human-action.py`:
+```
+python ~/.claude/scripts/notify-human-action.py \
+  --workspace <canonical-workspace> \
+  --action "<short summary>" \
+  --execute-from <workspace-to-run-from> \
+  --reference-id <wr-or-rt-id> \
+  --details "<multi-line details>" \
+  --expected-outcome "<what success looks like>"
+```
+
+Appends entry to the workspace's HUMAN-ACTION-REQUIRED.md (creating it with header if missing) and sends Telegram HQ bot notification. Telegram credentials loaded from `~/.claude/.env` (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`).
 
 ## Verify Before Acting Protocol (NON-NEGOTIABLE)
 

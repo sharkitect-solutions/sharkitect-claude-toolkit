@@ -22,9 +22,10 @@ TASK INVOLVES WRITING/EDITING TEXT
   |             One-off business email? --> copywriting + hq-brand-review
   |
   +-- Is it a document (proposal, SOW, case study)?
-  |     YES --> Proposal/SOW? --> copywriting + writing-clearly-and-concisely + hq-brand-review
+  |     YES --> Proposal/SOW/contract/agreement? --> copywriting + writing-clearly-and-concisely + contract-legal + hq-brand-review
   |                               ALSO LOAD: knowledge-base/revenue/pricing-structure.md
   |                               ALSO LOAD: knowledge-base/revenue/service-definitions.md
+  |                               contract-legal is MANDATORY when: (a) doc contains signature block, (b) no separate master agreement covers the engagement (e.g. Growth Essentials SOW IS the contract), (c) doc has termination/late-fee/governing-law clauses
   |             Case study? --> content-creator + copywriting + hq-brand-review
   |             Sales script? --> copywriting + hq-brand-review
   |                              ALSO LOAD: knowledge-base/revenue/service-definitions.md
@@ -55,7 +56,8 @@ For each content task, invoke skills in this sequence:
 
 | Content Type | Additional Docs to Load | Why |
 |---|---|---|
-| Proposal / SOW | `revenue/pricing-structure.md`, `revenue/service-definitions.md` | Correct pricing tiers, service names, scope inclusions |
+| Proposal / SOW / Contract | `revenue/pricing-structure.md`, `revenue/service-definitions.md` | Correct pricing tiers, service names, scope inclusions |
+| SOW with signature block (no master agreement, e.g. Growth Essentials) | Above + invoke `contract-legal` skill | Termination, late-fee, governing-law, acceptance criteria clauses must be self-contained |
 | Sales script | `revenue/service-definitions.md` | Accurate service descriptions, value propositions |
 | Case study | Client-specific project docs if available | Accurate outcomes, timelines, metrics |
 | Landing page | `revenue/pricing-structure.md` (if pricing is shown) | Founding Partner rates, tier pricing |

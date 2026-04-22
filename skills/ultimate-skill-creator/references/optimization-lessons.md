@@ -144,3 +144,24 @@ Through A/B testing across optimization batches:
 | Bottom of SKILL.md (last section) | 8-10/15 | Often skimmed or missed entirely |
 
 **Rule**: File Index should be the FIRST content section after the skill's opening paragraph or CSO description block.
+
+---
+
+## Querying Prior Lessons (Sentinel-owned CLI)
+
+Before authoring or revising a skill, query the canonical lessons store instead of grepping across MEMORY.md files.
+
+**Tool:** `tools/query-lessons.py` (lives in Sentinel workspace; queries `public.lessons_taxonomy` in Supabase).
+
+**When to use:**
+- Before starting a new skill — check whether the domain, pattern, or anti-pattern is already documented.
+- When evaluating a D1<=8 domain — past lessons may surface non-obvious optimization angles.
+- When a review turns up a question like "have we seen this failure mode before?"
+
+**Scope:**
+- v1 covers Sentinel memory only (~18 rows at time of writing).
+- v2 will extend to HQ + Skill Hub memory via `--scan-all`.
+
+**Canonical query surface:** category/tag/text filters against `public.lessons_taxonomy`. Prefer this over ad-hoc grep — it's faster, typed, and returns the distilled lesson rather than the raw session note.
+
+**Escalation path:** If usage patterns justify it, Skill Hub may wrap this in a skill (deferred in the original schema proposal pending evidence of repeat skill-author demand). Until then, reference the CLI directly in skill-authoring workflows.

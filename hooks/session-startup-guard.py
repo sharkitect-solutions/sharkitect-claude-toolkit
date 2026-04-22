@@ -416,6 +416,47 @@ def check_cron_config():
         return False
 
 
+def check_systems_drift():
+    """
+    Step 3.95: Run Skill Hub's drift auditor to compare the Operational Asset
+    Registry against live runtime (Task Scheduler, hooks, n8n, CronCreate).
+    Returns (total_issues, summary_dict) or (None, None) if the auditor is
+    unreachable or errored. Source: wr-2026-04-22-005.
+    """
+    workspaces = Path.home() / "Documents" / "Claude Code Workspaces"
+    candidates = [
+        workspaces / "3.- Skill Management Hub" / "tools" / "audit-autonomous-systems.py",
+        workspaces / "Skill Management Hub" / "tools" / "audit-autonomous-systems.py",
+    ]
+    script = next((c for c in candidates if c.exists()), None)
+    if not script:
+        return None, None
+    import subprocess
+    try:
+        result = subprocess.run(
+            [sys.executable, str(script), "--json"],
+            capture_output=True, text=True, timeout=30,
+        )
+        if result.returncode != 0 or not result.stdout:
+            return None, None
+        data = json.loads(result.stdout)
+        # Auditor emits summary under drift.summary, not top-level.
+        s = (data.get("drift") or {}).get("summary") or data.get("summary") or {}
+        total = (
+            s.get("task_scheduler_missing_from_registry", 0)
+            + s.get("task_scheduler_missing_from_runtime", 0)
+            + s.get("task_scheduler_broken", 0)
+            + s.get("hooks_missing_from_registry", 0)
+            + s.get("hooks_missing_from_runtime", 0)
+            + s.get("n8n_missing_from_registry", 0)
+        )
+        return total, s
+    except (OSError, json.JSONDecodeError, subprocess.SubprocessError):
+        return None, None
+    except Exception:
+        return None, None
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -476,6 +517,13 @@ def main():
 
     # Step 3.9: Orphan claude.exe processes (all workspaces, both modes)
     orphan_summary = check_orphan_processes()
+
+    # Step 3.95: Operational Asset Registry drift (FULL_STARTUP only; runs
+    # Skill Hub's audit-autonomous-systems.py. Source: wr-2026-04-22-005.)
+    if mode == "FULL_STARTUP":
+        drift_total, drift_summary = check_systems_drift()
+    else:
+        drift_total, drift_summary = None, None
 
     # Step 4: Manifest (all workspaces, auto-refresh when stale)
     manifest_status, manifest_ok = check_manifest()
@@ -584,6 +632,26 @@ def main():
     # -- Step 3.9: Orphan claude.exe Processes --
     if orphan_summary:
         lines.append(f"STEP 3.9 - {orphan_summary}")
+
+    # -- Step 3.95: Systems Drift (FULL_STARTUP only) --
+    if mode == "FULL_STARTUP" and drift_total is not None and drift_summary is not None:
+        if drift_total > 0:
+            parts = []
+            if drift_summary.get("task_scheduler_missing_from_registry", 0):
+                parts.append(f"{drift_summary['task_scheduler_missing_from_registry']} TS missing-from-registry")
+            if drift_summary.get("task_scheduler_missing_from_runtime", 0):
+                parts.append(f"{drift_summary['task_scheduler_missing_from_runtime']} TS missing-from-runtime")
+            if drift_summary.get("task_scheduler_broken", 0):
+                parts.append(f"{drift_summary['task_scheduler_broken']} TS broken")
+            if drift_summary.get("hooks_missing_from_registry", 0):
+                parts.append(f"{drift_summary['hooks_missing_from_registry']} hook missing-from-registry")
+            if drift_summary.get("hooks_missing_from_runtime", 0):
+                parts.append(f"{drift_summary['hooks_missing_from_runtime']} hook missing-from-runtime")
+            if drift_summary.get("n8n_missing_from_registry", 0):
+                parts.append(f"{drift_summary['n8n_missing_from_registry']} n8n missing-from-registry")
+            lines.append(f"STEP 3.95 - Systems Drift: {drift_total} ISSUE(S) ({', '.join(parts)})")
+        else:
+            lines.append("STEP 3.95 - Systems Drift: OK")
 
     # -- Step 4: Manifest --
     lines.append(f"STEP 4 - Manifest: {manifest_status}")
@@ -768,6 +836,9 @@ def main():
     if orphan_summary:
         # orphan_summary already starts with "Orphan check: ..."
         lines.append(f"  Step 3.9: {orphan_summary[:80]}")
+    if mode == "FULL_STARTUP" and drift_total is not None:
+        drift_display = f"{drift_total} ISSUE(S)" if drift_total > 0 else "OK"
+        lines.append(f"  Step 3.95: Systems Drift ... {drift_display}")
     lines.append(f"  Step 4: Manifest ........... {mf_display}")
     if is_skill_hub:
         if sync_needed:
