@@ -130,6 +130,39 @@ WAS SIGNIFICANT WORK DONE THIS SESSION?
 
 "Significant work" = any task that produced outputs, modified code, created scripts, changed configs, or built infrastructure. This includes internal tools, automation scripts, CLAUDE.md changes, n8n workflows, and system architecture — not just client-facing deliverables. Only SKIP for pure conversation (Q&A, discussion) or trivial edits (typo fixes, memory-only updates).
 
+#### Step 1 Gate: Skill-Judge / Agent-Judge Nudges (wr-2026-04-22-015)
+
+After the resource-audit decision, Step 1 ALSO fails if `quality-gate-hook.py`
+nudged a skill-judge or agent-judge invocation that was never satisfied.
+
+**Check:**
+1. Read `~/.claude/.tmp/skill-judge-nudges-YYYY-MM-DD.json` (today's date). Each
+   entry has `kind` (skill | agent | skill-companion), `target` (skill/agent name),
+   `file`, and `timestamp`.
+2. Read `~/.claude/.tmp/skill-invocations-YYYY-MM-DD.json`. Extract the set of
+   skills invoked today (lowercased).
+3. For every nudge entry, verify that EITHER `skill-judge` (for kind=skill or
+   skill-companion) OR `agent-judge` (for kind=agent) appears in the invocations
+   list. If ANY nudge lacks a matching judge invocation -> Step 1 FAILS.
+
+**On failure:**
+- Print which targets are missing their judge invocation
+- Do NOT proceed to Step 2 until resolved
+- Two resolutions: (a) invoke the missing judge now and re-verify, or (b) if
+  the nudge was a false positive (e.g., unrelated edit to a skill directory),
+  note the reason in the final Step 9 summary report
+
+**Graceful degradation:**
+- Missing nudge tracker file -> PASS (nothing to verify; either nothing was
+  nudged, or an older session pre-tracker ran)
+- Missing skill-invocations file -> WARN but PASS (tracker not recording this
+  session; treat as inconclusive)
+
+**Why this exists:** The quality-gate-hook advisory was ignored in
+wr-2026-04-22-014 (16-WR batch session modified 2 skill companions without
+invoking skill-judge). Advisory alone is not enough; the close-time gate makes
+the nudge non-optional without being intrusive mid-session.
+
 ### MEMORY.md Update (Step 2)
 
 Not everything learned in a session belongs in memory. Use this classifier:

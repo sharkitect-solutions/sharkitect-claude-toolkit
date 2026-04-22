@@ -101,6 +101,10 @@
           {
             "type": "command",
             "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/writing-plans-enforcer.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/hook-development-enforcer.py\""
           }
         ]
       },
