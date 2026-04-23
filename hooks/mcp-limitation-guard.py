@@ -204,30 +204,53 @@ def main():
     if not best_match:
         return 0
 
-    # Sanity checks for Bash to prevent false positives.
+    # Sanity checks to prevent false positives.
+    # Applied to BOTH Bash and MCP calls. The Tool-field check was originally
+    # Bash-only; extended to MCP 2026-04-23 (wr-2026-04-22-020) after a
+    # HubSpot MCP call got matched against Airtable limitation entries via
+    # the generic verb "create".
     if tool_name == "Bash":
         command = tool_input.get("command", "")
         unquoted = re.sub(r'"[^"]*"', "", command)
         unquoted = re.sub(r"'[^']*'", "", unquoted).lower()
 
-        # Check 1: at least one matched tag must appear in the UNQUOTED portion.
-        # If all overlap came from quoted strings (like --needed "hubspot api"),
-        # it's prose, not a real API call.
+        # Check 1 (Bash-only): at least one matched tag must appear in the
+        # UNQUOTED portion. If all overlap came from quoted strings (like
+        # --needed "hubspot api"), it's prose, not a real API call.
         matched_tags = best_match["tags"] & keywords
         if matched_tags and not any(t in unquoted for t in matched_tags):
             return 0
 
-        # Check 2: the service identifier from the limitation's Tool field must
-        # appear as a standalone word in the unquoted command. Prevents matches
-        # like `nslookup` triggering Airtable "lookup field" limitations just
-        # because the substring "lookup" appears inside another tool's name.
+        # Check 2 (Bash service-identifier): the limitation's Tool field
+        # must appear as a standalone word in the unquoted command.
+        # Prevents `nslookup` triggering Airtable "lookup field" limitations.
         if best_match.get("tool"):
             tool_tokens = re.findall(r"[a-zA-Z]{4,}", best_match["tool"].lower())
             if tool_tokens:
-                # Require at least one tool token to appear as a whole word.
                 found = False
                 for token in tool_tokens:
                     if re.search(r"\b" + re.escape(token) + r"\b", unquoted):
+                        found = True
+                        break
+                if not found:
+                    return 0
+
+    elif tool_name.startswith("mcp__"):
+        # Check 2 (MCP service-identifier): if the limitation entry has a
+        # Tool field, that service name must appear as a case-insensitive
+        # component of the MCP tool path. Prevents Airtable limitations
+        # matching HubSpot/Supabase/Notion/etc. MCP calls just because the
+        # verbs (create, update, delete) overlap. Source: wr-2026-04-22-020.
+        if best_match.get("tool"):
+            tool_tokens = re.findall(r"[a-zA-Z]{4,}", best_match["tool"].lower())
+            if tool_tokens:
+                tool_name_lower = tool_name.lower()
+                found = False
+                for token in tool_tokens:
+                    # mcp__ names are double-underscore separated. Treat each
+                    # token as a component match: 'airtable' in 'airtable' yes,
+                    # 'airtable' in 'hubspot' no.
+                    if token in tool_name_lower:
                         found = True
                         break
                 if not found:

@@ -43,26 +43,75 @@ from pathlib import Path
 # Config
 # ---------------------------------------------------------------------------
 
+def _detect_workspace_prefix():
+    """Infer workspace prefix from CWD. Returns '' if unknown.
+    Mirrors load-env.py logic; duplicated because ~/.claude/scripts/ cannot
+    reliably import from a specific workspace.
+    """
+    s = os.getcwd().replace("\\", "/").lower()
+    if "skill management hub" in s or "/3.-" in s:
+        return "SKILLHUB"
+    if ("workforce" in s and "hq" in s) or "/1.-" in s:
+        return "HQ"
+    if "sentinel" in s or "/4.-" in s:
+        return "SENTINEL"
+    return ""
+
+
+def _parse_env(path):
+    """Parse .env file into dict. Stdlib only."""
+    out = {}
+    if not path.exists():
+        return out
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, _, v = line.partition("=")
+        k = k.strip()
+        v = v.strip().strip('"').strip("'")
+        if k:
+            out[k] = v
+    return out
+
+
 def load_env():
-    """Load .env searching up from CWD, then from script location."""
-    def _try_load(start):
+    """Load credentials from local .env + global ~/.claude/.env with
+    workspace-prefix fallback (e.g. SKILLHUB_SUPABASE_URL -> SUPABASE_URL).
+    Sets environment variables via setdefault (local wins, then prefixed,
+    then unprefixed global).
+    """
+    def _try_load_local(start):
         search = start
         for _ in range(5):
             env_file = search / ".env"
             if env_file.exists():
-                for line in env_file.read_text(encoding="utf-8").splitlines():
-                    line = line.strip()
-                    if not line or line.startswith("#") or "=" not in line:
-                        continue
-                    k, _, v = line.partition("=")
-                    os.environ.setdefault(k.strip(), v.strip())
+                for k, v in _parse_env(env_file).items():
+                    os.environ.setdefault(k, v)
                 return True
             search = search.parent
         return False
 
-    if _try_load(Path.cwd()):
+    # Layer 1: local workspace .env (CWD or script-adjacent)
+    if not _try_load_local(Path.cwd()):
+        _try_load_local(Path(__file__).resolve().parent.parent)
+
+    # Layer 2: global ~/.claude/.env with workspace prefix resolution
+    global_env = _parse_env(Path.home() / ".claude" / ".env")
+    if not global_env:
         return
-    _try_load(Path(__file__).resolve().parent.parent)
+    prefix = _detect_workspace_prefix()
+    # Map prefixed keys to unprefixed (so os.environ.get("SUPABASE_URL") works)
+    if prefix:
+        plen = len(prefix) + 1
+        for k, v in global_env.items():
+            if k.startswith(f"{prefix}_"):
+                os.environ.setdefault(k[plen:], v)
+                os.environ.setdefault(k, v)
+    # Unprefixed universal keys
+    for k, v in global_env.items():
+        if not any(k.startswith(f"{p}_") for p in ("SKILLHUB", "HQ", "SENTINEL")):
+            os.environ.setdefault(k, v)
 
 
 def get_config():

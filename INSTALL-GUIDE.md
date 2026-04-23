@@ -271,6 +271,37 @@ Copy-Item -Path "rules\*" -Destination "$env:USERPROFILE\.claude\rules" -Recurse
 
 ---
 
+## Step 7.5: Install Cross-Workspace Scripts
+
+Cross-workspace tool scripts live under `~/.claude/scripts/` and are callable from any workspace (`python ~/.claude/scripts/close-inbox-item.py ...`, etc.). They are mirrored from the toolkit as of 2026-04-23.
+
+```bash
+# Mac/Linux
+mkdir -p ~/.claude/scripts
+cp scripts/*.py ~/.claude/scripts/
+
+# Windows (PowerShell)
+New-Item -ItemType Directory -Path "$env:USERPROFILE\.claude\scripts" -Force
+Copy-Item -Path "scripts\*.py" -Destination "$env:USERPROFILE\.claude\scripts" -Recurse -Force
+```
+
+### What the scripts do
+
+| Script | Purpose |
+|--------|---------|
+| `close-inbox-item.py` | Atomic close for work-request / routed-task / lifecycle inbox items (updates JSON, moves to processed/, updates Supabase) |
+| `update-project-status.py` | Update Supabase project + task status from any workspace |
+| `work-request.py` | File a new work request to Skill Hub's inbox from any workspace |
+| `register-asset.py` | Register hooks / scripts / automations / tables in the Supabase assets registry |
+| `load-env.py` | Load credentials from `~/.claude/.env` with workspace prefixes |
+| `notify-human-action.py` | Append entry to `HUMAN-ACTION-REQUIRED.md` + send Telegram notification |
+| `doc-cache-builder.py` | Build the document lifecycle cache for drift-detection-hook.py |
+| `check-orphan-claude-processes.py` / `kill-orphan-claude-processes.py` | Detect and kill stale VS Code / Claude Code processes |
+
+> **Important:** Many scripts read credentials via `load-env.py` from `~/.claude/.env`. Make sure `.env` exists with the right prefixes (SKILLHUB_*, HQ_*, SENTINEL_*) before running scripts that touch Supabase, Telegram, or other external services.
+
+---
+
 ## Step 8: MCP Servers
 
 ### GitHub MCP (recommended for repo management)
@@ -385,6 +416,7 @@ After setup, start a new Claude Code session and verify:
 | `custom-plugins/` | Custom local plugins | 4 |
 | `hooks/` | Hook scripts for settings.json | 2 |
 | `rules/` | Global rule files (includes universal-protocols.md) | 3 |
+| `scripts/` | Cross-workspace tool scripts (`~/.claude/scripts/` mirror) | -- |
 | `BOOTSTRAP.md` | Workspace template -- copy to new workspace root, rename to CLAUDE.md | -- |
 | `plugins-manifest.json` | Machine-readable plugin inventory with install commands | 48 plugins |
 | `lessons-learned-template.md` | Global lessons-learned template for cross-project learnings | -- |

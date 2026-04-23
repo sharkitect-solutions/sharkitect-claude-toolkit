@@ -105,6 +105,10 @@
           {
             "type": "command",
             "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/hook-development-enforcer.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/session-checkpoint-enforcer.py\""
           }
         ]
       },
@@ -114,6 +118,10 @@
           {
             "type": "command",
             "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/brainstorming-enforcer.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/session-checkpoint-enforcer.py\""
           }
         ]
       },
@@ -143,6 +151,10 @@
           {
             "type": "command",
             "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/supabase-ddl-skill-nudge.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/session-checkpoint-enforcer.py\""
           }
         ]
       },

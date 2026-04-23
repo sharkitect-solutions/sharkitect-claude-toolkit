@@ -551,6 +551,44 @@ def main():
                 )
                 mark_nudged(state, key)
 
+        # Batch-WR-processing trigger (wr-2026-04-22-017).
+        #
+        # Processing 3+ work requests in one session is a batch operation
+        # that benefits from a structured plan. Without one, the session
+        # drifts between WRs and loses track of cross-WR dependencies
+        # (e.g., "WR-A modifies the script that WR-B also touches").
+        #
+        # Detection: count Bash invocations of close-inbox-item.py that
+        # target a path under /.work-requests/inbox/ (i.e., closing a WR,
+        # not a routed task or lifecycle review). We don't block; once
+        # 3 closures have happened in a session without writing-plans
+        # having been invoked, emit a single advisory nudge. Debounced
+        # via the existing already_nudged state machine.
+        #
+        # 3 is the threshold per the WR: 1 = direct work, 2 = possibly
+        # related, 3+ = batch deserving structure.
+        if "close-inbox-item.py" in cmd and "/.work-requests/inbox/" in cmd.replace("\\", "/").lower():
+            wr_count = state.setdefault("wr_closures", 0)
+            state["wr_closures"] = wr_count + 1
+            if (state["wr_closures"] >= 3
+                    and not skill_invoked("writing-plans", log)
+                    and not skill_invoked("superpowers:writing-plans", log)):
+                key = "writing-plans:wr-batch"
+                if not already_nudged(state, key):
+                    nudges.append(
+                        f"BATCH WR PROCESSING detected "
+                        f"({state['wr_closures']}+ work requests closed this "
+                        "session). Consider invoking `writing-plans` (or "
+                        "`superpowers:writing-plans`) to capture the batch as "
+                        "a structured plan -- tracks cross-WR dependencies, "
+                        "risks, and completion signals. Single WR = direct "
+                        "work; 2 WRs = possibly related; 3+ = batch that "
+                        "benefits from structure. TodoWrite is NOT a "
+                        "substitute for a plan on 3+ interrelated WRs. "
+                        "Source: wr-2026-04-22-017."
+                    )
+                    mark_nudged(state, key)
+
     save_state(state)
 
     if nudges:

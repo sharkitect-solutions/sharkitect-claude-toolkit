@@ -63,7 +63,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-VALID_CLOSE_STATUSES = {"processed", "completed", "resolved", "rejected"}
+VALID_CLOSE_STATUSES = {"processed", "completed", "resolved", "rejected",
+                         "superseded", "duplicate"}
+# Statuses that REQUIRE a cross-reference to another inbox item_id.
+# See universal-protocols.md "Superseded vs Duplicate" section.
+CROSS_REF_REQUIRED = {
+    "superseded": "superseded_by",  # id of the newer request that absorbed this
+    "duplicate":  "duplicate_of",   # id of the surviving request
+}
 PROHIBITED_AT_CLOSE = {
     "pending",
     "in_progress",
@@ -72,6 +79,73 @@ PROHIBITED_AT_CLOSE = {
     "blocked",
     "awaiting_decision",
 }
+
+
+def _detect_workspace_prefix(hint_path=None):
+    """Infer workspace prefix from CWD or a hint path. Returns '' if unknown.
+    Duplicated from <Skill Hub>/tools/load-env.py because ~/.claude/scripts/
+    cannot reliably import from a specific workspace.
+    """
+    candidates = []
+    if hint_path is not None:
+        candidates.append(str(hint_path))
+    candidates.append(os.getcwd())
+    for raw in candidates:
+        s = raw.replace("\\", "/").lower()
+        if "skill management hub" in s or "/3.-" in s:
+            return "SKILLHUB"
+        if ("workforce" in s and "hq" in s) or "/1.-" in s:
+            return "HQ"
+        if "sentinel" in s or "/4.-" in s:
+            return "SENTINEL"
+    return ""
+
+
+def _parse_env_file(path):
+    """Minimal .env parser. Strips surrounding quotes. Skips blanks/comments."""
+    out = {}
+    if not path.exists():
+        return out
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return out
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key = key.strip()
+        val = val.strip()
+        if val and val[0] not in ('"', "'"):
+            hash_idx = val.find(" #")
+            if hash_idx >= 0:
+                val = val[:hash_idx].strip()
+        val = val.strip('"').strip("'")
+        if key:
+            out[key] = val
+    return out
+
+
+def _load_env_value(key, hint_path=None):
+    """Look up a credential using load-env.py resolution order:
+        1. Workspace-local .env: KEY
+        2. Global ~/.claude/.env: <PREFIX>_KEY
+        3. Global ~/.claude/.env: KEY (unprefixed)
+    Returns value or None.
+    """
+    local = _parse_env_file(Path.cwd() / ".env")
+    if key in local and local[key]:
+        return local[key]
+    global_env = _parse_env_file(Path.home() / ".claude" / ".env")
+    prefix = _detect_workspace_prefix(hint_path)
+    if prefix:
+        prefixed = f"{prefix}_{key}"
+        if prefixed in global_env and global_env[prefixed]:
+            return global_env[prefixed]
+    if key in global_env and global_env[key]:
+        return global_env[key]
+    return None
 
 
 def now_iso():
@@ -92,28 +166,28 @@ def find_processed_dir(inbox_path: Path) -> Path:
 
 
 def update_supabase(item_id: str, status: str, resolution_summary: str,
-                    resolved_by: str) -> tuple[bool, str]:
+                    resolved_by: str, hint_path: Path | None = None) -> tuple[bool, str]:
     """
     Update cross_workspace_requests row in Supabase.
     Returns (success, message). Best-effort -- don't fail close on Supabase error.
+    Uses workspace-prefix-aware env lookup (handles migrated ~/.claude/.env).
     """
-    # Prefer global env, then workspace .env
-    env_paths = [Path.home() / ".claude" / ".env", Path.cwd() / ".env"]
-    url = key = None
-    for env_path in env_paths:
-        if env_path.exists():
-            for line in env_path.read_text(encoding="utf-8").splitlines():
-                line = line.strip()
-                if line.startswith("SUPABASE_URL="):
-                    url = line.split("=", 1)[1].strip().strip('"').strip("'")
-                elif line.startswith("SUPABASE_SERVICE_ROLE_KEY="):
-                    key = line.split("=", 1)[1].strip().strip('"').strip("'")
-            if url and key:
-                break
+    url = _load_env_value("SUPABASE_URL", hint_path)
+    key = _load_env_value("SUPABASE_SERVICE_ROLE_KEY", hint_path)
     if not url or not key:
-        return False, "Supabase credentials not found in .env"
-    # Map our internal status terms to Supabase canonical 'completed'
-    sb_status = "completed" if status in {"processed", "completed", "resolved"} else "rejected"
+        return False, "Supabase credentials not found (checked local .env + ~/.claude/.env with workspace prefix)"
+    # Map our internal status terms to Supabase canonical vocabulary.
+    # Per universal-protocols.md "Status Vocabulary Layers":
+    #   processed | completed | resolved  -> Supabase 'completed'
+    #   rejected                           -> Supabase 'rejected'
+    #   superseded                         -> Supabase 'superseded'
+    #   duplicate                          -> Supabase 'duplicate'
+    if status in {"processed", "completed", "resolved"}:
+        sb_status = "completed"
+    elif status in {"superseded", "duplicate"}:
+        sb_status = status
+    else:
+        sb_status = "rejected"
     payload = json.dumps({
         "status": sb_status,
         "resolution_summary": resolution_summary[:1000],
@@ -156,6 +230,8 @@ def close_item(
     verified: bool = True,
     update_supabase_row: bool = True,
     extra_resolution=None,
+    superseded_by: str = "",
+    duplicate_of: str = "",
 ) -> dict:
     """
     Atomically close an inbox item.
@@ -170,6 +246,23 @@ def close_item(
         raise ValueError(
             f"Invalid close status '{status}'. "
             f"Must be one of: {sorted(VALID_CLOSE_STATUSES)}"
+        )
+    # Enforce cross-reference requirement for superseded / duplicate closures
+    # per universal-protocols.md "Superseded vs Duplicate" rule. These
+    # statuses exist specifically to preserve the audit trail linking this
+    # closed request to the one that absorbed or surviving-duplicated it.
+    if status == "superseded" and not (superseded_by or "").strip():
+        raise ValueError(
+            "status=superseded requires --superseded-by <item_id> naming the "
+            "newer request that absorbed this work (e.g. wr-2026-04-23-005). "
+            "Without this, the audit trail is broken and the close is "
+            "indistinguishable from a drift-correction."
+        )
+    if status == "duplicate" and not (duplicate_of or "").strip():
+        raise ValueError(
+            "status=duplicate requires --duplicate-of <item_id> naming the "
+            "surviving request (usually older or better-scoped). Without "
+            "this, the close is indistinguishable from rejected-on-merits."
         )
     if not what_was_done or len(what_was_done.strip()) < 10:
         raise ValueError(
@@ -200,6 +293,20 @@ def close_item(
 
     # 2. Build/merge resolution object
     existing_resolution = data.get("resolution", {})
+    # move_reason field records the SEMANTIC reason we're closing, not the
+    # raw status. Mapping:
+    #   processed / completed / resolved -> "completed"
+    #   rejected                         -> "rejected"
+    #   superseded                       -> "superseded"
+    #   duplicate                        -> "duplicate"
+    move_reason_map = {
+        "processed": "completed",
+        "completed": "completed",
+        "resolved": "completed",
+        "rejected": "rejected",
+        "superseded": "superseded",
+        "duplicate": "duplicate",
+    }
     resolution = {
         **existing_resolution,
         "resolved_date": now,
@@ -209,8 +316,13 @@ def close_item(
         "artifacts_created": list(artifacts_created or []),
         "artifacts_modified": list(artifacts_modified or []),
         "verified": bool(verified),
-        "move_reason": "completed" if status != "rejected" else "superseded",
+        "move_reason": move_reason_map.get(status, status),
     }
+    # Attach cross-reference for superseded / duplicate per the rule
+    if status == "superseded" and superseded_by:
+        resolution["superseded_by"] = superseded_by.strip()
+    if status == "duplicate" and duplicate_of:
+        resolution["duplicate_of"] = duplicate_of.strip()
     if extra_resolution:
         resolution.update(extra_resolution)
     data["resolution"] = resolution
@@ -242,6 +354,7 @@ def close_item(
                 status=status,
                 resolution_summary=what_was_done[:500],
                 resolved_by=resolved_by,
+                hint_path=src,
             )
         else:
             sb_msg = "no item_id/request_id/task_id found in JSON"
@@ -281,6 +394,12 @@ def main():
                    help="Skip Supabase row update")
     p.add_argument("--user-action-required", default="",
                    help="If set, included in resolution as user_action_required field")
+    p.add_argument("--superseded-by", default="",
+                   help="Required when --status=superseded. Item id of the newer "
+                        "request that absorbed this work (e.g. wr-2026-04-23-005).")
+    p.add_argument("--duplicate-of", default="",
+                   help="Required when --status=duplicate. Item id of the "
+                        "surviving request (usually older or better-scoped).")
     args = p.parse_args()
 
     extra = {}
@@ -299,6 +418,8 @@ def main():
             verified=args.verified.lower() == "true",
             update_supabase_row=not args.no_supabase,
             extra_resolution=extra or None,
+            superseded_by=args.superseded_by,
+            duplicate_of=args.duplicate_of,
         )
     except (ValueError, FileNotFoundError, FileExistsError) as e:
         print(f"ERROR: {e}", file=sys.stderr)
