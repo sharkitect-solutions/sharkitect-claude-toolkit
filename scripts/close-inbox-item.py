@@ -382,6 +382,18 @@ def maybe_write_notification(
     hint = closing_data.get("notification_filename_hint")
     if hint:
         notif_filename = str(hint)
+        # Substitute placeholders that work-request.py / route-task-emitting
+        # tools may have injected. Match both <completer-workspace> and
+        # <completer> for robustness; values are always the canonical name.
+        notif_filename = (
+            notif_filename
+            .replace("<completer-workspace>", closer)
+            .replace("<completer>", closer)
+            .replace("<closer>", closer)
+            .replace("<closer-workspace>", closer)
+        )
+        # Strip any path separators that may have leaked in (defensive)
+        notif_filename = notif_filename.replace("/", "_").replace("\\", "_")
         if not notif_filename.endswith(".json"):
             notif_filename += ".json"
     else:

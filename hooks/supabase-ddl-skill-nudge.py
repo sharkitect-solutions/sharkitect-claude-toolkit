@@ -1,26 +1,32 @@
 """
-supabase-ddl-skill-nudge.py - PreToolUse hook for Supabase DDL skill enforcement
+supabase-ddl-skill-nudge.py - PreToolUse BLOCKING hook for Supabase DDL skill enforcement
 
 Fires before Supabase MCP migration / SQL execution calls. If the SQL contains
 DDL keywords (ALTER TABLE, CREATE TABLE, CREATE INDEX, DROP, COMMENT ON,
 CREATE/ALTER POLICY, CREATE FUNCTION, CREATE TRIGGER) AND the
 `supabase-postgres-best-practices` skill has NOT been invoked this session,
-inject a reminder.
+DENY the call with guidance to invoke the skill first.
 
 Why: Sessions write DDL (ALTER TABLE, GIN index on JSONB, COMMENT ON COLUMN)
 without consulting the canonical skill that covers RLS-after-DDL gotchas,
 index-type selection, and the apply_migration vs execute_sql trade-off
 (the Phantom Migration anti-pattern).
 
+Source: wr-2026-04-25 (Sentinel) -- non-blocking nudge silently produced
+ineffective additionalContext while AI proceeded with DDL anyway. Upgraded
+to blocking deny.
+
 Reads ~/.claude/.tmp/skill-invocations-YYYY-MM-DD.json (written by
-skill-invocation-tracker.py) to suppress the nudge if the skill is already
+skill-invocation-tracker.py) to suppress the block if the skill is already
 loaded this session.
 
-State (debounce): per-session-per-skill flag at
-~/.claude/.tmp/supabase-ddl-nudge-state.json -- nudge only fires once per
-session even if multiple DDL calls follow.
+BYPASS (any of these allows the operation)
+  1. supabase-postgres-best-practices OR supabase invoked today
+     (read from ~/.claude/.tmp/skill-invocations-YYYY-MM-DD.json)
+  2. Recent user message in transcript contains:
+       "skip ddl-nudge", "skip supabase-ddl", "skip ddl-skill-check"
+  3. Hook removed from settings.json
 
-Non-blocking: injects additional context, never denies the operation.
 Pure stdlib. ASCII-only output (Windows cp1252 console rule).
 
 Input: JSON on stdin with tool_name and tool_input
@@ -164,6 +170,58 @@ def emit(text):
     }))
 
 
+def deny(reason):
+    print(json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": reason,
+        }
+    }))
+
+
+BYPASS_PHRASES = (
+    "skip ddl-nudge",
+    "skip ddl-skill-check",
+    "skip supabase-ddl",
+    "skip supabase-ddl-nudge",
+)
+
+TRANSCRIPT_USER_LOOKBACK = 3
+
+
+def read_recent_user_messages(transcript_path):
+    if not transcript_path:
+        return []
+    try:
+        with open(transcript_path, "r", encoding="utf-8") as fh:
+            lines = fh.readlines()
+    except OSError:
+        return []
+    msgs = []
+    for raw in reversed(lines):
+        if len(msgs) >= TRANSCRIPT_USER_LOOKBACK:
+            break
+        try:
+            rec = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        if rec.get("type") == "user":
+            content = rec.get("message", {}).get("content", "")
+            if isinstance(content, list):
+                content = " ".join(p.get("text", "") for p in content if isinstance(p, dict))
+            msgs.append(str(content).lower())
+    return msgs
+
+
+def has_bypass_phrase(msgs):
+    for m in msgs:
+        for phrase in BYPASS_PHRASES:
+            if phrase in m:
+                return True
+    return False
+
+
 def main():
     try:
         data = json.load(sys.stdin)
@@ -193,57 +251,43 @@ def main():
         return 0
 
     log = load_skill_log()
-    state = load_state()
 
-    # Suppress if the skill is already invoked this session
-    primary_loaded = skill_invoked(SKILL_NAME, log)
-    secondary_loaded = skill_invoked(SECONDARY_SKILL, log)
-
-    # Nudge once per session per skill
-    nudges_needed = []
-    if not primary_loaded and not already_nudged(state, SKILL_NAME):
-        nudges_needed.append(SKILL_NAME)
-    if not secondary_loaded and not already_nudged(state, SECONDARY_SKILL):
-        nudges_needed.append(SECONDARY_SKILL)
-
-    if not nudges_needed:
+    # Bypass 1: skill invoked today (either primary or secondary)
+    if skill_invoked(SKILL_NAME, log) or skill_invoked(SECONDARY_SKILL, log):
         return 0
 
-    # Build a single combined nudge so we don't spam additionalContext
+    # Bypass 2: explicit bypass phrase in recent user message
+    transcript_path = data.get("transcript_path") or ""
+    recent_msgs = read_recent_user_messages(transcript_path)
+    if has_bypass_phrase(recent_msgs):
+        return 0
+
+    # ---- Block ---------------------------------------------------------
     op_kind = "apply_migration" if "apply_migration" in tool_lower else "execute_sql"
-    msg_lines = [
-        f"DDL DETECTED in Supabase MCP call ({op_kind} via {tool_name}).",
+    reason_lines = [
+        f"BLOCKING: DDL detected in Supabase MCP call ({op_kind} via {tool_name}).",
         "",
-        "BEFORE applying, invoke the following skill(s) so you load the canonical "
-        "patterns instead of guessing:",
+        f"The `{SKILL_NAME}` skill MUST be invoked before applying DDL. It covers:",
+        "  - RLS-after-DDL gotchas (rows become invisible without policies)",
+        "  - Index type selection (B-tree vs GIN vs GiST for JSONB / arrays / FTS)",
+        "  - apply_migration vs execute_sql trade-off (Phantom Migration anti-pattern:",
+        "    execute_sql DDL bypasses the migrations table)",
+        "  - Constraint design, function search_path hardening, lock-window analysis",
+        "  - Rollback strategies and constraint-rename safety",
+        "",
+        f"Run `Skill {SKILL_NAME}` (or `Skill {SECONDARY_SKILL}` for security-only checks),",
+        "then re-issue the migration call.",
+        "",
+        'To bypass for an emergency or verified-safe migration, include the phrase',
+        '"skip ddl-nudge" in your next user message and retry.',
+        "",
+        "Source: wr-2026-04-25 (Sentinel). Past incident (2026-04-17): ALTER TABLE +",
+        "GIN index on JSONB + COMMENT ON COLUMN applied without skill. Hook upgraded",
+        "from soft-nudge to hard-block after Sentinel reported the soft-nudge was",
+        "ineffective. See docs/mandatory-skill-invocations.md.",
     ]
-    if SKILL_NAME in nudges_needed:
-        msg_lines.append(
-            f"  - `{SKILL_NAME}` -- covers RLS-after-DDL gotchas, index type "
-            "selection (B-tree vs GIN vs GiST for JSONB), constraint design, "
-            "trigger patterns, and the apply_migration vs execute_sql trade-off "
-            "(the Phantom Migration anti-pattern: execute_sql DDL bypasses the "
-            "migrations table)."
-        )
-    if SECONDARY_SKILL in nudges_needed:
-        msg_lines.append(
-            f"  - `{SECONDARY_SKILL}` -- security checklist (RLS, policies, "
-            "service-role exposure) for the broader Supabase product surface."
-        )
-    msg_lines.append("")
-    msg_lines.append(
-        "Past incident (2026-04-17, Sentinel): wrote ALTER TABLE + GIN index on "
-        "JSONB + COMMENT ON COLUMN without invoking the skill. The skill is "
-        "mandatory for DDL work -- see docs/mandatory-skill-invocations.md."
-    )
 
-    # Mark as nudged BEFORE emitting so concurrent calls in the same session
-    # don't double-nudge
-    for skill in nudges_needed:
-        mark_nudged(state, skill)
-    save_state(state)
-
-    emit("\n".join(msg_lines))
+    deny("\n".join(reason_lines))
     return 0
 
 

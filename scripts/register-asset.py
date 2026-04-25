@@ -12,6 +12,12 @@ Asset types:
   report      - Scheduled brief or report output
   workflow    - Markdown SOP
   plugin      - Claude Code plugin
+  document    - KB markdown / blueprint / persistent reference doc that
+                doesn't fit workflow/SOP shape (n8n workflow blueprints,
+                technical-reference docs, audit reports, etc.)
+  blueprint   - Synonym for document, accepted for clarity when registering
+                workflow blueprints / architecture diagrams as standalone
+                reference assets.
 
 Usage:
     register-asset.py register <type> <name> [options]
@@ -44,7 +50,7 @@ import urllib.request
 from pathlib import Path
 
 CANONICAL_WORKSPACES = {"workforce-hq", "skill-management-hub", "sentinel", "global"}
-VALID_ASSET_TYPES = {"table", "script", "automation", "hook", "report", "workflow", "plugin"}
+VALID_ASSET_TYPES = {"table", "script", "automation", "hook", "report", "workflow", "plugin", "document", "blueprint"}
 
 
 def _detect_workspace_prefix():

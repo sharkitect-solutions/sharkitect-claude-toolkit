@@ -109,6 +109,21 @@
           {
             "type": "command",
             "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/session-checkpoint-enforcer.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/hq-content-skill-stack-enforcer.py\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/claude-api-skill-nudge.py\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/inbox-json-validate.py\"",
+            "timeout": 10
           }
         ]
       },
@@ -122,6 +137,11 @@
           {
             "type": "command",
             "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/session-checkpoint-enforcer.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/multistep-plan-nudge.py\"",
+            "timeout": 10
           }
         ]
       },

@@ -18,6 +18,10 @@ Patterns detected:
      -> nudge systematic-debugging
   5. Multi-file Write on deliverable files (3+ Writes)
      -> nudge writing-plans
+  6. Investigation pattern: 4+ status/health/state-query Bash or MCP calls
+     in the same session WITHOUT systematic-debugging invocation
+     -> nudge superpowers:systematic-debugging
+     Source: wr-2026-04-23 (HQ) systematic-debugging-skipped-on-ceo-brief-investigation
 
 Reads ~/.claude/.tmp/skill-invocations-YYYY-MM-DD.json (written by
 skill-invocation-tracker hook) to suppress nudges for skills already invoked
@@ -91,6 +95,43 @@ MARKETING_KEYWORDS_RE = re.compile(
     re.I,
 )
 MARKETING_SKILL = "marketing-strategy-pmm"
+
+# Investigation-pattern detection (wr-2026-04-23 HQ)
+# When a session strings together 4+ status / health / state-query calls
+# (Bash or MCP) WITHOUT having invoked systematic-debugging, that's the
+# signature of ad-hoc investigation skipping the methodology skill.
+# Threshold = 4 (not 3) to give a small grace window for routine monitoring
+# (one CronCreate fire + one user-initiated check + one follow-up read is
+# normal; 4+ in sequence is investigation).
+SYSTEMATIC_DEBUGGING_SKILL = "systematic-debugging"
+SUPERPOWERS_SYSTEMATIC_DEBUGGING_SKILL = "superpowers:systematic-debugging"
+INVESTIGATION_THRESHOLD = 4
+
+# MCP tool-name patterns that indicate "I'm checking state"
+INVESTIGATION_MCP_TOOL_RES = [
+    re.compile(r"n8n.*get_execution|n8n.*list_executions|n8n.*get_workflow|n8n.*health_check", re.I),
+    re.compile(r"supabase.*execute_sql|supabase.*get_logs|supabase.*get_advisors|supabase.*list_(?:projects|tables|migrations)", re.I),
+    re.compile(r"github.*get_(?:commit|workflow|run)|github.*list_(?:commits|runs|jobs)", re.I),
+    re.compile(r"sentry.*(?:list_issues|get_issue|search_events|seer)", re.I),
+]
+
+# Bash command patterns that indicate state querying
+INVESTIGATION_BASH_RES = [
+    # Generic process / port / log probes
+    re.compile(r"\b(?:ps\s+aux|ps\s+-ef|tasklist|netstat|ss\s+-l|lsof)\b", re.I),
+    re.compile(r"\bcurl[^\n|]*?(?:health|status|/api/|/v\d/)", re.I),
+    # Cron / Task Scheduler / Schtasks state queries
+    re.compile(r"\bschtasks\s+/query\b|\bcrontab\s+-l\b|\bcrontab\s+-e\b", re.I),
+    # Direct Supabase / Postgres SELECTs via psql / python
+    re.compile(r"psql.*-c.*(?:SELECT|select)\s", re.I),
+    # python -c with select / status
+    re.compile(r"python\s+-c\s+[\"'][^\"']*?(?:SELECT|select|status|health|active)\b", re.I),
+    # Heartbeat / status JSON lookups
+    re.compile(r"\b(?:cat|head|tail)\s+[^\n]*\.tmp[^\n]*?(?:heartbeat|status|state|health)", re.I),
+    # n8n API / Supabase API direct curls
+    re.compile(r"\bcurl[^\n|]*?(?:n8n|supabase|sentry)", re.I),
+]
+
 
 # Path filter: documentation / internal notes / plans / operational artifacts.
 # When a file path matches this, marketing keyword content matches are SKIPPED
@@ -586,6 +627,53 @@ def main():
                         "benefits from structure. TodoWrite is NOT a "
                         "substitute for a plan on 3+ interrelated WRs. "
                         "Source: wr-2026-04-22-017."
+                    )
+                    mark_nudged(state, key)
+
+    # ---- Investigation-pattern trigger (Bash + MCP, wr-2026-04-23 HQ) ----
+    # Count investigative state-query calls. If 4+ accumulate in this session
+    # WITHOUT systematic-debugging being invoked, nudge once.
+    is_investigative = False
+    if tool_name == "Bash":
+        cmd_text = str(tool_input.get("command", ""))
+        for rx in INVESTIGATION_BASH_RES:
+            if rx.search(cmd_text):
+                is_investigative = True
+                break
+    elif tool_name.startswith("mcp__"):
+        for rx in INVESTIGATION_MCP_TOOL_RES:
+            if rx.search(tool_name):
+                is_investigative = True
+                break
+
+    if is_investigative:
+        # If systematic-debugging was already invoked, reset the counter
+        # (the methodology is in play; no further nudge needed)
+        if (skill_invoked(SYSTEMATIC_DEBUGGING_SKILL, log)
+                or skill_invoked(SUPERPOWERS_SYSTEMATIC_DEBUGGING_SKILL, log)):
+            state["investigation_count"] = 0
+        else:
+            inv_count = state.get("investigation_count", 0) + 1
+            state["investigation_count"] = inv_count
+            if inv_count >= INVESTIGATION_THRESHOLD:
+                key = "systematic-debugging:investigation"
+                if not already_nudged(state, key):
+                    nudges.append(
+                        f"INVESTIGATION PATTERN detected ({inv_count}+ status / "
+                        "health / state-query calls this session without "
+                        "`superpowers:systematic-debugging`). Sequential "
+                        "read-investigation calls usually mean a hypothesis is "
+                        "being formed ad-hoc instead of via the methodology.\n\n"
+                        "Run `Skill superpowers:systematic-debugging` BEFORE the "
+                        "next read. The skill enforces: gather evidence first, "
+                        "enumerate hypotheses, test cheapest first, document "
+                        "falsifications. Without it, sessions anchor on the "
+                        "first plausible-sounding cause and miss systemic issues.\n\n"
+                        "Triggers like 'this is weird', 'I didn't expect', 'it "
+                        "worked yesterday' are the classic signature -- so are "
+                        "stale-data investigations and chained MCP/Bash status "
+                        "queries. Source: wr-2026-04-23 (HQ) "
+                        "systematic-debugging-skipped-on-ceo-brief-investigation."
                     )
                     mark_nudged(state, key)
 
