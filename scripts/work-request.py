@@ -66,6 +66,65 @@ def get_skill_hub_path():
     return None
 
 
+# ---- Completion Notification Protocol (wr-2026-04-25-002) -------------------
+# Resolves a workspace's .routed-tasks/inbox/ path so outgoing WRs can
+# auto-inject notify_inbox_path. Mirrors the resolver in close-inbox-item.py.
+_WS_FALLBACK_DIR = Path.home() / "Documents" / "Claude Code Workspaces"
+_WORKSPACE_DIR_FALLBACK = {
+    "workforce-hq": _WS_FALLBACK_DIR / "1.- SHARKITECT DIGITAL WORKFORCE HQ",
+    "skill-management-hub": _WS_FALLBACK_DIR / "3.- Skill Management Hub",
+    "sentinel": _WS_FALLBACK_DIR / "4.- Sentinel",
+}
+
+
+def _resolve_routed_inbox(canonical_name):
+    """Return absolute path string to <workspace>/.routed-tasks/inbox/.
+
+    Skill Hub has no .routed-tasks/inbox/ -- notifications meant for it
+    will land in .work-requests/inbox/ via close-inbox-item.py's symmetrical
+    resolver. For requester-side injection, we still record the workspace's
+    .routed-tasks/inbox/ as the canonical 'where to notify me' anchor for HQ
+    and Sentinel; for Skill Hub itself, we record .work-requests/inbox/.
+    Returns "" if unresolvable.
+    """
+    if not canonical_name:
+        return ""
+    name = str(canonical_name).strip().lower()
+    cfg = Path.home() / ".claude" / "config" / f"{name}-path.txt"
+    workspace_dir = None
+    if cfg.exists():
+        try:
+            p = Path(cfg.read_text(encoding="utf-8").strip())
+            if p.is_dir():
+                workspace_dir = p
+        except OSError:
+            pass
+    if workspace_dir is None:
+        p = _WORKSPACE_DIR_FALLBACK.get(name)
+        if p and p.is_dir():
+            workspace_dir = p
+    if workspace_dir is None:
+        return ""
+    if name == "skill-management-hub":
+        target = workspace_dir / ".work-requests" / "inbox"
+    else:
+        target = workspace_dir / ".routed-tasks" / "inbox"
+    return str(target) if target.is_dir() else ""
+
+
+def _build_notification_filename_hint(item_id, target_workspace):
+    """Build the canonical notification filename a completer should use."""
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if not item_id:
+        item_id = "request"
+    # The completer will substitute its own canonical name as <completer>; we
+    # use a placeholder the completer will replace if it uses the script
+    # default. close-inbox-item.py honors the hint verbatim if provided, so
+    # we encode the slug from the request id.
+    slug = slugify(str(item_id))[:60]
+    return f"rt-{today}-{slug}-completed-by-<completer-workspace>.json"
+
+
 def _used_counters_for_date(inbox_dir, today):
     """Return set of ints NNN already used today across inbox AND processed.
 
@@ -197,6 +256,22 @@ def build_report(args):
             getattr(args, "blocked_by_desc", None) or "Blocked by Supabase record"
         )
         report["blocker_cleared_notes"] = []
+
+    # Completion Notification Protocol fields (wr-2026-04-25-002).
+    # Auto-inject so the completer (Skill Hub, when this WR is closed) writes
+    # a notification routed-task back to this workspace's inbox. Suppressed
+    # only if the caller passed --no-notify-on-completion.
+    if not getattr(args, "no_notify_on_completion", False):
+        report["notify_on_completion"] = True
+        notify_path = _resolve_routed_inbox(args.workspace)
+        if notify_path:
+            report["notify_inbox_path"] = notify_path
+        # Filename hint helps the completer use a deterministic name when
+        # writing the notification file. The id is set later in main(); the
+        # completer's close script falls back to its own slug if id is unset.
+        # We leave notification_filename_hint to be filled after id assignment.
+    else:
+        report["notify_on_completion"] = False
 
     return report
 
@@ -389,6 +464,13 @@ def main():
                         help="Type of blocking record")
     parser.add_argument("--blocked-by-desc",
                         help="Human-readable description of what this is blocked by")
+    # Completion Notification Protocol (wr-2026-04-25-002).
+    parser.add_argument("--no-notify-on-completion", action="store_true",
+                        help="Set notify_on_completion=false on the outgoing WR. "
+                             "Reserved for fire-and-forget informational filings "
+                             "(kind=fyi). Default behavior is to inject "
+                             "notify_on_completion=true and notify_inbox_path so "
+                             "the completer auto-writes a notification back.")
 
     args = parser.parse_args()
 
@@ -462,6 +544,26 @@ def main():
     if filepath is None:
         print("ERROR: failed to allocate unique request id after 10 retries", file=sys.stderr)
         return 1
+
+    # Backfill notification_filename_hint now that id is final.
+    # build_report() couldn't do this because id wasn't allocated yet. We
+    # update both the in-memory report dict and the on-disk JSON.
+    if report.get("notify_on_completion") is True \
+            and "notification_filename_hint" not in report:
+        hint = _build_notification_filename_hint(
+            report["id"], "<completer-workspace>"
+        )
+        report["notification_filename_hint"] = hint
+        try:
+            filepath.write_text(
+                json.dumps(report, indent=2, ensure_ascii=True),
+                encoding="utf-8",
+            )
+        except OSError:
+            # Non-fatal: WR is already on disk without the hint, completer
+            # will still derive a sensible filename. Worst case: filename
+            # convention varies but the notification still lands.
+            pass
 
     # Validate write succeeded (Windows can silently truncate on illegal chars)
     if not filepath.exists() or filepath.stat().st_size == 0:

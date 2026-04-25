@@ -385,6 +385,102 @@ ALL cross-workspace task dispatch goes through inboxes. Never copy-paste prompts
 
 **Why:** Copy-pasting prompts is manual, error-prone, and defeats the autonomy model. The inbox system provides: context that travels with the request, automatic pickup via CronCreate when idle, an audit trail (processed/ with resolution), and urgency that the target workspace can act on without asking.
 
+## Completion Notification Protocol (NON-NEGOTIABLE)
+
+Applies UNIFORMLY to routed-tasks AND work-requests. Closes the inbox-driven coordination loop so completed cross-workspace work is never invisible to the originator.
+
+### Why this exists
+
+The Cross-Workspace Routed Tasks Protocol and Work Request Protocol cover SENDING and CLOSING. They do NOT cover NOTIFYING the originator of completion. Without active notification, completed work moves silently from `inbox/` to `processed/` in the receiver workspace, and the originator never finds out. Result: tasks "complete" but the system behaves as if they're still pending. The user becomes the messenger between workspaces, defeating the autonomy model.
+
+The Blocker-Cleared Notification Protocol (below) covers a narrow case -- the originator already had a blocked inbox item waiting on this work. That covers maybe 10% of cross-workspace flows. The Completion Notification Protocol covers the other 90%: routed tasks and work-requests that the originator filed and then mentally moved on from.
+
+Source: wr-2026-04-25-002 (Sentinel). Filed during AutoFix v2 schema migration when Sentinel completed verified work and the user observed HQ would never know unless explicitly notified mid-session.
+
+### Two-sided contract
+
+#### Requester side (NON-NEGOTIABLE)
+
+Every routed-task JSON written into another workspace's `.routed-tasks/inbox/` AND every work-request JSON written into Skill Hub's `.work-requests/inbox/` MUST include:
+
+```json
+{
+  "notify_on_completion": true,
+  "notify_inbox_path": "<absolute path to requester's .routed-tasks/inbox/>",
+  "notification_filename_hint": "rt-<YYYY-MM-DD>-<original-task-slug>-completed-by-<completer-workspace>.json"
+}
+```
+
+`notify_on_completion: false` is permitted ONLY for fire-and-forget informational notifications that explicitly do not need acknowledgement (`kind: completion_notification` or `kind: fyi`). All work requests, all task assignments, all bug reports, all enhancement requests must be `true`.
+
+`work-request.py` and routed-task tooling auto-inject these fields when present. If you hand-write a routed-task JSON (without tooling), you MUST include them yourself.
+
+#### Completer side (NON-NEGOTIABLE)
+
+When closing an inbox item via `close-inbox-item.py` whose `routed_from` (or `source_workspace` for work-requests) is a DIFFERENT workspace than the closing workspace AND whose `notify_on_completion` is `true` (or is missing -- defaults to `true` for safety), the closer MUST write a notification routed-task into the originator's `.routed-tasks/inbox/`.
+
+The script does this automatically: `close-inbox-item.py` defaults to `--notify-source` ON for cross-workspace closures and emits the notification using the canonical schema. Manual `--no-notify` is permitted only with `--no-notify-reason "<text>"` and is reserved for: (a) closing a `kind: completion_notification` (would cause infinite ping-pong), (b) self-filed items where the completer == originator.
+
+The notification has these required fields:
+
+```json
+{
+  "task_id": "<derived from notification_filename_hint>",
+  "kind": "completion_notification",
+  "routed_from": "<this workspace>",
+  "routed_to": "<originator workspace>",
+  "completes_task_id": "<original task id>",
+  "what_was_done": "<copy of --what-was-done>",
+  "verification_summary": "<key proof points>",
+  "what_originator_can_do_now": ["..."],
+  "fix_instructions": "Acknowledge this notification by closing it via close-inbox-item.py with --status processed.",
+  "notify_on_completion": false
+}
+```
+
+The notification is itself a routed-task and itself follows the protocol -- but with `notify_on_completion: false` to avoid infinite ping-pong.
+
+#### Ack side (NON-NEGOTIABLE)
+
+When a workspace finds a `kind: completion_notification` item in its own `.routed-tasks/inbox/`, it MUST close it via `close-inbox-item.py` with `--status processed` within the next session start or idle poll. This is short, low-effort acknowledgement work -- the originator confirms it received and processed the news, optionally takes downstream action (e.g. flip a feature flag, update a project status), and closes. The completer can then trust that its notification landed.
+
+Notifications carry the closing workspace's `verification_summary` and `what_originator_can_do_now` array, so the originator usually has everything it needs to act without re-reading the original task.
+
+### Filename convention
+
+`rt-<YYYY-MM-DD>-<original-task-slug-truncated>-completed-by-<completer-workspace>.json` -- placed in originator's `.routed-tasks/inbox/`. The slug is the human-readable portion of the original `task_id` / `id` / `request_id`, max 60 chars. If the originator provided `notification_filename_hint`, use that verbatim.
+
+### Tooling enforcement
+
+1. **`~/.claude/scripts/close-inbox-item.py`** has a `--notify-source` flag (default ON when `routed_from` / `source_workspace` ≠ current workspace AND `notify_on_completion` ≠ `false`). When ON, the script auto-writes the notification routed-task using a deterministic template populated from the closing item's metadata plus the `--what-was-done` value, the `--verification-summary`, and the `--what-originator-can-do-now` arguments. Set `--no-notify` (with `--no-notify-reason "<text>"`) only when the closing item is a `kind: completion_notification` or self-filed.
+
+2. **`~/.claude/scripts/work-request.py`** auto-injects `notify_on_completion: true` and `notify_inbox_path` on every WR it writes. The script knows the source workspace; deriving the `.routed-tasks/inbox/` path is mechanical via the workspace canonical-name → path map.
+
+3. **`~/.claude/hooks/notification-write-verify.py`** is a PostToolUse hook that fires after `close-inbox-item.py` invocations on cross-workspace items. It verifies a corresponding notification file landed in the source workspace's inbox. If not, it emits strong corrective context with the exact CLI to run to remediate. Soft failure mode -- the close itself already happened; the hook ensures the notification follow-through is not forgotten.
+
+4. **Template:** `~/.claude/docs/templates/completion-notification-rt-template.json` is the canonical notification schema. The close script and any hand-written notifications populate from this template.
+
+### Memory propagation
+
+Every workspace's `MEMORY.md` references this protocol so it gets reinforced at session start. Each workspace's memory directory contains a `feedback_completion_notification_protocol.md` topic file capturing the failure mode (silent completion) identified by the user during AutoFix v2 schema migration on 2026-04-25, and the rule going forward: completion is an active push, not a passive pull.
+
+### Exemptions
+
+- **Self-filed items** (`routed_from == routed_to` or `source_workspace == closing workspace`): no notification needed.
+- **Items where `notify_on_completion: false` was explicitly set by the originator:** no notification.
+- **`kind: completion_notification` items themselves:** the ack closure does NOT generate a follow-up notification (would cause infinite ping-pong).
+- **`kind: fyi` items:** by definition fire-and-forget, no acknowledgement expected.
+- **Lifecycle reviews:** they have their own dispatch / close cycle; the dispatcher knows when work is done.
+
+### Concrete example (the originating incident)
+
+`rt-2026-04-24-autofix-v2-schema-complete` (HQ → Sentinel) was completed and verified by Sentinel on 2026-04-25. Without this protocol, HQ would have had no way to know. With this protocol:
+1. HQ's outgoing routed-task included `notify_on_completion: true` + `notify_inbox_path` (HQ's `.routed-tasks/inbox/`).
+2. Sentinel ran `close-inbox-item.py --notify-source` (default ON), which auto-wrote `rt-2026-04-25-autofix-v2-schema-complete-completed-by-sentinel.json` into HQ's inbox.
+3. HQ's session-startup-guard surfaces the notification at next session start.
+4. HQ acknowledges by closing the notification with `--status processed`, optionally flipping `AUTOFIX_V2_MODE=on` as the downstream action.
+5. Loop closed. Both sides know the work is done.
+
 ## Mid-Session Inbox Polling Protocol (NON-NEGOTIABLE)
 
 CronCreate fires hourly in ALL workspaces to check inboxes. Behavior depends on session state.
