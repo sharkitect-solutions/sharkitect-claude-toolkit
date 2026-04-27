@@ -832,6 +832,14 @@ Cross-project patterns, API limitations, tool quirks, user preferences, and proc
 
 ## Process Decisions
 
+### [2026-04-27] process: Partial-fix close + defer-sibling pattern for multi-bug WRs
+- **Context:** wr-hq-2026-04-27-001 contained 3 distinct bugs: (1) over-broad pattern matching, (2) lookback window bug, (3) user-driven vs autonomous mode design issue. Bugs (2) was a quick fix (lookback raised + tool-result filter); (1) needed section-aware diff parsing (60-90 min focused work); (3) was the architectural concern Chris raised mid-session captured in companion wr-hq-2026-04-27-003.
+- **Pattern that worked:** Closed wr-hq-001 as PARTIAL with explicit what_was_done listing the 2 bugs fixed AND explicit deferred portion bundled into the sibling wr-hq-003 which was set to status=deferred with proper deferred_until + deferred_reason. The Completion Notification Protocol fired correctly; HQ got an acknowledgment naming what was delivered AND what remained, with cross-reference to the deferred sibling.
+- **Why this beats "stay in inbox until 100% done":** (a) The 80% relief landed immediately (lookback fix was the largest single source of Chris's friction per the WR description), (b) Supabase shows partial-completion as completed which matches reality (no pretending), (c) the deferred work has a clear single owner (the sibling WR), (d) future sessions see "this was partially fixed by Skill Hub on date X" + "remaining work is in wr-hq-003" — no archeology needed.
+- **Why this beats "leave WR open while only some bugs fixed":** Open WRs with already-shipped fixes accumulate stale state. The line items in `what_was_done` would lie about what's deferred. Better to close the original cleanly and have a sibling carry the unfinished work.
+- **Apply when:** A WR contains multiple distinct bugs/tasks where some can be fixed quickly and others need a focused session. Don't bundle them into one mega-fix or stall the quick wins waiting for the slow ones. Close partially with explicit deferral bundle reference.
+- **Tags:** work-request, partial-fix, deferral, completion-notification, multi-bug
+
 ### [2026-04-19] process: Status field + resolution object both required when closing inbox items
 - **Context:** Sentinel cross-workspace audit found 13+ records across 3 workspaces with genuine verified resolution objects in `processed/` folders but stale or missing top-level `status` fields (still `pending`, `in_progress`, `deferred`, or `awaiting_decision`). Sentinel had 11; HQ had 21 of 24; Skill Hub had at least 1. Zero fake completions — pure field-hygiene drift from move-without-status-update.
 - **Impact:** Querying by `status` returns false-pending counts. Reminder nudges, triage briefings, stale-data routers, and operator dashboards all mislead about what is actually done.
@@ -1514,6 +1522,20 @@ No exceptions. If you're creating a new folder for cross-workspace communication
 **Tags:** supabase, schema, table-creation, sentinel, governance, non-negotiable
 
 ## Architecture Direction
+
+### [2026-04-27 PM] direction: Gating hooks MUST distinguish AI-autonomous from user-driven mode
+
+**Context:** Chris stated explicitly during 2026-04-27 ICP cascade session: "If we are working and I tell you to do it, that should bypass this hook anyway. The fact that it is blocking it is going to slow our productivity down... If I go work on something else and come back, we've wasted over two hours of work we could have been doing because you're stuck waiting for me to write 'skip.'" The hooks gated identically whether the AI was acting autonomously OR executing an explicit user directive.
+**Apply when:** Designing or modifying any gating hook in `~/.claude/hooks/` (PreToolUse blocking hooks, content enforcers, skill-stack enforcers). Same principle for any future gating script in `~/.claude/scripts/`.
+**Design principles:**
+- The gate STAYS for AI-autonomous initiation (where the AI independently decides to take an action and gating prevents drift). This is non-negotiable -- removing it re-introduces real incidents (e.g., wr-2026-04-23 Section 13/14 legal language shipped without proper review).
+- The gate becomes FRICTIONLESS for user-driven work (where the user has explicitly directed the AI). The user IS the source of truth in that mode and the AI is executing a user-issued directive.
+- Detection signals (priority order): (1) recent user message contains explicit imperative directive ("update X", "go ahead", "do it", "execute"), (2) literal bypass phrase still works for backward compat, (3) optional session-level intent flag ("I am driving this session"), (4) default = AI-autonomous = full gate.
+- Bypass vocabulary should expand to recognize natural-language imperatives, not just private keyword lists. The user should NOT have to learn private vocabulary AND re-issue per edit batch.
+- Lookback windows MUST filter tool-result messages out so user bypass messages don't expire after 3 successful tool calls. Tool-result records have type=user in transcript schema but are NOT real user prose.
+**Partial implementation 2026-04-27 PM (wr-hq-001 close):** Lookback fix (3->15 + tool-result filter) AND 16 natural-language bypass phrases shipped in hq-content-skill-stack-enforcer.py + marketing-content-detector.py. Comprehensive sweep (intent_detection.py shared helper + section-aware diff parsing + audit of all gating hooks) deferred to focused hook-architecture session via wr-hq-2026-04-27-003.
+**Why this is non-negotiable:** Friction-by-design failure is the autonomy-contract violation. Every hook block during user-driven work is a gate the user has to manually open -- defeats the autonomy model where user delegates and walks away. At Sharkitect's billing rate ($125/hr), the friction directly costs revenue time.
+**Tags:** hooks, gating, autonomy, user-driven-mode, bypass-vocabulary, friction
 
 ### [2026-04-27] direction: WR/RT id MUST be authoritative + globally unique (workspace-prefixed schema)
 
@@ -2807,3 +2829,14 @@ Sentinel attempted to update the JSON file in Skill Hub's `.work-requests/inbox/
 4. Never assume "I wrote it originally" gives ongoing edit rights. Delivery transfers ownership.
 5. Hooks enforce this; if a hook fires, STOP — don't try a second edit, don't try a rollback, don't try with different filename pattern. Stop, document, and reroute through the proper protocol.
 **Tags:** cross-workspace, file-ownership, scope-discipline, hook-enforcement, delivery-transfers-ownership
+
+### 2026-04-27 PM — preference: route global infrastructure issues to Skill Hub via work-request.py, do NOT fix locally even when "obvious"
+
+User caught me about to apply a Tier 1 fix (allowlist git push in `~/.claude/settings.json`) locally during a hook-friction debug session. Correctly redirected: "Since this is a more global type thing, it can affect all the workspaces. Can you please send it over to Skills to fix, since it's a global thing? Put all your findings in there, including everything you've done and everything you've researched. Have it do its own research and then solve it."
+
+**Apply when:** Any fix that touches `~/.claude/` (global config, hooks, scripts, rules), runtime behavior across 3 workspaces, or any infrastructure that other workspaces depend on. The temptation is highest for "5-line settings change" or "one obvious flag" fixes that feel too small to route — those are exactly the ones that cause silent drift across workspaces because each workspace builds slightly different versions of the same fix.
+
+**Why:** Per Universal Protocols Work Request Protocol — "Workspaces do not build global artifacts. If you detect an issue, REPORT it via work-request.py. The Skill Hub handles triage, building, quality gating, and deployment. Local fixes bypass the quality gate and won't be available to other workspaces." Filing to Skill Hub also produces an audit trail (Supabase `cross_workspace_requests` row), surfaces the issue in CEO briefs, and lets Skill Hub do INDEPENDENT research that may catch root causes the original investigator missed.
+
+**Source incident:** wr-hq-2026-04-27-006 — runtime push-to-main gate + 43-hook proliferation. Caught the local-fix temptation at the right moment; comprehensive findings doc + research prompts attached for Skill Hub to validate independently.
+**Tags:** work-request, skill-hub-routing, global-infrastructure, no-local-fixes, governance, cross-workspace
