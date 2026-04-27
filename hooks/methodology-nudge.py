@@ -324,6 +324,44 @@ def emit(text):
     print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": text}}))
 
 
+def _is_iterative_patching(new_old_string, prior_fingerprints):
+    """Return True if this edit is re-patching text from a prior edit.
+
+    Heuristic (per wr-skillhub-2026-04-27-004): an edit is "iterative
+    patching" if its old_string contains a substantial substring of any
+    PRIOR edit's new_string. That's the signature of "I just wrote this,
+    now I'm editing it again" -- the failure mode the systematic-debugging
+    skill is supposed to interrupt.
+
+    Pure-additive edits (new function appended), signature changes that
+    touch a caller, and unrelated edits to different regions of the same
+    file all produce non-overlapping old_string/new_string pairs and
+    correctly do NOT trigger the nudge.
+
+    Threshold: 30 characters of overlap. Below that, false-positive risk
+    rises (common boilerplate like 'def foo(' or '    return ' would match
+    spuriously). Above 30 chars, the match is meaningful: substantial,
+    distinctive text shared with a prior new_string.
+    """
+    if not new_old_string or len(new_old_string) < 30:
+        return False
+    # Scan every contiguous 30-char window of the current old_string against
+    # every prior new_string. If any window appears in any prior new_string,
+    # we're touching text we just wrote.
+    SCAN_WINDOW = 30
+    for fp in prior_fingerprints:
+        prior_new = (fp.get("new") if isinstance(fp, dict) else "") or ""
+        if len(prior_new) < SCAN_WINDOW:
+            continue
+        # Sliding window: efficient for short strings, bounded by truncation
+        # at 200 chars per fingerprint.
+        for i in range(0, len(new_old_string) - SCAN_WINDOW + 1):
+            window = new_old_string[i:i + SCAN_WINDOW]
+            if window in prior_new:
+                return True
+    return False
+
+
 def is_excluded_path(path):
     p = path.replace("\\", "/").lower()
     return any(seg in p for seg in (
@@ -355,19 +393,56 @@ def main():
 
     # ---- Triggers on Write/Edit -------------------------------------------
     if tool_name in ("Write", "Edit") and file_path and not is_excluded_path(file_path):
-        # Track edits per file for repeat-edit detection
+        # Track edits per file for repeat-edit detection.
+        # Fingerprint-based overlap heuristic distinguishes iterative patching
+        # (same lines, re-edited) from paired refinements (signature + caller,
+        # unrelated edits to same file). Only iterative patching warrants the
+        # systematic-debugging nudge. Source: wr-skillhub-2026-04-27-004.
         if tool_name == "Edit":
+            old_string = str(tool_input.get("old_string", "") or "")
+            new_string = str(tool_input.get("new_string", "") or "")
+
+            # Backward-compat: edits[file_path] used to be an int. Migrate
+            # transparently so prior-session state doesn't crash the hook.
             edits = state.setdefault("edits", {})
-            edits[file_path] = edits.get(file_path, 0) + 1
-            if edits[file_path] >= 2 and not skill_invoked("systematic-debugging", log):
+            entry = edits.get(file_path)
+            if isinstance(entry, int):
+                entry = {"count": entry, "fingerprints": []}
+            elif not isinstance(entry, dict):
+                entry = {"count": 0, "fingerprints": []}
+            entry["count"] = entry.get("count", 0) + 1
+            fingerprints = entry.setdefault("fingerprints", [])
+
+            # Detect overlap with prior edits BEFORE recording the new fingerprint
+            iterative = _is_iterative_patching(old_string, fingerprints)
+
+            # Record this edit's fingerprint (truncate to keep state small)
+            if old_string or new_string:
+                fingerprints.append({
+                    "old": old_string[:200],
+                    "new": new_string[:200],
+                })
+                # Cap history at 6 entries to bound state size
+                if len(fingerprints) > 6:
+                    del fingerprints[: len(fingerprints) - 6]
+            edits[file_path] = entry
+
+            # Nudge ONLY when (a) 2+ edits AND (b) iterative pattern detected
+            # AND (c) systematic-debugging hasn't been invoked yet.
+            # Bare 2-edit threshold caused false positives on additive changes
+            # (new function appended, signature + caller, separate concerns).
+            if (entry["count"] >= 2
+                    and iterative
+                    and not skill_invoked("systematic-debugging", log)
+                    and not skill_invoked("superpowers:systematic-debugging", log)):
                 key = f"systematic-debugging:{file_path}"
                 if not already_nudged(state, key):
                     nudges.append(
                         f"REPEAT EDIT detected on {os.path.basename(file_path)} "
-                        f"({edits[file_path]} edits this session). Invoke "
-                        "`systematic-debugging` skill before continuing -- two "
-                        "edits to the same file in one task usually means a "
-                        "missing failure-mode in the design. Run the hypothesis "
+                        f"({entry['count']} edits this session, RE-PATCHING prior "
+                        "change). Invoke `systematic-debugging` skill -- you're "
+                        "editing text you just wrote, which usually means the "
+                        "first attempt missed a failure mode. Run the hypothesis "
                         "loop instead of patching iteratively."
                     )
                     mark_nudged(state, key)
@@ -481,6 +556,38 @@ def main():
                     "let it self-exempt for trivial or status-update-only plan edits."
                 )
                 mark_nudged(state, key)
+
+        # Executing-plans trigger: when a plan file is being edited AND the plan
+        # explicitly names executing-plans as a required sub-skill, nudge
+        # `superpowers:executing-plans` BEFORE iterating on the plan steps.
+        # Source: wr-skillhub-2026-04-27-003. Pattern observed 2026-04-27 PM:
+        # the wr-id-schema plan header line 5 said "REQUIRED SUB-SKILL: Use
+        # superpowers:executing-plans" and the AI followed task-by-task with
+        # TodoWrite + manual sequencing instead of formally invoking the skill.
+        # The plan went smoothly only because the discipline was internalized.
+        if PLAN_FILE_RE.search(file_path) \
+                and not skill_invoked("executing-plans", log) \
+                and not skill_invoked("superpowers:executing-plans", log):
+            try:
+                plan_path = Path(file_path)
+                if plan_path.exists():
+                    head = plan_path.read_text(encoding="utf-8", errors="replace").splitlines()[:25]
+                    head_text = "\n".join(head)
+                    if re.search(r"REQUIRED\s+SUB-SKILL", head_text, re.IGNORECASE) \
+                            and re.search(r"executing-plans", head_text, re.IGNORECASE):
+                        key = f"executing-plans:{file_path}"
+                        if not already_nudged(state, key):
+                            nudges.append(
+                                f"PLAN REQUIRES executing-plans: {os.path.basename(file_path)} "
+                                "header explicitly names superpowers:executing-plans as a "
+                                "REQUIRED SUB-SKILL. Invoke it BEFORE iterating on the plan "
+                                "tasks. The named-skill enforcement protocol exists to ensure "
+                                "verification-before-completion at each step rather than "
+                                "ad-hoc TodoWrite + manual sequencing."
+                            )
+                            mark_nudged(state, key)
+            except (OSError, UnicodeDecodeError):
+                pass
 
     # ---- Triggers on routed-task fix_instructions naming a skill ----------
     # Fires when any tool is invoked while a pending routed task in this

@@ -82,7 +82,13 @@ import tempfile
 
 
 JOURNAL_PATH = os.path.join(tempfile.gettempdir(), "claude_tool_usage_journal.jsonl")
-TRANSCRIPT_USER_LOOKBACK = 3
+# Lookback for user messages in transcript when checking for bypass phrases.
+# Raised from 3 to 15 (2026-04-27, wr-hq-2026-04-27-001) AND combined with a
+# tool-result filter -- prior bug: tool_result messages count as user-type in
+# the transcript schema, so after 3 successful Edits the bypass expired and
+# the gate re-fired. Now we filter tool-results AND keep a generous window
+# so user-driven cascade work doesn't require re-issuing bypass per edit batch.
+TRANSCRIPT_USER_LOOKBACK = 15
 
 HQ_WORKSPACE_MARKER = "1.- SHARKITECT DIGITAL WORKFORCE HQ"
 
@@ -119,12 +125,35 @@ BILINGUAL_REQUIRED_SKILL = "hq-brand-review"
 
 # ---- Bypass ----
 BYPASS_PHRASES = (
+    # Original literal-keyword bypasses (keep these for backwards compat)
     "skip content-stack",
     "skip stack-enforcer",
     "skip k3-brand-agent",
     "skip sow-stack",
     "skip bilingual-brand",
     "skip hq-content-stack",
+    # Natural-language imperative bypasses (added 2026-04-27, wr-hq-2026-04-27-001
+    # + wr-hq-2026-04-27-003). User explicitly stated: "If we are working and I
+    # tell you to do it, that should bypass this hook anyway." These phrases
+    # signal explicit user direction. The gate stays for AI-autonomous edits
+    # (no recent imperative) but lets user-driven work flow without ritual
+    # bypass keywords. Match against full lowercase user message.
+    "go ahead and edit",
+    "go ahead and update",
+    "go ahead and modify",
+    "go ahead and change",
+    "go ahead and broaden",
+    "go ahead and proceed",
+    "go ahead and execute",
+    "execute this",
+    "do it",
+    "proceed with the edit",
+    "make the edit",
+    "make the change",
+    "yes do that",
+    "yes proceed",
+    "i am driving this",
+    "i'm driving this",
 )
 
 
@@ -182,6 +211,28 @@ def agent_was_dispatched(records, pattern_re):
     return False
 
 
+def _is_tool_result_message(content):
+    """Return True if a transcript record's content is purely tool-result echoes
+    (not real user prose). Tool-result records have type=='user' in the schema
+    but their content is a list with at least one item where type=='tool_result'.
+    Filtering these out (2026-04-27, wr-hq-2026-04-27-001) prevents the bypass
+    window from expiring after 3 successful tool calls."""
+    if not isinstance(content, list):
+        return False
+    has_tool_result = any(
+        isinstance(p, dict) and p.get("type") == "tool_result"
+        for p in content
+    )
+    has_text = any(
+        isinstance(p, dict) and p.get("type") == "text" and p.get("text", "").strip()
+        for p in content
+    )
+    # Pure tool-result echo (no accompanying user text) is filtered out.
+    # If there's both tool_result AND user text in the same record, count it
+    # as a real user message (rare edge case).
+    return has_tool_result and not has_text
+
+
 def read_recent_user_messages(transcript_path):
     if not transcript_path or not os.path.exists(transcript_path):
         return []
@@ -198,11 +249,18 @@ def read_recent_user_messages(transcript_path):
             rec = json.loads(raw)
         except json.JSONDecodeError:
             continue
-        if rec.get("type") == "user":
-            content = rec.get("message", {}).get("content", "")
-            if isinstance(content, list):
-                content = " ".join(p.get("text", "") for p in content if isinstance(p, dict))
-            msgs.append(str(content).lower())
+        if rec.get("type") != "user":
+            continue
+        content = rec.get("message", {}).get("content", "")
+        # Filter out tool-result echoes -- they're not real user prose
+        if _is_tool_result_message(content):
+            continue
+        if isinstance(content, list):
+            content = " ".join(p.get("text", "") for p in content if isinstance(p, dict))
+        text = str(content).lower().strip()
+        if not text:
+            continue
+        msgs.append(text)
     return msgs
 
 

@@ -61,6 +61,7 @@ REQUIRED_SKILL = "marketing-strategy-pmm"
 
 # Bypass phrases scanned in the most-recent user message (case-insensitive).
 BYPASS_PHRASES = (
+    # Original literal-keyword bypasses
     "skip pmm",
     "bypass marketing",
     "bypass pmm",
@@ -68,6 +69,26 @@ BYPASS_PHRASES = (
     "internal doc only",
     "not marketing",
     "skip marketing-strategy-pmm",
+    # Natural-language imperative bypasses (added 2026-04-27, wr-hq-2026-04-27-001
+    # + wr-hq-2026-04-27-003). Mirror of hq-content-skill-stack-enforcer expanded
+    # vocab. User explicitly stated: "If we are working and I tell you to do it,
+    # that should bypass this hook anyway."
+    "go ahead and edit",
+    "go ahead and update",
+    "go ahead and modify",
+    "go ahead and change",
+    "go ahead and broaden",
+    "go ahead and proceed",
+    "go ahead and execute",
+    "execute this",
+    "do it",
+    "proceed with the edit",
+    "make the edit",
+    "make the change",
+    "yes do that",
+    "yes proceed",
+    "i am driving this",
+    "i'm driving this",
 )
 
 # Marketing keyword patterns -- word-boundary aware. Each entry is a regex.

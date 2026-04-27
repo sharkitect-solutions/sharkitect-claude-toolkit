@@ -302,6 +302,45 @@ Copy-Item -Path "scripts\*.py" -Destination "$env:USERPROFILE\.claude\scripts" -
 
 ---
 
+## Step 7.6: Install Test Suites
+
+Pytest test suites at `~/.claude/tests/` lock in critical script + hook behavior (workspace-prefixed WR id schema, session-checkpoint enforcement, etc.). They are mirrored from the toolkit as of 2026-04-27.
+
+```bash
+# Mac/Linux
+mkdir -p ~/.claude/tests
+cp tests/*.py ~/.claude/tests/
+
+# Windows (PowerShell)
+New-Item -ItemType Directory -Path "$env:USERPROFILE\.claude\tests" -Force
+Copy-Item -Path "tests\*.py" -Destination "$env:USERPROFILE\.claude\tests" -Recurse -Force
+```
+
+Run the suite to verify the install:
+```bash
+cd ~/.claude && python -m pytest tests/ -v
+```
+
+---
+
+## Step 7.7: Install Root-Level Knowledge Files
+
+A small set of single-file global state lives at `~/.claude/` root (lessons-learned.md, etc.) and mirrors to the toolkit root. As of 2026-04-27, sync-skills.py mirrors:
+
+| File | Purpose |
+|------|---------|
+| `lessons-learned.md` | Cross-session lessons across all workspaces (preferences, errors, process decisions, architecture direction) |
+
+```bash
+# Mac/Linux
+cp lessons-learned.md ~/.claude/lessons-learned.md
+
+# Windows (PowerShell)
+Copy-Item -Path "lessons-learned.md" -Destination "$env:USERPROFILE\.claude\lessons-learned.md" -Force
+```
+
+---
+
 ## Step 8: MCP Servers
 
 ### GitHub MCP (recommended for repo management)

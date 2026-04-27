@@ -296,6 +296,11 @@
           {
             "type": "command",
             "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/session-start-register-pid.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/resume-plan-detector.py\"",
+            "timeout": 5000
           }
         ]
       }
