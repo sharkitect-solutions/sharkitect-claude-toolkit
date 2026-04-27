@@ -940,6 +940,58 @@ python <Skill Hub>/tools/preflight-check.py --type table "track something"
 - **Documentation:** this protocol + the pre-task checklist item below. Necessary but not sufficient (past lesson: "Documentation without runtime detection is insufficient -- if a rule keeps getting violated, add detection, don't reinforce the rule").
 - **Runtime nudge (pending):** `verification-before-build-enforcer.py` PostToolUse hook, filed as wr-2026-04-22-006. Will fire on new-file creation under infrastructure paths and nudge preflight-check before the asset takes shape. Until that hook is deployed, discipline is manual.
 
+## Hook Introduction Rule (NON-NEGOTIABLE)
+
+Hooks accumulate without governance until the cumulative friction becomes hostile to flow. Each hook in isolation is reasonable; the layer becomes problematic. To prevent recurrence, every new hook must clear an explicit budget exchange before being added.
+
+**Source incident (2026-04-27):** User filed FOUR hook-friction WRs in one session (wr-hq-2026-04-27-001/003/004/005) after global hook count reached 42 with 17 firing on every Edit/Write. Quote: "We're going backwards instead of forward... I'm fighting this like crazy and you guys can't do anything now because of all these restrictions." Cumulative friction quantified at 30+ min/day during cascade work. The pattern: every past incident produced a new hook; none were ever retired. Hook count grew monotonically while incident class coverage saturated. Filed as wr-hq-2026-04-27-006 (Tier 3).
+
+### Hook budget
+
+| Constraint | Target | Current (2026-04-27) |
+|---|---|---|
+| Total global hooks in `~/.claude/hooks/` | ≤ 30 | 42 |
+| Hooks on any single matcher (e.g., `PreToolUse:Edit\|Write`) | ≤ 6 | 17 (PreToolUse:Edit\|Write) |
+| Hooks fully blocking (vs. advisory nudge) per matcher | ≤ 3 | (pending audit) |
+
+When the budget is exceeded, a new hook may be added ONLY in a one-in-one-out trade with retirement of an existing hook in the same matcher and category. Above-budget proposals must include the retirement target and a justification for why the new hook earns the slot.
+
+### Pre-introduction checklist (NON-NEGOTIABLE for new hooks)
+
+Before creating any new file under `~/.claude/hooks/`:
+
+1. **Run the preflight check** (Verification-Before-Building Protocol). Does an existing hook already cover this? If yes, extend it instead of creating a new one.
+2. **Identify the past incident** that justifies the hook. Hooks without a documented incident are speculative complexity. Required: WR id, date, and one-line description of what the hook prevents.
+3. **Choose the gate severity correctly.**
+   - **Hard block (deny)**: only when silent failure is catastrophic AND undetectable post-hoc. Most hooks should NOT be hard blocks.
+   - **Advisory nudge (additionalContext)**: default for new hooks. Cheaper psychologically; lets the AI proceed with awareness rather than fight a wall.
+   - **Telemetry-only**: log the event, never gate. Best when measurement is the primary value.
+4. **Wire user-driven-mode detection** if the hook gates Edit/Write. Hooks that gate writing MUST consult `~/.claude/scripts/_lib/intent_detection.py` so explicit user direction bypasses the gate. AI-autonomous initiation still triggers the gate. Source: wr-hq-2026-04-27-003 design.
+5. **One-in-one-out budget swap** if total hooks ≥ 30 OR matcher hooks ≥ 6. Identify which existing hook the new one replaces, retire it in the same change, document the trade in the registration metadata.
+6. **Sunset clause: 90-day zero-fire review.** If the hook fires zero times in 90 days, it is auto-flagged for retirement review. If 180 days zero-fire, retire by default. Implementation: log every hook fire to `<tempdir>/hook-fire-log.jsonl` (PostToolUse `*` matcher, single low-overhead hook), Sentinel surfaces zero-fire hooks in monthly cleanup report.
+
+### Anti-patterns this rule prevents
+
+| Anti-pattern | What it looks like | Why it fails |
+|---|---|---|
+| **"Each hook is fine in isolation."** | Each new hook is reasonable, well-scoped, low-cost individually. | Cumulative cost is N hooks × K Edits = quadratic friction. The bottleneck is total fires, not per-hook quality. |
+| **"Add a hook to fix every incident."** | Every WR closes by adding a new gate. | The hook layer becomes a graveyard of past incidents. Coverage saturates, friction grows. |
+| **"Block first, allow exceptions later."** | New hooks default to hard-deny mode. | Forces the user to learn private bypass vocabulary. Each new bypass keyword is documentation debt. |
+| **"It only fires when relevant."** | Pattern-based triggers feel narrow. | Patterns over-match. The user is forced to bypass repeatedly during legitimate cascade work. |
+
+### Audit cadence
+
+- **At creation** (this rule): preflight + budget check + sunset clause.
+- **Monthly**: Sentinel zero-fire report — hooks that didn't fire in 30 days flagged.
+- **Quarterly**: full hook audit — re-categorize every hook KEEP/CONSOLIDATE/DEMOTE/RETIRE. The 2026-04-27 audit at `<Skill Hub>/docs/audits/hook-inventory-audit-2026-04-27.md` is the template.
+
+### Enforcement
+
+- **Documentation:** this rule + the pre-task checklist `hook-development-enforcer.py` already denies new hook creation under `~/.claude/hooks/` without skill invocation.
+- **Runtime telemetry (planned):** zero-fire audit (described above). Not yet implemented; file follow-up WR if hook proliferation recurs after this rule is documented.
+
+The autonomy goal is: user delegates → AI executes → user returns to completed work. Every hook that fires during user-driven cascade work is a gate that the user has to manually open. The Hook Introduction Rule treats the hook layer as a finite governance budget, not an open inbox.
+
 ## Operational Asset Registry (NON-NEGOTIABLE)
 
 Every scheduled task, automation, hook, script, report, workflow, plugin, and Supabase table MUST be registered in the Supabase `assets` table. The registry is the single queryable source of truth for "what exists, what it runs, what it does, what its purpose is, who owns it."

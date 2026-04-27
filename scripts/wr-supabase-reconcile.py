@@ -119,7 +119,8 @@ def get_supabase(base_url: str, key: str, item_id: str) -> tuple[int, str]:
 
 
 def log_activity_event(
-    base_url: str, key: str, event_type: str, content: str, metadata: dict
+    base_url: str, key: str, event_type: str, content: str, metadata: dict,
+    *, workspace: str = "skill-management-hub", actor: str = "skill-management-hub",
 ) -> tuple[int, str]:
     """Insert into activity_stream so the reconciliation is auditable.
 
@@ -131,15 +132,19 @@ def log_activity_event(
       - content (text, NOT NULL) -- human-readable summary
       - metadata (jsonb, nullable) -- structured payload
       - actor (text, nullable)
+
+    workspace/actor accept caller override (added 2026-04-27, wr-sentinel-023)
+    so the script can be run from any workspace and attribute the reconciliation
+    correctly. Default preserves backward compat with prior Skill Hub-only usage.
     """
     endpoint = f"{base_url}/rest/v1/activity_stream"
     body = {
-        "workspace": "skill-management-hub",
+        "workspace": workspace,
         "platform": "wr-supabase-reconcile.py",
         "event_type": event_type,
         "content": content,
         "metadata": metadata,
-        "actor": "skill-management-hub",
+        "actor": actor,
     }
     req = urllib.request.Request(
         endpoint,
@@ -171,7 +176,20 @@ def main() -> int:
                     help="Apply changes. Default is dry-run.")
     ap.add_argument("--no-activity-log", action="store_true",
                     help="Skip activity_stream logging on success.")
+    # Added 2026-04-27 (wr-sentinel-2026-04-27-023): workspace + actor flags
+    # for accurate attribution when run from a workspace other than Skill Hub.
+    # Defaults preserve backward compat. activity_stream.workspace CHECK
+    # constraint accepts: workforce-hq | skill-management-hub | sentinel | global.
+    ap.add_argument("--workspace",
+                    default="skill-management-hub",
+                    choices=["skill-management-hub", "workforce-hq", "sentinel", "global"],
+                    help="Workspace for last_updated_by + activity_stream.workspace. "
+                         "Default: skill-management-hub.")
+    ap.add_argument("--actor",
+                    default=None,
+                    help="Actor for activity_stream.actor. Defaults to --workspace value.")
     args = ap.parse_args()
+    actor = args.actor or args.workspace
 
     audit_path = Path(args.audit_file).expanduser()
     if not audit_path.exists():
@@ -224,7 +242,7 @@ def main() -> int:
         truncated = correct_text[:500]
         status, body = patch_supabase(base_url, api_key, target, {
             "resolution_summary": truncated,
-            "last_updated_by": "skill-management-hub",
+            "last_updated_by": args.workspace,
         })
         if status in (200, 204):
             print(f"  OK   {target}")
@@ -245,6 +263,8 @@ def main() -> int:
                         "source_audit": "sentinel-wr-id-pre-audit-results.json",
                         "trigger_wr": "wr-2026-04-25-007",
                     },
+                    workspace=args.workspace,
+                    actor=actor,
                 )
         else:
             print(f"  FAIL {target}: HTTP {status} {body[:200]}")

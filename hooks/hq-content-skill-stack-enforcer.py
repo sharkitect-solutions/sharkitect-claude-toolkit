@@ -5,6 +5,17 @@ Consolidated hook that enforces the HQ content skill/agent stack BEFORE
 Write/Edit on classified content lands on disk. Closes 3 work requests in
 one consolidated mechanism (Option B from Resume Instructions, 2026-04-25).
 
+REFACTORED 2026-04-27 (wr-hq-2026-04-27-003 design portion + 006 Tier 2):
+  - Bypass detection delegated to shared ~/.claude/scripts/_lib/intent_detection.py
+  - Recognizes natural-language imperatives ("update X", "go ahead and Y",
+    "do it", "let's broaden Z") via the shared helper -- no need to learn
+    private bypass keywords during user-driven cascade work.
+  - Literal bypass keywords still respected via bypass_phrases arg (legacy compat).
+  - Rule 2 SOW/proposal/contract gating now SECTION-AWARE: 4-skill stack
+    fires only when the diff/content overlaps Sections 4 (scope), 10
+    (limitation of liability), 13 (material breach), or 14 (jurisdiction).
+    Cosmetic edits (typo fixes, header tweaks) elsewhere in a SOW pass through.
+
 RULES (each independent, can fire individually)
 ================================================
 Rule 1 - K3 client deliverable -> brand-reviewer Agent dispatch
@@ -80,6 +91,15 @@ import re
 import sys
 import tempfile
 
+# Make _lib helper importable (pure stdlib, no install needed)
+_LIB_DIR = os.path.expanduser("~/.claude/scripts/_lib")
+if _LIB_DIR not in sys.path:
+    sys.path.insert(0, _LIB_DIR)
+try:
+    import intent_detection  # type: ignore
+except Exception:
+    intent_detection = None  # graceful: legacy code path will run if helper missing
+
 
 JOURNAL_PATH = os.path.join(tempfile.gettempdir(), "claude_tool_usage_journal.jsonl")
 # Lookback for user messages in transcript when checking for bypass phrases.
@@ -117,6 +137,37 @@ SOW_REQUIRED_SKILLS = (
     "writing-clearly-and-concisely",
     "contract-legal",
     "hq-brand-review",
+)
+
+# Section-aware diff parsing (added 2026-04-27, wr-hq-2026-04-27-003 deferred
+# scope). 4-skill stack should fire ONLY when the diff overlaps the legal-clause
+# sections that triggered the original wr-2026-04-23 incident:
+#   - Section 4: Scope / Deliverables (ambiguity = scope creep risk)
+#   - Section 10: Limitation of Liability
+#   - Section 13: Material Breach
+#   - Section 14: Jurisdiction / Governing Law
+# Cosmetic edits to other sections (typo fixes, header style, etc.) bypass
+# the 4-skill requirement -- they don't carry legal risk.
+#
+# Detection patterns -- match Markdown heading styles commonly used in HQ
+# SOW templates:
+#   "## 4. Scope of Work"
+#   "## Section 13 — Material Breach"
+#   "### 14. Governing Law"
+#   "## 10. Limitation of Liability"
+SOW_LEGAL_SECTIONS = (4, 10, 13, 14)
+SOW_SECTION_HEADING_RE = re.compile(
+    r"(?:^|\n)#{1,6}\s+(?:section\s+)?(?:no\.?\s*)?(\d{1,2})(?:\.|:|\s+|\b)",
+    re.IGNORECASE,
+)
+# Keyword fallback -- if a diff contains words indicating legal-clause content
+# even without a numbered section heading, gate fires.
+SOW_LEGAL_KEYWORD_RE = re.compile(
+    r"\b(?:material\s+breach|limitation\s+of\s+liability|governing\s+law|"
+    r"jurisdiction|venue|indemnif(?:y|ication)|hold\s+harmless|"
+    r"force\s+majeure|warrant(?:y|ies)\s+disclaimer|exclusive\s+remedy|"
+    r"consequential\s+damages|liquidated\s+damages|scope\s+of\s+work)\b",
+    re.IGNORECASE,
 )
 
 # ---- Rule 3: Bilingual -es.md ----
@@ -285,12 +336,43 @@ def is_k3_client_deliverable(file_path, content):
 
 
 def is_sow_content(file_path):
-    """Rule 2 trigger detection."""
+    """Rule 2 trigger detection (file-path level)."""
     base = os.path.basename(file_path)
     if SOW_FILENAME_RE.search(base):
         return True
     if SOW_PATH_RE.search(file_path):
         return True
+    return False
+
+
+def diff_touches_legal_sections(content):
+    """Section-aware Rule 2 trigger.
+
+    Returns True if the content/diff being written overlaps any of the
+    legal-clause sections (4/10/13/14) OR mentions legal-clause keywords
+    that imply legal content regardless of numbering.
+
+    Returns False if the diff is purely cosmetic / non-legal (e.g., typo
+    fix in Section 6, header restyle, table formatting).
+
+    Behavior on missing/empty content: True (fail-safe -- if we can't tell
+    what's being written, default to gating).
+    """
+    if not content:
+        return True
+    # Direct keyword match -- if the diff mentions any legal-clause concept,
+    # gate fires.
+    if SOW_LEGAL_KEYWORD_RE.search(content):
+        return True
+    # Section-heading match -- if the diff contains a numbered heading
+    # matching a tracked legal section, gate fires.
+    for match in SOW_SECTION_HEADING_RE.finditer(content):
+        try:
+            section_num = int(match.group(1))
+        except (TypeError, ValueError):
+            continue
+        if section_num in SOW_LEGAL_SECTIONS:
+            return True
     return False
 
 
@@ -332,7 +414,24 @@ def main():
         content = str(tool_input.get("new_string", "") or "")
 
     # ---- Bypass check ----
+    # Two-layer detection (2026-04-27 refactor, wr-hq-003):
+    # 1. Shared intent_detection helper -- recognizes natural-language
+    #    imperatives, session intent flags, AND the literal bypass phrases.
+    # 2. Legacy in-file detection -- preserved as a fallback so this hook
+    #    works even if the helper is missing/broken.
     transcript_path = data.get("transcript_path") or ""
+    if intent_detection is not None:
+        try:
+            if intent_detection.is_user_driven(
+                transcript_path,
+                file_path=file_path,
+                bypass_phrases=BYPASS_PHRASES,
+                lookback=TRANSCRIPT_USER_LOOKBACK,
+            ):
+                return 0
+        except Exception:
+            pass  # fall through to legacy check
+    # Legacy fallback (literal bypass phrase only)
     recent_msgs = read_recent_user_messages(transcript_path)
     if has_bypass_phrase(recent_msgs):
         return 0
@@ -357,18 +456,25 @@ def main():
             )
 
     # Rule 2: SOW / proposal / contract -> 4-skill stack
-    if is_sow_content(file_path):
+    # Section-aware gating: only fire when the diff overlaps a legal-clause
+    # section (4/10/13/14) or contains legal-clause keywords. Cosmetic edits
+    # to non-legal sections pass through (added 2026-04-27, wr-hq-003).
+    if is_sow_content(file_path) and diff_touches_legal_sections(content):
         missing_skills = [s for s in SOW_REQUIRED_SKILLS if not skill_was_invoked(journal, s)]
         if missing_skills:
             violations.append(
-                "Rule 2 (SOW / proposal / contract): missing skill(s) from "
-                "the required 4-skill stack.\n"
+                "Rule 2 (SOW / proposal / contract -- legal-clause content): "
+                "missing skill(s) from the required 4-skill stack.\n"
                 f"  Missing: {', '.join(missing_skills)}\n"
                 f"  Required (all four): {', '.join(SOW_REQUIRED_SKILLS)}\n"
                 "  Why: Legal-clause content (material breach, jurisdiction, "
                 "limitation of liability, force majeure) requires the full "
                 "4-skill stack. Source: wr-2026-04-23 (Section 13/14 rewrite "
-                "shipped without copywriting + writing-clearly-and-concisely)."
+                "shipped without copywriting + writing-clearly-and-concisely).\n"
+                "  Section-aware mode: this gate fires ONLY when the diff "
+                "overlaps Sections 4 (scope), 10 (liability), 13 (breach), "
+                "14 (jurisdiction), or contains legal-clause keywords. "
+                "Cosmetic edits to other sections of a SOW pass through."
             )
 
     # Rule 3: Bilingual -es.md -> Spanish brand-review

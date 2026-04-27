@@ -2840,3 +2840,25 @@ User caught me about to apply a Tier 1 fix (allowlist git push in `~/.claude/set
 
 **Source incident:** wr-hq-2026-04-27-006 — runtime push-to-main gate + 43-hook proliferation. Caught the local-fix temptation at the right moment; comprehensive findings doc + research prompts attached for Skill Hub to validate independently.
 **Tags:** work-request, skill-hub-routing, global-infrastructure, no-local-fixes, governance, cross-workspace
+
+### 2026-04-27 PM -- preference: honest NOT-zero-drift over false zero-drift sign-off
+
+date: 2026-04-27
+preference: When a verification task asks for a "zero-drift sign-off" but the actual state is not zero-drift, report the truth honestly with severity-classified findings rather than asserting zero-drift. Skill Hub Task 7 of wr-2026-04-25-007 expected zero-drift; full sweep found 23 text_mismatch + 147 file_no_supabase_row + 1 reverse-orphan + 3 unidentifiable_files. Sentinel reported NOT zero-drift via the completion notification with the audit doc + 3 follow-up WRs covering the gap. User did not push back -- confirmed preference for honest finding over check-the-box compliance.
+context: post-verification audits, completion notifications for cross-workspace tasks
+apply-when: a task spec assumes a clean state but the audit reveals drift -- never elevate compliance over accuracy
+tags: audit, completion-notification, scope-discipline, honest-reporting
+
+### 2026-04-27 PM -- process: inline equivalent when canonical tool hardcodes wrong attribution
+
+date: 2026-04-27
+process: When a canonical global script (e.g. ~/.claude/scripts/wr-supabase-reconcile.py) hardcodes a single workspace name in audit attribution fields (last_updated_by, activity_stream.workspace, actor), and a different workspace needs to run the equivalent operation, write an inline equivalent with correct attribution AND file an ENHANCE WR for the canonical script to accept a --workspace flag. Do not run the script with wrong attribution; do not block on the script being fixed first.
+why: misattributing data corrections to the wrong workspace breaks the audit trail. The canonical tool gets fixed for everyone via the WR; the immediate work proceeds via inline equivalent. Today: 22 PATCHes ran inline with last_updated_by=sentinel; wr-023 filed for the --workspace flag fix.
+tags: scope-discipline, attribution, supabase, audit-trail
+
+### 2026-04-27 PM -- process: per-row ownership pre-check before batch Supabase mutation
+
+date: 2026-04-27
+process: Before running a batch UPDATE/PATCH against cross_workspace_requests rows, query requested_by for each target row and partition the batch by ownership. Per Supabase Ownership Protocol, only the owning workspace can write. Acting workspace skips rows it does not own and routes them. Today: 23 candidate rows, 22 sentinel-owned (executed inline), 1 HQ-owned (routed via wr-021 addendum). Avoids cross-workspace write violations and keeps wr-021 inbox state honest.
+why: a single batch mutation that touches another workspace's rows violates ownership protocol AND may falsely succeed (no enforcement at row level today). The pre-check is cheap (1 SELECT) and prevents the violation deterministically.
+tags: supabase, ownership, batch-operations, pre-flight-check

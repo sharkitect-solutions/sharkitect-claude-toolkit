@@ -55,6 +55,15 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+# Make _lib helper importable (pure stdlib, no install needed)
+_LIB_DIR = os.path.expanduser("~/.claude/scripts/_lib")
+if _LIB_DIR not in sys.path:
+    sys.path.insert(0, _LIB_DIR)
+try:
+    import intent_detection  # type: ignore
+except Exception:
+    intent_detection = None  # graceful: legacy code path will run if helper missing
+
 
 TMP_DIR = Path.home() / ".claude" / ".tmp"
 REQUIRED_SKILL = "marketing-strategy-pmm"
@@ -147,8 +156,13 @@ DOC_TYPE_RE = re.compile(r"^\s*doc_type\s*:\s*(\S+)", re.MULTILINE)
 QUOTED_LITERAL_RE = re.compile(r"""(?:\"[^\"\n]*\"|\'[^\'\n]*\'|`[^`\n]*`)""")
 
 # Look-back window: number of recent transcript user messages to scan
-# for bypass phrases.
-TRANSCRIPT_USER_LOOKBACK = 3
+# for bypass phrases. Raised from 3 to 15 (2026-04-27, wr-hq-2026-04-27-001
+# parity fix -- the lookback window expansion was applied to
+# hq-content-skill-stack-enforcer.py but missed here, so this hook still
+# expired the bypass after 3 successful tool calls. Source: wr-hq-003
+# refactor scope, deferred reason quotes "TRANSCRIPT_USER_LOOKBACK 3 -> 15
+# AND tool-result filter applied to BOTH hooks" -- this completes that fix).
+TRANSCRIPT_USER_LOOKBACK = 15
 
 
 def load_skill_log():
@@ -379,8 +393,26 @@ def main():
     if skill_invoked(REQUIRED_SKILL, log):
         return 0
 
-    # Bypass 2: user provided an override phrase recently
+    # Bypass 2: user-driven mode detected via shared helper.
+    # Two-layer detection (2026-04-27 refactor, wr-hq-003):
+    # - Primary: ~/.claude/scripts/_lib/intent_detection.py recognizes
+    #   natural-language imperatives ("update X", "go ahead and Y", "do it"),
+    #   session intent flags ("i'm driving this"), AND the literal bypass
+    #   phrases below.
+    # - Fallback: legacy scan_transcript_for_bypass kept for resilience if
+    #   the helper is missing/broken.
     transcript_path = data.get("transcript_path") or ""
+    if intent_detection is not None:
+        try:
+            if intent_detection.is_user_driven(
+                transcript_path,
+                file_path=file_path,
+                bypass_phrases=BYPASS_PHRASES,
+                lookback=TRANSCRIPT_USER_LOOKBACK,
+            ):
+                return 0
+        except Exception:
+            pass  # fall through to legacy scan
     if scan_transcript_for_bypass(transcript_path):
         return 0
 
