@@ -577,11 +577,18 @@ def main():
         id_suffix = report["id"].split("-")[-1]
         filename = f"{today}_{ws_slug}_{desc_slug}-{id_suffix}.json"
         candidate = inbox / filename
-        # If a file with this name OR this id-suffix exists in inbox/processed, retry
-        existing_suffix = list(inbox.glob(f"{today}_*-{id_suffix}.json"))
+        # If a file with this name OR this id-suffix exists in inbox/processed
+        # for THIS WORKSPACE, retry. (Cross-workspace -NNN.json filename
+        # overlap is harmless — distinct ws_slug prefixes; matching them
+        # caused infinite-retry when Sentinel had a -001.json the same
+        # date Skill Hub tried to file its own. Discovered while filing the
+        # tests-sync gap WR mid-2026-04-27.)
+        existing_suffix = list(inbox.glob(f"{today}_{ws_slug}_*-{id_suffix}.json"))
         processed_dir = inbox.parent / "processed"
         if processed_dir.exists():
-            existing_suffix += list(processed_dir.glob(f"{today}_*-{id_suffix}.json"))
+            existing_suffix += list(
+                processed_dir.glob(f"{today}_{ws_slug}_*-{id_suffix}.json")
+            )
         if existing_suffix or candidate.exists():
             continue  # collision -- retry with higher counter
         # Attempt exclusive create (fail if another process wrote in the meantime)
