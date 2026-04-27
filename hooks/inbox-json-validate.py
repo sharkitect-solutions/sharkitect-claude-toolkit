@@ -57,12 +57,54 @@ INBOX_PATH_RE = re.compile(
     re.I,
 )
 
+# WR id schema (wr-2026-04-25-007). v2 is workspace-prefixed.
+# v1 (legacy) is unprefixed; preserved for backward compat.
+ID_RE_V2 = re.compile(r"^(wr|rt)-(hq|skillhub|sentinel)-\d{4}-\d{2}-\d{2}-(\d{3}|[a-z0-9-]+)$")
+ID_RE_V1 = re.compile(r"^(wr|rt)-\d{4}-\d{2}-\d{2}-(\d{3}|[a-z0-9-]+)$")
+
 BYPASS_PHRASES = (
     "skip json-validate",
     "skip inbox-validate",
     "skip inbox-json-validate",
+    "skip wr-id-schema",  # bypass id-schema check only
 )
 TRANSCRIPT_USER_LOOKBACK = 3
+
+
+def validate_wr_id_schema(parsed_json):
+    """Return (ok: bool, reason: str). Enforces id presence + format.
+
+    v2 (id_format_version >= 2): id MUST match ID_RE_V2 (workspace-prefixed).
+    v1 (default): id is optional but if present must match v1 or v2 pattern.
+
+    Source: wr-2026-04-25-007. Defense-in-depth complement to:
+      - work-request.py (creation gate; emits v2 only)
+      - close-inbox-item.py (closure gate; refuses v2 close without id)
+    """
+    try:
+        fmt = int(parsed_json.get("id_format_version", 1) or 1)
+    except (TypeError, ValueError):
+        fmt = 1
+    wr_id = parsed_json.get("id")
+    if fmt >= 2:
+        if not wr_id:
+            return False, (
+                f"id_format_version={fmt} requires explicit 'id' field "
+                "(workspace-prefixed). Filename-derivation is forbidden."
+            )
+        if not ID_RE_V2.match(str(wr_id)):
+            return False, (
+                f"id '{wr_id}' does not match v2 pattern "
+                "wr-<hq|skillhub|sentinel>-YYYY-MM-DD-NNN"
+            )
+        return True, "ok (v2)"
+    # v1 legacy: id is optional but if present must match v1 or v2 pattern
+    if wr_id and not (ID_RE_V1.match(str(wr_id)) or ID_RE_V2.match(str(wr_id))):
+        return False, (
+            f"id '{wr_id}' does not match v1 pattern wr-YYYY-MM-DD-NNN "
+            "or v2 pattern wr-<workspace>-YYYY-MM-DD-NNN"
+        )
+    return True, "ok (v1 legacy)"
 
 
 def deny(reason):
@@ -160,8 +202,7 @@ def main():
         if not content.strip():
             return 0  # empty file -- let Write through, JSON parser will fail later if it's loaded
         try:
-            json.loads(content)
-            return 0  # valid JSON, allow
+            parsed = json.loads(content)
         except json.JSONDecodeError as e:
             base = os.path.basename(file_path)
             reason = (
@@ -183,6 +224,26 @@ def main():
             )
             deny(reason)
             return 0
+
+        # JSON parsed cleanly. Validate WR id schema (wr-2026-04-25-007).
+        # Only applies when the parsed payload is a dict (lifecycle reviews,
+        # WRs, RTs are all dict-shaped). Lists or other shapes pass through.
+        if isinstance(parsed, dict):
+            ok, reason = validate_wr_id_schema(parsed)
+            if not ok:
+                base = os.path.basename(file_path)
+                deny(
+                    f"BLOCKING: Write to inbox file `{base}` violates WR id "
+                    f"schema. {reason}\n\n"
+                    "Source: wr-2026-04-25-007 (workspace-prefixed id schema). "
+                    "v2 ids eliminate cross-workspace NNN collisions and the "
+                    "filename-derivation drift that caused 11 wrong-row "
+                    "Supabase updates in the 2026-04-25 batch close.\n\n"
+                    "To bypass for emergency manual repair, include 'skip "
+                    "wr-id-schema' in your next user message."
+                )
+                sys.exit(2)
+        return 0
 
     if tool_name == "Edit":
         new_string = str(tool_input.get("new_string", "") or "")

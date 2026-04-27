@@ -170,6 +170,31 @@ def main():
 
     tool_input = data.get("tool_input", {})
 
+    # Allowlist: known-safe internal scripts whose JSON/argument payloads
+    # legitimately contain service names ("hubspot", "gmail", "airtable",
+    # etc.) inside WR descriptions and routing context but never actually
+    # invoke those APIs. Bypass limitation matching entirely to prevent
+    # repeated false positives ("crying wolf" desensitization).
+    # Source: wr-2026-04-26-003 (Sentinel) -- 3+ false positives in one
+    # session on close-inbox-item.py and work-request.py invocations.
+    if tool_name == "Bash":
+        command = tool_input.get("command", "")
+        SAFE_SCRIPTS = (
+            "close-inbox-item.py",
+            "work-request.py",
+            "update-project-status.py",
+            "register-asset.py",
+            "preflight-check.py",
+            "voice-write.py",
+            "notify-human-action.py",
+            "audit-autonomous-systems.py",
+            "doc-cache-builder.py",
+            "request-watcher.py",
+        )
+        for safe_script in SAFE_SCRIPTS:
+            if safe_script in command:
+                return 0
+
     # Extract signal keywords from this tool call
     keywords = _extract_signal_keywords(tool_name, tool_input)
     if not keywords:

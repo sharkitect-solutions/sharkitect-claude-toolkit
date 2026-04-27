@@ -366,6 +366,56 @@ So the three semantic close variants collapse to `completed` in Supabase; only e
 - Whenever you need to directly INSERT or UPDATE a row in `cross_workspace_requests`, reference this table first.
 - If a CHECK rejection occurs, re-read this subsection rather than guessing at the right value.
 
+### WR/RT/Lifecycle JSON Schema Contract (NON-NEGOTIABLE)
+
+All work-request, routed-task, and lifecycle-review JSON files written into any inbox directory MUST conform to the schema below. The JSON `id` field is the SINGLE authoritative identifier; the filename is grep convenience only and MUST NOT be used to derive identity.
+
+**Source:** wr-2026-04-25-007 (Skill Hub). Two collision bugs in the legacy v1 (`wr-YYYY-MM-DD-NNN`) format motivated the v2 schema:
+1. **Creation-side collision:** Two workspaces filing on the same date both pick `wr-YYYY-MM-DD-005`. The Supabase POST then collides on `item_id` UNIQUE constraint.
+2. **Close-side collision:** When a JSON had no top-level `id` field, `close-inbox-item.py` derived a Supabase row identifier from the filename, which collided with unrelated WR ids. Result (2026-04-25 batch close): 11 WRs' `resolution_summary` text written into wrong Supabase rows.
+
+#### v2 schema (REQUIRED for all new files)
+
+| Field | Type | Required | Format |
+|-------|------|----------|--------|
+| `id` | string | YES | WR: `wr-<workspace>-YYYY-MM-DD-NNN`. RT: `rt-<workspace>-YYYY-MM-DD-<slug>`. Lifecycle: `lifecycle-<workspace>-YYYY-MM-DD-<slug>`. |
+| `id_format_version` | integer | YES | `2` |
+| `source_workspace` | string | YES (WR) | Canonical name: `workforce-hq` / `skill-management-hub` / `sentinel` |
+| `status` | string | YES | One of the 9 values per Status Vocabulary Layers (above) |
+
+#### Workspace short-prefix map (canonical → short, used in `id`)
+
+| Canonical | Short prefix |
+|-----------|---------|
+| `workforce-hq` | `hq` |
+| `skill-management-hub` | `skillhub` |
+| `sentinel` | `sentinel` |
+
+#### Three-gate enforcement (defense-in-depth)
+
+| Layer | File | When it fires | Failure mode |
+|-------|------|---------------|--------------|
+| **Creation** | `~/.claude/scripts/work-request.py` | Source workspace files a WR | Refuses to emit if workspace canonical name not in WORKSPACE_SHORT_MAP |
+| **Write-time** | `~/.claude/hooks/inbox-json-validate.py` (PreToolUse Write) | Any agent edits inbox JSON | Denies Write if `id_format_version >= 2` AND id missing/malformed; v1 legacy without id passes |
+| **Closure** | `~/.claude/scripts/close-inbox-item.py` | Closing item to processed/ | Refuses close if v2 file missing `id` field; v1 legacy fallback to `request_id`/`task_id` preserved for completion-notification routed-tasks |
+
+#### Backward compatibility
+
+Legacy v1 ids (`wr-YYYY-MM-DD-NNN` without prefix, no `id_format_version` field) remain readable everywhere. They are NOT auto-rewritten -- the backfill script (`~/.claude/scripts/wr-id-backfill.py`) only fills MISSING `id` fields on legacy auto-tool JSONs that never had one. It does NOT promote existing v1 ids to v2. This is deliberate: every v1 id already has a matching `cross_workspace_requests` row keyed by that v1 string. Rewriting locally to v2 without simultaneously rewriting Supabase keys would create the very drift this protocol is fixing.
+
+Result: Supabase holds a permanent mix of v1 and v2 `item_id` strings. Both are valid query keys. ALL new WRs are v2; legacy v1 records are read-only history.
+
+#### Bypass
+
+To skip the write-time hook for emergency manual repair, include `skip wr-id-schema` in your next user message (or `skip json-validate` to skip both JSON-syntax + id-schema gates).
+
+#### References
+
+- Spec: `3.- Skill Management Hub/docs/superpowers/specs/2026-04-27-wr-id-schema-workspace-prefixed-design.md`
+- Plan: `~/.claude/plans/2026-04-27-wr-id-schema-workspace-prefixed.md`
+- Trigger WR: `wr-2026-04-25-007` (Skill Hub) -- close-side filename-fallback collision discovered during 2026-04-25 batch close of 11 WRs.
+- Tests: `~/.claude/tests/test_wr_id_schema.py` (12 cases covering all 3 gates)
+
 ### Inbox-Driven Coordination (NON-NEGOTIABLE)
 
 ALL cross-workspace task dispatch goes through inboxes. Never copy-paste prompts between workspaces.

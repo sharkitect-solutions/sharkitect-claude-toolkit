@@ -49,6 +49,16 @@ GAP_TYPES = {"MISSING", "UNUSED", "FALLBACK"}
 # Operational types (new)
 OPERATIONAL_TYPES = {"TASK", "BUG", "ENHANCE"}
 
+# Workspace canonical name -> short prefix used in v2 id format.
+# Source: wr-2026-04-25-007 (workspace-prefixed id schema). The short prefix
+# scopes the NNN counter per workspace per date, eliminating the cross-workspace
+# collision bug. v2 id format: wr-<short>-YYYY-MM-DD-NNN.
+WORKSPACE_SHORT_MAP = {
+    "workforce-hq": "hq",
+    "skill-management-hub": "skillhub",
+    "sentinel": "sentinel",
+}
+
 
 def get_skill_hub_path():
     """Read Skill Hub path from config. Returns Path or None."""
@@ -125,54 +135,57 @@ def _build_notification_filename_hint(item_id, target_workspace):
     return f"rt-{today}-{slug}-completed-by-<completer-workspace>.json"
 
 
-def _used_counters_for_date(inbox_dir, today):
-    """Return set of ints NNN already used today across inbox AND processed.
+def _used_counters_for_workspace_date(inbox_dir, today, workspace_short, workspace_canonical):
+    """Return set of NNNs already used today for the given workspace prefix.
 
-    Bug history (wr-2026-04-21-009): counter was len(inbox_files)+1, which
-    collided when (a) files moved to processed/ vanished from count, or (b)
-    two workspaces filed to the same date concurrently. The only stable
-    strategy is to scan ALL filenames containing the date prefix across the
-    inbox AND processed siblings, extract the trailing -NNN suffix, and take
-    max+1.
+    v2 (workspace-prefixed): scans for ids matching `wr-<workspace>-YYYY-MM-DD-NNN`.
+    v1 legacy fallback: also catches `wr-YYYY-MM-DD-NNN` ids whose JSON has
+    matching `source_workspace`. JSON `id` field is authoritative; filename is
+    grep convenience only.
+
+    Source: wr-2026-04-25-007. Replaces _used_counters_for_date which scanned
+    ALL workspaces' counters together, causing two workspaces filing on the
+    same date to pick identical NNNs.
     """
     import re
     used = set()
-    # Also read id fields from the JSON in case filename was renamed manually
     siblings = [inbox_dir]
     processed = inbox_dir.parent / "processed"
     if processed.exists():
         siblings.append(processed)
-    suffix_re = re.compile(r"-(\d{3})(?:\.json)?$")
-    id_re = re.compile(rf"^wr-{re.escape(today)}-(\d{{3}})$")
+    id_re_v2 = re.compile(rf"^wr-{re.escape(workspace_short)}-{re.escape(today)}-(\d{{3}})$")
+    id_re_v1 = re.compile(rf"^wr-{re.escape(today)}-(\d{{3}})$")
     for d in siblings:
-        for f in d.glob(f"{today}_*.json"):
-            m = suffix_re.search(f.stem)
-            if m:
-                used.add(int(m.group(1)))
-            # fallback: read the id field
+        for f in d.glob("*.json"):
             try:
                 data = json.loads(f.read_text(encoding="utf-8"))
-                idm = id_re.match(str(data.get("id", "")))
-                if idm:
-                    used.add(int(idm.group(1)))
             except (OSError, json.JSONDecodeError, UnicodeDecodeError):
-                pass
+                continue
+            wr_id = str(data.get("id", ""))
+            m = id_re_v2.match(wr_id)
+            if m:
+                used.add(int(m.group(1)))
+                continue
+            # v1 legacy: only count if JSON's source_workspace matches this caller
+            m1 = id_re_v1.match(wr_id)
+            if m1 and data.get("source_workspace") == workspace_canonical:
+                used.add(int(m1.group(1)))
     return used
 
 
-def get_next_id(inbox_dir):
-    """Generate next sequential request ID for today.
+def get_next_id(inbox_dir, workspace_short, workspace_canonical):
+    """Generate next sequential workspace-scoped request ID for today.
 
-    Scans inbox + processed for files matching today's date, extracts the
-    -NNN suffix from each, and returns max(NNN)+1. Safe against
-    cross-workspace collisions on the same date and against files that
-    have already been moved to processed/. Parallel filings in the same
-    second are handled by the write-time retry loop in the caller.
+    v2 format: wr-<workspace_short>-YYYY-MM-DD-NNN
+    NNN counter is per-workspace per-date. Cross-workspace collision is now
+    impossible by construction (different workspaces have different prefixes).
+    Backward compat: v1 legacy ids in inbox/processed still consume counter
+    slots so the next NNN doesn't accidentally reuse one.
     """
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    used = _used_counters_for_date(inbox_dir, today)
+    used = _used_counters_for_workspace_date(inbox_dir, today, workspace_short, workspace_canonical)
     next_n = (max(used) + 1) if used else 1
-    return f"wr-{today}-{next_n:03d}"
+    return f"wr-{workspace_short}-{today}-{next_n:03d}"
 
 
 def slugify(text):
@@ -196,8 +209,22 @@ def build_report(args):
     now = datetime.now(timezone.utc)
     request_type = args.type.upper()
 
+    # Workspace short prefix resolution (v2 schema).
+    # Source: wr-2026-04-25-007. Unknown workspace -> hard error to prevent
+    # silent fallback to v1 format.
+    workspace_short = WORKSPACE_SHORT_MAP.get(args.workspace)
+    if workspace_short is None:
+        print(
+            f"ERROR: unknown workspace '{args.workspace}'. "
+            f"Cannot derive v2 id prefix. "
+            f"Valid workspaces: {sorted(WORKSPACE_SHORT_MAP.keys())}",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
     report = {
         "id": None,  # Set after inbox path known
+        "id_format_version": 2,
         "timestamp": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "request_type": request_type,
         "source_workspace": args.workspace,
@@ -471,6 +498,13 @@ def main():
                              "(kind=fyi). Default behavior is to inject "
                              "notify_on_completion=true and notify_inbox_path so "
                              "the completer auto-writes a notification back.")
+    # Test-harness flags (wr-2026-04-25-007). Allow unit tests to exercise
+    # creation without writing to the real Skill Hub inbox or hitting Supabase.
+    parser.add_argument("--no-supabase", action="store_true",
+                        help="Skip the Supabase audit log POST. For tests.")
+    parser.add_argument("--output-dir",
+                        help="Override target inbox directory (default: Skill Hub "
+                             ".work-requests/inbox/). For tests.")
 
     args = parser.parse_args()
 
@@ -478,15 +512,23 @@ def main():
     if args.workspace:
         args.workspace = validate_workspace_name(args.workspace)
 
-    # Find Skill Hub inbox
-    hub_path = get_skill_hub_path()
-    if not hub_path:
-        print("ERROR: Cannot find Skill Management Hub path.", file=sys.stderr)
-        print("Check ~/.claude/config/skill-hub-path.txt", file=sys.stderr)
-        return 1
+    # Find target inbox.
+    # --output-dir overrides for tests (creation goes wherever the test asks).
+    # Otherwise: Skill Hub's .work-requests/inbox/ (the canonical destination).
+    if args.output_dir:
+        inbox = Path(args.output_dir)
+        inbox.mkdir(parents=True, exist_ok=True)
+        # processed/ sibling for counter scanning to work
+        (inbox.parent / "processed").mkdir(exist_ok=True)
+    else:
+        hub_path = get_skill_hub_path()
+        if not hub_path:
+            print("ERROR: Cannot find Skill Management Hub path.", file=sys.stderr)
+            print("Check ~/.claude/config/skill-hub-path.txt", file=sys.stderr)
+            return 1
 
-    inbox = hub_path / ".work-requests" / "inbox"
-    inbox.mkdir(parents=True, exist_ok=True)
+        inbox = hub_path / ".work-requests" / "inbox"
+        inbox.mkdir(parents=True, exist_ok=True)
 
     # Build or parse report
     if args.json:
@@ -513,14 +555,25 @@ def main():
             args.workspace_path = os.getcwd()
         report = build_report(args)
 
-    # Assign ID and filename, with retry loop to handle race conditions
-    # where two workspaces pick the same NNN between directory scan and write.
+    # Assign ID and filename, with retry loop to handle race conditions.
+    # v2 (wr-2026-04-25-007): id is workspace-prefixed; counter is workspace-scoped.
+    # Cross-workspace collision is impossible by construction.
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    ws_slug = slugify(report.get("source_workspace", "unknown"))
+    source_ws = report.get("source_workspace", "unknown")
+    workspace_short = WORKSPACE_SHORT_MAP.get(source_ws)
+    if workspace_short is None:
+        print(
+            f"ERROR: unknown workspace '{source_ws}'. "
+            f"Cannot derive v2 id prefix. "
+            f"Valid workspaces: {sorted(WORKSPACE_SHORT_MAP.keys())}",
+            file=sys.stderr,
+        )
+        return 1
+    ws_slug = slugify(source_ws)
     desc_slug = slugify(report.get("what_was_needed", report.get("description", "request"))[:30])
     filepath = None
     for _ in range(10):
-        report["id"] = get_next_id(inbox)
+        report["id"] = get_next_id(inbox, workspace_short, source_ws)
         id_suffix = report["id"].split("-")[-1]
         filename = f"{today}_{ws_slug}_{desc_slug}-{id_suffix}.json"
         candidate = inbox / filename
@@ -578,8 +631,10 @@ def main():
     print(f"  Severity: {report.get('severity')}")
     print(f"  From: {report.get('source_workspace')}")
 
-    # Log to Supabase cross_workspace_requests (best-effort audit trail)
-    log_to_supabase(report, item_type="work_request")
+    # Log to Supabase cross_workspace_requests (best-effort audit trail).
+    # --no-supabase skips this for tests.
+    if not args.no_supabase:
+        log_to_supabase(report, item_type="work_request")
 
     return 0
 

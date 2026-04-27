@@ -517,6 +517,25 @@ def close_item(
 
     # Read, mutate, write
     data = json.loads(src.read_text(encoding="utf-8"))
+
+    # v2 schema enforcement (wr-2026-04-25-007).
+    # id_format_version >= 2 REQUIRES explicit 'id' field in JSON. The
+    # filename-derivation fallback that caused 11 wrong-row Supabase updates
+    # in the 2026-04-25 batch close is forbidden going forward. v1 legacy
+    # records (no id_format_version, defaults to 1) keep the request_id /
+    # task_id chain so completion-notification routed-tasks still close.
+    # Runs BEFORE any file mutation -- a v2 file with no id should not be
+    # half-closed even if Supabase logging is suppressed (--no-supabase).
+    try:
+        _id_format_version = int(data.get("id_format_version", 1) or 1)
+    except (TypeError, ValueError):
+        _id_format_version = 1
+    if _id_format_version >= 2 and not data.get("id"):
+        raise ValueError(
+            f"id_format_version={_id_format_version} requires explicit 'id' "
+            f"field; filename-based derivation is forbidden. File: {src}"
+        )
+
     now = now_iso()
     prev_status = data.get("status", "unknown")
 
@@ -577,7 +596,9 @@ def close_item(
     os.replace(tmp, dst)
     src.unlink()
 
-    # 4. Best-effort Supabase update
+    # 4. Best-effort Supabase update. v2 id presence already validated above.
+    # For v1 legacy records (no id_format_version), fall back to request_id /
+    # task_id so completion-notification routed-tasks still close.
     sb_msg = "skipped"
     if update_supabase_row:
         item_id = data.get("id") or data.get("request_id") or data.get("task_id")
