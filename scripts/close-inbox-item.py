@@ -497,13 +497,30 @@ def close_item(
             "surviving request (usually older or better-scoped). Without "
             "this, the close is indistinguishable from rejected-on-merits."
         )
+    # Peek at the closing item to learn its `kind`. Used to authorize
+    # acknowledgement-style what_was_done for completion_notification closures
+    # per the Completion Notification Protocol (universal-protocols.md, ack
+    # side: "short, low-effort acknowledgement work"). Filed as wr-2026-04-27-019
+    # by Sentinel after a 19-item batch ack was rejected by the startswith guard.
+    try:
+        _peek_kind = str(json.loads(src.read_text(encoding="utf-8")).get("kind", ""))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        _peek_kind = ""
+    is_ack_close = (
+        _peek_kind == "completion_notification"
+        and status in {"processed", "completed", "resolved"}
+    )
+
     if not what_was_done or len(what_was_done.strip()) < 10:
         raise ValueError(
             "what_was_done must describe ACTUAL work completed (>=10 chars). "
             "Vague phrases like 'acknowledged', 'deferred', 'logged' are NOT valid."
         )
     lower = what_was_done.strip().lower()
-    if lower.startswith(("acknowledged", "deferred", "logged", "noted")):
+    if (
+        not is_ack_close
+        and lower.startswith(("acknowledged", "deferred", "logged", "noted"))
+    ):
         raise ValueError(
             f"what_was_done starts with '{lower.split()[0]}' which is not real work. "
             "Closing with this would create a fake-completion record. "

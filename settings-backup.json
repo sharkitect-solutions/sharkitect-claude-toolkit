@@ -325,6 +325,17 @@
       }
     ]
   },
+  "permissions": {
+    "allow": [
+      "Bash(python ~/.claude/scripts/wr-supabase-reconcile.py *)",
+      "Bash(python ~/.claude/scripts/wr-id-backfill.py *)",
+      "Bash(python ~/.claude/scripts/close-inbox-item.py *)",
+      "Bash(python ~/.claude/scripts/register-asset.py *)",
+      "Bash(python ~/.claude/scripts/update-project-status.py *)",
+      "Bash(python ~/.claude/scripts/work-request.py *)",
+      "Bash(python ~/.claude/scripts/notify-human-action.py *)"
+    ]
+  },
   "autoUpdatesChannel": "latest",
   "effortLevel": "medium"
 }
