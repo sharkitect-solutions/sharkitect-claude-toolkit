@@ -347,9 +347,9 @@ Three distinct status vocabularies exist, one per layer. Mixing them produces CH
 
 | Layer | Accepted values | Who uses it |
 |-------|-----------------|-------------|
-| **Local JSON inbox files** (`.work-requests/inbox/*.json`, `.routed-tasks/inbox/*.json`, etc.) | Open states: `new`, `pending`, `in_progress`, `deferred`, `blocked`. Close states: `processed`, `completed`, `resolved`, `rejected`. | AI agents writing inbox JSON directly |
-| **close-inbox-item.py output** | Close-only: `processed | completed | resolved | rejected`. Rejects all open-state values at close. | All workspaces closing inbox items |
-| **Supabase `cross_workspace_requests.inbox_items_status_check`** | `pending | in_progress | deferred | blocked | completed | superseded | duplicate | rejected`. (Does NOT accept `new` or `processed`.) | Supabase inserts/updates from any workspace |
+| **Local JSON inbox files** (`.work-requests/inbox/*.json`, `.routed-tasks/inbox/*.json`, etc.) | Open states: `new`, `pending`, `in_progress`, `deferred`, `blocked`. Close states: `completed`, `rejected`, `superseded`, `duplicate`, `withdrawn`. (Legacy historical files may show `processed | resolved` -- read-only history, not used for new closes.) | AI agents writing inbox JSON directly |
+| **close-inbox-item.py output** | Close-only: `completed | rejected | superseded | duplicate | withdrawn`. Legacy `processed | resolved` accepted but auto-converted to `completed` with deprecation warning. Rejects all open-state values at close. | All workspaces closing inbox items |
+| **Supabase `cross_workspace_requests.inbox_items_status_check`** | `pending | in_progress | deferred | blocked | completed | superseded | duplicate | rejected | withdrawn`. (Does NOT accept `new` or `processed`. `withdrawn` requires Sentinel migration -- routed task filed in plan Phase G.) | Supabase inserts/updates from any workspace |
 
 **close-inbox-item.py normalization (line ~116):**
 ```python
