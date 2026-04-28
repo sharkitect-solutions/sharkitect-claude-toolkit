@@ -1,0 +1,376 @@
+{
+  "enabledPlugins": {
+    "pyright-lsp@claude-plugins-official": true,
+    "github@claude-plugins-official": true,
+    "pr-review-toolkit@claude-plugins-official": true,
+    "slack@claude-plugins-official": true,
+    "sentry@claude-plugins-official": true,
+    "claude-md-management@claude-plugins-official": true,
+    "code-simplifier@claude-plugins-official": true,
+    "feature-dev@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true,
+    "hookify@claude-plugins-official": true,
+    "python-development@claude-code-workflows": true,
+    "customer-sales-automation@claude-code-workflows": true,
+    "data-validation-suite@claude-code-workflows": true,
+    "llm-application-dev@claude-code-workflows": true,
+    "seo-content-creation@claude-code-workflows": true,
+    "security-scanning@claude-code-workflows": true,
+    "data-engineering@claude-code-workflows": true,
+    "business-analytics@claude-code-workflows": true,
+    "content-marketing@claude-code-workflows": true,
+    "conductor@claude-code-workflows": true,
+    "superpowers@claude-plugins-official": true,
+    "sow-generator@claude-code-plugins-plus": true,
+    "discovery-questionnaire@claude-code-plugins-plus": true,
+    "roi-calculator@claude-code-plugins-plus": true,
+    "make-scenario-builder@claude-code-plugins-plus": true,
+    "zapier-zap-builder@claude-code-plugins-plus": true,
+    "excel-analyst-pro@claude-code-plugins-plus": true,
+    "prettier-markdown-hook@claude-code-plugins-plus": true,
+    "customerio-pack@claude-code-plugins-plus": true,
+    "deepgram-pack@claude-code-plugins-plus": true,
+    "documenso-pack@claude-code-plugins-plus": true,
+    "gamma-pack@claude-code-plugins-plus": true,
+    "retellai-pack@claude-code-plugins-plus": true,
+    "frontend-design@claude-plugins-official": true,
+    "claude-code-setup@claude-plugins-official": true,
+    "plugin-dev@claude-plugins-official": true,
+    "Notion@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true,
+    "firecrawl@claude-plugins-official": true,
+    "brand-strategy-framework@claude-code-plugins-plus": true,
+    "context7@claude-plugins-official": true,
+    "ralph-loop@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "playwright@claude-plugins-official": true,
+    "aios-core@local": true,
+    "quality-gate@local": true,
+    "auto-sync@local": true,
+    "phase-gate@local": true
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/check-line-count.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/content-enforcer-hook.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/content-enforcement-gate.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/methodology-nudge.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/n8n-httpRequest-guard.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/drift-detection-hook.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/workspace-scope-guard.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/inbox-move-guard.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/marketing-content-detector.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/brainstorming-enforcer.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/content-pitching-detector.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/writing-plans-enforcer.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/hook-development-enforcer.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/session-checkpoint-enforcer.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/hq-content-skill-stack-enforcer.py\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/claude-api-skill-nudge.py\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/inbox-json-validate.py\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "TodoWrite",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/brainstorming-enforcer.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/session-checkpoint-enforcer.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/multistep-plan-nudge.py\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/mcp-limitation-guard.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/inbox-move-guard.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/methodology-nudge.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/n8n-httpRequest-guard.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/content-enforcement-gate.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/supabase-ddl-skill-nudge.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/session-checkpoint-enforcer.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/deep-interview-gate.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/skill-invocation-tracker.py\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/checkpoint-reminder.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/quality-gate-hook.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/resource-audit-hook.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/skill-sync-nudge.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/supabase-status-nudge.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/asset-registration-nudge.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/verification-before-build-enforcer.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|mcp__",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/error-tracker-hook.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/iterative-work-nudge.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/mcp-auth-error-guard.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/notification-write-verify.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/iterative-work-nudge.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/log-tool-invocation.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/log-tool-invocation.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/cron-activity-logger.py\""
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/session-startup-guard.py\"",
+            "timeout": 15000
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/session-start-lifecycle.py\"",
+            "timeout": 15000
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/session-start-register-pid.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/resume-plan-detector.py\"",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/cron-context-enforcer.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/cron-activity-surfacer.py\""
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/session-end-cleanup.py\""
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(python ~/.claude/scripts/wr-supabase-reconcile.py *)",
+      "Bash(python ~/.claude/scripts/wr-id-backfill.py *)",
+      "Bash(python ~/.claude/scripts/close-inbox-item.py *)",
+      "Bash(python ~/.claude/scripts/register-asset.py *)",
+      "Bash(python ~/.claude/scripts/update-project-status.py *)",
+      "Bash(python ~/.claude/scripts/work-request.py *)",
+      "Bash(python ~/.claude/scripts/notify-human-action.py *)",
+      "Bash(git push:*)",
+      "Bash(git commit:*)",
+      "Bash(git add:*)",
+      "Bash(git pull:*)",
+      "Bash(git fetch:*)",
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git show:*)",
+      "Bash(git checkout:*)",
+      "Bash(git branch:*)",
+      "Bash(git stash:*)",
+      "Bash(git restore:*)",
+      "Bash(git merge:*)",
+      "Bash(git rebase:*)",
+      "Bash(git tag:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git describe:*)"
+    ],
+    "deny": [
+      "Bash(git push * --force*)",
+      "Bash(git push * -f*)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean -*)",
+      "Bash(git checkout -- *)",
+      "Bash(git restore --staged*)",
+      "Bash(git config *)",
+      "Bash(git remote *)"
+    ]
+  },
+  "autoUpdatesChannel": "latest",
+  "effortLevel": "medium"
+}
