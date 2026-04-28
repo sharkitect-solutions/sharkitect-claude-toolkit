@@ -57,6 +57,7 @@ import argparse
 import json
 import os
 import sys
+import tempfile
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -64,7 +65,7 @@ from pathlib import Path
 
 
 VALID_CLOSE_STATUSES = {"processed", "completed", "resolved", "rejected",
-                         "superseded", "duplicate"}
+                         "superseded", "duplicate", "withdrawn"}
 # Statuses that REQUIRE a cross-reference to another inbox item_id.
 # See universal-protocols.md "Superseded vs Duplicate" section.
 CROSS_REF_REQUIRED = {
@@ -256,6 +257,10 @@ def update_supabase(item_id: str, status: str, resolution_summary: str,
         sb_status = "completed"
     elif status in {"superseded", "duplicate"}:
         sb_status = status
+    elif status == "withdrawn":
+        # NOTE: requires Sentinel migration on cross_workspace_requests CHECK
+        # constraint to add 'withdrawn'. Routed-task filed in plan Phase G.
+        sb_status = "withdrawn"
     else:
         sb_status = "rejected"
     payload = json.dumps({
@@ -706,7 +711,49 @@ def main():
                    help="Pipe-separated list of next actions the originator "
                         "can take now that this work is done (e.g. 'flip "
                         "AUTOFIX_V2_MODE=on|update project status to verified').")
+    p.add_argument("--annotate", action="store_true",
+                   help="Append a status_history entry without closing the item. "
+                        "Status stays unchanged; file stays in inbox/. Used by "
+                        "target workspace to track in-flight progress.")
     args = p.parse_args()
+
+    # Deprecation: collapse processed/resolved -> completed (2026-04-28
+    # close-state vocabulary consolidation, plan Phase C).
+    if args.status in ("processed", "resolved"):
+        print(
+            f"DEPRECATION: --status {args.status!r} auto-converted to 'completed'. "
+            "Per the 2026-04-28 close-state vocabulary consolidation, only "
+            "'completed' is used for target-controlled close-as-done. See "
+            "~/.claude/rules/universal-protocols.md Status Vocabulary Layers.",
+            file=sys.stderr
+        )
+        args.status = "completed"
+
+    # Annotate mode: append a status_history entry without closing.
+    # Item stays in inbox/, status unchanged. Used to track in-flight progress.
+    if args.annotate:
+        item_path = Path(args.file)
+        item = json.loads(item_path.read_text(encoding="utf-8"))
+        note_entry = {
+            "status": item.get("status", "pending"),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "actor": args.resolved_by,
+            "note": args.what_was_done,
+            "kind": "annotation"
+        }
+        item.setdefault("status_history", []).append(note_entry)
+        # Atomic write
+        fd, tmp = tempfile.mkstemp(prefix=item_path.name + ".", suffix=".tmp", dir=item_path.parent)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(item, f, indent=2, ensure_ascii=False)
+            os.replace(tmp, item_path)
+        except Exception:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+            raise
+        print(f"OK: annotated {item_path.name} (status={item.get('status')}, kind=annotation)")
+        sys.exit(0)
 
     extra = {}
     if args.user_action_required:
