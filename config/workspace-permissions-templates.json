@@ -1,0 +1,214 @@
+{
+  "schema_version": 1,
+  "documented_at": "2026-04-28",
+  "documented_by": "skill-management-hub",
+  "source_plan": "~/.claude/plans/2026-04-28-permissions-and-inbox-amendment-system.md",
+  "source_spec": "<Skill Hub>/docs/superpowers/specs/2026-04-28-permissions-and-inbox-amendment-system-design.md",
+
+  "global_settings_path": "~/.claude/settings.json",
+  "global_permissions": {
+    "allow_additions": [
+      "Edit(~/.claude/rules/**)",
+      "Edit(~/.claude/CLAUDE.md)",
+      "Edit(~/.claude/skills/**)",
+      "Edit(~/.claude/agents/**)",
+      "Edit(~/.claude/hooks/**)",
+      "Edit(~/.claude/scripts/**)",
+      "Edit(~/.claude/docs/**)",
+      "Edit(~/.claude/lessons-learned.md)",
+      "Edit(~/.claude/.tmp/**)",
+      "Edit(~/.claude/config/**)",
+      "Edit(~/.claude/tests/**)",
+      "Edit(~/.claude/plans/**)",
+      "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/**)",
+      "Bash(python ~/.claude/scripts/sync-permissions.py *)",
+      "Bash(python ~/.claude/scripts/inbox-amend.py *)",
+      "Bash(git mv:*)",
+      "Bash(git rm:*)",
+      "Bash(git clone:*)",
+      "Bash(git ls-files:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(git show-ref:*)",
+      "Bash(git submodule:*)",
+      "Bash(git worktree:*)",
+      "Bash(git reflog:*)",
+      "Bash(git cherry-pick:*)",
+      "Bash(git revert:*)",
+      "Bash(git blame:*)",
+      "Bash(git bisect:*)",
+      "Bash(git apply:*)",
+      "Bash(git format-patch:*)",
+      "Bash(git ls-remote:*)",
+      "Bash(git fsck:*)",
+      "Bash(git gc:*)",
+      "Bash(git prune:*)",
+      "Bash(git notes:*)"
+    ],
+    "deny_additions": [
+      "Edit(~/.claude/settings.json)",
+      "Edit(~/.claude/settings.local.json)",
+      "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/**/.claude/settings.json)",
+      "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/**/.claude/settings.local.json)",
+      "Edit(~/.claude/plugins/**)",
+      "Edit(~/.claude/.env)",
+      "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/**/.env)"
+    ]
+  },
+
+  "workspaces": {
+    "skill-management-hub": {
+      "settings_path": "//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.claude/settings.json",
+      "deny_global_skill_hub_owned": [],
+      "deny_other_workspace_internals": [
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/_archive/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/assets/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/docs/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/knowledge-base/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/resources/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/tools/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/workflows/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.claude/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/CLAUDE.md)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/MEMORY.md)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/docs/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/supabase/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/tools/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/workflows/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.claude/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/CLAUDE.md)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/MEMORY.md)"
+      ],
+      "deny_inbox_direct_edit": [
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.routed-tasks/inbox/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.routed-tasks/processed/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.lifecycle-reviews/inbox/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.lifecycle-reviews/processed/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.routed-tasks/inbox/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.routed-tasks/processed/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.lifecycle-reviews/inbox/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.lifecycle-reviews/processed/**)"
+      ],
+      "deny_other_workspace_human_action": [
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/HUMAN-ACTION-REQUIRED.md)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/HUMAN-ACTION-REQUIRED.md)"
+      ]
+    },
+    "workforce-hq": {
+      "settings_path": "//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.claude/settings.json",
+      "deny_global_skill_hub_owned": [
+        "Edit(~/.claude/rules/**)",
+        "Edit(~/.claude/skills/**)",
+        "Edit(~/.claude/agents/**)",
+        "Edit(~/.claude/hooks/**)",
+        "Edit(~/.claude/scripts/**)",
+        "Edit(~/.claude/CLAUDE.md)",
+        "Edit(~/.claude/docs/**)",
+        "Edit(~/.claude/config/**)",
+        "Edit(~/.claude/tests/**)",
+        "Edit(~/.claude/plans/**)"
+      ],
+      "deny_other_workspace_internals": [
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/docs/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/knowledge-base/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/resources/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/sharkitect-claude-toolkit/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/skill-comparison-test/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/tests/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/tools/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/workflows/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.claude/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/CLAUDE.md)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/MEMORY.md)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/docs/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/supabase/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/tools/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/workflows/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.claude/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/CLAUDE.md)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/MEMORY.md)"
+      ],
+      "deny_inbox_direct_edit": [
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.work-requests/inbox/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.work-requests/processed/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.lifecycle-reviews/inbox/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.lifecycle-reviews/processed/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.routed-tasks/inbox/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.routed-tasks/processed/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.lifecycle-reviews/inbox/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.lifecycle-reviews/processed/**)"
+      ],
+      "deny_other_workspace_human_action": [
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/HUMAN-ACTION-REQUIRED.md)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/HUMAN-ACTION-REQUIRED.md)"
+      ]
+    },
+    "sentinel": {
+      "settings_path": "//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.claude/settings.json",
+      "deny_global_skill_hub_owned": [
+        "Edit(~/.claude/rules/**)",
+        "Edit(~/.claude/skills/**)",
+        "Edit(~/.claude/agents/**)",
+        "Edit(~/.claude/hooks/**)",
+        "Edit(~/.claude/scripts/**)",
+        "Edit(~/.claude/CLAUDE.md)",
+        "Edit(~/.claude/docs/**)",
+        "Edit(~/.claude/config/**)",
+        "Edit(~/.claude/tests/**)",
+        "Edit(~/.claude/plans/**)"
+      ],
+      "deny_other_workspace_internals": [
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/_archive/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/assets/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/docs/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/knowledge-base/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/resources/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/tools/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/workflows/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.claude/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/CLAUDE.md)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/MEMORY.md)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/docs/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/knowledge-base/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/resources/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/sharkitect-claude-toolkit/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/skill-comparison-test/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/tests/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/tools/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/workflows/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.claude/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/CLAUDE.md)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/MEMORY.md)"
+      ],
+      "deny_inbox_direct_edit": [
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.routed-tasks/inbox/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.routed-tasks/processed/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.lifecycle-reviews/inbox/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.lifecycle-reviews/processed/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.work-requests/inbox/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.work-requests/processed/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.lifecycle-reviews/inbox/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.lifecycle-reviews/processed/**)"
+      ],
+      "deny_other_workspace_human_action": [
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/HUMAN-ACTION-REQUIRED.md)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/HUMAN-ACTION-REQUIRED.md)"
+      ]
+    }
+  },
+
+  "shared_commons_left_writeable": {
+    "description": "Paths every workspace can write. Covered by global allow on workspaces dir; NOT included in any workspace's deny lists. All cross-workspace coordination flows through these.",
+    "paths": [
+      "<other workspace>/.routed-tasks/inbox/<filename>.json (NEW file creation via Bash/Python -- subprocess writes bypass Edit deny)",
+      "<other workspace>/.lifecycle-reviews/inbox/<filename>.json (same)",
+      "<Skill Hub>/.work-requests/inbox/<filename>.json (via work-request.py)",
+      "<own workspace>/HUMAN-ACTION-REQUIRED.md (own-workspace direct Edit)",
+      "<other workspace>/HUMAN-ACTION-REQUIRED.md (cross-workspace via notify-human-action.py Bash subprocess)",
+      "~/.claude/lessons-learned.md (all session-end appends, direct Edit allowed)",
+      "~/.claude/docs/plans-registry.md (all plan lifecycle updates, direct Edit allowed)",
+      "~/.claude/.tmp/ (caches, manifests, logs)"
+    ]
+  },
+
+  "emergency_override_procedure": "See ~/.claude/docs/permissions-emergency-override.md"
+}
