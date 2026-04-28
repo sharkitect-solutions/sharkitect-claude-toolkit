@@ -2441,6 +2441,12 @@ to compare without logging raw secrets.
 **Why:** Short personal-feeling emails convert better than long corporate-feeling ones. Button-by-color works for non-English readers. Gender-neutral prevents template drift when client roster mixes.
 **Tags:** #email #signature-request #templates #operational
 
+**preference (2026-04-28):** Quality > speed for all build/architecture/refactor decisions. "I prefer quality, final outcome, long-term solutions over speed. Get it right the first time rather than going back to fix later." Applies universally to: skills, agents, hooks, scripts, schemas, plans, client deliverables, tooling, refactors, integrations. Forward-thinking schema design (reserve slots for anticipated future patterns even when not implemented v1) is the implementation of this preference.
+**Apply when:** Proposing options to the user OR making any architecture/build/schema decision autonomously. Lead with the long-term solution. Quick-fix options are alternatives ONLY if the user has cited a deadline constraint.
+**Exception (1-in-10 rule):** Time-sensitive client deadlines where the full build would delay handoff/go-live. In that case: implement the shortcut, document the proper-path TODO with cost estimate, surface the trade-off explicitly to the user.
+**Why:** Stated 2026-04-28 during inbox amendment system design conversation. User had previously paid the cost of multiple rebuilds (Foundation Reset, multiple automation rebuilds with leftover dead artifacts). The system needs to scale with the user, not fight them.
+**Tags:** #operational-meta #preferences #architecture #quality-bar #forward-thinking
+
 ### [2026-04-24] process: Spec describes design intent, not implementation state — verify by reading actual code
 
 **Context:** During AutoFix v2.1 session, Chris asked "is the prompt being optimized as part of v2?" Original answer would have been "yes, the spec covers it" based on memory of v2.1 design. Instead I read `tools/error-autofix/prompt_template.py` and found 8 specific misalignments with v2.1 — dead code paths, contradictory escalation rules, banned `unknown` enum, missing v2 placeholders, no n8n skill directives.
@@ -2906,3 +2912,28 @@ tags: permissions, settings, autonomy
 - process: Orphan-cleanup criteria (`check-orphan-claude-processes.py`) correctly classify by "≥4h AND no live VS Code parent." This protects active sessions but does NOT catch the failure mode "VS Code window open but unattended; session firing CronCreate jobs and processing inboxes autonomously." Diagnosis 2026-04-27: parallel session PID 53212 (age 2.9h, protected) processed wr-022/wr-023 ACKs ~30s before user authorized this session to do same. Recommendation: add idle-transcript check (no user message in transcript for ≥X hours) as alternative kill criterion. Why: the user's actual definition of "orphan" is "session nobody is paying attention to," not "session whose VS Code parent died." Tags: orphan-cleanup, race-condition, cron, multi-session.
 
 - process: `session-checkpoint-enforcer.py` regex `\bclose\s+(?:out|the\s+session)\b` matches "close out resolved entries" along with "close out the session." False positive triggered 4 blocks during routine HAR.md housekeeping today. Bypass via `--mid` in tool content worked, but the trigger is over-broad. Tighten to require "session" or "checkpoint" word context. Why: housekeeping requests should not require checkpoint formality. Tags: hook-tuning, session-checkpoint-enforcer, regex, false-positive.
+
+## 2026-04-28 (workforce-hq)
+
+### preference: Voice profile + brand identity guide MANDATORY for client-facing content
+**Context:** Drafted Hibu follow-up email to Emmanuel through 4 brand-clear iterations. All scored 25-27/30 technically but Chris flagged "doesn't sound like me."
+**Fix:** Loading `knowledge-base/governance/voice-profile-chris.md` + `brand-identity-guide.md` BEFORE drafting (not just brand-quick-ref) produced v5 that landed.
+**Apply when:** Any client-facing email, proposal, message, or content authored as Chris. Non-negotiable per Chris's directive.
+**Tags:** voice, brand, client-content, non-negotiable
+
+### preference: gws CLI first for Gmail ops, not MCP
+**Context:** Defaulted to Gmail MCP for Hibu reply draft. Chris flagged "we got lazy — should use gws CLI."
+**Fix:** `gws gmail +reply --message-id <id> --draft` handles threading correctly via API. Native Gmail MCP create_draft can't thread; Zapier draft-reply throws 404 on entity lookup. gws is the canonical path.
+**Apply when:** Any Gmail operation (draft, reply, send, search). gws is default; MCP only as fallback.
+**Tags:** gws, gmail, tooling-discipline
+
+### process: Card pipeline has 4 logo asset paths, not 1
+**Context:** FF chrome metallic logo refresh. Updated Supabase + HubSpot hs_logo_url + template logo.svg — but vCard PHOTO still showed old logo.
+**Why:** The card pipeline reads from per-company template (`_template-{slug}/`), not Supabase or HubSpot. Even within the template, there are 4 separate logo asset locations: `logo.svg` (page logo), `_photoB64` JS variable in `index.html` (vCard PHOTO), `manifest.json` (PWA icons), `apple-touch-icon` reference.
+**Apply when:** Updating a per-company logo. Update ALL 4 paths in the template repo; updating one doesn't propagate to others.
+**Tags:** card-pipeline, fantastic-floors, template-architecture
+
+### direction: raw.githubusercontent.com CDN multi-region cache is unreliable
+**Context:** Pushed template logo.svg via API; n8n cloud pipeline fetched stale version 4+ minutes later. My curl saw fresh content (different CDN region) while n8n's HTTP request hit a stale region.
+**Apply when:** Any template/asset update that the n8n pipeline fetches via raw.githubusercontent.com. Add `?cb=${Date.now()}` cache-bust query string in the pipeline's HTTP fetch URL to force fresh content. Permanent fix; one-line change in Fill index.html node.
+**Tags:** github-cdn, n8n-pipeline, cache-busting
