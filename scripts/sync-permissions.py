@@ -59,8 +59,16 @@ def _backup(p: Path) -> Path | None:
 
 
 def _expand_path(s: str) -> Path:
-    """Expand ~/ and resolve."""
-    return Path(os.path.expanduser(s)).resolve()
+    """Expand ~/ and POSIX drive-letter paths (//c/...) to native Windows paths.
+
+    Templates use POSIX-style paths like //c/Users/... for Claude Code permissions
+    matching, but Path.resolve() interprets these as UNC network paths on Windows
+    (\\\\c\\Users\\...). Convert to drive-letter form before filesystem operations.
+    """
+    s = os.path.expanduser(s)
+    if sys.platform == "win32" and len(s) >= 4 and s[0:2] == "//" and s[3] == "/":
+        s = f"{s[2]}:{s[3:]}"
+    return Path(s).resolve()
 
 
 def _merge_lists(existing: list, additions: list) -> list:

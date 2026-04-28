@@ -140,3 +140,25 @@ def test_validate_templates_catches_missing_keys(tmp_path: Path):
     assert r.returncode == 3, f"stderr: {r.stderr}"
     assert "Template validation failed" in r.stderr
     assert "global_settings_path" in r.stderr
+
+
+def test_expand_path_translates_posix_drive_letter_on_windows():
+    """Regression: Path('//c/Users/...').resolve() interprets as UNC on Windows.
+    _expand_path must convert //c/Users/... to c:/Users/... before resolve.
+    """
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("sync_permissions", str(SCRIPT))
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    if sys.platform == "win32":
+        result = mod._expand_path("//c/Users/Sharkitect Digital/Documents/test")
+        # On Windows, must be drive-letter form, not UNC
+        assert str(result).startswith("C:") or str(result).startswith("c:"), \
+            f"expected C:/ prefix, got {result}"
+        assert "\\\\" not in str(result)[:2], f"path resolved as UNC: {result}"
+    else:
+        # On POSIX, leave as-is; //c/... is just a regular path
+        result = mod._expand_path("//c/foo")
+        assert str(result).endswith("/c/foo") or "c/foo" in str(result)
