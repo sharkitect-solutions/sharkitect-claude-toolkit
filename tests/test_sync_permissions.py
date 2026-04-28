@@ -6,8 +6,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
-
 
 SCRIPT = Path.home() / ".claude" / "scripts" / "sync-permissions.py"
 
@@ -100,6 +98,8 @@ def test_idempotent_second_run_no_change(tmp_path: Path):
     r = _run(["--templates", str(templates), "--execute"])
     assert r.returncode == 0
     assert global_settings.read_text() == after_first
+    backups = list(global_settings.parent.glob("global-settings.json.bak.*"))
+    assert len(backups) == 1, f"expected exactly one backup after idempotent run, got {len(backups)}"
 
 
 def test_workspace_settings_creates_if_missing(tmp_path: Path):
@@ -121,3 +121,22 @@ def test_invalid_json_in_templates_aborts(tmp_path: Path):
     bad.write_text("not valid json {", encoding="utf-8")
     r = _run(["--templates", str(bad), "--execute"])
     assert r.returncode != 0
+
+
+def test_templates_file_not_found_returns_2(tmp_path: Path):
+    nonexistent = tmp_path / "does-not-exist.json"
+    r = _run(["--templates", str(nonexistent), "--execute"])
+    assert r.returncode == 2
+    assert "Templates not found" in r.stderr or "not found" in r.stderr.lower()
+
+
+def test_validate_templates_catches_missing_keys(tmp_path: Path):
+    bad = tmp_path / "bad-templates.json"
+    bad.write_text(json.dumps({
+        "schema_version": 1,
+        # missing global_settings_path AND global_permissions entirely
+    }), encoding="utf-8")
+    r = _run(["--templates", str(bad), "--execute"])
+    assert r.returncode == 3, f"stderr: {r.stderr}"
+    assert "Template validation failed" in r.stderr
+    assert "global_settings_path" in r.stderr

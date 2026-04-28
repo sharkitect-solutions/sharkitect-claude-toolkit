@@ -29,7 +29,7 @@ def _read_json(p: Path) -> dict:
     try:
         return json.loads(p.read_text(encoding="utf-8"))
     except json.JSONDecodeError as e:
-        raise SystemExit(f"Invalid JSON in {p}: {e}")
+        raise ValueError(f"Invalid JSON in {p}: {e}")
 
 
 def _atomic_write_json(p: Path, data: dict) -> None:
@@ -48,7 +48,12 @@ def _atomic_write_json(p: Path, data: dict) -> None:
 def _backup(p: Path) -> Path | None:
     if not p.exists():
         return None
-    bak = p.with_suffix(p.suffix + f".bak.{_now_stamp()}")
+    stamp = _now_stamp()
+    bak = p.with_suffix(p.suffix + f".bak.{stamp}")
+    counter = 0
+    while bak.exists():
+        counter += 1
+        bak = p.with_suffix(p.suffix + f".bak.{stamp}-{counter}")
     shutil.copy2(p, bak)
     return bak
 
@@ -64,7 +69,8 @@ def _merge_lists(existing: list, additions: list) -> list:
     out = list(existing)
     for a in additions:
         if a not in seen:
-            out.append(a); seen.add(a)
+            out.append(a)
+            seen.add(a)
     return out
 
 
@@ -79,12 +85,50 @@ def _build_workspace_deny(ws_template: dict) -> list:
     return out
 
 
+def _validate_templates(templates: dict) -> list[str]:
+    """Return a list of missing/malformed key paths. Empty list = valid."""
+    errors = []
+    if not isinstance(templates, dict):
+        return ["templates root is not a JSON object"]
+    if "global_settings_path" not in templates:
+        errors.append("missing 'global_settings_path'")
+    gp = templates.get("global_permissions")
+    if not isinstance(gp, dict):
+        errors.append("missing or non-object 'global_permissions'")
+    else:
+        for k in ("allow_additions", "deny_additions"):
+            if k not in gp:
+                errors.append(f"missing 'global_permissions.{k}'")
+            elif not isinstance(gp[k], list):
+                errors.append(f"'global_permissions.{k}' is not a list")
+    workspaces = templates.get("workspaces", {})
+    if not isinstance(workspaces, dict):
+        errors.append("'workspaces' is not an object")
+    else:
+        for name, ws in workspaces.items():
+            if not isinstance(ws, dict):
+                errors.append(f"'workspaces.{name}' is not an object")
+                continue
+            if "settings_path" not in ws:
+                errors.append(f"missing 'workspaces.{name}.settings_path'")
+            for k in ("deny_global_skill_hub_owned",
+                     "deny_other_workspace_internals",
+                     "deny_inbox_direct_edit",
+                     "deny_other_workspace_human_action"):
+                if k in ws and not isinstance(ws[k], list):
+                    errors.append(f"'workspaces.{name}.{k}' is not a list")
+    return errors
+
+
 def sync_global(templates: dict, dry_run: bool) -> int:
     path = _expand_path(templates["global_settings_path"])
     settings = _read_json(path)
     perms = settings.setdefault("permissions", {})
     allow = perms.setdefault("allow", [])
     deny = perms.setdefault("deny", [])
+    if not isinstance(allow, list) or not isinstance(deny, list):
+        print(f"  ERROR: {path} has non-list permissions.allow or permissions.deny -- refusing to merge", file=sys.stderr)
+        return 1
 
     new_allow = _merge_lists(allow, templates["global_permissions"]["allow_additions"])
     new_deny = _merge_lists(deny, templates["global_permissions"]["deny_additions"])
@@ -107,7 +151,8 @@ def sync_global(templates: dict, dry_run: bool) -> int:
     perms["allow"] = new_allow
     perms["deny"] = new_deny
     _atomic_write_json(path, settings)
-    print(f"  Updated: {path}  (backup: {bak.name if bak else 'NEW FILE'})")
+    backup_note = f"(backup: {bak.name})" if bak else "(no prior file -- created fresh)"
+    print(f"  Updated: {path}  {backup_note}")
     return 0
 
 
@@ -117,6 +162,9 @@ def sync_workspace(name: str, ws_template: dict, dry_run: bool) -> int:
     perms = settings.setdefault("permissions", {})
     perms.setdefault("allow", [])
     deny = perms.setdefault("deny", [])
+    if not isinstance(deny, list):
+        print(f"  [{name}] ERROR: {path} has non-list permissions.deny -- refusing to merge", file=sys.stderr)
+        return 1
 
     additions = _build_workspace_deny(ws_template)
     new_deny = _merge_lists(deny, additions)
@@ -135,7 +183,8 @@ def sync_workspace(name: str, ws_template: dict, dry_run: bool) -> int:
     bak = _backup(path)
     perms["deny"] = new_deny
     _atomic_write_json(path, settings)
-    print(f"  [{name}] Updated: {path}  (backup: {bak.name if bak else 'NEW FILE'})")
+    backup_note = f"(backup: {bak.name})" if bak else "(no prior file -- created fresh)"
+    print(f"  [{name}] Updated: {path}  {backup_note}")
     return 0
 
 
@@ -154,21 +203,33 @@ def main() -> int:
     if not templates_path.exists():
         print(f"Templates not found: {templates_path}", file=sys.stderr)
         return 2
-    templates = _read_json(templates_path)
+    try:
+        templates = _read_json(templates_path)
+    except ValueError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 1
+
+    errs = _validate_templates(templates)
+    if errs:
+        print("Template validation failed:", file=sys.stderr)
+        for e in errs:
+            print(f"  - {e}", file=sys.stderr)
+        return 3
 
     mode = "DRY RUN" if args.dry_run else "EXECUTE"
     print(f"sync-permissions.py [{mode}]")
     print(f"Templates: {templates_path}")
     print()
+    exit_code = 0
     print("Global settings:")
-    sync_global(templates, args.dry_run)
+    exit_code |= sync_global(templates, args.dry_run)
     print()
     print("Workspace settings:")
     for name, ws in templates.get("workspaces", {}).items():
-        sync_workspace(name, ws, args.dry_run)
+        exit_code |= sync_workspace(name, ws, args.dry_run)
     print()
-    print("Done.")
-    return 0
+    print("Done." if exit_code == 0 else "Done WITH errors.")
+    return exit_code
 
 
 if __name__ == "__main__":
