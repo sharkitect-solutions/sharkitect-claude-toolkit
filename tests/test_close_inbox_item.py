@@ -54,6 +54,7 @@ def test_status_withdrawn_accepted(tmp_path):
     # Item should have moved to processed/
     processed = tmp_path / "processed" / item_path.name
     assert processed.exists(), "item not moved to processed/"
+    assert not item_path.exists(), "source file should have been moved out of inbox/"
     closed = json.loads(processed.read_text(encoding="utf-8"))
     assert closed["status"] == "withdrawn"
 
@@ -70,6 +71,7 @@ def test_processed_auto_converts_to_completed(tmp_path):
     assert "DEPRECATION" in result.stderr
     assert "auto-converted to 'completed'" in result.stderr
     processed = tmp_path / "processed" / item_path.name
+    assert not item_path.exists(), "source file should have been moved out of inbox/"
     closed = json.loads(processed.read_text(encoding="utf-8"))
     assert closed["status"] == "completed", f"expected 'completed', got {closed['status']!r}"
 
@@ -85,6 +87,7 @@ def test_resolved_auto_converts_to_completed(tmp_path):
     assert result.returncode == 0, f"stdout={result.stdout!r} stderr={result.stderr!r}"
     assert "DEPRECATION" in result.stderr
     processed = tmp_path / "processed" / item_path.name
+    assert not item_path.exists(), "source file should have been moved out of inbox/"
     closed = json.loads(processed.read_text(encoding="utf-8"))
     assert closed["status"] == "completed"
 
@@ -120,3 +123,54 @@ def test_annotate_appends_without_closing(tmp_path):
     assert note["actor"] == "skill-management-hub"
     assert note["status"] == "in_progress"
     assert "Halfway through schema migration" in note["note"]
+
+
+def test_annotate_rejects_non_inbox_file(tmp_path):
+    """--annotate must refuse to mutate files that aren't in an inbox/ dir."""
+    item_path = _make_inbox_item(tmp_path, status="in_progress")
+    # Simulate a file that's already in processed/ -- mv it
+    processed_dir = tmp_path / "processed"
+    processed_dir.mkdir()
+    target = processed_dir / item_path.name
+    item_path.rename(target)
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--file", str(target),
+            "--resolved-by", "skill-management-hub",
+            "--what-was-done", "Should be rejected because not in inbox/",
+            "--annotate",
+            "--no-supabase",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0, f"expected non-zero, got 0 (stdout={result.stdout!r})"
+    assert "inbox/" in result.stderr or "inbox" in result.stderr.lower()
+    # File body should be untouched
+    data = json.loads(target.read_text(encoding="utf-8"))
+    assert "status_history" not in data or len(data.get("status_history", [])) == 0
+
+
+def test_annotate_rejects_already_closed_status(tmp_path):
+    """--annotate must refuse to mutate items whose status is a close-state."""
+    item_path = _make_inbox_item(tmp_path, status="completed")
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--file", str(item_path),
+            "--resolved-by", "skill-management-hub",
+            "--what-was-done", "Should be rejected because status is closed",
+            "--annotate",
+            "--no-supabase",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0, f"expected non-zero, got 0 (stdout={result.stdout!r})"
+    assert "close-state" in result.stderr or "closed" in result.stderr.lower()
+    data = json.loads(item_path.read_text(encoding="utf-8"))
+    # Body unchanged
+    assert "status_history" not in data or len(data.get("status_history", [])) == 0

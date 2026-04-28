@@ -573,13 +573,15 @@ def close_item(
     #   rejected                         -> "rejected"
     #   superseded                       -> "superseded"
     #   duplicate                        -> "duplicate"
+    #   withdrawn                        -> "withdrawn"
     move_reason_map = {
-        "processed": "completed",
         "completed": "completed",
-        "resolved": "completed",
-        "rejected": "rejected",
-        "superseded": "superseded",
         "duplicate": "duplicate",
+        "processed": "completed",
+        "rejected": "rejected",
+        "resolved": "completed",
+        "superseded": "superseded",
+        "withdrawn": "withdrawn",
     }
     resolution = {
         **existing_resolution,
@@ -733,10 +735,29 @@ def main():
     # Item stays in inbox/, status unchanged. Used to track in-flight progress.
     if args.annotate:
         item_path = Path(args.file)
+        if not item_path.exists():
+            print(f"ERROR: --annotate target does not exist: {item_path}", file=sys.stderr)
+            sys.exit(1)
+        if item_path.parent.name != "inbox":
+            print(
+                f"ERROR: --annotate requires the file to live in an inbox/ directory; "
+                f"got parent '{item_path.parent.name}'. Annotating closed records "
+                f"in processed/ is not allowed.",
+                file=sys.stderr
+            )
+            sys.exit(1)
         item = json.loads(item_path.read_text(encoding="utf-8"))
+        current_status = item.get("status", "pending")
+        if current_status in VALID_CLOSE_STATUSES:
+            print(
+                f"ERROR: --annotate refused: item status is already a close-state "
+                f"('{current_status}'). Annotation only applies to open inbox items.",
+                file=sys.stderr
+            )
+            sys.exit(1)
         note_entry = {
-            "status": item.get("status", "pending"),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "status": current_status,
+            "timestamp": now_iso(),
             "actor": args.resolved_by,
             "note": args.what_was_done,
             "kind": "annotation"
