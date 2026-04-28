@@ -275,14 +275,16 @@ Copy-Item -Path "rules\*" -Destination "$env:USERPROFILE\.claude\rules" -Recurse
 
 Cross-workspace tool scripts live under `~/.claude/scripts/` and are callable from any workspace (`python ~/.claude/scripts/close-inbox-item.py ...`, etc.). They are mirrored from the toolkit as of 2026-04-23.
 
+The toolkit also mirrors **subdirectory packages** (e.g. `scripts/_lib/intent_detection.py`, a shared user-driven-mode detection helper used by enforcer hooks). Restoration MUST preserve the subdirectory layout -- the `-r` / `-Recurse` flags below handle this.
+
 ```bash
 # Mac/Linux
 mkdir -p ~/.claude/scripts
-cp scripts/*.py ~/.claude/scripts/
+cp -r scripts/* ~/.claude/scripts/
 
 # Windows (PowerShell)
 New-Item -ItemType Directory -Path "$env:USERPROFILE\.claude\scripts" -Force
-Copy-Item -Path "scripts\*.py" -Destination "$env:USERPROFILE\.claude\scripts" -Recurse -Force
+Copy-Item -Path "scripts\*" -Destination "$env:USERPROFILE\.claude\scripts" -Recurse -Force
 ```
 
 ### What the scripts do
