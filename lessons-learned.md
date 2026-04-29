@@ -3100,3 +3100,51 @@ tags: permissions, settings, autonomy
 
 **Tags:** inbox-driven-coordination, autonomy, cross-workspace, routed-tasks, completion-notification
 
+
+---
+
+## 2026-04-28 — process: forensic-capture-before-hypothesis-testing methodology
+
+**Pattern:** When a bug has documented hypotheses, do forensic capture of the actual broken artifact BEFORE entering the hypothesis tree. The artifact often reveals the answer without speculative testing.
+
+**Context:** Phase 1 PHOTO debug spec called for H1-H8 hypothesis tree. Phase 1.A "forensic capture" was framed as evidence-gathering before H1. Curling the deployed HTML, decoding all base64, and visually comparing the bytes to known sources surfaced the root cause (snapshot-staleness) immediately. We never entered the hypothesis tree.
+
+**Why:** hypotheses are speculative; the artifact is concrete. The artifact has all the information you need — you just have to look. Hypothesis testing is for cases where the artifact is opaque or the failure mode isn't reproducible. When the artifact is a deployed file you can curl and decode, look at it before guessing.
+
+**Tags:** debugging, systematic-debugging, n8n, card-system, forensic-analysis
+
+---
+
+## 2026-04-28 — process: cross-reference observed pattern against registered blueprint failure modes BEFORE designing new fixes
+
+**Pattern:** When investigating a bug, query the registered workflow_blueprints (or equivalent runbooks) for the workflow's known failure modes. If a documented failure mode matches, verify completion status of the documented remediation BEFORE designing a new fix.
+
+**Context:** Phase 1 PHOTO debug today. The card-intake workflow blueprint (`workflow_blueprints` for `sdytO7y1ZjrPIanA`) had Failure Mode #6 documenting EXACTLY the pattern we hit ("Wrong logo source — visually-similar variants masquerading under the same filename") with a 6-step remediation (a)-(f). Steps (a)-(d) and (f) had been completed earlier the same day; only step (e) ("push to every existing per-client repo") was outstanding. Today's work was just executing step (e) — no new design needed.
+
+**Why:** failure modes accumulate institutional knowledge. Re-deriving fixes wastes time and risks introducing inconsistencies with the documented remediation. Verifying completion status of each step in the documented remediation is fast and forces honest accounting.
+
+**Apply when:** bug investigation on any workflow with a registered blueprint OR runbook OR similar documented failure-mode catalog.
+
+**Tags:** debugging, blueprints, runbooks, autofix-v2, n8n
+
+---
+
+## 2026-04-28 — process: when test tooling errors, evaluate whether live broken artifact can serve as test subject before fixing the tool
+
+**Pattern:** If a tool errors during forensic capture setup, check whether the actual broken artifact in production can serve as the test subject directly. Forensic capture works on existing artifacts as well as synthesized ones.
+
+**Context:** Phase 1 plan called for `tools/card-spawn.py` to spawn a fresh test card with unique fields (to bypass iOS merge cache). The tool errored with `RuntimeError: unreplaced tokens in index.html: ['{{PERSON_BOOKING_URL}}']` due to drift between the tool and the FF template. Rather than fix the tool (scope creep), used Juan's existing card as the forensic subject. Synthetic-card isolation only matters for the iOS merge-cache hypothesis (H7), which we never reached. Forensic capture (curl + decode + visual diff) worked identically on Juan's actual buggy card.
+
+**Why:** scope creep multiplies. Fixing card-spawn.py would have meant: investigating the token, fixing the regex, retesting, possibly fixing more drift items. Forensic capture only needs ONE buggy card; the production failure IS that card. Bonus: testing against the actual production failure is BETTER evidence than testing against a synthesized one.
+
+**Tags:** debugging, scope-control, tooling-drift, pragmatism
+
+
+## 2026-04-29 — Stem keywords for path-pattern regex (not full words)
+
+**Category:** error / pattern
+**Context:** Building verification-tool detection regex in methodology-nudge.py for wr-sentinel-2026-04-27-020. First implementation used full-word keywords (`validate`, `verify`, `audit`) in alternation. 4 of 11 positive test cases failed — including the WR's exact citation (`tools/wr-id-consistency-check.py`).
+**Root cause (caught by direct re.search probes):** "validate" is NOT a substring of "validator". They share `valid` + `at` but the next char diverges (validate = `e`, validator = `o`). Same for "verify" vs "verifier" (verifies but verifier doesn't contain "verify" in its first 7 chars... actually "verifier" DOES contain "verify"; the validator/validate case is the killer). My intuition that "shorter word is substring of longer inflection" was wrong for this specific Latin-suffix family.
+**Solution:** Use word stems, not full words. `validat` matches validate, validator, validation, validates, validated. `verif` matches verify, verifier, verifies, verified, verification. `audit` already a stem (auditor, auditing). `consistenc` for consistency/consistencies. `inspect` for inspect/inspector/inspection. Kept `checker` and `tester` as full words since their stems (`check`/`test`) over-match into ordinary file names (test_ prefix matches test files which ARE the tests, not tools needing tests).
+**When to apply:** Building any path-matching or filename-pattern regex with keyword alternation. ALWAYS run direct `re.search('keyword', 'real_test_string')` probes for both POSITIVE inflections (validator, auditor, verification) AND negative cases BEFORE writing the integration test. Cheap to verify, expensive to debug downstream.
+**Tags:** regex, path-pattern, hooks, methodology-nudge, debugging-discipline
