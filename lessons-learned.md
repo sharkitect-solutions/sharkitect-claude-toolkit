@@ -3300,3 +3300,41 @@ tags: permissions, settings, autonomy
 **Apply when:** Any session that modifies workspace `.claude/settings.json` or global `~/.claude/settings.json` — note explicitly that the change activates next session, not now. If a mid-session probe is needed, use the documented subprocess escape (Bash + python). Don't waste time debugging "why doesn't this work" — it's by design.
 
 **Tags:** settings-reload, claude-code-permissions, mid-session-cache
+
+
+---
+
+## Architecture Direction — 2026-04-29 (Session 10)
+
+### direction: smoke test live-data paths during TDD before declaring "done"
+
+**Context:** During n8n Phase 2 Task 2.2 (cadence engine Supabase query), the unit tests passed 24/24 against stubbed Supabase responses. First live `--dry-run` against production Supabase exposed 3 issues that NO unit test would have caught:
+
+1. **Sentinel migration backfilled `audit_cadence` but not `last_audited_at`** → 310 assets fired the never-audited rule, would have flooded the inbox. Added per-run cap with cadence-priority sort.
+2. **Supabase TIMESTAMP columns serialize as `2026-04-22T00:00:00+00:00`** → `date.fromisoformat()` is strict and rejected the datetime shape. Tests used clean ISO date strings.
+3. **n8n `/releases/latest` returns moving `tag_name: "stable"`** with no version info. Tests assumed `tag_name` would always carry a parseable semver. Real n8n uses monorepo `n8n@1.123.38` tags listed under `/releases` (not `/latest`).
+
+**Apply when:** Building any tool that queries production data (Supabase, GitHub APIs, n8n cloud, Slack, etc.). Unit tests with stubs prove the contract works in isolation; smoke tests against real data prove the contract matches reality. The gap between "passes tests" and "works in production" closes only when both happen before commit.
+
+**Design principles:**
+- Stub responses should mirror REAL response shapes, not idealized ones (build them by `curl`-ing once and copying the actual JSON)
+- Always run `--dry-run` against production before the first real cron run
+- When stub-tests pass but live runs fail, the lesson is in the stub fidelity, not the production data — fix the stub to match reality and add a regression test
+
+**Tags:** tdd, smoke-testing, data-fidelity, n8n, supabase, cadence-engine
+
+### direction: respect the row-ownership rule even when convenient to violate
+
+**Context:** Task 2.4 (quarterly tier reassessment) needed to update `assets.audit_cadence` based on activity. The plan body said "Skill Hub does the reassessment." Easiest implementation: have the engine directly UPDATE the audit_cadence column. But the Supabase Ownership Protocol says "only the owning workspace updates its own records." Most assets are owned by Skill Hub, but some are owned by HQ and Sentinel.
+
+**Decision:** Engine files info-severity advisory WRs (origin_tag=cadence-engine-reassess) instead of direct UPDATEs. Each WR addresses the owning workspace.
+
+**Tradeoff accepted:** More friction (WR has to be processed), but:
+- Preserves the row-ownership rule
+- Surfaces tier changes for review (reassessment is heuristic, not authoritative)
+- Integrates with the existing WR pipeline (judgement, dedup, post-mortem)
+- Quarterly cadence makes the friction tolerable
+
+**Apply when:** Any system-wide policy change that touches rows owned by multiple workspaces. The shortcut (centralized writer) is appealing but breaks the ownership model and removes the review layer. Advisory + filed-for-owner is the right pattern.
+
+**Tags:** ownership, supabase, cadence-engine, advisory-pattern
