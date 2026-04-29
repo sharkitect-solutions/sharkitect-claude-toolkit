@@ -36,7 +36,7 @@ import os
 import sys
 import urllib.error  # noqa: used in log_to_supabase
 import urllib.request  # noqa: used in log_to_supabase
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 
@@ -186,6 +186,135 @@ def get_next_id(inbox_dir, workspace_short, workspace_canonical):
     used = _used_counters_for_workspace_date(inbox_dir, today, workspace_short, workspace_canonical)
     next_n = (max(used) + 1) if used else 1
     return f"wr-{workspace_short}-{today}-{next_n:03d}"
+
+
+# ---- Quality gates (wr-2026-04-25-001 Phase 1 Task 1.2) --------------------
+# Two gates added to reduce inbox noise + force concrete impact articulation.
+# Both bypassable via --skip-dedup / --skip-impact-floor for tests.
+
+# Block-listed generic impact phrases. Case-insensitive substring match.
+# Source: plan spec Step 3 example block list. Extend conservatively.
+_IMPACT_BLOCK_LIST = (
+    "could be useful",
+    "might be nice",
+    "general improvement",
+    "would be nice",
+    "nice to have",
+)
+
+# Minimum chars for --impact text after stripping whitespace.
+_IMPACT_MIN_CHARS = 30
+
+# Dedup window: same source_workspace + same task_description filed within
+# this many days = duplicate (counter increment, no new file).
+_DEDUP_WINDOW_DAYS = 7
+
+
+def _check_impact_floor(impact_text):
+    """Return human-readable violation message or None if --impact passes the floor.
+
+    Rejection rules:
+      - Missing or empty after strip
+      - < _IMPACT_MIN_CHARS chars after strip
+      - Contains any block-listed phrase (case-insensitive substring match)
+
+    Returns:
+        str (violation message) or None (passes).
+    """
+    if not impact_text:
+        return (
+            "--impact is required and must articulate concrete impact "
+            "(would have shortened fix by X / would have raised confidence "
+            "from low to high). Empty/missing rejected."
+        )
+    stripped = impact_text.strip()
+    if len(stripped) < _IMPACT_MIN_CHARS:
+        return (
+            f"--impact must articulate concrete impact "
+            f"(would have shortened fix by X / would have raised confidence "
+            f"from low to high). Got {len(stripped)} chars; need >= "
+            f"{_IMPACT_MIN_CHARS}."
+        )
+    lower = stripped.lower()
+    for phrase in _IMPACT_BLOCK_LIST:
+        if phrase in lower:
+            return (
+                f"--impact contains block-listed generic phrase '{phrase}'. "
+                f"Articulate concrete impact instead "
+                f"(would have shortened fix by X / would have raised "
+                f"confidence from low to high)."
+            )
+    return None
+
+
+def _find_dedup_match(inbox_dir, source_workspace, task_description, today_iso):
+    """Scan inbox + processed for a same-source same-task entry filed within
+    the dedup window.
+
+    Returns:
+        (Path, dict) of the matching JSON file + its parsed data, or
+        (None, None) if no match.
+
+    Match criteria (ALL must hold):
+      - Same source_workspace
+      - Same task_description (case-insensitive exact match after strip)
+      - Filed within _DEDUP_WINDOW_DAYS of today
+    """
+    if not source_workspace or not task_description:
+        return None, None
+    target_task = task_description.strip().lower()
+    if not target_task:
+        return None, None
+    today_dt = datetime.strptime(today_iso, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    window_start = today_dt - timedelta(days=_DEDUP_WINDOW_DAYS)
+    siblings = [inbox_dir]
+    processed = inbox_dir.parent / "processed"
+    if processed.exists():
+        siblings.append(processed)
+    for d in siblings:
+        for f in d.glob("*.json"):
+            try:
+                data = json.loads(f.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+                continue
+            if data.get("source_workspace") != source_workspace:
+                continue
+            existing_task = (data.get("task_description") or "").strip().lower()
+            if existing_task != target_task:
+                continue
+            ts = data.get("timestamp")
+            if not ts:
+                continue
+            try:
+                # Tolerate both 'Z' and explicit offset
+                ts_clean = ts.replace("Z", "+00:00")
+                filed_dt = datetime.fromisoformat(ts_clean)
+                if filed_dt.tzinfo is None:
+                    filed_dt = filed_dt.replace(tzinfo=timezone.utc)
+            except ValueError:
+                continue
+            if window_start <= filed_dt <= today_dt + timedelta(days=1):
+                return f, data
+    return None, None
+
+
+def _increment_dedup_count(filepath, data):
+    """Increment dedup_count on an existing WR JSON file in-place.
+
+    Returns the new counter value. Best-effort: I/O failures swallow.
+    """
+    current = int(data.get("dedup_count") or 0)
+    new_value = current + 1
+    data["dedup_count"] = new_value
+    data["dedup_last_seen"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    try:
+        filepath.write_text(
+            json.dumps(data, indent=2, ensure_ascii=True),
+            encoding="utf-8",
+        )
+    except OSError:
+        pass
+    return new_value
 
 
 def slugify(text):
@@ -505,8 +634,24 @@ def main():
     parser.add_argument("--output-dir",
                         help="Override target inbox directory (default: Skill Hub "
                              ".work-requests/inbox/). For tests.")
+    # Quality gate flags (wr-2026-04-25-001 Phase 1 Task 1.2). Default behavior
+    # enforces both gates; opt-out flags exist for test harnesses.
+    parser.add_argument("--skip-dedup", action="store_true",
+                        help="Skip the 7-day same-source same-task dedup window. "
+                             "For tests that intentionally file repeats.")
+    parser.add_argument("--skip-impact-floor", action="store_true",
+                        help="Skip the --impact severity floor (>=30 chars + no "
+                             "block-listed generic phrases). For tests.")
 
     args = parser.parse_args()
+
+    # Severity floor on --impact (wr-2026-04-25-001 INFRA 9).
+    # Skipped in JSON mode (caller takes responsibility) and when --skip-impact-floor.
+    if not args.skip_impact_floor and not args.json:
+        floor_violation = _check_impact_floor(args.impact)
+        if floor_violation:
+            print(f"ERROR: severity floor: {floor_violation}", file=sys.stderr)
+            return 1
 
     # Normalize workspace name to canonical kebab-case
     if args.workspace:
@@ -555,10 +700,32 @@ def main():
             args.workspace_path = os.getcwd()
         report = build_report(args)
 
+    # 7-day same-source same-task dedup window (wr-2026-04-25-001 INFRA 9).
+    # Skipped via --skip-dedup (tests). When a duplicate is found, increment
+    # dedup_count on the EXISTING file in-place and exit successfully -- do NOT
+    # write a new file. Prevents inbox noise from repeated automatic filings of
+    # the same gap (e.g. flaky cron, retried error class).
+    today_iso = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if not args.skip_dedup:
+        existing_path, existing_data = _find_dedup_match(
+            inbox,
+            report.get("source_workspace"),
+            report.get("task_description"),
+            today_iso,
+        )
+        if existing_path is not None and existing_data is not None:
+            new_count = _increment_dedup_count(existing_path, existing_data)
+            print(
+                f"Duplicate of {existing_data.get('id', 'unknown')} "
+                f"(filed within {_DEDUP_WINDOW_DAYS} days, same source + task). "
+                f"dedup_count incremented to {new_count}. No new file written."
+            )
+            return 0
+
     # Assign ID and filename, with retry loop to handle race conditions.
     # v2 (wr-2026-04-25-007): id is workspace-prefixed; counter is workspace-scoped.
     # Cross-workspace collision is impossible by construction.
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today = today_iso
     source_ws = report.get("source_workspace", "unknown")
     workspace_short = WORKSPACE_SHORT_MAP.get(source_ws)
     if workspace_short is None:

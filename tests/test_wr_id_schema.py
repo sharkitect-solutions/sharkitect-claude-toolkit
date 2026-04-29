@@ -24,6 +24,9 @@ ID_RE_V2 = re.compile(r"^wr-(hq|skillhub|sentinel)-\d{4}-\d{2}-\d{2}-\d{3}$")
 # ----------------------------------------------------------------------------
 
 def _run_wr(workspace: str, output_dir: Path, **kw):
+    # --skip-dedup + --skip-impact-floor: these id-schema tests file repeats
+    # with placeholder text by design; they don't exercise the wr-2026-04-25-001
+    # quality gates (those have their own test file: test_work_request_dedup.py).
     cmd = [
         sys.executable, str(WR_SCRIPT),
         "--type", kw.get("type", "TASK"),
@@ -38,6 +41,8 @@ def _run_wr(workspace: str, output_dir: Path, **kw):
         "--fix-type", kw.get("fix_type", "task"),
         "--fix-desc", kw.get("fix_desc", "test"),
         "--no-supabase",
+        "--skip-dedup",
+        "--skip-impact-floor",
         "--output-dir", str(output_dir),
     ]
     return subprocess.run(cmd, capture_output=True, text=True, timeout=30)
