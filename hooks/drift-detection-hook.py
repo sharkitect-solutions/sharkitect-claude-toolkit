@@ -21,6 +21,7 @@ Output: JSON on stdout with hookSpecificOutput.additionalContext (if drift signa
 import json
 import os
 import sys
+from datetime import datetime
 from pathlib import Path
 
 
@@ -32,6 +33,18 @@ RELATIONSHIP_MAP_PATH_CANONICAL = os.path.join(os.getcwd(), ".claude", "drift-de
 RELATIONSHIP_MAP_PATH_LEGACY = os.path.join(os.getcwd(), ".tmp", "document-relationship-map.json")
 SUPABASE_CACHE_PATH = str(Path.home() / ".claude" / ".tmp" / "doc-relationships.json")
 WORKSPACES_ROOT = Path.home() / "Documents" / "Claude Code Workspaces"
+
+# Governance-skill nudge tracking (wr-hq-2026-04-28-004).
+# When 3+ KB edits accumulate in a session WITHOUT hq-knowledge-governance OR
+# lifecycle-auditor having been invoked, that's the signature of an unstructured
+# stale-doc audit -- the failure mode the WR identifies. Source: HQ session
+# 2026-04-28 manually audited KB without invoking either skill, lost the audit
+# trail. Threshold = 3 (single KB edit = focused work, 2 = possibly related,
+# 3+ = pattern that benefits from governance methodology + persistent audit log).
+GOVERNANCE_STATE_FILE = Path.home() / ".claude" / ".tmp" / "drift-detection-governance-state.json"
+GOVERNANCE_THRESHOLD = 3
+GOVERNANCE_SKILLS = ("hq-knowledge-governance", "lifecycle-auditor")
+SKILL_LOG_DIR = Path.home() / ".claude" / ".tmp"
 
 
 def resolve_relationship_map_path():
@@ -319,6 +332,97 @@ def format_reminder(result):
     return None
 
 
+def load_governance_state():
+    """Return per-session KB-edit tracking state."""
+    today = datetime.now().strftime("%Y-%m-%d")
+    if not GOVERNANCE_STATE_FILE.exists():
+        return {"date": today, "kb_edits": [], "nudged": False}
+    try:
+        s = json.loads(GOVERNANCE_STATE_FILE.read_text(encoding="utf-8"))
+        if s.get("date") != today:
+            return {"date": today, "kb_edits": [], "nudged": False}
+        return s
+    except (json.JSONDecodeError, OSError):
+        return {"date": today, "kb_edits": [], "nudged": False}
+
+
+def save_governance_state(state):
+    GOVERNANCE_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        GOVERNANCE_STATE_FILE.write_text(json.dumps(state, indent=2), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def governance_skill_invoked():
+    """Return True if hq-knowledge-governance or lifecycle-auditor was
+    invoked today (per skill-invocation-tracker log)."""
+    today = datetime.now().strftime("%Y-%m-%d")
+    log_path = SKILL_LOG_DIR / f"skill-invocations-{today}.json"
+    if not log_path.exists():
+        return False
+    try:
+        data = json.loads(log_path.read_text(encoding="utf-8"))
+        invocations = data.get("invocations", [])
+        for rec in invocations:
+            name = str(rec.get("skill", "")).lower()
+            for target in GOVERNANCE_SKILLS:
+                if name == target or name.endswith(":" + target) or name.startswith(target + ":"):
+                    return True
+    except (json.JSONDecodeError, OSError):
+        pass
+    return False
+
+
+def maybe_governance_nudge(file_path):
+    """Track KB edit and emit governance nudge if threshold reached.
+
+    Returns reminder string if nudge should fire, None otherwise.
+    Only counts edits to knowledge-base/ paths.
+    """
+    if "knowledge-base/" not in file_path.replace("\\", "/").lower():
+        return None
+    state = load_governance_state()
+    if state.get("nudged"):
+        # Already nudged this session -- if skill has since been invoked,
+        # reset for next stretch
+        if governance_skill_invoked():
+            state["kb_edits"] = []
+            state["nudged"] = False
+            save_governance_state(state)
+        return None
+
+    edits = state.setdefault("kb_edits", [])
+    norm = file_path.replace("\\", "/")
+    if norm not in edits:
+        edits.append(norm)
+    save_governance_state(state)
+
+    if len(edits) < GOVERNANCE_THRESHOLD:
+        return None
+    if governance_skill_invoked():
+        return None
+
+    state["nudged"] = True
+    save_governance_state(state)
+    sample = "\n  - ".join(os.path.basename(p) for p in edits[-5:])
+    return (
+        "GOVERNANCE NUDGE -- KB EDIT VOLUME\n"
+        f"You have edited {len(edits)} knowledge-base documents this session "
+        "without invoking `hq-knowledge-governance` or `lifecycle-auditor`. "
+        "That's the signature of an ad-hoc stale-doc pass that produces correct "
+        "edits but leaves no audit trail.\n\n"
+        f"Recent KB edits:\n  - {sample}\n\n"
+        "Invoke `hq-knowledge-governance` (HQ workspace) or "
+        "`lifecycle-auditor` agent BEFORE the next KB edit so the rest of this "
+        "pass produces: (a) consistent K-tier classification, (b) audit log "
+        "with rationale per doc, (c) reusable rubric for stale vs current, "
+        "(d) Supabase governance event entries. Future sessions can verify "
+        "'has this doc been audited recently' from the persistent record. "
+        "Source: wr-hq-2026-04-28-004."
+    )
+
+
 def main():
     try:
         data = json.load(sys.stdin)
@@ -340,6 +444,26 @@ def main():
     for pattern in skip_patterns:
         if pattern in normalized:
             return 0
+
+    # --- Governance-skill nudge (KB-edit threshold, wr-hq-2026-04-28-004) ---
+    # Fires once per session at 3+ KB edits when no governance skill invoked.
+    # Independent of the relationship-map / Supabase / keyword layers below
+    # so a single edit can produce both a drift signal AND a governance nudge.
+    governance_reminder = maybe_governance_nudge(file_path)
+    if governance_reminder:
+        # Emit the governance nudge first (separate output), then continue
+        # to the relationship-map layers for any drift signal on this edit.
+        print(json.dumps({
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "additionalContext": governance_reminder,
+            }
+        }))
+        # Note: we still fall through to the layers below. Claude Code accepts
+        # the FIRST hook output and ignores subsequent prints from the same
+        # hook -- so we return here. The drift signal will fire on the next
+        # KB edit instead.
+        return 0
 
     # --- Layer 1: Relationship map (precise, directional, hand-curated) ---
     rel_map = load_json(resolve_relationship_map_path())

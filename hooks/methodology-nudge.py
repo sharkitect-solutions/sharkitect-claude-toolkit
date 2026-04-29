@@ -107,6 +107,60 @@ SYSTEMATIC_DEBUGGING_SKILL = "systematic-debugging"
 SUPERPOWERS_SYSTEMATIC_DEBUGGING_SKILL = "superpowers:systematic-debugging"
 INVESTIGATION_THRESHOLD = 4
 
+# Hypothesis-enumeration content detection (wr-hq-2026-04-28-003).
+# When the assistant writes or edits a file whose content enumerates
+# hypotheses ("Hypothesis 1:", "Possibility A:", "Hypotheses:" + numbered
+# list), that's the signature of ad-hoc bug investigation skipping the
+# systematic-debugging methodology. Fires BEFORE the first state-query
+# accumulation that the existing INVESTIGATION_THRESHOLD trigger waits for.
+# Source: wr-hq-2026-04-28-003 (HQ) -- iOS Save Contact stale-logo
+# investigation generated hypotheses without invoking systematic-debugging.
+#
+# Pattern requires the literal word "Hypothesis"/"Possibility"/"Hypotheses"/
+# "Possibilities" followed by an enumeration token (digit, letter, colon)
+# to avoid false-positives on casual prose like "my hypothesis is...".
+HYPOTHESIS_ENUM_RE = re.compile(
+    r"\b(?:hypothes(?:is|es)|possibilit(?:y|ies)|root[\s-]cause[\s-]candidate[s]?)"
+    r"\s*[#:]?\s*[1A-Za](?:[\.\):]|\s)",
+    re.I,
+)
+
+# Verification-tool testing-strategy nudge (wr-sentinel-2026-04-27-020).
+# When a new tools/, scripts/, or hooks/ file with a verification-pattern
+# name is CREATED via Write AND testing-strategy hasn't been invoked,
+# advisory nudge fires once per file. Source: Sentinel built
+# tools/wr-id-consistency-check.py (297 lines) without invoking
+# testing-strategy; tool fired correctly on real data once but lacked
+# formal acceptance suite that would catch future regressions.
+# Pattern excludes test_ prefix files (those ARE the tests; circular).
+# Hosted in methodology-nudge.py instead of multistep-plan-nudge.py
+# (the WR's primary recommendation) because multistep-plan-nudge.py is
+# registered only on TodoWrite -- adding Edit|Write matcher requires a
+# settings.json edit that's denied. methodology-nudge.py already runs on
+# Edit|Write with the same skill-log + state-debouncing infrastructure.
+VERIFICATION_TOOL_PATH_RE = re.compile(
+    # Word STEMS, not full words. "validate" is NOT a substring of "validator"
+    # (validator has 'ator' suffix, validate has 'ate'). Stems catch all
+    # inflections: validat[e/or/ion/es/ed/ing], verif[y/ier/ies/ied/ication],
+    # audit[/or/s/ed/ing], consistenc[y/ies], inspect[/or/ion/s].
+    # 'checker' / 'tester' kept as full words since their stems ('check' /
+    # 'test') over-match (test_ prefix matches test files which ARE the tests,
+    # not tools needing tests; checker is more specific than 'check').
+    r"(?:^|[/\\])(?:tools|scripts|hooks)[/\\]"
+    r"[^/\\]*"
+    r"(?:validat|verif|audit|consistenc|inspect|checker|tester)"
+    r"[^/\\]*"
+    r"\.(?:py|sh|js|ts)$",
+    re.I,
+)
+TESTING_STRATEGY_SKILLS = (
+    "testing-strategy",
+    "test-driven-development",
+    "superpowers:test-driven-development",
+    "testing-patterns",
+    "senior-qa",
+)
+
 # MCP tool-name patterns that indicate "I'm checking state"
 INVESTIGATION_MCP_TOOL_RES = [
     re.compile(r"n8n.*get_execution|n8n.*list_executions|n8n.*get_workflow|n8n.*health_check", re.I),
@@ -446,6 +500,66 @@ def main():
                         "loop instead of patching iteratively."
                     )
                     mark_nudged(state, key)
+
+        # Verification-tool creation -> testing-strategy nudge.
+        # Fires ONLY on Write (file creation). Edits to existing tools
+        # don't re-trigger. Source: wr-sentinel-2026-04-27-020.
+        if (tool_name == "Write"
+                and VERIFICATION_TOOL_PATH_RE.search(file_path)
+                and not any(skill_invoked(s, log) for s in TESTING_STRATEGY_SKILLS)):
+            key = f"testing-strategy:verification-tool:{file_path}"
+            if not already_nudged(state, key):
+                nudges.append(
+                    f"VERIFICATION TOOL CREATED: {os.path.basename(file_path)} "
+                    "is a new verification / audit / check tool that other "
+                    "systems will trust. Invoke `testing-strategy` (or "
+                    "`superpowers:test-driven-development` / `testing-patterns` "
+                    "/ `senior-qa`) and write fixture-based tests BEFORE other "
+                    "workspaces start consuming its output.\n\n"
+                    "Without acceptance tests, future regressions (schema "
+                    "field rename, status vocabulary shift, edge-case input) "
+                    "won't be caught until a real downstream report fails. "
+                    "The cost of writing the test suite now is hours; the "
+                    "cost of debugging a silent verification regression later "
+                    "is days.\n\n"
+                    "Source: wr-sentinel-2026-04-27-020. Precedent: "
+                    "~/.claude/tests/test_wr_id_schema.py (12 cases) shipped "
+                    "alongside the wr-id-schema-v2 enforcement infrastructure."
+                )
+                mark_nudged(state, key)
+
+        # Hypothesis-enumeration content detection (wr-hq-2026-04-28-003).
+        # Fires when the content being written/edited enumerates hypotheses
+        # AND systematic-debugging hasn't been invoked yet. Earlier signal
+        # than the state-query-based INVESTIGATION_THRESHOLD trigger.
+        if (content
+                and HYPOTHESIS_ENUM_RE.search(content[:3000])
+                and not skill_invoked(SYSTEMATIC_DEBUGGING_SKILL, log)
+                and not skill_invoked(SUPERPOWERS_SYSTEMATIC_DEBUGGING_SKILL, log)):
+            key = "systematic-debugging:hypothesis-enum"
+            if not already_nudged(state, key):
+                nudges.append(
+                    "HYPOTHESIS ENUMERATION detected in content being written "
+                    f"({os.path.basename(file_path)}). The assistant is "
+                    "generating hypotheses ad-hoc without invoking "
+                    "`superpowers:systematic-debugging` -- the methodology "
+                    "skill explicitly designed for hypothesis-test cycles.\n\n"
+                    "Run `Skill superpowers:systematic-debugging` BEFORE "
+                    "committing the hypothesis list. The skill enforces: "
+                    "gather evidence first, enumerate hypotheses with "
+                    "explicit falsification tests, test cheapest first, "
+                    "document what was ruled out. Without it, investigations "
+                    "anchor on the first plausible-sounding cause and miss "
+                    "systemic issues.\n\n"
+                    "Universal Protocols Investigation Protocol "
+                    "(NON-NEGOTIABLE): 'When investigating bugs, unexpected "
+                    "behavior, system failures, recurring issues, or any "
+                    "situation requiring a hypothesis-test cycle -- INVOKE "
+                    "superpowers:systematic-debugging BEFORE generating "
+                    "hypotheses.' Source: wr-hq-2026-04-28-003 (iOS Save "
+                    "Contact stale-logo investigation)."
+                )
+                mark_nudged(state, key)
 
         # Track writes for multi-file plan detection
         if tool_name == "Write":

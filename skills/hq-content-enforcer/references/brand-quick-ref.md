@@ -2,6 +2,8 @@
 
 Load this file before writing ANY client-facing content. Full brand guide: `~/.claude/skills/hq-brand-review/references/brand-guide.md`
 
+> **Companion:** brand-quick-ref.md is the brand RULES (attributes, banned terms, tone targets). For content authored AS CHRIS (from solutions@ to clients), ALSO load `knowledge-base/governance/voice-profile-chris.md` (from workforce-hq cwd) -- the brand RULES alone score "Brand-Clear" technically while still missing Chris's actual voice. The voice profile carries sample-based patterns (greeting/closing conventions, signature tiers, voice equation by content type) that brand RULES don't encode. When in doubt, load both.
+
 ## Voice Attributes
 
 | Attribute | Target | Red Flags (ban these) |

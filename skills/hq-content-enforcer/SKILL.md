@@ -17,6 +17,7 @@ description: >
 |------|-----------|-------------|
 | `references/brand-quick-ref.md` | Every content task (voice attributes, banned terms, tone targets) | Never skip -- this IS the brand standard |
 | `references/content-routing-guide.md` | Every content task (maps content type to required skills and docs) | Never skip -- this IS the routing logic |
+| `<workforce-hq-cwd>/knowledge-base/governance/voice-profile-chris.md` | Content authored AS CHRIS (from solutions@ to clients): cold-email, email-sequence, copywriting from-Chris, proposal/SOW signed by Chris, sales script | Generic Sharkitect copy not bylined as Chris (landing pages, marketing site, social posts), client's voice work, internal docs |
 
 ## Scope Boundary
 
@@ -118,13 +119,16 @@ User: "Rewrite the hero section on our landing page"
 After classifying the content type and identifying required skills, create this checklist:
 
 - [ ] Brand voice loaded (brand-quick-ref.md read and understood)
+- [ ] If from-Chris client content: voice-profile-chris.md loaded (knowledge-base/governance/voice-profile-chris.md from workforce-hq cwd) and applied to content-type-specific voice equation
 - [ ] Content type classified: [TYPE]
+- [ ] Author identity: [Chris / Sharkitect / Client voice]
 - [ ] Required skills identified: [LIST]
 - [ ] Additional KB docs loaded if needed (pricing, services, etc.)
 - [ ] All required skills invoked before writing
 - [ ] Content written following skill guidance
 - [ ] `hq-brand-review` invoked on final output
 - [ ] Brand score: [SCORE] / Determination: [CLEAR/ALIGNED/REVISION/ESCALATION]
+- [ ] For from-Chris content, voice fidelity check: does it sound like Chris reading it back? (greeting/closing/cadence match voice profile)
 - [ ] If Revision Required: changes made and re-reviewed
 
 ## Anti-Patterns

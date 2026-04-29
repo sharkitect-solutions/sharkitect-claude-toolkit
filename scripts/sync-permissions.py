@@ -119,7 +119,8 @@ def _validate_templates(templates: dict) -> list[str]:
                 continue
             if "settings_path" not in ws:
                 errors.append(f"missing 'workspaces.{name}.settings_path'")
-            for k in ("deny_global_skill_hub_owned",
+            for k in ("allow_additions",
+                     "deny_global_skill_hub_owned",
                      "deny_other_workspace_internals",
                      "deny_inbox_direct_edit",
                      "deny_other_workspace_human_action"):
@@ -168,27 +169,33 @@ def sync_workspace(name: str, ws_template: dict, dry_run: bool) -> int:
     path = _expand_path(ws_template["settings_path"])
     settings = _read_json(path)
     perms = settings.setdefault("permissions", {})
-    perms.setdefault("allow", [])
+    allow = perms.setdefault("allow", [])
     deny = perms.setdefault("deny", [])
-    if not isinstance(deny, list):
-        print(f"  [{name}] ERROR: {path} has non-list permissions.deny -- refusing to merge", file=sys.stderr)
+    if not isinstance(allow, list) or not isinstance(deny, list):
+        print(f"  [{name}] ERROR: {path} has non-list permissions.allow or permissions.deny -- refusing to merge", file=sys.stderr)
         return 1
 
-    additions = _build_workspace_deny(ws_template)
-    new_deny = _merge_lists(deny, additions)
+    allow_additions = ws_template.get("allow_additions", [])
+    deny_additions = _build_workspace_deny(ws_template)
+    new_allow = _merge_lists(allow, allow_additions)
+    new_deny = _merge_lists(deny, deny_additions)
 
-    if new_deny == deny:
+    if new_allow == allow and new_deny == deny:
         print(f"  [{name}] No change: {path}")
         return 0
 
     if dry_run:
-        added = [a for a in new_deny if a not in deny]
+        added_allow = [a for a in new_allow if a not in allow]
+        added_deny = [d for d in new_deny if d not in deny]
         print(f"  [{name}] Would update: {path}")
-        for d in added:
+        for a in added_allow:
+            print(f"    + allow: {a}")
+        for d in added_deny:
             print(f"    + deny: {d}")
         return 0
 
     bak = _backup(path)
+    perms["allow"] = new_allow
     perms["deny"] = new_deny
     _atomic_write_json(path, settings)
     backup_note = f"(backup: {bak.name})" if bak else "(no prior file -- created fresh)"

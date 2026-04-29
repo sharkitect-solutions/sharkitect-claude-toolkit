@@ -47,18 +47,40 @@ TASK INVOLVES WRITING/EDITING TEXT
 For each content task, invoke skills in this sequence:
 
 1. **Load brand-quick-ref.md** (always first -- sets the voice standard)
-2. **Load any required KB docs** (pricing, services, etc.)
-3. **Invoke domain skills** (CRO, SEO, etc.) to understand optimization requirements
-4. **Invoke copywriting/content-creator** to draft content following all loaded guidance
-5. **Invoke hq-brand-review** on the completed draft (always last -- final quality gate)
+2. **Load voice-profile-chris.md if from-Chris client content** (see Voice Profile Load Rule below)
+3. **Load any required KB docs** (pricing, services, etc.)
+4. **Invoke domain skills** (CRO, SEO, etc.) to understand optimization requirements
+5. **Invoke copywriting/content-creator** to draft content following all loaded guidance
+6. **Invoke hq-brand-review** on the completed draft (always last -- final quality gate)
+
+## Voice Profile Load Rule (NON-NEGOTIABLE for from-Chris content)
+
+When content is **authored AS CHRIS** -- author identity = Chris, message originates from solutions@, sender persona is Chris -- you MUST load `knowledge-base/governance/voice-profile-chris.md` (from workforce-hq cwd) IN ADDITION TO brand-quick-ref.md before drafting. brand-quick-ref.md is the brand RULES (compliance scoring); voice-profile-chris.md is the STYLE within those rules (sample-based actual voice patterns, greeting/closing conventions, signature tiers, voice equation by content type).
+
+**Required for these content types when authored as Chris:**
+- Cold email (any prospecting message under his name)
+- Email sequence / nurture (multi-touch under his name)
+- One-off business email (copywriting from-Chris)
+- Proposal / SOW (signed by Chris)
+- Sales script (Chris running the call)
+
+**Not required when:**
+- Generic Sharkitect copy (landing pages, marketing site, social posts not bylined)
+- Content in a client's voice (use the client's brand instead)
+- Internal documentation, code comments, technical specs
+
+**Failure mode this prevents:** brand-quick-ref.md alone scores brand-clear technically (e.g. 27/30) while still missing Chris's actual voice (Hey [Name] greeting, "Talk soon," closing, signature tier matching context). Source: wr-hq-2026-04-28-002 -- Hibu follow-up email drafted 4 iterations all 27/30 Brand-Clear and ALL flagged by Chris as "doesn't sound like me." Required manual voice-profile load to land properly.
 
 ## Additional KB Docs by Content Type
 
 | Content Type | Additional Docs to Load | Why |
 |---|---|---|
-| Proposal / SOW / Contract | `revenue/pricing-structure.md`, `revenue/service-definitions.md` | Correct pricing tiers, service names, scope inclusions |
+| Cold email (from Chris) | `governance/voice-profile-chris.md` | Chris's actual voice patterns (greeting, closing, signature tiers, voice equation by content type) |
+| Email sequence (from Chris) | `governance/voice-profile-chris.md` | Same -- multi-touch sequences must maintain Chris's voice across all messages |
+| One-off email (from Chris) | `governance/voice-profile-chris.md` | Same -- single emails under his name need voice fidelity |
+| Proposal / SOW / Contract | `revenue/pricing-structure.md`, `revenue/service-definitions.md`, `governance/voice-profile-chris.md` (when signed by Chris) | Correct pricing tiers, service names, scope inclusions; voice fidelity for Chris-signed docs |
 | SOW with signature block (no master agreement, e.g. Growth Essentials) | Above + invoke `contract-legal` skill | Termination, late-fee, governing-law, acceptance criteria clauses must be self-contained |
-| Sales script | `revenue/service-definitions.md` | Accurate service descriptions, value propositions |
+| Sales script (Chris running call) | `revenue/service-definitions.md`, `governance/voice-profile-chris.md` | Accurate service descriptions, value propositions; Chris's actual phrasing patterns |
 | Case study | Client-specific project docs if available | Accurate outcomes, timelines, metrics |
 | Landing page | `revenue/pricing-structure.md` (if pricing is shown) | Founding Partner rates, tier pricing |
 | Blog (services topic) | `revenue/service-definitions.md` | Accurate descriptions of VDR, RLR, SLW, CPS |
