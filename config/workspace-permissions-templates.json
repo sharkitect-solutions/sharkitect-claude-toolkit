@@ -4,7 +4,7 @@
   "documented_by": "skill-management-hub",
   "source_plan": "~/.claude/plans/2026-04-28-permissions-and-inbox-amendment-system.md",
   "source_spec": "<Skill Hub>/docs/superpowers/specs/2026-04-28-permissions-and-inbox-amendment-system-design.md",
-  "schema_v2_changelog": "v2 (2026-04-29): added optional 'allow_additions' field per workspace so file-specific allow rules can carve exceptions out of broader workspace deny patterns. Trigger: wr-hq-2026-04-29-001 -- workspace deny on Edit(~/.claude/docs/**) blocked plans-registry.md updates required by Plan Lifecycle Protocol.",
+  "schema_v2_changelog": "v2 (2026-04-29): added optional 'allow_additions' field per workspace so file-specific allow rules can carve exceptions out of broader workspace deny patterns. Trigger: wr-hq-2026-04-29-001 -- workspace deny on Edit(~/.claude/docs/**) blocked plans-registry.md updates required by Plan Lifecycle Protocol. v2.1 (2026-04-29): expanded each workspace's allow_additions to re-open Edit/Write on protocol-sanctioned cross-workspace inbox+processed paths (.routed-tasks/, .lifecycle-reviews/, and Skill Hub's .work-requests/). Cross-Workspace Routed Tasks Protocol explicitly names these as legitimate write targets, but deny_inbox_direct_edit was blocking direct Edit/Write -- forcing all coordination through Bash subprocess wrappers (work-request.py exists for WRs, no equivalent for routed-tasks/lifecycle). Allow precedence over deny preserves the broader anti-tampering posture for everything else (each workspace's docs/, tools/, .claude/, etc. remain denied). Trigger: wr-sentinel-2026-04-29-003 -- Sentinel could not deliver an FYI routed-task to HQ. User-approved 2026-04-29: 'You guys should be able to communicate and write requests into that folder across the workspace.' v2.2 (2026-04-29): opened Edit/Write on each workspace's OWN .env (workspace-local) plus global ~/.claude/.env. User-approved 2026-04-29: 'You guys should have permission to update your own .env files... When I tell you to clean this up or do this, you guys need to be able to do that.' Cross-workspace .env edits remain denied (HQ cannot edit Sentinel's .env, etc.). The global ~/.claude/.env remains protected from arbitrary writes outside the documented allow rule.",
 
   "global_settings_path": "~/.claude/settings.json",
   "global_permissions": {
@@ -21,6 +21,8 @@
       "Edit(~/.claude/config/**)",
       "Edit(~/.claude/tests/**)",
       "Edit(~/.claude/plans/**)",
+      "Edit(~/.claude/.env)",
+      "Write(~/.claude/.env)",
       "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/**)",
       "Bash(python ~/.claude/scripts/sync-permissions.py *)",
       "Bash(python ~/.claude/scripts/inbox-amend.py *)",
@@ -60,7 +62,25 @@
     "skill-management-hub": {
       "settings_path": "//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.claude/settings.json",
       "allow_additions": [
-        "Edit(~/.claude/docs/plans-registry.md)"
+        "Edit(~/.claude/docs/plans-registry.md)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.routed-tasks/inbox/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.routed-tasks/processed/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.lifecycle-reviews/inbox/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.lifecycle-reviews/processed/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.routed-tasks/inbox/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.routed-tasks/processed/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.lifecycle-reviews/inbox/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.lifecycle-reviews/processed/**)",
+        "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.routed-tasks/inbox/**)",
+        "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.routed-tasks/processed/**)",
+        "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.lifecycle-reviews/inbox/**)",
+        "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.lifecycle-reviews/processed/**)",
+        "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.routed-tasks/inbox/**)",
+        "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.routed-tasks/processed/**)",
+        "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.lifecycle-reviews/inbox/**)",
+        "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.lifecycle-reviews/processed/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.env)",
+        "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.env)"
       ],
       "deny_global_skill_hub_owned": [],
       "deny_other_workspace_internals": [
@@ -100,7 +120,25 @@
     "workforce-hq": {
       "settings_path": "//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.claude/settings.json",
       "allow_additions": [
-        "Edit(~/.claude/docs/plans-registry.md)"
+        "Edit(~/.claude/docs/plans-registry.md)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.work-requests/inbox/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.work-requests/processed/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.lifecycle-reviews/inbox/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.lifecycle-reviews/processed/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.routed-tasks/inbox/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.routed-tasks/processed/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.lifecycle-reviews/inbox/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.lifecycle-reviews/processed/**)",
+        "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.work-requests/inbox/**)",
+        "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.work-requests/processed/**)",
+        "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.lifecycle-reviews/inbox/**)",
+        "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.lifecycle-reviews/processed/**)",
+        "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.routed-tasks/inbox/**)",
+        "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.routed-tasks/processed/**)",
+        "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.lifecycle-reviews/inbox/**)",
+        "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.lifecycle-reviews/processed/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.env)",
+        "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.env)"
       ],
       "deny_global_skill_hub_owned": [
         "Edit(~/.claude/rules/**)",
@@ -152,7 +190,25 @@
     "sentinel": {
       "settings_path": "//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.claude/settings.json",
       "allow_additions": [
-        "Edit(~/.claude/docs/plans-registry.md)"
+        "Edit(~/.claude/docs/plans-registry.md)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.routed-tasks/inbox/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.routed-tasks/processed/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.lifecycle-reviews/inbox/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.lifecycle-reviews/processed/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.work-requests/inbox/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.work-requests/processed/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.lifecycle-reviews/inbox/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.lifecycle-reviews/processed/**)",
+        "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.routed-tasks/inbox/**)",
+        "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.routed-tasks/processed/**)",
+        "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.lifecycle-reviews/inbox/**)",
+        "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.lifecycle-reviews/processed/**)",
+        "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.work-requests/inbox/**)",
+        "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.work-requests/processed/**)",
+        "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.lifecycle-reviews/inbox/**)",
+        "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.lifecycle-reviews/processed/**)",
+        "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.env)",
+        "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.env)"
       ],
       "deny_global_skill_hub_owned": [
         "Edit(~/.claude/rules/**)",

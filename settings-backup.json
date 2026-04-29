@@ -391,7 +391,9 @@
       "Bash(git fsck:*)",
       "Bash(git gc:*)",
       "Bash(git prune:*)",
-      "Bash(git notes:*)"
+      "Bash(git notes:*)",
+      "Edit(~/.claude/.env)",
+      "Write(~/.claude/.env)"
     ],
     "deny": [
       "Bash(git push * --force*)",

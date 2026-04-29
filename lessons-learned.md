@@ -905,6 +905,20 @@ Cross-project patterns, API limitations, tool quirks, user preferences, and proc
 
 ## Process Decisions
 
+### [2026-04-29] process: Dashboard count discrepancy as drift-detection signal
+- **Context:** User opened Ops Dashboard (built 2026-04-28) and counted live inbox items: HQ 0 + Skill Hub 9 + Sentinel 0 = 9 actual, dashboard reported 21 open. Asked Sentinel to investigate. Investigation found 12 historical phantom rows in `cross_workspace_requests` — closed locally between 2026-04-16 and 2026-04-18 in Skill Hub `processed/` with valid `resolution.what_was_done`, but Supabase status still `pending`. Pre-`close-inbox-item.py` historical drift, never retroactively reconciled when the protocol was introduced.
+- **Pattern that worked (investigation methodology):** (1) Read the dashboard query to know what's being counted. (2) Query Supabase for the open-state rows. (3) Inventory live local inboxes across all workspaces. (4) Cross-check phantoms in each workspace's `processed/` by internal `id` field, not by filename. (5) Sample a post-protocol-introduction batch (97 closes from 2026-04-19 onward) to determine whether drift is historical or ongoing — separates the cleanup problem from the prevention problem. (6) File two coupled WRs: one for the historical reconcile, one for the workflow contract that prevents recurrence.
+- **Why dashboards beat audits-on-demand for drift surfacing:** A dashboard with a wrong count is a continuous, visible signal anyone can spot in 5 seconds. A drift audit script that runs on a schedule produces a report only the auditor reads. The 12 phantom rows had been invisible for 11 days until the user counted manually. Dashboards make drift cheap to notice; audit scripts make drift expensive to surface.
+- **Apply when:** Building any operational visibility surface (dashboard, brief, status page). The count itself is the unit test — if the user can quickly cross-check it against ground truth and the numbers don't match, the dashboard surfaces a real bug. Don't optimize the dashboard for "looks impressive"; optimize for "user can spot when it's wrong."
+- **Tags:** drift-detection, dashboard, supabase, status-drift, audit-pattern, sentinel
+
+### [2026-04-29] process: Permission scaffolds need protocol awareness — narrow allow rules over broad deny
+- **Context:** Phase 1 permissions overhaul (commit e8991c8, 2026-04-28) added 8 cross-workspace deny rules to each workspace's `.claude/settings.json`. The rules denied `Edit(...)/.routed-tasks/inbox/**` etc. for HQ + Skill Hub. The universal-protocols Cross-Workspace Routed Tasks Protocol explicitly says "Source workspace writes a json file to the target workspace's `.routed-tasks/inbox/`" — protocol-sanctioned. The deny rule and the protocol are in direct conflict. Discovered when Sentinel tried to deliver a `kind=fyi` routed-task to HQ inbox.
+- **Pattern that doesn't work:** Broad deny on cross-workspace paths intended to "prevent tampering" without carving out the protocol-sanctioned coordination channels. The deny is correct in spirit (don't let Sentinel write to HQ's `tools/`, `docs/`, `.claude/`) but wrong in scope when applied to inbox/processed paths that are LITERALLY the cross-workspace coordination mechanism.
+- **Pattern that works (recommended fix in wr-sentinel-2026-04-29-003):** Keep the broad deny intact. Add narrow allow rules for the 4-6 protocol-sanctioned paths: `.routed-tasks/inbox/**`, `.routed-tasks/processed/**`, `.lifecycle-reviews/inbox/**`, `.lifecycle-reviews/processed/**`, and Skill Hub's `.work-requests/inbox/**`. Allow rules take precedence over deny in Claude Code permissions, so this preserves the anti-tampering posture while reopening only the doors the protocol defines.
+- **Apply when:** Designing or reviewing any permission scaffold that touches inter-workspace coordination paths. Run the test: "Can the source workspace deliver every artifact the cross-workspace protocols define?" If the answer is no, the scaffold is over-restrictive even if it feels safer. Defense-in-depth means narrow allows on sanctioned channels, not blanket deny everywhere.
+- **Tags:** permissions, settings.json, cross-workspace, protocol-sanctioned, defense-in-depth, sentinel, skill-hub
+
 ### [2026-04-28] process: Windows user-scoped logon automation — Startup folder beats Task Scheduler when admin is unavailable
 - **Context:** Wanted to auto-start the Sentinel Ops Dashboard server at user logon. First attempt: PowerShell + `Register-ScheduledTask`. Blocked by user's `-ExecutionPolicy Bypass` deny rule (correct security posture). Second attempt: `schtasks.exe /Create /SC ONLOGON` directly. Returned "Access is denied" — Task Scheduler ONLOGON triggers require elevation in this environment regardless of folder. Third attempt: drop a `.vbs` stub in `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\` — worked instantly, no admin needed.
 - **Pattern that works:** For per-user, no-admin auto-start of background processes on Windows, use the user Startup folder (`%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\`). Drop a tiny stub `.vbs` that calls back to the canonical workspace launcher — updates to the launcher propagate without touching the stub. Existing precedent in this environment: ErrorAutoFixBridge.lnk and ErrorAutoFixTunnel.lnk already use this mechanism.
@@ -3165,3 +3179,66 @@ tags: permissions, settings, autonomy
 **Why:** The F1-F8 permissions plan formalized two-layer permissions (global allow + workspace-scoped deny). Cross-workspace `.routed-tasks/inbox/` writes weren't yet whitelisted in the global allow rules — the F-Phase plan addresses scoped allow rules but appears to not have covered Skill-Hub-to-Sentinel inbox writes specifically. Bash + Python execution falls into a different permission class than the direct `Write` tool, which is why the workaround succeeds.
 **When to apply:** (1) For F2-F8 fresh-chat plan execution, ADD an explicit allow rule for cross-workspace `.routed-tasks/inbox/**` writes (Skill Hub -> HQ, Skill Hub -> Sentinel, HQ -> Sentinel, HQ -> Skill Hub `.work-requests/inbox/`, Sentinel -> Skill Hub `.work-requests/inbox/`, Sentinel -> HQ `.routed-tasks/inbox/`). The inbox is the coordination channel; it should not require workarounds. (2) Until the allow rule lands, the documented fallback is: write a small Python writer to `.tmp/`, execute via Bash, delete the scratch. (3) Do NOT use the Bash workaround as the primary path -- it disguises the missing permission and makes the gap invisible to future audits.
 **Tags:** permissions, cross-workspace, routed-tasks, F-Phase-plan, inbox-driven-coordination
+
+---
+
+### 2026-04-29 — Process: VERIFY flags in .env need usage scan, not trust
+
+**Context:** During HQ workspace restructure, archived `BREVO_API_KEY` to inactive backup based on its comment `# Speed to Lead demo — inactive. VERIFY: active billing?`. User corrected: Brevo IS active, used by Speed-to-Lead demo + n8n card delivery. Restored to .env §1.16.
+
+**Why:** A `VERIFY` flag in a config comment is a SIGNAL that status is uncertain — not a label that resolves to "inactive." Trusting the comment without scanning live usage caused a false archival.
+
+**Apply when:** Any `.env` line, config field, or asset is annotated with `VERIFY`, `# unconfirmed`, `# pending check`, or similar uncertainty markers AND a status change (archive / strip / disable) is being considered. Run repo-wide grep for the key name + check n8n workflows + check live tool references BEFORE the status change.
+
+**Tags:** credential-hygiene, env-organization, archival-rules, false-positive-detection
+
+---
+
+### 2026-04-29 — Direction: Knowledge separated from project work at top level
+
+**Context:** HQ workspace restructure split `knowledge-base/` (pure knowledge) from `projects/` (active/historical work). Profiles stay in `knowledge-base/clients/<co>/`; project work goes to `projects/clients/<co>/<project>/`. Internal projects under `projects/sharkitect/<name>/`.
+
+**Why:** A profile's lifecycle is "updated when the company changes." A project's lifecycle is "starts, ships, ends." Mixing them under one folder mixed two cadences and made it impossible to answer "what's actually active for this client right now."
+
+**Design principles:**
+- `knowledge-base/<domain>/` = pure knowledge (strategy, governance, operations, revenue, sops, clients/<co>/profile)
+- `projects/sharkitect/<name>/` = internal Sharkitect work
+- `projects/clients/<co>/<project>/` = client engagement work
+- Each KB client profile has a Projects section pointing to current/completed project folders (mirrors Supabase, future Notion sync)
+- Single-project clients still wrap project work in a project subfolder for consistency (e.g., D'Angeles `initial-sales-engagement/`)
+
+**Apply when:** Any task involves writing client- or project-related content. Decide first whether it's persistent knowledge (profile-level) or time-bound work (project-level), then route accordingly.
+
+**Tags:** workspace-architecture, knowledge-management, file-organization
+
+---
+
+### 2026-04-29 — Process: Windows file-handle locks on directory rename
+
+**Context:** During restructure, `git mv` on `knowledge-base/clients/fantastic-floors` failed with WinError 5 / "Device or resource busy" / "process is using the file." Root cause: VSCode workspace watcher + MS Word holding handles on docx files inside the dir.
+
+**Solution that worked:** Python `subprocess.run(['cmd', '/c', 'attrib', '-h', '-s', '-r', '/s', '/d', target + r'\*'], capture_output=True)` to clear hidden/system/readonly attributes, THEN `subprocess.run(['cmd', '/c', 'rd', '/S', '/Q', target], capture_output=True)`. Using arg-list (not shell string) avoids quoting issues with workspace paths containing spaces. Files inside dirs CAN be moved/copied even when the dir itself is rename-locked — `shutil.move` falls back to copy+rmtree on rename failure, and the file copies succeed.
+
+**What did NOT work:** plain `mv`, `git mv`, `cmd.exe /c move`, robocopy, `cmd.exe //c "rd ..."` from bash (path escaping mangled).
+
+**Apply when:** Any directory rename or delete operation fails on Windows with WinError 5 / busy / in-use. Try the subprocess+attrib pattern before assuming the lock is permanent. If it persists across sessions, the holder is OS-level (VSCode watcher, Search Indexer, OneDrive) and needs app close or reboot.
+
+**Tags:** windows, git-mv, dir-rename, file-locks, vscode-watcher
+
+---
+
+### 2026-04-29 — Direction: .env organization — Section 3 NEW/UNSORTED + session-start hygiene
+
+**Context:** HQ `.env` had a `# NEED TO ORGANIZE #` ad-hoc dumping ground that drifted into a permanent home for orphan keys. Restructure converted this into a formal `Section 3: NEW / UNSORTED` at the bottom with a session-start hygiene rule: review §3 keys, route to §1 (internal) or §2 (active client) by service, leave only genuinely-uncertain keys behind.
+
+**Design principles:**
+- §1 Internal Platform Credentials (Sharkitect's own infrastructure, by service)
+- §2 Active Client Credentials (per-client, grouped, with status)
+- §3 NEW / UNSORTED (paste new keys here, sort at session start)
+- Inactive credentials archived to `_archive/env-backups/*.bak` with retention dates (90 days)
+- Session-start hygiene: agent reviews §3, routes to §1/§2, flags ambiguous keys for user
+
+**Apply when:** Any `.env` change in any workspace. New keys go in §3 first. Promote on next clean-pass.
+
+**Tags:** env-organization, credential-hygiene, session-start-protocol
+

@@ -435,6 +435,52 @@ ALL cross-workspace task dispatch goes through inboxes. Never copy-paste prompts
 
 **Why:** Copy-pasting prompts is manual, error-prone, and defeats the autonomy model. The inbox system provides: context that travels with the request, automatic pickup via CronCreate when idle, an audit trail (processed/ with resolution), and urgency that the target workspace can act on without asking.
 
+## In-Session Close-Out Workflow Contract (NON-NEGOTIABLE)
+
+Every workspace closes inbox items (work requests, routed tasks, lifecycle reviews) using a 5-step contract. The contract is enforced by `~/.claude/scripts/close-inbox-item.py` -- the canonical close path. Direct `mv` from inbox/ to processed/ + manual JSON edit is PROHIBITED (it caused the historical drift class reconciled by wr-sentinel-2026-04-29-001).
+
+### The 5 steps
+
+| Step | Name | Enforcement | Bypass |
+|------|------|-------------|--------|
+| 1 | **Backup-verify** | Refuse close if any path in `--artifacts-created` / `--artifacts-modified` has uncommitted git changes in the workspace repo | `--skip-backup-check --skip-backup-reason '<text >= 10 chars>'` (logged in `resolution.backup_check_skip_reason`) |
+| 2 | **Move** | inbox/ -> processed/ via atomic `os.replace` | none -- always runs |
+| 3 | **Acknowledge** | Auto-write completion-notification routed-task to source workspace's inbox per Completion Notification Protocol | `--no-notify --no-notify-reason '<text>'` (anti-ping-pong, self-filed, kind=completion_notification) |
+| 4 | **Supabase update** | PATCH `cross_workspace_requests.status` + `resolution_summary` + `resolved_at` + `resolved_by` + `last_updated_by` | `--no-supabase` (testing only) |
+| 5 | **Close-out verify** | Re-read the row; assert `status` is in close vocabulary AND `resolution_summary` is non-empty | none -- always runs when Supabase update succeeded; soft-fail (warns to stderr without undoing the close) |
+
+Steps 2/3/4 were already enforced by close-inbox-item.py before 2026-04-29. Steps 1 and 5 were added as part of the close-out contract to prevent the drift class observed in the 2026-04-29 status-drift audit.
+
+### Why each step exists
+
+- **Step 1 (backup-verify):** A close that moves the inbox file but leaves the work itself uncommitted means the resolution describes work that exists only in the working tree. If that machine dies, restarts, or the directory is wiped, the work is gone but the inbox says "completed." The gate forces backup before move.
+- **Step 2 (move):** Existing -- the close-inbox-item.py atomic rename (write tmp, replace, unlink).
+- **Step 3 (acknowledge):** Without active push back to the originator, completion is invisible to the requester. Existing -- enforced by Completion Notification Protocol.
+- **Step 4 (Supabase update):** Existing -- writes the close vocabulary and resolution_summary to the canonical brain row.
+- **Step 5 (close-out verify):** PATCH return code can be misleading (200 with empty body, racing writes, schema constraint quirks). Re-reading the row makes the post-condition observable. If verify fails, the inbox file already moved and the PATCH already returned success -- so this is a soft-fail warning, not a rollback. The point is to know about drift in real time instead of discovering it during a quarterly audit.
+
+### Backup-verify scope (current v1)
+
+The gate currently checks the workspace where the inbox file lives (most workspace artifacts live there). For artifacts under `~/.claude/` (skills, hooks, scripts, agents, rules, config), `~/.claude/` itself is not a git repo on standard installs -- the toolkit repo at `<Skill Hub>/sharkitect-claude-toolkit/` mirrors those paths via `sync-skills.py`. v1 of the gate does NOT check the toolkit mirror, so an artifact under `~/.claude/` that isn't yet synced to the toolkit will pass the gate even if not durably backed up. Discipline: run `python <Skill Hub>/tools/sync-skills.py --sync --push` BEFORE closing any inbox item whose artifacts include `~/.claude/` paths. v2 of the gate (future WR) will mirror-check the toolkit repo so this discipline is enforced rather than asked.
+
+### Close-out verify scope (current v1)
+
+v1 verifies the cross_workspace_requests row only -- status reached close vocabulary AND resolution_summary populated. v2 will additionally check related Supabase rows (tasks, projects, assets) whose foreign-key references touch the closed item_id, per Sentinel's recommendation in wr-sentinel-2026-04-29-002. v2 needs a schema-link discovery pass first (which fields on which tables reference cross_workspace_requests.item_id?) and is filed as a follow-up.
+
+### Trigger and source
+
+- **Trigger:** wr-sentinel-2026-04-29-002 (after Sentinel's status-drift audit on 2026-04-29 found 12 phantom rows whose local close happened pre-protocol -- between 2026-04-16 and 2026-04-18, before close-inbox-item.py existed). User explicitly requested the contract: "verify backup of the work itself, move it, acknowledge, update Supabase, close-out verify."
+- **Audit document:** `4.- Sentinel/docs/audits/status-drift-audit-2026-04-29.md`
+- **Reconcile WR:** wr-sentinel-2026-04-29-001 (12 historical rows fixed via `wr-supabase-reconcile.py --historical-manifest`).
+
+### Enforcement summary
+
+- Step 1 hard-blocks at close time unless explicitly bypassed with reason.
+- Steps 2/3/4 were already hard-enforced.
+- Step 5 logs to stderr on failure but does not undo the close (the close has already happened by the time verify runs; the verify makes drift observable).
+- All steps run in order from a single CLI invocation -- callers do not orchestrate them.
+- Direct `mv inbox/X processed/X` + manual JSON edit is PROHIBITED. The inbox-move-guard hook also blocks this at runtime; this contract documents WHY.
+
 ## Completion Notification Protocol (NON-NEGOTIABLE)
 
 Applies UNIFORMLY to routed-tasks AND work-requests. Closes the inbox-driven coordination loop so completed cross-workspace work is never invisible to the originator.

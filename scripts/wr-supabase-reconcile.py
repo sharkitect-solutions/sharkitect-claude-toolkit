@@ -1,20 +1,49 @@
 #!/usr/bin/env python3
-"""wr-supabase-reconcile.py -- Fix 2026-04-25 batch-close drift in cross_workspace_requests.
+"""wr-supabase-reconcile.py -- Reconcile cross_workspace_requests drift.
 
-Reads Sentinel pre-audit JSON (output of rt-2026-04-27-sentinel-wr-id-pre-audit).
-For each entry, PATCHes the correct row's resolution_summary to match the
-local processed/*.json content. Logs a reconciliation event to activity_stream
-on success.
+Two modes:
 
-Source: wr-2026-04-25-007 Task 6/8.
+  (1) --audit-file <path>          Original mode (wr-2026-04-25-007).
+      Fix resolution_summary text from a Sentinel pre-audit JSON.
+      Entries: {"correct_item_id": ..., "correct_what_was_done": ...}.
+      Touches resolution_summary + last_updated_by only.
+
+  (2) --historical-manifest <path>  Added 2026-04-29 (wr-sentinel-2026-04-29-001).
+      Reconcile full status drift for historical pre-protocol closes
+      (2026-04-16 to 2026-04-18). Reads each entry's local processed file
+      (resolution.what_was_done + resolution.resolved_date) and PATCHes
+      status, resolution_summary, resolved_at, resolved_by, last_updated_by.
+      Status normalization mirrors close-inbox-item.py: processed/resolved
+      collapse to 'completed'; 'superseded' passes through with the
+      superseded_by reference prefixed into resolution_summary (no
+      dedicated column exists).
+
+      Manifest schema (JSON list):
+        [
+          {
+            "item_id": "wr-YYYY-MM-DD-NNN",
+            "target_status": "completed" | "superseded",
+            "processed_file": "filename.json",        // basename, looked up in
+                                                      // <workspace>/.work-requests/processed/
+                                                      // for Skill Hub or
+                                                      // <workspace>/.routed-tasks/processed/
+                                                      // for HQ/Sentinel
+            "superseded_by": "wr-YYYY-MM-DD-NNN"      // optional, only when target_status='superseded'
+          },
+          ...
+        ]
+
+Logs each reconciliation to activity_stream as a drift_correction event.
+
+Source: wr-2026-04-25-007 (original) + wr-sentinel-2026-04-29-001 (historical mode).
 Spec: 3.- Skill Management Hub/docs/superpowers/specs/2026-04-27-wr-id-schema-workspace-prefixed-design.md
 Plan: ~/.claude/plans/2026-04-27-wr-id-schema-workspace-prefixed.md
-Audit input: ~/.claude/.tmp/sentinel-wr-id-pre-audit-results.json (produced
-by Sentinel pre-audit, Task 7).
 
 Usage:
-    python wr-supabase-reconcile.py --audit-file <path>           # dry-run
+    python wr-supabase-reconcile.py --audit-file <path>                 # dry-run
     python wr-supabase-reconcile.py --audit-file <path> --apply
+    python wr-supabase-reconcile.py --historical-manifest <path>        # dry-run
+    python wr-supabase-reconcile.py --historical-manifest <path> --apply
 """
 from __future__ import annotations
 
@@ -167,11 +196,226 @@ def urllib_quote(s: str) -> str:
     return urllib.parse.quote(s, safe="")
 
 
+# --------------------------------------------------------------------------
+# Historical-manifest mode helpers (added 2026-04-29, wr-sentinel-2026-04-29-001)
+# --------------------------------------------------------------------------
+
+# Status normalization mirrors close-inbox-item.py (~ line 116). Local close
+# vocabulary collapses to Supabase vocabulary at write time.
+LOCAL_TO_SUPABASE_STATUS = {
+    "processed": "completed",
+    "resolved":  "completed",
+    "completed": "completed",
+    "superseded": "superseded",
+    "duplicate": "duplicate",
+    "rejected":  "rejected",
+    "withdrawn": "withdrawn",
+}
+
+
+def _find_processed_dir(workspace: str) -> Path:
+    """Resolve workspace -> processed directory.
+
+    Skill Hub uses .work-requests/processed/ (it owns the WR pipeline).
+    HQ + Sentinel use .routed-tasks/processed/ for cross-workspace items.
+    """
+    workspaces_root = (
+        Path.home()
+        / "Documents"
+        / "Claude Code Workspaces"
+    )
+    if workspace == "skill-management-hub":
+        ws_dir = workspaces_root / "3.- Skill Management Hub"
+        return ws_dir / ".work-requests" / "processed"
+    if workspace == "workforce-hq":
+        ws_dir = workspaces_root / "1.- SHARKITECT DIGITAL WORKFORCE HQ"
+        return ws_dir / ".routed-tasks" / "processed"
+    if workspace == "sentinel":
+        ws_dir = workspaces_root / "4.- Sentinel"
+        return ws_dir / ".routed-tasks" / "processed"
+    raise ValueError(f"Unknown workspace: {workspace}")
+
+
+def _normalize_resolved_at(raw: str | None) -> str | None:
+    """Convert local resolved_date variants to ISO8601 timestamptz Supabase accepts.
+
+    Accepts: '2026-04-17', '2026-04-18T02:28:26Z', '2026-04-18T02:28:26.475047Z'.
+    Returns None if input is None or unparseable -- caller decides whether to
+    abort or fall back to a synthetic timestamp.
+    """
+    if not raw:
+        return None
+    raw = raw.strip()
+    # YYYY-MM-DD -> append T00:00:00Z
+    if len(raw) == 10 and raw[4] == "-" and raw[7] == "-":
+        return f"{raw}T00:00:00Z"
+    # Already has time component -- assume timestamptz-compatible
+    return raw
+
+
+def _read_processed_file(processed_dir: Path, filename: str) -> dict:
+    """Read a processed/*.json by basename. Returns parsed dict.
+
+    Raises FileNotFoundError if the file is missing.
+    """
+    p = processed_dir / filename
+    if not p.exists():
+        raise FileNotFoundError(f"processed file not found: {p}")
+    return json.loads(p.read_text(encoding="utf-8"))
+
+
+def _build_resolution_summary(
+    raw_text: str,
+    *,
+    target_status: str,
+    superseded_by: str | None,
+) -> str:
+    """Apply supersession prefix when applicable, then truncate to 500 chars.
+
+    No superseded_by Supabase column exists, so the supersession reference
+    must live inside resolution_summary text. If the raw resolution text
+    already begins with the supersession reference, do not double-prefix.
+    """
+    body = raw_text or ""
+    if target_status == "superseded" and superseded_by:
+        # Skip prefix injection if the body already cites the same superseded_by id.
+        already_cited = body.lower().lstrip().startswith(
+            f"superseded by {superseded_by.lower()}"
+        )
+        if not already_cited:
+            prefix = f"Superseded by {superseded_by}. "
+            max_body = max(0, 500 - len(prefix))
+            return (prefix + body[:max_body])[:500]
+    return body[:500]
+
+
+def _process_historical_entry(
+    entry: dict,
+    *,
+    base_url: str,
+    api_key: str,
+    workspace: str,
+    actor: str,
+    apply: bool,
+    no_activity_log: bool,
+) -> tuple[bool, str]:
+    """Process one manifest entry. Returns (ok, message).
+
+    Validates entry shape, finds processed file based on entry's source workspace,
+    reads resolution data, computes target Supabase payload, then either prints
+    the would-PATCH preview (dry-run) or applies the PATCH (live).
+    """
+    item_id = entry.get("item_id")
+    target_status = entry.get("target_status")
+    processed_filename = entry.get("processed_file")
+    superseded_by = entry.get("superseded_by")
+    # Optional override: which workspace's processed/ directory to read from.
+    # Defaults to skill-management-hub since that's where this WR's audit pointed.
+    source_workspace = entry.get("source_workspace", "skill-management-hub")
+
+    if not (item_id and target_status and processed_filename):
+        return False, f"missing required field in entry: {entry!r}"
+
+    sb_status = LOCAL_TO_SUPABASE_STATUS.get(target_status)
+    if not sb_status:
+        return False, (
+            f"{item_id}: target_status={target_status!r} not in "
+            f"{sorted(LOCAL_TO_SUPABASE_STATUS)}"
+        )
+
+    if target_status == "superseded" and not superseded_by:
+        return False, f"{item_id}: target_status=superseded requires superseded_by"
+
+    try:
+        processed_dir = _find_processed_dir(source_workspace)
+        local = _read_processed_file(processed_dir, processed_filename)
+    except (FileNotFoundError, ValueError) as e:
+        return False, f"{item_id}: {e}"
+
+    resolution = local.get("resolution") or {}
+    raw_text = resolution.get("what_was_done") or ""
+    resolved_date = (
+        resolution.get("resolved_date")
+        or local.get("resolved_at")
+        or local.get("timestamp")
+    )
+
+    if not raw_text:
+        return False, f"{item_id}: local resolution.what_was_done is empty"
+
+    resolution_summary = _build_resolution_summary(
+        raw_text, target_status=target_status, superseded_by=superseded_by
+    )
+    resolved_at = _normalize_resolved_at(resolved_date)
+
+    payload = {
+        "status": sb_status,
+        "resolution_summary": resolution_summary,
+        "resolved_by": (resolution.get("resolved_by") or workspace),
+        "last_updated_by": workspace,
+    }
+    if resolved_at:
+        payload["resolved_at"] = resolved_at
+
+    if not apply:
+        preview_text = resolution_summary[:80].replace("\n", " ")
+        msg = (
+            f"WOULD-PATCH {item_id} -> status={sb_status}, "
+            f"resolved_at={resolved_at}, resolution_summary={preview_text!r}..."
+        )
+        return True, msg
+
+    # Pre-check: confirm the row exists and read current state
+    status, body = get_supabase(base_url, api_key, item_id)
+    if status != 200:
+        return False, f"{item_id}: PRE-CHECK HTTP {status} {body[:200]}"
+
+    # PATCH the row
+    status, body = patch_supabase(base_url, api_key, item_id, payload)
+    if status not in (200, 204):
+        return False, f"{item_id}: PATCH HTTP {status} {body[:200]}"
+
+    if not no_activity_log:
+        log_activity_event(
+            base_url, api_key,
+            event_type="drift_correction",
+            content=(
+                f"Historical status_drift reconciled for {item_id}: "
+                f"status -> {sb_status} (was pending), "
+                "resolution_summary + resolved_at filled from local processed/. "
+                "Drift caused by pre-protocol close path "
+                "(2026-04-16 to 2026-04-18, before close-inbox-item.py)."
+            ),
+            metadata={
+                "subject": "historical_status_drift_reconcile",
+                "item_id": item_id,
+                "target_status": sb_status,
+                "superseded_by": superseded_by,
+                "processed_file": processed_filename,
+                "source_workspace": source_workspace,
+                "trigger_wr": "wr-sentinel-2026-04-29-001",
+                "audit": "4.- Sentinel/docs/audits/status-drift-audit-2026-04-29.md",
+            },
+            workspace=workspace,
+            actor=actor,
+        )
+    return True, f"OK   {item_id} -> {sb_status}"
+
+
+# --------------------------------------------------------------------------
+# Main: branch on --audit-file (text mode) or --historical-manifest (status mode)
+# --------------------------------------------------------------------------
+
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--audit-file", required=True,
-                    help="Sentinel pre-audit JSON (e.g. "
-                         "~/.claude/.tmp/sentinel-wr-id-pre-audit-results.json)")
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    mode = ap.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--audit-file",
+                      help="Sentinel pre-audit JSON (text-only resolution_summary fix).")
+    mode.add_argument("--historical-manifest",
+                      help="Manifest JSON with item_id, target_status, "
+                           "processed_file [, superseded_by, source_workspace] "
+                           "for full status drift reconciliation.")
     ap.add_argument("--apply", action="store_true",
                     help="Apply changes. Default is dry-run.")
     ap.add_argument("--no-activity-log", action="store_true",
@@ -191,6 +435,20 @@ def main() -> int:
     args = ap.parse_args()
     actor = args.actor or args.workspace
 
+    load_env()
+    base_url = os.environ.get("SUPABASE_URL", "").rstrip("/")
+    api_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    if not base_url or not api_key:
+        print("ERROR: SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY missing from .env",
+              file=sys.stderr)
+        return 2
+
+    if args.historical_manifest:
+        return _run_historical(args, base_url, api_key, actor)
+    return _run_audit_file(args, base_url, api_key, actor)
+
+
+def _run_audit_file(args, base_url: str, api_key: str, actor: str) -> int:
     audit_path = Path(args.audit_file).expanduser()
     if not audit_path.exists():
         print(f"ERROR: audit file not found: {audit_path}", file=sys.stderr)
@@ -201,16 +459,8 @@ def main() -> int:
         print("ERROR: audit file must be a JSON list", file=sys.stderr)
         return 2
 
-    load_env()
-    base_url = os.environ.get("SUPABASE_URL", "").rstrip("/")
-    api_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
-    if not base_url or not api_key:
-        print("ERROR: SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY missing from .env",
-              file=sys.stderr)
-        return 2
-
     print(f"Reading {len(audit)} drift entries from {audit_path.name}")
-    print(f"Mode: {'APPLY' if args.apply else 'DRY-RUN'}")
+    print(f"Mode: AUDIT-FILE / {'APPLY' if args.apply else 'DRY-RUN'}")
     print(f"Supabase: {base_url}\n")
 
     fixed = 0
@@ -272,6 +522,45 @@ def main() -> int:
 
     mode_label = "Applied" if args.apply else "Dry-run"
     print(f"\n{mode_label}: {fixed}/{len(audit)} OK, {failed} failed.")
+    return 0 if failed == 0 else 1
+
+
+def _run_historical(args, base_url: str, api_key: str, actor: str) -> int:
+    manifest_path = Path(args.historical_manifest).expanduser()
+    if not manifest_path.exists():
+        print(f"ERROR: manifest not found: {manifest_path}", file=sys.stderr)
+        return 2
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if not isinstance(manifest, list):
+        print("ERROR: manifest must be a JSON list", file=sys.stderr)
+        return 2
+
+    print(f"Reading {len(manifest)} historical entries from {manifest_path.name}")
+    print(f"Mode: HISTORICAL-MANIFEST / {'APPLY' if args.apply else 'DRY-RUN'}")
+    print(f"Supabase: {base_url}\n")
+
+    ok_count = 0
+    failed = 0
+    for entry in manifest:
+        ok, msg = _process_historical_entry(
+            entry,
+            base_url=base_url,
+            api_key=api_key,
+            workspace=args.workspace,
+            actor=actor,
+            apply=args.apply,
+            no_activity_log=args.no_activity_log,
+        )
+        prefix = "  " if ok else "  FAIL "
+        print(f"{prefix}{msg}")
+        if ok:
+            ok_count += 1
+        else:
+            failed += 1
+
+    mode_label = "Applied" if args.apply else "Dry-run"
+    print(f"\n{mode_label}: {ok_count}/{len(manifest)} OK, {failed} failed.")
     return 0 if failed == 0 else 1
 
 

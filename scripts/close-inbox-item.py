@@ -56,6 +56,7 @@ Dependencies: Python stdlib only.
 import argparse
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import urllib.error
@@ -66,6 +67,11 @@ from pathlib import Path
 
 VALID_CLOSE_STATUSES = {"processed", "completed", "resolved", "rejected",
                          "superseded", "duplicate", "withdrawn"}
+# Supabase close-vocabulary — what _verify_supabase_close() expects to find
+# on a row after the PATCH lands. Mirrors update_supabase()'s output mapping.
+SUPABASE_CLOSE_VOCABULARY = {
+    "completed", "rejected", "superseded", "duplicate", "withdrawn",
+}
 # Statuses that REQUIRE a cross-reference to another inbox item_id.
 # See universal-protocols.md "Superseded vs Duplicate" section.
 CROSS_REF_REQUIRED = {
@@ -453,6 +459,218 @@ def maybe_write_notification(
     return str(notif_path), f"notification written to {source_ws}: {notif_path.name}"
 
 
+# ---- In-Session Close-Out Workflow Contract gates (wr-sentinel-2026-04-29-002) -
+# Two new gates around the existing close mechanics:
+#   Step 1 (pre-move): _verify_backup_clean() refuses close if declared
+#       artifacts have uncommitted git changes. Forces backup before move.
+#   Step 5 (post-PATCH): _verify_supabase_close() re-reads the row and asserts
+#       status reached the close vocabulary + resolution_summary populated.
+#       Soft-fail: warns loudly but does not undo the close.
+# Steps 2/3/4 (move file, write notification, Supabase PATCH) were already
+# enforced by close-inbox-item.py before this rule landed. The two new gates
+# close the drift class observed in the 2026-04-29 status-drift audit
+# (12 historical phantom rows reconciled in wr-sentinel-2026-04-29-001).
+# Source: wr-sentinel-2026-04-29-002.
+
+def _git_porcelain(repo: Path, timeout: int = 10) -> list[str]:
+    """Return rel-paths from `git status --porcelain` for a repo. Empty on error."""
+    try:
+        r = subprocess.run(
+            ["git", "-C", str(repo), "status", "--porcelain"],
+            capture_output=True, text=True, timeout=timeout, check=False,
+        )
+    except (subprocess.SubprocessError, FileNotFoundError, OSError):
+        return []
+    if r.returncode != 0:
+        return []
+    out = []
+    for line in r.stdout.splitlines():
+        # porcelain format is "XY <space> path" -- 2 status chars + 1 space
+        if len(line) < 4:
+            continue
+        rel = line[3:].strip().strip('"')
+        # Rename: "from -> to" -- check the destination
+        if " -> " in rel:
+            rel = rel.split(" -> ", 1)[1]
+        out.append(rel)
+    return out
+
+
+def _find_workspace_repo(start: Path) -> Path | None:
+    """Walk up from `start` to find the nearest .git repo root. None if not found."""
+    cur = start.resolve()
+    if cur.is_file():
+        cur = cur.parent
+    while True:
+        if (cur / ".git").exists():
+            return cur
+        if cur.parent == cur:
+            return None
+        cur = cur.parent
+
+
+def _verify_backup_clean(
+    file_path: Path,
+    artifacts_created: list,
+    artifacts_modified: list,
+    skip_check: bool = False,
+    skip_reason: str = "",
+) -> tuple[bool, str]:
+    """Step 1 of the close-out contract: pre-move backup-verify.
+
+    Refuses close if any path in artifacts_created/artifacts_modified has
+    uncommitted changes in either (a) the workspace where the inbox file
+    lives or (b) ~/.claude/. Forces git commit + push before close so the
+    work itself is durably backed up before the inbox item moves to
+    processed/.
+
+    Args:
+        file_path: path to inbox JSON being closed (used to locate workspace)
+        artifacts_created: list of paths claimed as created by this work
+        artifacts_modified: list of paths claimed as modified by this work
+        skip_check: bypass the gate (requires non-empty skip_reason)
+        skip_reason: justification for skip (logged in resolution + activity)
+
+    Returns:
+        (ok, message). On (False, message), caller should raise/exit.
+    """
+    if skip_check:
+        if not skip_reason or len(skip_reason.strip()) < 10:
+            return False, (
+                "--skip-backup-check requires --skip-backup-reason "
+                "with >= 10 chars of justification (logged for audit)."
+            )
+        return True, f"backup-check skipped: {skip_reason.strip()}"
+
+    # Build set of declared artifacts as resolved absolute paths
+    declared: set[str] = set()
+    for raw in (artifacts_created or []):
+        if not raw:
+            continue
+        try:
+            declared.add(str(Path(raw).expanduser().resolve()))
+        except (OSError, ValueError):
+            continue
+    for raw in (artifacts_modified or []):
+        if not raw:
+            continue
+        try:
+            declared.add(str(Path(raw).expanduser().resolve()))
+        except (OSError, ValueError):
+            continue
+
+    if not declared:
+        # No declared artifacts -- nothing to verify. Step 1 is satisfied
+        # vacuously. (Closes that don't touch artifacts -- e.g. acks or
+        # rejections -- pass through unchanged.)
+        return True, "no declared artifacts to verify"
+
+    # Repos to check: workspace where inbox file lives + global ~/.claude/
+    workspace_root = _find_workspace_repo(file_path)
+    global_root = Path.home() / ".claude"
+    repos: list[Path] = []
+    if workspace_root is not None:
+        repos.append(workspace_root)
+    if (global_root / ".git").exists():
+        # Avoid double-check when workspace IS ~/.claude
+        if workspace_root is None or global_root.resolve() != workspace_root.resolve():
+            repos.append(global_root)
+
+    overlap: list[str] = []
+    for repo in repos:
+        for rel in _git_porcelain(repo):
+            try:
+                abs_path = str((repo / rel).resolve())
+            except (OSError, ValueError):
+                continue
+            if abs_path in declared:
+                overlap.append(abs_path)
+
+    if overlap:
+        listing = "\n".join(f"  - {p}" for p in overlap)
+        return False, (
+            "Close-out contract step 1 (backup-verify) FAILED. "
+            "Uncommitted work artifacts:\n"
+            f"{listing}\n\n"
+            "Resolution: commit + push these BEFORE closing, or pass "
+            "--skip-backup-check --skip-backup-reason '<>=10 char justification>' "
+            "to bypass (logged for audit). Closing without backup risks "
+            "losing the work referenced in the resolution."
+        )
+    return True, f"backup-verify clean ({len(declared)} artifact(s) checked)"
+
+
+def _verify_supabase_close(
+    item_id: str,
+    expected_local_status: str,
+    hint_path: Path,
+) -> tuple[bool, str]:
+    """Step 5 of the close-out contract: post-PATCH close-out verify.
+
+    Re-reads cross_workspace_requests by item_id and asserts:
+      (a) status is in the close vocabulary
+      (b) resolution_summary is non-empty
+
+    Soft-fail: returns (False, reason) on mismatch but the close has
+    already happened -- caller emits a stderr warning. The point is to
+    make the post-condition observable, not to undo the close.
+
+    Args:
+        item_id: cross_workspace_requests.item_id
+        expected_local_status: the status the local file landed on. Used
+            to back-convert to the Supabase canonical we expect to see.
+        hint_path: file path used to resolve workspace-prefixed env keys
+
+    Returns:
+        (ok, message). On (False, message), caller logs stderr warning.
+    """
+    url = _load_env_value("SUPABASE_URL", hint_path)
+    key = _load_env_value("SUPABASE_SERVICE_ROLE_KEY", hint_path)
+    if not url or not key:
+        return False, "Supabase credentials missing -- close-out verify skipped"
+
+    endpoint = (
+        f"{url}/rest/v1/cross_workspace_requests"
+        f"?item_id=eq.{item_id}&select=status,resolution_summary"
+    )
+    req = urllib.request.Request(
+        endpoint,
+        headers={
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
+            "Accept": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            body = resp.read().decode("utf-8")
+            rows = json.loads(body)
+    except urllib.error.HTTPError as e:
+        return False, f"close-out verify GET HTTPError {e.code}: {e.reason}"
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as e:
+        return False, f"close-out verify GET {type(e).__name__}: {e}"
+
+    if not isinstance(rows, list) or not rows:
+        return False, f"close-out verify: item_id={item_id} not found post-PATCH"
+    row = rows[0]
+    sb_status = row.get("status")
+    sb_resolution = row.get("resolution_summary")
+
+    issues = []
+    if sb_status not in SUPABASE_CLOSE_VOCABULARY:
+        issues.append(f"status={sb_status!r} not in close vocabulary")
+    if not sb_resolution or not str(sb_resolution).strip():
+        issues.append("resolution_summary is null or empty")
+    if issues:
+        return False, (
+            "close-out verify FAILED for "
+            f"{item_id}: {'; '.join(issues)}. "
+            "Local file moved to processed/ and PATCH returned success, "
+            "but the post-condition does not hold. Investigate manually."
+        )
+    return True, f"close-out verify OK (status={sb_status})"
+
+
 def close_item(
     file_path,
     status: str,
@@ -470,6 +688,8 @@ def close_item(
     no_notify_reason: str = "",
     verification_summary: str = "",
     what_originator_can_do_now=None,
+    skip_backup_check: bool = False,
+    skip_backup_reason: str = "",
 ) -> dict:
     """
     Atomically close an inbox item.
@@ -531,6 +751,20 @@ def close_item(
             "Closing with this would create a fake-completion record. "
             "Either describe the actual work or leave the item in inbox."
         )
+
+    # Step 1 of the In-Session Close-Out Workflow Contract: backup-verify.
+    # See universal-protocols.md "In-Session Close-Out Workflow Contract".
+    # Refuses close if declared artifacts have uncommitted git changes.
+    # Bypass: skip_backup_check=True with non-empty skip_backup_reason.
+    backup_ok, backup_msg = _verify_backup_clean(
+        file_path=src,
+        artifacts_created=list(artifacts_created or []),
+        artifacts_modified=list(artifacts_modified or []),
+        skip_check=skip_backup_check,
+        skip_reason=skip_backup_reason,
+    )
+    if not backup_ok:
+        raise ValueError(backup_msg)
 
     processed_dir = find_processed_dir(src)
     dst = processed_dir / src.name
@@ -599,6 +833,10 @@ def close_item(
         resolution["superseded_by"] = superseded_by.strip()
     if status == "duplicate" and duplicate_of:
         resolution["duplicate_of"] = duplicate_of.strip()
+    # Record backup-check bypass for audit (close-out contract step 1)
+    if skip_backup_check:
+        resolution["backup_check_skipped"] = True
+        resolution["backup_check_skip_reason"] = skip_backup_reason.strip()
     if extra_resolution:
         resolution.update(extra_resolution)
     data["resolution"] = resolution
@@ -624,6 +862,7 @@ def close_item(
     # For v1 legacy records (no id_format_version), fall back to request_id /
     # task_id so completion-notification routed-tasks still close.
     sb_msg = "skipped"
+    sb_verify_msg = "not-attempted"
     if update_supabase_row:
         item_id = data.get("id") or data.get("request_id") or data.get("task_id")
         if item_id:
@@ -634,8 +873,26 @@ def close_item(
                 resolved_by=resolved_by,
                 hint_path=src,
             )
+            # Step 5 of the In-Session Close-Out Workflow Contract:
+            # post-PATCH close-out verify. Re-read the row to confirm the
+            # close vocabulary landed and resolution_summary is populated.
+            # Soft-fail: warn loudly but do not undo the close.
+            if _ok:
+                v_ok, sb_verify_msg = _verify_supabase_close(
+                    item_id=item_id,
+                    expected_local_status=status,
+                    hint_path=src,
+                )
+                if not v_ok:
+                    print(
+                        f"WARN: close-out verify (step 5) failed: {sb_verify_msg}",
+                        file=sys.stderr,
+                    )
+            else:
+                sb_verify_msg = "skipped (Supabase PATCH failed)"
         else:
             sb_msg = "no item_id/request_id/task_id found in JSON"
+            sb_verify_msg = "skipped (no item_id)"
 
     # 5. Completion Notification Protocol -- auto-write notification routed-task
     # to the source workspace's inbox unless the close is exempt (self-filed,
@@ -659,6 +916,8 @@ def close_item(
         "previous_status": prev_status,
         "new_status": status,
         "supabase": sb_msg,
+        "supabase_verify": sb_verify_msg,
+        "backup_check": backup_msg,
         "notification_path": notify_path,
         "notification_msg": notify_msg,
         "message": f"Closed {src.name}: {prev_status} -> {status}",
@@ -717,6 +976,20 @@ def main():
                    help="Append a status_history entry without closing the item. "
                         "Status stays unchanged; file stays in inbox/. Used by "
                         "target workspace to track in-flight progress.")
+    # In-Session Close-Out Workflow Contract gates (wr-sentinel-2026-04-29-002).
+    # Step 1 (backup-verify) is enforced by default. --skip-backup-check is the
+    # bypass for emergencies; the bypass reason is logged into the resolution
+    # object for audit.
+    p.add_argument("--skip-backup-check", action="store_true",
+                   help="Bypass close-out contract step 1 (backup-verify). "
+                        "Use only when artifacts cannot be committed before "
+                        "close (rare). Requires --skip-backup-reason. The "
+                        "bypass is recorded in resolution.backup_check_skipped "
+                        "for audit.")
+    p.add_argument("--skip-backup-reason", default="",
+                   help="Required with --skip-backup-check. Plain-text "
+                        "justification (>=10 chars) explaining why the "
+                        "backup-verify gate was bypassed.")
     args = p.parse_args()
 
     # Deprecation: collapse processed/resolved -> completed (2026-04-28
@@ -807,6 +1080,8 @@ def main():
             no_notify_reason=args.no_notify_reason,
             verification_summary=args.verification_summary,
             what_originator_can_do_now=next_actions,
+            skip_backup_check=args.skip_backup_check,
+            skip_backup_reason=args.skip_backup_reason,
         )
     except (ValueError, FileNotFoundError, FileExistsError) as e:
         print(f"ERROR: {e}", file=sys.stderr)
@@ -814,7 +1089,9 @@ def main():
 
     print(f"OK: {result['message']}")
     print(f"  Path: {result['final_path']}")
+    print(f"  Backup-verify: {result.get('backup_check', 'n/a')}")
     print(f"  Supabase: {result['supabase']}")
+    print(f"  Close-out verify: {result.get('supabase_verify', 'n/a')}")
     print(f"  Notification: {result['notification_msg']}")
     if result.get("notification_path"):
         print(f"    -> {result['notification_path']}")
