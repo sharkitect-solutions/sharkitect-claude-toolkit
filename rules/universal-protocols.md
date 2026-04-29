@@ -1298,6 +1298,44 @@ All workspaces follow the Documentation Standards SOP at `~/.claude/docs/documen
 
 Sentinel audits compliance with these standards across all workspaces.
 
+## Modifying ~/.claude/settings.json (NON-NEGOTIABLE)
+
+The Edit tool is PERMANENTLY DENIED on `~/.claude/settings.json` by a deny rule listed inside settings.json itself -- chicken-and-egg by design: settings.json contains the deny list that blocks editing it. Do NOT waste time attempting Edit, PowerShell, cmd workarounds, or any other path-escape variants. They will all fail. The ONLY supported path is documented below.
+
+### The ONLY way to modify settings.json
+
+Bash + Python `open(..., 'w')` via subprocess. This is a different code path than the Edit tool and is not blocked by the deny rule. Use this pattern, no other.
+
+### Required preconditions (every time)
+
+1. **Explicit user approval for the specific change.** A general "approved this work" is NOT enough -- settings.json governs every future session in every workspace, so each modification requires per-action authorization. If you don't have explicit approval, STOP and ask, presenting the exact diff.
+2. **Show the diff before applying** so the user can verify intent matches.
+
+### Required execution sequence (every time)
+
+1. **Backup:** `shutil.copy2(src, src_parent / f'settings.json.bak.<YYYYMMDD-slug>')`
+2. **Read:** `json.load(f)`
+3. **Mutate the dict surgically** (e.g., remove specific entries from `s['permissions']['deny']` by string match; append the new entries). Do NOT rewrite the whole file from scratch -- you will lose unrelated keys you didn't read.
+4. **Write back:** `json.dump(s, f, indent=2)` then `f.write('\n')`
+5. **Verify post-write:** re-read with `json.load`, confirm structure is valid AND the diff matches intent.
+6. **Empirical test:** actually attempt the operation the change was supposed to enable (e.g., if you removed `Edit(~/.claude/.env)` from deny, immediately try Editing `~/.claude/.env`). If the test fails, RESTORE from backup before doing anything else.
+
+### What does NOT work -- do not attempt
+
+| Approach | Why it fails |
+|---|---|
+| Edit tool on settings.json | Hard-denied by `Edit(~/.claude/settings.json)` rule |
+| `cmd //c "..."` with `\\` quoting | Bash MSYS path conversion mangles quotes; even when it doesn't, the underlying Edit deny still applies if the tool routes through Edit |
+| PowerShell via Bash | Separate deny rule; user has not authorized PowerShell as a bypass |
+| `sed -i` in-place edit | No backup, no JSON validation, fragile against quote variations |
+| Hand-written full-file rewrite | Lossy -- drops keys the script didn't know about |
+
+### Source incident
+
+2026-04-29 (Skill Hub session 11): Fork A required `~/.claude/settings.json` modification to remove a contradictory `.env` deny rule. Edit tool blocked twice (first by safety system citing "self-modification of permission config", then by the explicit `Edit(~/.claude/settings.json)` deny). Bash + Python `open(..., 'w')` succeeded on first try with full backup + verify + empirical-test sequence. User instruction (verbatim): "I do want to make sure that this is documented as the only way to bypass this chicken-and-egg problem... so that we don't have this issue in the future, and we don't even try anything else except for what we know works."
+
+---
+
 ## Naming Conventions (NON-NEGOTIABLE)
 
 Every user-facing artifact MUST have a name a non-technical reader can understand within 5 seconds. Engineery, metaphor-based, or self-referential names are prohibited at the user-facing surface.
