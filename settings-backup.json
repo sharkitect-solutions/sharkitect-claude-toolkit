@@ -411,8 +411,9 @@
       "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/**/.claude/settings.json)",
       "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/**/.claude/settings.local.json)",
       "Edit(~/.claude/plugins/**)",
-      "Edit(~/.claude/.env)",
-      "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/**/.env)"
+      "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.env)",
+      "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.env)",
+      "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.env)"
     ]
   },
   "autoUpdatesChannel": "latest",

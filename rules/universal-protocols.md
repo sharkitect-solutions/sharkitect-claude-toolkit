@@ -1298,6 +1298,57 @@ All workspaces follow the Documentation Standards SOP at `~/.claude/docs/documen
 
 Sentinel audits compliance with these standards across all workspaces.
 
+## Naming Conventions (NON-NEGOTIABLE)
+
+Every user-facing artifact MUST have a name a non-technical reader can understand within 5 seconds. Engineery, metaphor-based, or self-referential names are prohibited at the user-facing surface.
+
+### The 5-second test
+Read the name aloud. If someone unfamiliar with the system can't guess what it does, the name fails.
+
+### Required pattern
+Names should answer:
+- WHO/WHAT does it serve? (CEO, toolkit, sales, audits, n8n)
+- WHAT does it do? (brief, monitor, scan, sync, alert, tracker)
+- WHEN/HOW OFTEN? (morning, daily, end-of-day) -- only when timing matters
+
+### Good
+- "CEO morning brief" / "CEO midday check-in" / "CEO end-of-day brief"
+- "Toolkit Monitor"
+- "n8n Workflow Error Handler"
+- "Cards Landing Visit Tracker"
+- "Inbox Auto-Processor"
+
+### Bad
+- "Audit Cadence Engine" -- audit of what? what cadence?
+- "Watchers Watcher" -- meta-cute, unclear
+- "Methodology Nudge" -- nudge what?
+- "Resource Auditor" -- too generic
+- "Dream Consolidation" -- metaphor over function
+
+### Where it applies (rename if violating)
+- Task Scheduler entries (visible in Windows UI)
+- Slack channels and bot display names
+- Cron job descriptions
+- Notification message headers (e.g., the `*[...]*` prefix in Slack/Telegram posts)
+- Asset registry display names
+- Skill / agent description fields (the picker text)
+- Plan / workflow file titles in indexes
+- Email subject lines
+
+### Where it does NOT apply (internal naming is fine)
+- Python module filenames (`audit_cadence_engine.py` is OK as snake_case)
+- Function names, variable names, internal class names
+- Git branch names
+- Database table/column names (Sentinel-controlled)
+
+### Retroactive renames
+- **At creation time:** name it correctly from day 1.
+- **During preflight:** if you encounter an ambiguous name on an asset you're already touching, propose a rename in the same change.
+- **Don't refactor purely for renaming.** Bundle renames with substantive work; refactor cost is real.
+
+### Source incident
+2026-04-29 (Skill Hub session 11): user pushed back on "Audit Cadence Engine" -- the name failed the 5-second test, and user reported not knowing what the asset did despite multiple sessions of work on it. Renamed to "Toolkit Monitor." User cited multiple existing offenders across HQ + Sentinel they couldn't decode without context.
+
 ---
 
 ## Extension Rule
