@@ -161,6 +161,46 @@ TESTING_STRATEGY_SKILLS = (
     "senior-qa",
 )
 
+# TDD pattern detection (wr-skillhub-2026-04-29-001).
+# When the assistant builds 2+ distinct deliverable files AND touches at least
+# one test file in the same session WITHOUT prior superpowers:test-driven-
+# development invocation, nudge before the second deliverable edit lands.
+# The signal: multi-file build + tests in the mix = scope where TDD applies,
+# but the methodology skill wasn't invoked. Catches the failure mode "I added
+# tests after the fact, which is not the same as following TDD."
+#
+# Detection logic (PreToolUse on Write/Edit):
+#   - Classify file_path as test, deliverable, or other (config/docs/data)
+#   - Maintain dedup'd lists in state: tdd_deliverables_touched + tdd_tests_touched
+#   - When BOTH thresholds cross (deliv>=2 AND tests>=1) AND TDD not invoked,
+#     emit nudge and mark already_nudged so it fires once per session.
+#
+# False-positive guards:
+#   - Test patterns checked FIRST (so test_*.py is never counted as deliverable)
+#   - Excluded paths (is_excluded_path) bypass the entire block (.tmp, .git,
+#     /processed/, /inbox/, /outbox/ etc. -- already-applied at handler entry)
+#   - Deliverable extensions limited to code files (.py/.js/.ts/.go/etc.);
+#     .md/.json/.yaml/.txt do not count, so doc/config edits don't trigger.
+TEST_FILE_RE = re.compile(
+    r"(?:^|[/\\])"
+    r"(?:test_[^/\\]+\.(?:py|js|ts)$"
+    r"|[^/\\]+_test\.(?:py|js|ts|go)$"
+    r"|[^/\\]+\.test\.(?:js|ts|jsx|tsx)$"
+    r"|[^/\\]+\.spec\.(?:js|ts|jsx|tsx)$"
+    r"|tests?[/\\][^/\\]+\.(?:py|js|ts)$"
+    r"|__tests__[/\\][^/\\]+)",
+    re.I,
+)
+DELIVERABLE_EXT_RE = re.compile(
+    r"\.(?:py|js|ts|jsx|tsx|go|rs|java|rb|ex|exs|kt|swift|c|cpp|h|hpp|sh|bash)$",
+    re.I,
+)
+TDD_SKILLS = (
+    "test-driven-development",
+    "superpowers:test-driven-development",
+)
+TDD_DELIVERABLE_THRESHOLD = 2
+
 # MCP tool-name patterns that indicate "I'm checking state"
 INVESTIGATION_MCP_TOOL_RES = [
     re.compile(r"n8n.*get_execution|n8n.*list_executions|n8n.*get_workflow|n8n.*health_check", re.I),
@@ -525,6 +565,55 @@ def main():
                     "Source: wr-sentinel-2026-04-27-020. Precedent: "
                     "~/.claude/tests/test_wr_id_schema.py (12 cases) shipped "
                     "alongside the wr-id-schema-v2 enforcement infrastructure."
+                )
+                mark_nudged(state, key)
+
+        # TDD pattern detection (wr-skillhub-2026-04-29-001).
+        # Multi-file deliverable + test-file edits in same session WITHOUT
+        # superpowers:test-driven-development = TDD applies but methodology
+        # was skipped. Fire once per session on the threshold-crossing edit.
+        # Test classification runs FIRST so test_*.py is never miscounted as
+        # a deliverable.
+        is_test_file = bool(TEST_FILE_RE.search(file_path))
+        is_deliverable = (
+            (not is_test_file)
+            and bool(DELIVERABLE_EXT_RE.search(file_path))
+        )
+        if is_test_file:
+            tdd_tests = state.setdefault("tdd_tests_touched", [])
+            if file_path not in tdd_tests:
+                tdd_tests.append(file_path)
+        if is_deliverable:
+            tdd_deliv = state.setdefault("tdd_deliverables_touched", [])
+            if file_path not in tdd_deliv:
+                tdd_deliv.append(file_path)
+
+        deliv_count = len(state.get("tdd_deliverables_touched", []))
+        test_count = len(state.get("tdd_tests_touched", []))
+        if (deliv_count >= TDD_DELIVERABLE_THRESHOLD
+                and test_count >= 1
+                and not any(skill_invoked(s, log) for s in TDD_SKILLS)):
+            key = "tdd:multi-file-with-tests"
+            if not already_nudged(state, key):
+                nudges.append(
+                    f"TDD PATTERN detected: {deliv_count} deliverable file(s) "
+                    f"+ {test_count} test file(s) touched this session "
+                    "WITHOUT `superpowers:test-driven-development` invocation. "
+                    "Multi-file build + tests in the mix is the scope where "
+                    "TDD applies.\n\n"
+                    "Run `Skill superpowers:test-driven-development` BEFORE "
+                    "the next deliverable edit. Adding tests after the fact "
+                    "is NOT the same as following TDD methodology -- the "
+                    "skill enforces red-green-refactor cadence (write the "
+                    "failing test FIRST, then minimum code to pass, then "
+                    "refactor) which catches missing edge cases that "
+                    "'tests written alongside' typically miss.\n\n"
+                    "If TDD doesn't apply (refactor with no behavior change, "
+                    "config edits, doc-only work, hot-fix to running prod), "
+                    "invoke the skill anyway and let it self-exempt -- silent "
+                    "skip on methodology nudges is a trust failure even when "
+                    "the rationalization is correct. Source: "
+                    "wr-skillhub-2026-04-29-001."
                 )
                 mark_nudged(state, key)
 

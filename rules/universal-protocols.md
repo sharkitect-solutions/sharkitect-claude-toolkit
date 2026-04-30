@@ -1336,6 +1336,48 @@ Bash + Python `open(..., 'w')` via subprocess. This is a different code path tha
 
 ---
 
+## Settings.json Permission Discipline (NON-NEGOTIABLE)
+
+Applies to BOTH `~/.claude/settings.json` (global) AND every `<workspace>/.claude/settings.json` (workspace-local). The HOW is documented above; this rule is about WHAT the permission lists must hold.
+
+### The core rule
+
+**Deny wins on conflict.** When the same exact path string appears in both `permissions.allow` and `permissions.deny`, the engine refuses the operation. The allow line becomes dead code AND its intended grant is silently broken. There is no scenario where keeping a duplicate allow + deny for the same path is correct — one of them must go.
+
+### When retrofitting permissions (the common failure mode)
+
+Every permission refactor MUST follow this sequence:
+
+1. **Audit existing denies first.** Before adding any new allow, grep the deny list for the path being added. If it's there, remove it in the same change.
+2. **Remove conflicting denies, never just append allows.** "Append allow" + "leave matching deny in place" = the allow does nothing.
+3. **Verify by counting.** Before and after the change, log `len(allow)` and `len(deny)` AND `len(allow & deny)`. The intersection must be 0 after the change. If not, the change is broken — restore from backup.
+4. **Empirical test one path.** Pick one path that the change was supposed to unblock and actually attempt the previously-denied operation (Edit a file, Write a file). If it still gets denied, the change didn't take effect — investigate before declaring done.
+
+### Orphan denies (the second failure mode)
+
+Even with no allow conflict, a deny rule that has no current justification is a silent block. When ownership of a path changes, when a workspace's role expands, or when a permissions refactor goes through, denies left over from prior intent quietly break legitimate work. A deny entry must answer: "what is this protecting?" If the answer is "I don't remember" or "an old constraint that no longer applies" — remove it.
+
+Symptom of an orphan deny: a workspace tries to do something the universal protocols say it CAN do, gets blocked, and on inspection finds a deny rule that no rule-doc justifies.
+
+### Documented offender pattern
+
+| Path | Offender workspaces | Status as of 2026-04-30 | Why it's wrong |
+|------|---------------------|--------------------------|----------------|
+| `*/.routed-tasks/{inbox,processed}/**` + `*/.lifecycle-reviews/{inbox,processed}/**` (cross-workspace) | Skill Hub (fixed 2026-04-30 by wr-007), HQ (fixed earlier) | Sentinel: check status | Allow + deny duplicate on same path. Cross-workspace inbox writes silently broken. |
+| `Edit(*/HUMAN-ACTION-REQUIRED.md)` | Skill Hub (fixed), HQ + Sentinel: check | Skill Hub fixed 2026-04-30 | Orphan deny. Blocked the standard `notify-human-action.py` helper. |
+| `Edit(~/.claude/plans/**)` | HQ AND Sentinel | OPEN — routed for fix 2026-04-30 | Orphan deny. Locks workspace out of the GLOBAL plans dir even though every workspace is supposed to be able to file global plans (Plan Lifecycle Protocol). Skill Hub correctly has no rule (falls back to global allow). |
+
+### Source incident
+
+2026-04-30 (Skill Hub session 13): Sentinel filed wr-sentinel-2026-04-30-007 after discovering that Phase 1 permissions overhaul (commit a5ae246, 2026-04-28) had added cross-workspace inbox ALLOW rules but NOT removed the matching DENY rules. Cross-workspace inbox writes were silently broken for ~24 hours. While applying the wr-007 diff to Skill Hub, broader audit found a separate-but-structurally-identical orphan deny on `Edit(~/.claude/plans/**)` in HQ AND Sentinel — locking both out of writing global plan files even though the Plan Lifecycle Protocol expects all workspaces to write there. Two follow-up routed tasks filed to HQ + Sentinel for them to remove their own deny entries (each workspace owns its own settings.json per ownership rule). User direction (verbatim): "If we're updating the allowed list, it makes sense that they shouldn't be in the denied list as well. Make sure whatever is allowed is off the denied list."
+
+### Enforcement
+
+- **At edit time:** the procedure in "Modifying ~/.claude/settings.json" above includes verify-by-counting (step 5). Extend that step to assert `len(allow ∩ deny) == 0` before declaring success.
+- **Periodic audit:** Sentinel's `audit-autonomous-systems.py` should grow a `permission_conflict` drift class that scans every `settings.json` for allow ∩ deny intersection AND for known-orphan deny patterns, surfacing them in the morning report. (Filed as a follow-up if not already in `wr-sentinel-2026-04-30-005` cadence scope.)
+
+---
+
 ## Modifying .env files (NON-NEGOTIABLE)
 
 The Edit and Write tools are DENIED on `.env` files (workspace .env files AND `~/.claude/.env`). This is intentional — `.env` files contain credentials, and the deny rule prevents accidental token leaks via blob-style write tools that could echo content back into transcripts. Do NOT waste time attempting Edit, Write, or alternate path-escape variants. They will all fail.

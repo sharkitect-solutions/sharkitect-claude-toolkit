@@ -174,3 +174,105 @@ def test_annotate_rejects_already_closed_status(tmp_path):
     data = json.loads(item_path.read_text(encoding="utf-8"))
     # Body unchanged
     assert "status_history" not in data or len(data.get("status_history", [])) == 0
+
+
+# --- Close-out verify scope (wr-sentinel-2026-04-29-005) --------------------
+# cross_workspace_requests holds WR rows only. Routed tasks (rt-*) and
+# lifecycle reviews (lifecycle-*) PATCH 0 rows then trip the verify with
+# 'item_id not found'. The skip branch suppresses the noise without changing
+# the verify behavior for real WRs.
+
+def _load_module():
+    """Dynamic import of the script (filename has hyphens)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("cii", str(SCRIPT))
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+def _make_item(tmp_path, item_id, kind=None):
+    inbox = tmp_path / "inbox"
+    inbox.mkdir()
+    p = inbox / f"{item_id}.json"
+    body = {
+        "id": item_id,
+        "id_format_version": 2,
+        "source_workspace": "skill-management-hub",
+        "routed_from": "skill-management-hub",
+        "routed_to": "skill-management-hub",
+        "status": "pending",
+        "notify_on_completion": False,
+    }
+    if kind:
+        body["kind"] = kind
+    p.write_text(json.dumps(body, indent=2), encoding="utf-8")
+    return p
+
+
+def test_close_out_verify_skipped_for_rt_prefix(tmp_path, monkeypatch):
+    """rt-* items skip close-out verify -- table holds WRs only."""
+    cii = _load_module()
+    monkeypatch.setattr(cii, "update_supabase", lambda **kw: (True, "stubbed OK"))
+
+    def must_not_run(**kw):
+        raise AssertionError("_verify_supabase_close called for rt- item")
+    monkeypatch.setattr(cii, "_verify_supabase_close", must_not_run)
+
+    item_path = _make_item(tmp_path, "rt-test-2026-04-30", kind="completion_notification")
+    result = cii.close_item(
+        file_path=str(item_path),
+        status="completed",
+        resolved_by="skill-management-hub",
+        what_was_done="Test ack of rt- completion notification -- verifying skip path",
+        update_supabase_row=True,
+    )
+    assert result["ok"]
+    assert "skipped" in result["supabase_verify"]
+    assert "not a WR" in result["supabase_verify"]
+
+
+def test_close_out_verify_skipped_for_lifecycle_prefix(tmp_path, monkeypatch):
+    """lifecycle-* items also skip close-out verify."""
+    cii = _load_module()
+    monkeypatch.setattr(cii, "update_supabase", lambda **kw: (True, "stubbed OK"))
+
+    def must_not_run(**kw):
+        raise AssertionError("_verify_supabase_close called for lifecycle- item")
+    monkeypatch.setattr(cii, "_verify_supabase_close", must_not_run)
+
+    item_path = _make_item(tmp_path, "lifecycle-test-2026-04-30")
+    result = cii.close_item(
+        file_path=str(item_path),
+        status="completed",
+        resolved_by="skill-management-hub",
+        what_was_done="Test close of lifecycle review -- verifying skip path",
+        update_supabase_row=True,
+    )
+    assert result["ok"]
+    assert "skipped" in result["supabase_verify"]
+
+
+def test_close_out_verify_still_runs_for_wr_prefix(tmp_path, monkeypatch):
+    """wr-* items DO run close-out verify (regression guard)."""
+    cii = _load_module()
+    monkeypatch.setattr(cii, "update_supabase", lambda **kw: (True, "stubbed OK"))
+
+    captured = []
+
+    def fake_verify(**kw):
+        captured.append(kw["item_id"])
+        return (True, "fake verify OK")
+    monkeypatch.setattr(cii, "_verify_supabase_close", fake_verify)
+
+    item_path = _make_item(tmp_path, "wr-skillhub-2026-04-30-test")
+    result = cii.close_item(
+        file_path=str(item_path),
+        status="completed",
+        resolved_by="skill-management-hub",
+        what_was_done="Test close of wr- request -- verify still runs",
+        update_supabase_row=True,
+    )
+    assert result["ok"]
+    assert captured == ["wr-skillhub-2026-04-30-test"]
+    assert "fake verify OK" in result["supabase_verify"]

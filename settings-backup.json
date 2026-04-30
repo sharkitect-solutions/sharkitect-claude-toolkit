@@ -393,7 +393,13 @@
       "Bash(git prune:*)",
       "Bash(git notes:*)",
       "Edit(~/.claude/.env)",
-      "Write(~/.claude/.env)"
+      "Write(~/.claude/.env)",
+      "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.routed-tasks/inbox/**)",
+      "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.lifecycle-reviews/inbox/**)",
+      "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.work-requests/inbox/**)",
+      "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.lifecycle-reviews/inbox/**)",
+      "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/HUMAN-ACTION-REQUIRED.md)",
+      "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/HUMAN-ACTION-REQUIRED.md)"
     ],
     "deny": [
       "Bash(git push * --force*)",

@@ -877,17 +877,33 @@ def close_item(
             # post-PATCH close-out verify. Re-read the row to confirm the
             # close vocabulary landed and resolution_summary is populated.
             # Soft-fail: warn loudly but do not undo the close.
+            #
+            # Scope: cross_workspace_requests holds WORK REQUEST rows only
+            # (item_id pattern wr-*). Routed tasks (rt-*) and lifecycle
+            # reviews (lifecycle-*) do not have rows in this table -- the
+            # PATCH succeeds with 0 rows matched and the verify always fails
+            # "item_id not found". Skip the verify for those items so the
+            # warning is reserved for actual WR drift. Path A per
+            # wr-sentinel-2026-04-29-005. Path B (separate brain tables for
+            # RT + completion notifications) requires schema work routed via
+            # Sentinel and is the longer-term fix.
             if _ok:
-                v_ok, sb_verify_msg = _verify_supabase_close(
-                    item_id=item_id,
-                    expected_local_status=status,
-                    hint_path=src,
-                )
-                if not v_ok:
-                    print(
-                        f"WARN: close-out verify (step 5) failed: {sb_verify_msg}",
-                        file=sys.stderr,
+                if item_id.startswith(("rt-", "lifecycle-")):
+                    sb_verify_msg = (
+                        f"skipped (item_id={item_id} prefix is not a WR; "
+                        "cross_workspace_requests holds WR rows only)"
                     )
+                else:
+                    v_ok, sb_verify_msg = _verify_supabase_close(
+                        item_id=item_id,
+                        expected_local_status=status,
+                        hint_path=src,
+                    )
+                    if not v_ok:
+                        print(
+                            f"WARN: close-out verify (step 5) failed: {sb_verify_msg}",
+                            file=sys.stderr,
+                        )
             else:
                 sb_verify_msg = "skipped (Supabase PATCH failed)"
         else:
