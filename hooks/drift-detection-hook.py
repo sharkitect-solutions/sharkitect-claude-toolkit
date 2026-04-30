@@ -240,35 +240,109 @@ def format_supabase_reminder(result):
     )
 
 
+# Generic structural / English-stopword terms that must NEVER produce a
+# keyword-overlap match. Without this filter, every doc with "plan.md" in
+# its name gets matched against any other doc with "plan" in its key_terms.
+# Source: wr-hq-2026-04-29-005 -- editing
+# projects/sharkitect/credential-registry/plan.md surfaced 5 unrelated KB
+# project plans because of the generic 'plan' / 'projects' / 'knowledge'
+# / 'base' overlap.
+KEYWORD_STOPLIST = frozenset({
+    # File / directory structure
+    "plan", "plans", "spec", "specs", "readme", "memory", "claude",
+    "agents", "agent", "tools", "tool", "scripts", "script", "hooks",
+    "hook", "docs", "doc", "audits", "audit", "archive", "archives",
+    "tmp", "temp", "tests", "test", "workflows", "workflow",
+    "knowledge", "base", "projects", "project", "src", "lib", "config",
+    "configs", "settings", "settings", "data", "templates", "template",
+    "registry", "registries", "section", "sections", "phase", "phases",
+    "step", "steps", "note", "notes", "report", "reports", "review",
+    "reviews", "main", "index",
+    # Generic prose stopwords / connectives that pass length>3
+    "this", "that", "these", "those", "have", "with", "from", "more",
+    "some", "after", "before", "will", "been", "they", "them", "their",
+    "your", "yours", "what", "when", "where", "which", "while", "would",
+    "could", "should", "into", "onto", "upon", "than", "then", "thus",
+    "such", "only", "also", "even", "very", "much", "many", "most",
+    "each", "every", "other", "another", "again", "still", "ever",
+    "just", "back", "next", "over", "down", "about", "between",
+    "without", "within", "during", "since", "until", "through",
+    "across", "above", "below", "around",
+    # Generic verbs (4+ chars) that match too widely
+    "make", "made", "take", "took", "give", "gave", "find", "found",
+    "show", "shown", "come", "came", "good", "best", "well", "true",
+    "false", "real", "same", "like", "need", "want", "work", "works",
+    "working", "working", "used", "uses", "using", "done", "doing",
+    "added", "fixed", "based", "called", "complete", "completed",
+})
+
+
+def _extract_terms_from_path(file_path):
+    """Extract candidate keyword terms from file_path with stoplist filter."""
+    if not file_path:
+        return set()
+    terms = set()
+    parts = file_path.replace("\\", "/").replace("-", " ").replace("_", " ").split("/")
+    for p in parts:
+        cleaned = p.replace(".md", "").replace(".html", "").replace(".txt", "").lower()
+        if not cleaned or len(cleaned) <= 3:
+            continue
+        if cleaned in KEYWORD_STOPLIST:
+            continue
+        terms.add(cleaned)
+    return terms
+
+
+def _extract_terms_from_content(content):
+    """Extract candidate keyword terms from content with stoplist filter.
+
+    Tightened from len>3 (no stoplist) to len>3 + stoplist filter to
+    prevent generic words like 'this' / 'plan' / 'phase' from causing
+    spurious matches against unrelated cache docs (wr-hq-2026-04-29-005).
+    """
+    if not content:
+        return set()
+    terms = set()
+    words = content[:500].lower().split()
+    for w in words:
+        cleaned = w.strip(".,;:!?\"'()[]{}#*-_")
+        if not cleaned or len(cleaned) <= 3:
+            continue
+        if cleaned in KEYWORD_STOPLIST:
+            continue
+        terms.add(cleaned)
+    return terms
+
+
 def keyword_fallback(cache, tool_input):
-    """Original keyword-overlap approach as fallback."""
+    """Keyword-overlap fallback with topic-keyword tightening.
+
+    Generic structural terms (plan, projects, knowledge, base, ...) and
+    English-stopword-like generics (this, with, will, ...) are filtered
+    out of both file-path and content extraction, so over-matches on
+    generic vocabulary stop dragging in unrelated docs. Domain terms
+    (proper nouns like BREVO, technical terms like vault, credential)
+    pass through and produce real matches.
+
+    Source: wr-hq-2026-04-29-005.
+    """
     if not cache:
         return []
 
-    terms = set()
-
-    file_path = tool_input.get("file_path", "")
-    if file_path:
-        parts = file_path.replace("\\", "/").replace("-", " ").replace("_", " ").split("/")
-        for p in parts:
-            cleaned = p.replace(".md", "").replace(".html", "").replace(".txt", "").lower()
-            if cleaned and len(cleaned) > 2:
-                terms.add(cleaned)
-
-    content = tool_input.get("content", "") or tool_input.get("new_string", "")
-    if content:
-        words = content[:500].lower().split()
-        for w in words:
-            cleaned = w.strip(".,;:!?\"'()[]{}#*-_")
-            if len(cleaned) > 3:
-                terms.add(cleaned)
+    terms = _extract_terms_from_path(tool_input.get("file_path", ""))
+    terms |= _extract_terms_from_content(
+        tool_input.get("content", "") or tool_input.get("new_string", "")
+    )
 
     if not terms:
         return []
 
     matches = []
     for doc in cache:
-        doc_terms = set(doc.get("key_terms", []))
+        doc_terms = set(t.lower() for t in doc.get("key_terms", []))
+        # Apply stoplist to cache terms too -- stoplist words in a doc's
+        # key_terms list cannot count toward overlap.
+        doc_terms -= KEYWORD_STOPLIST
         overlap = doc_terms & terms
         if len(overlap) >= 2:
             matches.append(doc["doc_path"])

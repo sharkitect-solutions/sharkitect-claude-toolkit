@@ -57,7 +57,13 @@ CONTENT_FILENAME_PATTERNS = [
 # File extensions that could be content
 CONTENT_EXTENSIONS = {".md", ".html", ".txt", ".mdx", ".htm", ".docx"}
 
-# Paths to EXCLUDE (never trigger on these)
+# Paths to EXCLUDE (never trigger on these). Per HQ Content Creation Rules,
+# the enforcer's scope is client-facing content (landing pages, website
+# copy, emails, forms, proposals, presentations, social posts, blog posts,
+# ad copy, case studies, sales scripts). Internal infrastructure paths are
+# out of scope. Source: wr-hq-2026-04-29-005 -- HQ session nudged on
+# Edit to _archive/env-backups/README.md (internal infra doc, not client
+# content).
 EXCLUDE_PATHS = [
     ".tmp/",
     ".claude/",
@@ -72,6 +78,19 @@ EXCLUDE_PATHS = [
     "CLAUDE.md",
     "DOCUMENT-MAP.md",
     "INDEX.md",
+    # --- Internal-infrastructure path-excludes (wr-hq-2026-04-29-005) ---
+    "_archive/",        # archived legacy content, not client-facing
+    "/archive/",        # alternate archive convention; leading slash to
+                        # avoid matching "archive" inside marketing-strategy
+                        # filenames or section names
+    "docs/audits/",     # audit reports, internal infra docs
+    "docs/specs/",      # system specs, internal infra docs
+    ".work-requests/",  # cross-workspace coordination meta
+    ".lifecycle-reviews/",  # cross-workspace coordination meta
+    ".routed-tasks/",   # cross-workspace coordination meta
+    "HUMAN-ACTION-REQUIRED.md",  # operational stack queue, not client doc
+    "tests/",           # test files
+    "knowledge-base/_internal/",  # internal KB section if present
 ]
 
 

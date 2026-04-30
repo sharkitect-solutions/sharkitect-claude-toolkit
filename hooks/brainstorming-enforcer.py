@@ -175,6 +175,23 @@ IDEATION_HEADER_RE = re.compile(
 # Look-back window for transcript user messages.
 TRANSCRIPT_USER_LOOKBACK = 3
 
+# Config-doc basenames that are exempt from Signals A and C when the file
+# already exists. These files are operational config / structural docs;
+# rewriting them is realignment, not new feature ideation. Source:
+# wr-hq-2026-04-29-005 -- HQ session blocked on CLAUDE.md realignment to
+# the Skill Hub/Sentinel template (Signal C fired on 'Tagline options'
+# substring inside the doc body, despite the rewrite being structural).
+# Match is case-insensitive on basename. Existence check is required so
+# brand-new file creation can still trigger if other signals fire (rare
+# case but worth flagging when it happens).
+CONFIG_DOC_BASENAMES = (
+    "claude.md",
+    "memory.md",
+    "readme.md",
+    "agents.md",
+    "gemini.md",
+)
+
 # System-injected blocks to strip BEFORE keyword matching. Fixes a false
 # positive where hook-injected system reminders (e.g., RESOURCE AUDIT
 # REMINDER) contained words like "alternatives", "plans", "options" and
@@ -309,6 +326,25 @@ def is_new_plan_write(file_path, tool_name):
     return True
 
 
+def is_existing_config_doc(file_path):
+    """True if Write target is an existing config/structural doc (CLAUDE.md,
+    MEMORY.md, README.md, AGENTS.md, GEMINI.md). Exempt from Signals A and C
+    because rewriting these is structural realignment, not feature ideation.
+
+    Source: wr-hq-2026-04-29-005. Existence required so brand-new creates
+    still trigger when ideation patterns are present.
+    """
+    if not file_path:
+        return False
+    basename = os.path.basename(file_path).lower()
+    if basename not in CONFIG_DOC_BASENAMES:
+        return False
+    try:
+        return os.path.isfile(file_path)
+    except OSError:
+        return False
+
+
 def is_meta_path(file_path):
     """True if Write target is a work-request / lifecycle / routed-task
     path. These paths hold meta-documentation that describes ideation
@@ -419,9 +455,16 @@ def main():
     recent_msgs = read_recent_user_messages(transcript_path)
     content = extract_write_content(tool_name, tool_input)
 
-    signal_a = has_ideation_keyword(recent_msgs)
+    # Existing config-doc exemption (wr-hq-2026-04-29-005): rewrites of
+    # CLAUDE.md / MEMORY.md / README.md / AGENTS.md / GEMINI.md are
+    # structural realignment, not feature ideation. Suppress Signals A
+    # and C; Signal B (new-plan-file path) is orthogonal and these
+    # basenames don't match the plan path regex anyway.
+    config_doc_rewrite = is_existing_config_doc(file_path)
+
+    signal_a = has_ideation_keyword(recent_msgs) and not config_doc_rewrite
     signal_b = is_new_plan_write(file_path, tool_name)
-    signal_c = has_ideation_content_pattern(content)
+    signal_c = has_ideation_content_pattern(content) and not config_doc_rewrite
 
     if not (signal_a or signal_b or signal_c):
         return 0  # no trigger
