@@ -3575,3 +3575,34 @@ All three were invisible to the unit tests because the synthetic fixtures (3 sma
 
 **preference: User prefers descriptive event names over short ones.** When activity_stream event names disambiguate (e.g., cascade_client_inactive_with_siblings vs cascade_warned), pick the longer descriptive form. Easier to understand at a glance from the event log without context.
 - Apply when: Naming new activity_stream event_types or similar log labels.
+
+
+### 2026-04-30 — vCard 3.0 NOTE field requires LITERAL 
+ escape, not real newlines
+
+**Category:** platform / tool-usage
+**Attempted:** Multi-line NOTE in saveContact() vCard via JS source `'foo
+
+bar'`. JS produces real newline chars (0x0A) at runtime, written to .vcf via Blob. Looked fine in source.
+**Error:** iOS Contacts displayed only the first line of the NOTE field — everything after the first newline was dropped. Per RFC 2426, real newlines INSIDE a property value violate the spec — the parser treats anything after the first newline as a separate (malformed) line.
+**Solution:** JS source must produce LITERAL `
+` (2 chars: backslash + n) in the .vcf output, not real newline chars. Use `'foo\nbar'` in JS source so `\` escape produces `\` literal, then `n` is regular `n` — runtime string contains 2 chars `
+`. iOS Contacts unescapes the literal `
+` for display.
+**Tags:** vcard, ios-contacts, escape-sequences, rfc2426, blob-download
+
+### 2026-04-30 — Bash quoted heredoc (`<< 'EOF'`) processes some backslash sequences despite docs claiming literal pass-through
+
+**Category:** tool-usage
+**Attempted:** Embedded Python script via `python << 'PYEOF' ... PYEOF` and used `\n` in the source expecting Python to see literal 4 backslashes + n.
+**Error:** Empirical observation showed Python receives ONLY 2 backslashes + n (heredoc consumed half the backslashes). This caused replace operations to look for the wrong byte pattern and fail silently with 0 replacements.
+**Solution:** For Python work that needs exact byte-level escape sequences, use the Write tool to write the script file directly (preserves bytes verbatim), then `python /path/to/script.py`. Alternatively, build strings via `chr(0x5C)` for backslashes inside heredocs to sidestep escape interpretation entirely.
+**Tags:** bash, heredoc, python, escape-sequences, byte-precision
+
+## Process Decisions
+
+### 2026-04-30 — Mark divergent plan phases as DEFERRED/REDIRECTED (not silently abandoned)
+
+**process:** When user redirects mid-execution and the active phase no longer applies (Phase 3C of `2026-04-28-card-system-implementation.md` was for Chris's premium card via the n8n pipeline; Chris clarified mid-session his card is a separate in-house build), edit the plan to mark the phase DEFERRED/REDIRECTED with explicit rationale + pointer to where the actual work tracks.
+**Why:** Silent abandonment leaves orphan tasks in plans that confuse future sessions. Explicit deferral preserves plan integrity and makes the redirect auditable. Future sessions reading the plan see "Phase 3C does not apply to Chris's card; see [reference]" instead of "Phase 3C should have been done by now."
+**Tags:** plan-integrity, executing-plans, scope-management
