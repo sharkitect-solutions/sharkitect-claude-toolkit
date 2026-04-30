@@ -15,17 +15,30 @@ Usage:
     python update-project-status.py list-projects [--status <status>]
     python update-project-status.py list-tasks [--project <project>] [--status <status>]
     python update-project-status.py rollup [--project <name>]
+    python update-project-status.py status-rollup-check [--workspace <workspace>]
     python update-project-status.py table <project-name> [--days <30-45>]
 
 Statuses:
     Projects: active, paused, complete, blocked, pending, tabled
     Tasks:    pending, in_progress, completed, blocked, deferred, tabled
 
-Automatic cascades:
-    - Project set to 'paused': all non-completed tasks drop to low priority
-    - Project set to 'tabled': all non-completed tasks set to tabled + review_date, priority=low
-    - Task set to 'completed': if last task for project, auto-complete project
-    - recalc-carried-days: sets carried_days = days since created_at for all active tasks (excludes tabled)
+Status Cascade and Rollup (canonical rule per universal-protocols.md):
+    Forward cascade (project -> non-final child tasks):
+      - Project set to 'paused':   tasks.status = paused
+      - Project set to 'tabled':   tasks.status = tabled, priority = low, review_date set
+      - Project set to 'blocked':  tasks.status = blocked, priority = low
+      - Project set to 'complete': tasks.status = completed (review and reopen if not actually done)
+      - Project set to 'active' or 'pending': no automatic forward cascade
+    Reverse cascade (project resumed from paused/tabled/blocked -> active/pending):
+      - Tasks priority = low, notes annotation 'auto-resumed YYYY-MM-DD; review and re-prioritize'
+      - Owner re-prioritizes manually
+    Reverse rollup (tasks -> projects.total_tasks / completed_tasks columns):
+      - DB trigger trg_recompute_project_task_counts maintains counts
+      - Auto-completes project when total_tasks > 0 AND completed_tasks = total_tasks
+      - Auto-reopens project to 'active' if a non-final task arrives at a complete project
+      - status-rollup-check subcommand detects drift between trigger and SELECT COUNT(*)
+    Other:
+      - recalc-carried-days: sets carried_days = days since created_at for all active tasks (excludes tabled)
 
 Dependencies: Python stdlib only (urllib, json, os)
 """
@@ -214,39 +227,45 @@ def _post(base_url, api_key, path, data):
 # Commands
 # ---------------------------------------------------------------------------
 
-def _cascade_priority_on_pause(base_url, api_key, project_name):
-    """When a project is paused, drop all its non-completed tasks to low priority."""
+def _cascade_pause(base_url, api_key, project_name):
+    """When a project is paused, set non-final child tasks to status=paused.
+
+    Per universal-protocols.md Status Cascade and Rollup rule: paused projects
+    cascade tasks.status = paused. Priority is NOT automatically lowered for
+    paused (only blocked/tabled drop priority). The DB trigger
+    projects_status_cascade_to_tasks does the same.
+    """
     encoded = urllib.parse.quote(project_name)
     tasks = _get(
         base_url, api_key,
-        f"tasks?project=ilike.{encoded}&status=not.in.(completed,deferred)&select=id,task,priority"
+        f"tasks?project=ilike.{encoded}&status=not.in.(completed,cancelled)&select=id,task,status"
     )
     if not tasks:
-        print("  No active tasks to deprioritize.")
+        print("  No non-final tasks to pause.")
         return
 
     updated = 0
     for task in tasks:
-        if task.get("priority") == "low":
+        if task.get("status") == "paused":
             continue
         result = _patch(base_url, api_key, f"tasks?id=eq.{task['id']}", {
-            "priority": "low",
+            "status": "paused",
             "updated_at": datetime.now(timezone.utc).isoformat(),
         })
         if result:
             updated += 1
-    print(f"  CASCADE: {updated} task(s) dropped to low priority (project paused).")
+    print(f"  CASCADE (forward, paused): {updated} task(s) set to paused.")
 
 
 def _cascade_table_project(base_url, api_key, project_name, review_date=None):
-    """When a project is tabled, set all non-completed tasks to tabled + review_date."""
+    """When a project is tabled, set non-final tasks to tabled + priority=low + review_date."""
     encoded = urllib.parse.quote(project_name)
     tasks = _get(
         base_url, api_key,
-        f"tasks?project=ilike.{encoded}&status=not.in.(completed)&select=id,task,status"
+        f"tasks?project=ilike.{encoded}&status=not.in.(completed,cancelled)&select=id,task,status"
     )
     if not tasks:
-        print("  No active tasks to table.")
+        print("  No non-final tasks to table.")
         return
 
     update_data = {
@@ -262,7 +281,161 @@ def _cascade_table_project(base_url, api_key, project_name, review_date=None):
         result = _patch(base_url, api_key, f"tasks?id=eq.{task['id']}", update_data)
         if result:
             updated += 1
-    print(f"  CASCADE: {updated} task(s) set to tabled (review: {review_date or 'not set'}).")
+    print(f"  CASCADE (forward, tabled): {updated} task(s) set to tabled "
+          f"(review: {review_date or 'not set'}).")
+
+
+def _cascade_blocked(base_url, api_key, project_name):
+    """When a project is blocked, set non-final child tasks to status=blocked + priority=low.
+
+    Per universal-protocols.md Status Cascade and Rollup rule: blocked projects
+    cascade tasks.status = blocked AND drop priority to low (signals reduced
+    urgency until blocker clears).
+    """
+    encoded = urllib.parse.quote(project_name)
+    tasks = _get(
+        base_url, api_key,
+        f"tasks?project=ilike.{encoded}&status=not.in.(completed,cancelled)&select=id,task,status,priority"
+    )
+    if not tasks:
+        print("  No non-final tasks to block.")
+        return
+
+    updated = 0
+    for task in tasks:
+        if task.get("status") == "blocked" and task.get("priority") == "low":
+            continue
+        result = _patch(base_url, api_key, f"tasks?id=eq.{task['id']}", {
+            "status": "blocked",
+            "priority": "low",
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        })
+        if result:
+            updated += 1
+    print(f"  CASCADE (forward, blocked): {updated} task(s) set to blocked + priority=low.")
+
+
+def _cascade_complete(base_url, api_key, project_name):
+    """When a project is completed, mark non-final tasks as completed.
+
+    Per universal-protocols.md Status Cascade and Rollup rule: complete projects
+    cascade tasks.status = completed. Caller is expected to review the cascaded
+    list and reopen any task that wasn't actually done -- the DB rollup trigger
+    will then auto-reopen the parent project.
+    """
+    encoded = urllib.parse.quote(project_name)
+    tasks = _get(
+        base_url, api_key,
+        f"tasks?project=ilike.{encoded}&status=not.in.(completed,cancelled)&select=id,task,status"
+    )
+    if not tasks:
+        print("  All tasks already in final state.")
+        return
+
+    updated = 0
+    cascaded_names = []
+    now_iso = datetime.now(timezone.utc).isoformat()
+    for task in tasks:
+        result = _patch(base_url, api_key, f"tasks?id=eq.{task['id']}", {
+            "status": "completed",
+            "completed_at": now_iso,
+            "updated_at": now_iso,
+        })
+        if result:
+            updated += 1
+            cascaded_names.append(task.get("task", "?")[:60])
+    print(f"  CASCADE (forward, complete): {updated} task(s) marked completed. "
+          f"REVIEW: reopen any that weren't actually done -- the rollup trigger "
+          f"will auto-reopen the project if a non-final task arrives.")
+    for nm in cascaded_names[:10]:
+        print(f"    - {nm}")
+    if len(cascaded_names) > 10:
+        print(f"    ... and {len(cascaded_names) - 10} more")
+
+
+def _cascade_resume(base_url, api_key, project_name):
+    """When a project resumes from paused/tabled/blocked back to active/pending.
+
+    Per universal-protocols.md Status Cascade and Rollup rule: tasks do NOT
+    auto-restore prior state. They are set to priority=low with a notes
+    annotation 'auto-resumed YYYY-MM-DD; review and re-prioritize'. Owner
+    re-prioritizes manually.
+
+    Tasks already at status=completed or status=cancelled are NOT touched.
+    Tasks currently at status=paused/tabled/blocked are flipped to pending so
+    the workspace can re-engage them; tasks already at active states (pending,
+    in_progress) are left alone in terms of status but get the priority/notes
+    annotation so the resume signal is visible.
+    """
+    encoded = urllib.parse.quote(project_name)
+    tasks = _get(
+        base_url, api_key,
+        f"tasks?project=ilike.{encoded}&status=not.in.(completed,cancelled)"
+        f"&select=id,task,status,priority,notes"
+    )
+    if not tasks:
+        print("  No non-final tasks to resume.")
+        return
+
+    today = datetime.now(timezone.utc).date().isoformat()
+    annotation = f"auto-resumed {today}; review and re-prioritize"
+    paused_states = {"paused", "tabled", "blocked"}
+    updated = 0
+    for task in tasks:
+        existing_notes = task.get("notes") or ""
+        # Append annotation, don't overwrite existing notes
+        if annotation in existing_notes:
+            new_notes = existing_notes  # idempotent
+        elif existing_notes:
+            new_notes = f"{existing_notes}\n{annotation}"
+        else:
+            new_notes = annotation
+
+        update_data = {
+            "priority": "low",
+            "notes": new_notes,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        # Flip paused-flavored statuses to pending so workspace can re-engage
+        if task.get("status") in paused_states:
+            update_data["status"] = "pending"
+
+        result = _patch(base_url, api_key, f"tasks?id=eq.{task['id']}", update_data)
+        if result:
+            updated += 1
+    print(f"  CASCADE (reverse, resume): {updated} task(s) reset to "
+          f"priority=low + notes annotation. Review and re-prioritize manually.")
+
+
+def _print_project_rollup(base_url, api_key, project_name_or_id, by_id=False):
+    """Read back projects.total_tasks / completed_tasks after a task write.
+
+    Provides caller feedback that the rollup trigger fired and what the new
+    state is. Per wr-sentinel-2026-04-30-006 the trigger
+    trg_recompute_project_task_counts auto-maintains both columns and
+    auto-completes the project when all tasks are done.
+    """
+    if by_id:
+        query = (f"projects?id=eq.{project_name_or_id}"
+                 f"&select=name,status,total_tasks,completed_tasks")
+    else:
+        encoded = urllib.parse.quote(project_name_or_id)
+        query = (f"projects?name=ilike.{encoded}"
+                 f"&select=name,status,total_tasks,completed_tasks&limit=1")
+    rows = _get(base_url, api_key, query)
+    if not rows:
+        return
+    p = rows[0]
+    total = p.get("total_tasks", 0) or 0
+    done = p.get("completed_tasks", 0) or 0
+    status = p.get("status", "?")
+    if total == 0:
+        print(f"  ROLLUP: parent project '{p.get('name','?')}' has no tasks linked.")
+        return
+    pct = round(100 * done / total) if total else 0
+    auto_marker = " (auto-completed by trigger)" if status == "complete" and done == total else ""
+    print(f"  ROLLUP: parent project '{p.get('name','?')}' is now "
+          f"{done}/{total} ({pct}%) -- status: {status}{auto_marker}")
 
 
 def update_project(base_url, api_key, name, status, phase=None, notes=None, review_date=None):
@@ -312,13 +485,25 @@ def update_project(base_url, api_key, name, status, phase=None, notes=None, revi
         if phase:
             print(f"  Phase: {phase}")
 
-        # Auto-cascade: when project is paused, drop all its active tasks to low priority
+        # Forward cascade -- per universal-protocols.md Status Cascade and Rollup rule.
+        # The DB trigger projects_status_cascade_to_tasks does the same;
+        # script-side is defense-in-depth + caller feedback.
         if status == "paused":
-            _cascade_priority_on_pause(base_url, api_key, project['name'])
-
-        # Auto-cascade: when project is tabled, set all tasks to tabled + review_date
-        if status == "tabled":
+            _cascade_pause(base_url, api_key, project['name'])
+        elif status == "tabled":
             _cascade_table_project(base_url, api_key, project['name'], review_date)
+        elif status == "blocked":
+            _cascade_blocked(base_url, api_key, project['name'])
+        elif status == "complete":
+            _cascade_complete(base_url, api_key, project['name'])
+
+        # Reverse cascade -- when project resumes from paused/tabled/blocked
+        # to active/pending, drop tasks to priority=low + notes annotation.
+        # Owner re-prioritizes manually.
+        paused_states = {"paused", "tabled", "blocked"}
+        active_states = {"active", "pending"}
+        if old_status in paused_states and status in active_states:
+            _cascade_resume(base_url, api_key, project['name'])
 
         return True
     return False
@@ -367,7 +552,14 @@ def update_task(base_url, api_key, task_text, status, project=None, notes=None):
     if result:
         print(f"UPDATED: [{task.get('project', '?')}] {task['task'][:60]}: {old_status} -> {status}")
 
-        # Auto-complete project when last task finishes
+        # Print rollup feedback. The DB trigger trg_recompute_project_task_counts
+        # auto-maintains projects.total_tasks / completed_tasks and auto-completes
+        # the parent when all tasks are done -- read back so the caller sees it.
+        if task.get("project"):
+            _print_project_rollup(base_url, api_key, task["project"])
+
+        # Defense-in-depth: also call the script-side auto-complete check.
+        # The trigger should beat us to it; this is belt-and-suspenders.
         if status == "completed" and task.get("project"):
             _check_auto_complete_project(base_url, api_key, task["project"])
 
@@ -904,6 +1096,78 @@ def rollup(base_url, api_key, project_filter=None):
     print(f"{'TOTAL':<40} {'':10} {done_all:<8} {total_all:<7} {pct_all:<5}")
 
 
+def status_rollup_check(base_url, api_key, workspace=None):
+    """Detect drift between trigger-maintained counts and actual SELECT COUNT(*).
+
+    Per wr-sentinel-2026-04-30-006: the trigger trg_recompute_project_task_counts
+    auto-maintains projects.total_tasks / completed_tasks. If those values
+    disagree with the actual count from public.tasks, the trigger missed
+    something or someone bypassed it via direct DB write. Should always be
+    zero rows when healthy.
+
+    Note: PostgREST cannot run JOIN+GROUP BY directly, so this implementation
+    fetches projects and tasks separately and computes drift in Python. For
+    workspaces with thousands of tasks, prefer Sentinel's apply_migration
+    drift query directly.
+    """
+    if workspace:
+        workspace = _validate_workspace(workspace)
+        encoded_ws = urllib.parse.quote(workspace)
+        proj_query = (f"projects?workspace=eq.{encoded_ws}"
+                      f"&select=id,name,workspace,status,total_tasks,completed_tasks")
+    else:
+        proj_query = "projects?select=id,name,workspace,status,total_tasks,completed_tasks"
+
+    projects = _get(base_url, api_key, proj_query)
+    if not projects:
+        print(f"No projects found{' for ' + workspace if workspace else ''}.")
+        return 0
+
+    drift_rows = []
+    for p in projects:
+        proj_id = p["id"]
+        # Fetch all tasks linked to this project_id
+        task_rows = _get(
+            base_url, api_key,
+            f"tasks?project_id=eq.{proj_id}&select=id,status"
+        )
+        actual_total = len(task_rows)
+        actual_completed = sum(1 for t in task_rows if t.get("status") == "completed")
+        stored_total = p.get("total_tasks", 0) or 0
+        stored_completed = p.get("completed_tasks", 0) or 0
+        if actual_total != stored_total or actual_completed != stored_completed:
+            drift_rows.append({
+                "name": p.get("name", "?"),
+                "workspace": p.get("workspace", "?"),
+                "stored_total": stored_total,
+                "actual_total": actual_total,
+                "stored_completed": stored_completed,
+                "actual_completed": actual_completed,
+            })
+
+    print("=" * 72)
+    print(f"ROLLUP DRIFT CHECK -- {len(projects)} project(s) scanned"
+          f"{' for workspace ' + workspace if workspace else ''}")
+    print("=" * 72)
+    if not drift_rows:
+        print("OK: All projects' total_tasks / completed_tasks match actual COUNT(*).")
+        return 0
+
+    print(f"DRIFT DETECTED ({len(drift_rows)} project(s)):")
+    for d in drift_rows:
+        print(f"  [{d['workspace']}] {d['name']}")
+        print(f"    total: stored={d['stored_total']} actual={d['actual_total']} "
+              f"diff={d['actual_total'] - d['stored_total']:+d}")
+        print(f"    completed: stored={d['stored_completed']} actual={d['actual_completed']} "
+              f"diff={d['actual_completed'] - d['stored_completed']:+d}")
+    print()
+    print("Fix: re-trigger by touching one task per drifting project --")
+    print("  UPDATE tasks SET updated_at = now() WHERE project_id = '<id>' LIMIT 1;")
+    print("If drift persists after re-trigger, file a routed task to Sentinel "
+          "(schema owner) -- the trigger may need investigation.")
+    return len(drift_rows)
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -1095,6 +1359,15 @@ def main():
             if idx + 1 < len(sys.argv):
                 project_filter = sys.argv[idx + 1]
         rollup(base_url, api_key, project_filter)
+
+    elif cmd == "status-rollup-check":
+        workspace = None
+        if "--workspace" in sys.argv:
+            idx = sys.argv.index("--workspace")
+            if idx + 1 < len(sys.argv):
+                workspace = sys.argv[idx + 1]
+        drift_count = status_rollup_check(base_url, api_key, workspace)
+        sys.exit(2 if drift_count > 0 else 0)
 
     elif cmd == "table" and len(sys.argv) >= 3:
         project_name = sys.argv[2]

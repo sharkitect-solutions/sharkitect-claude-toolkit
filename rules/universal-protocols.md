@@ -1140,9 +1140,57 @@ python ~/.claude/scripts/update-project-status.py check-blockers --workspace "<w
 python ~/.claude/scripts/update-project-status.py my-tasks --workspace "<workspace>"
 ```
 
-### Automatic cascades (handled by the script):
-- **Project set to `paused`** -- all non-completed tasks automatically drop to `low` priority
-- **Last task completed** -- project auto-completes when all its tasks are done
+### Status Cascade and Rollup (NON-NEGOTIABLE)
+
+Status flows BOTH directions: forward (project status -> child task status) and reverse (task progress -> parent project counts -> auto-complete/auto-reopen). Both halves are enforced by Supabase triggers (DB-side) AND mirrored in `update-project-status.py` (script-side defense-in-depth). Either path must produce the same result.
+
+**Source:** `wr-sentinel-2026-04-30-002` (forward cascade rule + trigger) + `wr-sentinel-2026-04-30-006` (reverse rollup migration + trigger). Migration name: `add_project_task_rollup_2026_04_30`. Triggers: `trg_recompute_project_task_counts` (rollup), `projects_status_cascade_to_tasks` (cascade -- applied by Sentinel after this rule was codified).
+
+#### Forward cascade rule (project -> tasks)
+
+When a project's `status` transitions to a non-active value, every non-final child task (status NOT IN `completed`, `cancelled`) is updated according to this canonical rule:
+
+| Project transitions to | Apply to non-final child tasks |
+|---|---|
+| `paused`              | `tasks.status = paused` |
+| `tabled`              | `tasks.status = tabled`, `tasks.priority = low`, `tasks.review_date` set |
+| `blocked`             | `tasks.status = blocked`, `tasks.priority = low` |
+| `complete`            | `tasks.status = completed` (review and reopen if a task wasn't actually done) |
+| `active` or `pending` | **no automatic forward cascade** -- child task state preserved |
+
+**Reverse cascade (project resumed from paused/tabled/blocked back to active/pending):** child tasks do NOT auto-restore prior state. They are set to `tasks.priority = low` with `tasks.notes` annotation `auto-resumed YYYY-MM-DD; review and re-prioritize`. The owner re-prioritizes manually after review.
+
+#### Reverse rollup rule (tasks -> project counts)
+
+`public.projects` carries two trigger-maintained columns:
+- `total_tasks integer NOT NULL DEFAULT 0`
+- `completed_tasks integer NOT NULL DEFAULT 0`
+
+The trigger `trg_recompute_project_task_counts` fires AFTER INSERT/UPDATE/DELETE on `public.tasks` and recomputes both counts on the affected project(s). Behavior:
+- If `total_tasks > 0 AND completed_tasks = total_tasks` AND project is not already `complete`, the trigger sets `projects.status = complete` automatically.
+- If a previously-complete project sees a non-final task arrive, the trigger reopens it to `active`.
+
+#### Why both halves exist
+
+- The DB triggers are AUTHORITATIVE -- direct Supabase MCP writes still cascade and roll up correctly because the trigger runs at the DB layer.
+- The script-side cascade in `update-project-status.py` is defense-in-depth + caller feedback. When you run `task <text> completed`, the script reads back the parent project's `total_tasks/completed_tasks` and prints `parent project X is now N/M complete; auto-completed` (or similar), so the caller sees the rollup result without a separate query.
+- Drift between trigger output and SELECT COUNT(*) is BUG signal -- run `update-project-status.py status-rollup-check` to detect, and surface in Sentinel's morning report via the `rollup_drift` drift class in `audit-autonomous-systems.py`.
+
+#### Verification (pre-trust check)
+
+Before relying on either cascade, verify both halves are live:
+
+```sql
+-- Confirm rollup columns exist
+SELECT column_name FROM information_schema.columns
+WHERE table_name = 'projects' AND column_name IN ('total_tasks','completed_tasks');
+
+-- Confirm both triggers exist
+SELECT tgname FROM pg_trigger
+WHERE tgname IN ('trg_recompute_project_task_counts','projects_status_cascade_to_tasks');
+```
+
+If either is missing, file a routed task to Sentinel (schema owner) -- do NOT bypass with manual workarounds.
 
 ### Cross-Workspace Task Tracking (NON-NEGOTIABLE)
 
@@ -1190,6 +1238,51 @@ Each workspace owns its own Supabase records -- ALL tables, not just projects an
 - What was completed today
 - What's blocked and by whom
 - Full operational transparency without any workspace working in a silo
+
+## Workspace Data Quality Audit Cadence (NON-NEGOTIABLE)
+
+Every workspace runs the 8-check Workspace Data Quality Audit weekly against its OWN Supabase projects + tasks rows. This is a recurring duty, not an ad-hoc task. Drift in Supabase data (stale notes, outdated blockers, uncascaded statuses) propagates silently into the dashboard, morning briefs, and CEO views -- the cadence catches it before it compounds.
+
+**Source:** `wr-sentinel-2026-04-30-005`. User direction (verbatim, 2026-04-29): *"I don't want to deal with this anymore."* The cadence is the enforcement.
+
+### The audit
+
+Each workspace runs the canonical checklist at `<Sentinel>/docs/audits/workspace-data-quality-audit-checklist.md`. Sentinel maintains the checklist; each workspace executes it against its own data.
+
+The 8 checks (mechanical, SQL-driven):
+
+1. **Linkage integrity** -- FK orphans (tasks with `project` text set but `project_id` NULL)
+2. **Rollup count sanity** -- `projects.total_tasks` / `completed_tasks` vs actual SELECT COUNT(*) FROM tasks
+3. **Forward cascade compliance** -- non-final tasks under paused/tabled/blocked/complete projects must mirror project status per the Status Cascade rule above
+4. **Blocker freshness** -- every blocked or paused project must have a current `blocker` text; every blocked task must have current `notes`
+5. **Notes coverage** -- every open task under a non-active project must have notes explaining where the work stands
+6. **Stale `updated_at`** -- non-final rows that haven't been touched in 14+ days
+7. **Phase / progress freshness** -- active multi-phase projects must have current_phase, phase_number, total_phases, phase_description
+8. **Priority sanity** -- non-active projects shouldn't have critical or high priority tasks
+
+### Cadence
+
+| Cadence tier | Workspace | Frequency | Deadline window |
+|---|---|---|---|
+| First pass | All three | One-time | 2026-05-06 |
+| Recurring | All three | Weekly | Within 7 days of prior audit |
+
+### Output format and follow-through
+
+1. Each workspace writes its audit report to `<workspace>/docs/audits/data-quality-audit-YYYY-MM-DD.md` using the format in the canonical checklist (counts inspected per check, issues found, fixes applied, issues deferred + reason, new tasks generated, open cross-workspace coordination).
+2. When the audit completes, the workspace files a `kind: completion_notification` routed-task to Sentinel's `.routed-tasks/inbox/` with the audit report path. This closes the loop and gives Sentinel verification material.
+3. Sentinel verifies and closes the routed task per the Completion Notification Protocol.
+
+### Enforcement
+
+- Each workspace is registered in the Operational Asset Registry as a `workflow` asset named `workspace-data-quality-audit-<workspace-canonical-name>` with `audit_cadence='warm'` (weekly).
+- `audit-autonomous-systems.py` drift class `overdue_data_quality_audit` scans each workspace's `docs/audits/` and flags workspaces whose latest `data-quality-audit-YYYY-MM-DD.md` is older than 7 days. Sentinel surfaces this drift class in the morning report.
+- Sentinel's monthly hook-fire and asset-cadence audits include this duty's active state.
+
+### Update mechanics during the audit
+
+- Always go through `update-project-status.py` (or the canonical brain-update path), not direct Supabase writes. The script bumps `updated_at` and writes `last_updated_by`. Direct writes are how Check 2 drift gets introduced.
+- **Notes format:** short, one-line, action-oriented. Bad: "still working on it." Good: "blocked on Juan finalizing expense cuts post 4/22 pullback; resume when client confirms budget."
 
 ## Plan Lifecycle Protocol (NON-NEGOTIABLE)
 
