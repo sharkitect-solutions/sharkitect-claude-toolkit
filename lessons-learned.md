@@ -1,5 +1,48 @@
 # Global Lessons Learned
 
+## 2026-04-30 Session Lessons (Skill Hub Session 16 — Audit + Reconcile + Absorb-pattern)
+
+### process: Absorb-into-consolidation pattern for WRs touching torn-down artifacts
+
+**Context:** wr-sentinel-2026-04-30-008 proposed extending `methodology-nudge.py` with a new branch + new `PreToolUse:Read` matcher. But `methodology-nudge.py` is scheduled for **deletion** in wr-skillhub-2026-04-30-002 (router consolidation). Implementing 008 standalone would have been ~30 min of work that the router consolidation would have torn out and re-organized.
+
+**Why:** When a WR's recommended fix touches an artifact about to be deleted, standalone implementation is wasted work. The artifact gets torn down, the matcher entries need re-organization during the consolidation rewrite anyway, and the test cases must be re-keyed. Cleaner: BLOCK the WR on the consolidation, capture the requirement as `absorption_target` + `absorption_requirement` JSON fields, let the consolidation absorb it.
+
+**How to apply:**
+1. During triage, ask: does this WR's fix touch a file/artifact that another open WR is scheduled to delete?
+2. If yes, set `status: "blocked"` with `blocked_by` = UUID of the consolidation WR.
+3. Add two extra fields beyond the standard blocked-set: `absorption_target` (the consolidation WR id) + `absorption_requirement` (full prose describing what the consolidation MUST preserve — test cases, behavior, matcher entries, sub-rule logic).
+4. Populate Supabase `cross_workspace_requests.blocked_by` + `blocked_by_type` + `blocked_by_description` columns. Status stays `pending` until Sentinel migration adds `blocked` to the CHECK constraint.
+5. Verify: the consolidation WR must already commit to TDD-first preservation of the absorbed work. Without that commitment, "absorption" risks losing the requirement during the consolidation rewrite.
+
+Tags: process, work-request-protocol, absorption-pattern, hook-consolidation
+
+### process: Drift_correction execution sequence — activity_stream FIRST, row DELETE second, file DELETE third
+
+**Context:** First end-to-end drift_correction execution since the universal-protocols Rejected vs Drift-Correction rule was added. wr-2026-04-21-002 was a withdrawn-by-source filing (Sentinel misdiagnosed a transient bash command-not-found as platform-wide PATH gap). Local processed/.json said "WITHDRAWN by source" but Supabase row showed status=completed. Per the universal-protocols rule, this is the drift_correction case (invalid from origin), not a real rejection.
+
+**Why:** Order matters. If you DELETE the cross_workspace_requests row first and THEN try to insert the activity_stream event, an INSERT failure leaves zero audit trail (row gone, no event). If you INSERT the event first and the DELETE fails, the audit trail still exists and the cleanup can be retried.
+
+**How to apply:**
+1. Capture the row's current state via SELECT (need `id`, `status`, `resolved_at` for the audit_trail content).
+2. INSERT activity_stream event with `event_type='drift_correction'`, `workspace=<closing>`, `actor=<closing>`, `last_updated_by=<closing>`. Use `metadata` jsonb for `related_item_id`, `pre_delete_row_id`, `reconcile_source`, `precedent`. **There is no `related_to` column on activity_stream — discovered the hard way; PGRST204 schema cache error.**
+3. DELETE the cross_workspace_requests row by item_id.
+4. Verify the row is gone (SELECT count = 0).
+5. `git rm` the local processed/.json file.
+6. Commit + push as part of the close-out batch.
+
+Tags: process, drift-correction, supabase-schema, audit-trail
+
+### process: Reuse HQ's restructure-audit pattern for cross-workspace structural audits
+
+**Context:** Skill Hub self-audit (wr-hq-2026-04-29-003) used HQ commits 9a63938 (restructure) + 142ec4a (docs+tools sync) as the canonical reference. The pattern parallelizes cleanly across workspaces despite different purposes (HQ = client work; Skill Hub = capability infrastructure).
+
+**Why:** The six audit dimensions (folder taxonomy / .env hygiene / WAT framework / self-healing wiring / stale dirs / tool-path drift) are workspace-purpose-agnostic. Each workspace adapts the lens to its purpose: Skill Hub has no `projects/` folder (correct — it's infrastructure not deliverables), and the WAT framework is explicit. Side benefit: Skill Hub's audit dissolved Sentinel's wr-2026-04-29-004 (folder consolidation removed the offending paths; no `HQ_ONLY_FOLDERS` exemption needed).
+
+**How to apply:** When a workspace runs a structural audit, reference these commits as the pattern. Adapt the folder taxonomy table to that workspace's purpose. Tool-path-grep step catches HQ-derived shared code (e.g., supabase-sync.py's `knowledge-base/projects -> client` mapping) that may be irrelevant or silently miscategorize content in the new workspace.
+
+Tags: process, workspace-audit, structural-integrity, cross-workspace-pattern
+
 ## 2026-04-30 Session Lessons (Skill Hub Session 15 — Batch 3 Hook Architecture)
 
 **tool-usage: `close-inbox-item.py` is NOT a verification tool — it always mutates state.** Tried to "verify" an inbox JSON's state by running `close-inbox-item.py --no-supabase --no-notify` thinking those flags would gate the file mutation. They do NOT. The script always (a) updates JSON status to the requested value, (b) writes resolution + status_history entries, (c) moves the file from inbox/ to processed/. `--no-supabase` only skips the Supabase PATCH; `--no-notify` only skips the completion-notification routed-task. Result: an unintended close on a CRITICAL multi-phase WR that should not have been touched. Recovery: `git status` showed the file as modified; `mv` it back to inbox/; `git restore` to revert content. **Apply when:** if you want to inspect an inbox JSON without mutating, use `Read` or `python -c "import json; print(json.load(...))"`. NEVER use `close-inbox-item.py` for inspection regardless of flags. Tags: #tool-usage #inbox #close-inbox-item.
@@ -962,6 +1005,18 @@ Cross-project patterns, API limitations, tool quirks, user preferences, and proc
 **Tags:** voice, email, tone, brand, communication, templates, kpi-reports
 
 ## Process Decisions
+### 2026-04-30 -- process: Always discover actual schema state before applying plan-draft DDL
+
+Source: Sentinel session 2026-04-30 (Luminous Foundation Bridge Phase 1 Task 1.0).
+
+What happened: Plan Task 1.0 had draft DDL based on assumptions about CHECK constraint name (cross_workspace_requests_item_type_check) and existing values (work_request, routed_task). Discovery query showed reality: constraint named inbox_items_item_type_check (table renamed from inbox_items but constraints kept old prefix); CHECK already allowed 3 values including lifecycle_review. Plan's draft would have (a) silently no-oped on the DROP IF EXISTS due to wrong name, then (b) stacked a new constraint creating intersection-only allowed set, AND (c) dropped lifecycle_review even with correct name.
+
+Why this matters: Plan was written from a recent audit, so I trusted it. But schema state can be subtly different from what audits captured (especially constraint names lagging table renames). Discovery cost: one SELECT query (Step 2 of plan). Failure cost: silently broken constraint, integrity break for any future filing using lifecycle_review.
+
+Apply when: Any time about to apply plan-draft DDL (CHECK widening, FK conversion, type change, constraint additions). Even if the plan was written hours ago. Even if you trust the audit. Run the discovery query, compare to the plan, adapt if needed, document the deviation in the plan file.
+
+Tags: schema-migration, plan-execution, supabase, ddl-discipline, drift
+
 
 ### [2026-04-29] process: Read WR body before estimating; conflating descriptions with body bloats triage estimates
 - **Context:** Skill Hub session 12 triaged `wr-hq-2026-04-29-005` ("pattern-tightened hooks that...") as 15-min work, conflating it with a single false-positive on `mcp-limitation-guard.py` that fired during the session. On reading the WR body: it's actually a 3-hook initiative covering brainstorming-enforcer.py, content-enforcer-hook.py, and drift-detection-hook.py with specific tightening recipes for each. Real scope: 1-2 hours. The `mcp-limitation-guard.py` false-positive (gmail/attachments) is not in this WR at all — would need its own filing.
