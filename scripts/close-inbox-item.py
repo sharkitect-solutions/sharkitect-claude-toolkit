@@ -72,6 +72,19 @@ VALID_CLOSE_STATUSES = {"processed", "completed", "resolved", "rejected",
 SUPABASE_CLOSE_VOCABULARY = {
     "completed", "rejected", "superseded", "duplicate", "withdrawn",
 }
+# Five canonical Supabase item_type values (post-2026-04-30 widen migration).
+# Source: wr-sentinel-2026-04-30-009. Migration name:
+# widen_cross_workspace_requests_item_type 2026-04-30. The CHECK now accepts
+# all 5 values; tooling must produce them correctly. Anything outside this
+# set is rejected by the DB CHECK and silently no-ops the INSERT, which is
+# how the 232-row drift accumulated.
+ITEM_TYPES_SUPPORTED = {
+    "work_request",
+    "routed_task",
+    "lifecycle_review",
+    "completion_notification",
+    "fyi",
+}
 # Statuses that REQUIRE a cross-reference to another inbox item_id.
 # See universal-protocols.md "Superseded vs Duplicate" section.
 CROSS_REF_REQUIRED = {
@@ -242,33 +255,227 @@ def find_processed_dir(inbox_path: Path) -> Path:
     return processed
 
 
-def update_supabase(item_id: str, status: str, resolution_summary: str,
-                    resolved_by: str, hint_path: Path | None = None) -> tuple[bool, str]:
+def _derive_item_type(data: dict) -> str | None:
+    """Derive cross_workspace_requests.item_type from inbox JSON.
+
+    Returns one of the 5 valid values (work_request | routed_task |
+    lifecycle_review | completion_notification | fyi) or None if the JSON
+    has neither a recognizable id prefix nor a kind field.
+
+    Source: wr-sentinel-2026-04-30-009. Required so the UPSERT path can
+    INSERT rows with the correct item_type when the row is missing.
+    Pre-validates at close time so the CHECK never silently rejects.
+
+    Resolution order:
+      1. data["item_type"] (explicit, e.g. set by work-request.py post-2026-04-30)
+      2. data["kind"] in {completion_notification, fyi}
+      3. data["id"] prefix: wr- -> work_request, rt- -> routed_task,
+         lifecycle- -> lifecycle_review
+      4. None (caller must reject)
     """
-    Update cross_workspace_requests row in Supabase.
-    Returns (success, message). Best-effort -- don't fail close on Supabase error.
-    Uses workspace-prefix-aware env lookup (handles migrated ~/.claude/.env).
+    explicit = str(data.get("item_type", "") or "").strip().lower()
+    if explicit in ITEM_TYPES_SUPPORTED:
+        return explicit
+
+    kind = str(data.get("kind", "") or "").strip().lower()
+    if kind in {"completion_notification", "fyi"}:
+        return kind
+
+    item_id = str(
+        data.get("id")
+        or data.get("request_id")
+        or data.get("task_id")
+        or ""
+    ).strip().lower()
+    if item_id.startswith("wr-"):
+        return "work_request"
+    if item_id.startswith("rt-"):
+        return "routed_task"
+    if item_id.startswith("lifecycle-"):
+        return "lifecycle_review"
+    return None
+
+
+def _supabase_status_for(local_status: str) -> str:
+    """Map local close vocabulary to Supabase canonical status."""
+    if local_status in {"processed", "completed", "resolved"}:
+        return "completed"
+    if local_status in {"superseded", "duplicate"}:
+        return local_status
+    if local_status == "withdrawn":
+        return "withdrawn"
+    return "rejected"
+
+
+def _supabase_get_row(url: str, key: str, item_id: str,
+                      timeout: int = 10) -> tuple[bool, list]:
+    """GET cross_workspace_requests row by item_id.
+
+    Returns (ok, rows). On error (network / parse), ok=False, rows=[].
+    """
+    endpoint = (
+        f"{url}/rest/v1/cross_workspace_requests"
+        f"?item_id=eq.{item_id}&select=item_id"
+    )
+    req = urllib.request.Request(
+        endpoint,
+        method="GET",
+        headers={
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
+            "Accept": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            body = resp.read().decode("utf-8")
+        rows = json.loads(body) if body else []
+        if not isinstance(rows, list):
+            return False, []
+        return True, rows
+    except (urllib.error.URLError, urllib.error.HTTPError,
+            TimeoutError, json.JSONDecodeError, OSError):
+        return False, []
+
+
+def _supabase_insert_row(url: str, key: str, payload: dict,
+                          timeout: int = 10) -> tuple[bool, str]:
+    """POST a new row to cross_workspace_requests.
+
+    Returns (ok, message). On HTTP 4xx/5xx, ok=False with status code.
+    """
+    endpoint = f"{url}/rest/v1/cross_workspace_requests"
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        endpoint,
+        data=data,
+        method="POST",
+        headers={
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+            "Prefer": "return=minimal",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            if 200 <= resp.status < 300:
+                return True, f"INSERT ok ({resp.status})"
+            return False, f"INSERT HTTP {resp.status}"
+    except urllib.error.HTTPError as e:
+        return False, f"INSERT HTTPError {e.code}: {e.reason}"
+    except Exception as e:
+        return False, f"INSERT {type(e).__name__}: {e}"
+
+
+def _build_insert_row(item_id: str, source_data: dict) -> dict:
+    """Construct an INSERT row from local JSON metadata.
+
+    Required fields (per cross_workspace_requests schema): item_id,
+    item_type. Optional fields populated when present in source_data:
+    requested_by, assigned_to, summary, severity, priority, context,
+    last_updated_by, status (defaults to 'pending' so the subsequent
+    close PATCH transitions it through the normal lifecycle).
+    """
+    item_type = _derive_item_type(source_data)
+    if item_type is None:
+        # Caller MUST validate before invoking this. Defensive default.
+        item_type = "work_request"
+
+    requested_by = (
+        source_data.get("source_workspace")
+        or source_data.get("routed_from")
+        or source_data.get("requested_by")
+        or "unknown"
+    )
+
+    if item_type == "work_request":
+        assigned_to = "skill-management-hub"
+    else:
+        assigned_to = (
+            source_data.get("routed_to")
+            or source_data.get("assigned_to")
+            or "skill-management-hub"
+        )
+
+    summary = (
+        source_data.get("what_was_needed")
+        or source_data.get("description")
+        or source_data.get("task_summary")
+        or source_data.get("summary")
+        or "No summary"
+    )
+
+    return {
+        "item_id": item_id,
+        "item_type": item_type,
+        "summary": str(summary)[:500],
+        "requested_by": requested_by,
+        "assigned_to": assigned_to,
+        "status": "pending",
+        "priority": source_data.get("priority", "medium"),
+        "severity": source_data.get("severity", "info"),
+        "context": str(
+            source_data.get("task_description")
+            or source_data.get("context")
+            or ""
+        )[:500],
+        "last_updated_by": requested_by,
+    }
+
+
+def update_supabase(item_id: str, status: str, resolution_summary: str,
+                    resolved_by: str, hint_path: Path | None = None,
+                    source_data: dict | None = None) -> tuple[bool, str]:
+    """
+    UPSERT cross_workspace_requests row in Supabase.
+
+    Behavior (post-2026-04-30, wr-sentinel-2026-04-30-009):
+      1. GET row by item_id.
+      2. If row exists: PATCH close fields (existing behavior).
+      3. If row missing AND source_data provided: POST INSERT base row from
+         local JSON metadata, THEN PATCH close fields. Two-step keeps the
+         status_history audit trail consistent with the row-existed path.
+      4. If row missing AND source_data is None: PATCH only (best-effort,
+         may silently no-op -- back-compat for callers that haven't been
+         migrated).
+
+    Returns (success, message). Best-effort -- don't fail close on
+    Supabase error. Uses workspace-prefix-aware env lookup.
     """
     url = _load_env_value("SUPABASE_URL", hint_path)
     key = _load_env_value("SUPABASE_SERVICE_ROLE_KEY", hint_path)
     if not url or not key:
-        return False, "Supabase credentials not found (checked local .env + ~/.claude/.env with workspace prefix)"
+        return False, ("Supabase credentials not found (checked local .env "
+                       "+ ~/.claude/.env with workspace prefix)")
     # Map our internal status terms to Supabase canonical vocabulary.
     # Per universal-protocols.md "Status Vocabulary Layers":
     #   processed | completed | resolved  -> Supabase 'completed'
     #   rejected                           -> Supabase 'rejected'
     #   superseded                         -> Supabase 'superseded'
     #   duplicate                          -> Supabase 'duplicate'
-    if status in {"processed", "completed", "resolved"}:
-        sb_status = "completed"
-    elif status in {"superseded", "duplicate"}:
-        sb_status = status
-    elif status == "withdrawn":
-        # NOTE: requires Sentinel migration on cross_workspace_requests CHECK
-        # constraint to add 'withdrawn'. Routed-task filed in plan Phase G.
-        sb_status = "withdrawn"
-    else:
-        sb_status = "rejected"
+    sb_status = _supabase_status_for(status)
+
+    # Step 1: GET to discover whether the row already exists. UPSERT
+    # decision depends on this. If GET itself fails, fall through to
+    # PATCH-only (best-effort -- preserves prior behavior on transient
+    # network errors).
+    get_ok, rows = _supabase_get_row(url, key, item_id)
+    row_exists = bool(get_ok and rows)
+
+    insert_msg = ""
+    if not row_exists and source_data is not None:
+        # Step 2: row missing AND we have the local JSON -> INSERT first.
+        insert_payload = _build_insert_row(item_id, source_data)
+        ins_ok, insert_msg = _supabase_insert_row(url, key, insert_payload)
+        if not ins_ok:
+            # If INSERT failed, the subsequent PATCH would silently no-op.
+            # Surface the failure to the caller so the close-out verify
+            # has a chance to flag drift.
+            return False, f"UPSERT failed at INSERT step: {insert_msg}"
+
+    # Step 3: PATCH close fields (runs whether row pre-existed or was
+    # just inserted -- mirrors the close lifecycle).
     payload = json.dumps({
         "status": sb_status,
         "resolution_summary": resolution_summary[:1000],
@@ -292,6 +499,9 @@ def update_supabase(item_id: str, status: str, resolution_summary: str,
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             if 200 <= resp.status < 300:
+                if insert_msg:
+                    return True, (f"Supabase row {item_id} UPSERTED "
+                                  f"({insert_msg} + PATCH ok)")
                 return True, f"Supabase row {item_id} updated"
             return False, f"HTTP {resp.status}"
     except urllib.error.HTTPError as e:
@@ -396,8 +606,12 @@ def maybe_write_notification(
         # Substitute placeholders that work-request.py / route-task-emitting
         # tools may have injected. Match both <completer-workspace> and
         # <completer> for robustness; values are always the canonical name.
+        # <YYYY-MM-DD> substitution added per wr-sentinel-2026-04-30-009 to
+        # eliminate the bug where literal '<YYYY-MM-DD>' was landing in
+        # notification filenames.
         notif_filename = (
             notif_filename
+            .replace("<YYYY-MM-DD>", today)
             .replace("<completer-workspace>", closer)
             .replace("<completer>", closer)
             .replace("<closer>", closer)
@@ -405,6 +619,26 @@ def maybe_write_notification(
         )
         # Strip any path separators that may have leaked in (defensive)
         notif_filename = notif_filename.replace("/", "_").replace("\\", "_")
+        # Reject unsubstituted placeholders -- any remaining <...> token
+        # indicates a filename_hint contract violation. Source:
+        # wr-sentinel-2026-04-30-009. Defense against typos in originator's
+        # hint that would otherwise produce literal <unknown-thing> in
+        # filenames (and on Windows would fail later with [Errno 22]).
+        # Supported tokens: <YYYY-MM-DD>, <completer-workspace>, <completer>,
+        # <closer>, <closer-workspace>. Anything else -> reject.
+        import re
+        unsubstituted = re.findall(r"<[^>]+>", notif_filename)
+        if unsubstituted:
+            return None, (
+                "skip: unsubstituted placeholder(s) in "
+                "notification_filename_hint: "
+                f"{unsubstituted}. The filename_hint contract supports "
+                "<YYYY-MM-DD>, <completer-workspace>, <completer>, "
+                "<closer>, <closer-workspace>. Anything else is rejected "
+                "to prevent literal angle-bracket tokens from landing in "
+                "filenames. Fix the originator's hint or omit the field "
+                "entirely (script auto-generates a default)."
+            )
         if not notif_filename.endswith(".json"):
             notif_filename += ".json"
     else:
@@ -858,20 +1092,36 @@ def close_item(
     os.replace(tmp, dst)
     src.unlink()
 
-    # 4. Best-effort Supabase update. v2 id presence already validated above.
+    # 4. Best-effort Supabase UPSERT. v2 id presence already validated above.
     # For v1 legacy records (no id_format_version), fall back to request_id /
     # task_id so completion-notification routed-tasks still close.
+    # Pre-validates derived item_type against 5-value CHECK (post-2026-04-30
+    # widen migration) so the INSERT path doesn't silently no-op.
+    # Source: wr-sentinel-2026-04-30-009.
     sb_msg = "skipped"
     sb_verify_msg = "not-attempted"
     if update_supabase_row:
         item_id = data.get("id") or data.get("request_id") or data.get("task_id")
         if item_id:
+            derived_item_type = _derive_item_type(data)
+            if derived_item_type is None:
+                raise ValueError(
+                    f"Cannot derive item_type for {item_id!r}. The 5 valid "
+                    f"Supabase CHECK values are: "
+                    f"{sorted(ITEM_TYPES_SUPPORTED)}. JSON has neither a "
+                    f"recognizable id prefix (wr-/rt-/lifecycle-) nor a "
+                    f"'kind' field nor an explicit 'item_type' field. "
+                    f"Cannot proceed -- INSERT would be silently rejected by "
+                    f"the CHECK and the close would create the kind of brain "
+                    f"drift this UPSERT path was added to fix."
+                )
             _ok, sb_msg = update_supabase(
                 item_id=item_id,
                 status=status,
                 resolution_summary=what_was_done[:500],
                 resolved_by=resolved_by,
                 hint_path=src,
+                source_data=data,
             )
             # Step 5 of the In-Session Close-Out Workflow Contract:
             # post-PATCH close-out verify. Re-read the row to confirm the

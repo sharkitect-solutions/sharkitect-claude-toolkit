@@ -49,6 +49,21 @@ GAP_TYPES = {"MISSING", "UNUSED", "FALLBACK"}
 # Operational types (new)
 OPERATIONAL_TYPES = {"TASK", "BUG", "ENHANCE"}
 
+# Five canonical Supabase item_type values (post 2026-04-30 widen migration).
+# work_request:           originator filing capability gap or task to Skill Hub.
+# routed_task:            cross-workspace task dispatch to a target workspace.
+# completion_notification: anti-ping-pong ack of cross-workspace completion.
+# fyi:                    fire-and-forget informational filing (no ack).
+# lifecycle_review:       OUT OF SCOPE for this script -- separate dispatch path.
+# Source: wr-sentinel-2026-04-30-009.
+ITEM_TYPES_SUPPORTED = {
+    "work_request",
+    "routed_task",
+    "completion_notification",
+    "fyi",
+}
+DEFAULT_ITEM_TYPE = "work_request"
+
 # Workspace canonical name -> short prefix used in v2 id format.
 # Source: wr-2026-04-25-007 (workspace-prefixed id schema). The short prefix
 # scopes the NNN counter per workspace per date, eliminating the cross-workspace
@@ -133,6 +148,56 @@ def _build_notification_filename_hint(item_id, target_workspace):
     # we encode the slug from the request id.
     slug = slugify(str(item_id))[:60]
     return f"rt-{today}-{slug}-completed-by-<completer-workspace>.json"
+
+
+def _resolve_target_inbox(item_type, target_workspace):
+    """Return Path to the target inbox for a given item_type + target_workspace.
+
+    Routing rules (wr-sentinel-2026-04-30-009):
+      - work_request: ALWAYS routes to Skill Hub's .work-requests/inbox/.
+        target_workspace is ignored (work requests are by-definition addressed
+        to the Skill Hub for triage + build).
+      - routed_task | completion_notification | fyi: routes to the target
+        workspace's .routed-tasks/inbox/ EXCEPT for skill-management-hub
+        which has no .routed-tasks/ -- inbound to Skill Hub goes through
+        .work-requests/inbox/ per protocol.
+
+    Returns Path or None if the destination cannot be resolved (workspace
+    directory missing or unknown workspace name). Caller must handle None.
+    """
+    item_type = (item_type or "").strip().lower()
+    if item_type not in ITEM_TYPES_SUPPORTED:
+        return None
+
+    if item_type == "work_request":
+        hub = get_skill_hub_path()
+        if hub is None:
+            return None
+        target = hub / ".work-requests" / "inbox"
+        return target
+
+    target_ws = (target_workspace or "").strip().lower()
+    if not target_ws:
+        return None
+
+    workspace_dir = None
+    cfg = Path.home() / ".claude" / "config" / f"{target_ws}-path.txt"
+    if cfg.exists():
+        try:
+            p = Path(cfg.read_text(encoding="utf-8").strip())
+            if p.is_dir():
+                workspace_dir = p
+        except OSError:
+            pass
+    if workspace_dir is None:
+        p = _WORKSPACE_DIR_FALLBACK.get(target_ws)
+        if p and p.is_dir():
+            workspace_dir = p
+    if workspace_dir is None:
+        return None
+    if target_ws == "skill-management-hub":
+        return workspace_dir / ".work-requests" / "inbox"
+    return workspace_dir / ".routed-tasks" / "inbox"
 
 
 def _used_counters_for_workspace_date(inbox_dir, today, workspace_short, workspace_canonical):
@@ -351,10 +416,17 @@ def build_report(args):
         )
         sys.exit(2)
 
+    # Resolve item_type (defaults to work_request for back-compat).
+    # Source: wr-sentinel-2026-04-30-009. Adds 4 supported item_types matching
+    # the post-2026-04-30 widened Supabase CHECK constraint.
+    item_type = (getattr(args, "item_type", None) or DEFAULT_ITEM_TYPE).strip().lower()
+    target_workspace = (getattr(args, "target_workspace", None) or "").strip().lower()
+
     report = {
         "id": None,  # Set after inbox path known
         "id_format_version": 2,
         "timestamp": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "item_type": item_type,
         "request_type": request_type,
         "source_workspace": args.workspace,
         "source_workspace_path": args.workspace_path.replace("\\", "/"),
@@ -373,6 +445,29 @@ def build_report(args):
             if args.fix_components else [],
         },
     }
+
+    # Routed-task / completion-notification / fyi semantics.
+    # Source: wr-sentinel-2026-04-30-009.
+    if item_type == "routed_task":
+        # Cross-workspace dispatch: source -> target. Mirror the
+        # source/target into routed_from/routed_to so the receiver can
+        # identify both ends without reparsing item_type.
+        report["routed_from"] = args.workspace
+        if target_workspace:
+            report["routed_to"] = target_workspace
+    elif item_type == "completion_notification":
+        # Anti-ping-pong: notification items must NEVER request a
+        # follow-up notification on close.
+        report["kind"] = "completion_notification"
+        report["routed_from"] = args.workspace
+        if target_workspace:
+            report["routed_to"] = target_workspace
+    elif item_type == "fyi":
+        # Fire-and-forget: by definition no acknowledgement expected.
+        report["kind"] = "fyi"
+        report["routed_from"] = args.workspace
+        if target_workspace:
+            report["routed_to"] = target_workspace
 
     # Type-specific fields for capability gaps
     if request_type == "MISSING":
@@ -416,8 +511,11 @@ def build_report(args):
     # Completion Notification Protocol fields (wr-2026-04-25-002).
     # Auto-inject so the completer (Skill Hub, when this WR is closed) writes
     # a notification routed-task back to this workspace's inbox. Suppressed
-    # only if the caller passed --no-notify-on-completion.
-    if not getattr(args, "no_notify_on_completion", False):
+    # only if the caller passed --no-notify-on-completion OR the item_type is
+    # itself a notification/fyi (anti-ping-pong: closing a notification must
+    # not generate another notification).
+    forces_notify_off = item_type in {"completion_notification", "fyi"}
+    if not getattr(args, "no_notify_on_completion", False) and not forces_notify_off:
         report["notify_on_completion"] = True
         notify_path = _resolve_routed_inbox(args.workspace)
         if notify_path:
@@ -515,9 +613,21 @@ def log_to_supabase(report, item_type="work_request"):
         return False
 
     source_ws = report.get("source_workspace", "unknown")
-    # Work requests always go TO skill-management-hub
-    # Routed tasks go to whatever assigned_to says
-    assigned = report.get("assigned_to", "skill-management-hub")
+    # Routing target for the assigned_to column.
+    # Source: wr-sentinel-2026-04-30-009.
+    #   work_request           -> always Skill Hub (capability hub triages all)
+    #   routed_task / fyi      -> the target workspace named in routed_to
+    #   completion_notification -> the target workspace named in routed_to
+    # If routed_to is missing for a non-work_request item, we fall back to
+    # explicit assigned_to (legacy callers) or Skill Hub (last resort).
+    if item_type == "work_request":
+        assigned = "skill-management-hub"
+    else:
+        assigned = (
+            report.get("routed_to")
+            or report.get("assigned_to")
+            or "skill-management-hub"
+        )
 
     row = {
         "item_id": report.get("id", "unknown"),
@@ -642,6 +752,26 @@ def main():
     parser.add_argument("--skip-impact-floor", action="store_true",
                         help="Skip the --impact severity floor (>=30 chars + no "
                              "block-listed generic phrases). For tests.")
+    # ONE filing tool consolidation (wr-sentinel-2026-04-30-009).
+    # --item-type lets a single script file work_requests, routed_tasks,
+    # completion_notifications, and fyi messages. --target-workspace names
+    # the destination for non-work_request items.
+    parser.add_argument("--item-type",
+                        choices=sorted(ITEM_TYPES_SUPPORTED),
+                        default=DEFAULT_ITEM_TYPE,
+                        help="Item type recorded on the cross_workspace_requests "
+                             "row. Defaults to 'work_request' (preserves all "
+                             "pre-2026-04-30 callers). Use 'routed_task' for "
+                             "cross-workspace task dispatch, "
+                             "'completion_notification' for ack of completed "
+                             "cross-workspace work, or 'fyi' for fire-and-forget "
+                             "informational filings. lifecycle_review uses a "
+                             "separate dispatch path -- not in this flag.")
+    parser.add_argument("--target-workspace",
+                        help="Destination workspace for non-work_request items. "
+                             "Required when --item-type is routed_task, "
+                             "completion_notification, or fyi. Ignored for "
+                             "work_request (always routes to Skill Hub).")
 
     args = parser.parse_args()
 
@@ -659,21 +789,40 @@ def main():
 
     # Find target inbox.
     # --output-dir overrides for tests (creation goes wherever the test asks).
-    # Otherwise: Skill Hub's .work-requests/inbox/ (the canonical destination).
+    # Otherwise: route by --item-type via _resolve_target_inbox. Default
+    # work_request still lands in Skill Hub's .work-requests/inbox/.
+    # Source: wr-sentinel-2026-04-30-009.
     if args.output_dir:
         inbox = Path(args.output_dir)
         inbox.mkdir(parents=True, exist_ok=True)
         # processed/ sibling for counter scanning to work
         (inbox.parent / "processed").mkdir(exist_ok=True)
     else:
-        hub_path = get_skill_hub_path()
-        if not hub_path:
-            print("ERROR: Cannot find Skill Management Hub path.", file=sys.stderr)
-            print("Check ~/.claude/config/skill-hub-path.txt", file=sys.stderr)
+        item_type_for_routing = (args.item_type or DEFAULT_ITEM_TYPE).strip().lower()
+        if item_type_for_routing != "work_request" and not args.target_workspace:
+            print(
+                f"ERROR: --target-workspace is required when --item-type is "
+                f"{item_type_for_routing!r} (item_type != work_request must "
+                f"name a destination workspace).",
+                file=sys.stderr,
+            )
             return 1
-
-        inbox = hub_path / ".work-requests" / "inbox"
+        target_inbox = _resolve_target_inbox(
+            item_type_for_routing,
+            args.target_workspace,
+        )
+        if target_inbox is None:
+            print(
+                f"ERROR: Cannot resolve target inbox for item_type="
+                f"{item_type_for_routing!r}, target_workspace="
+                f"{args.target_workspace!r}. "
+                f"Check ~/.claude/config/<workspace>-path.txt.",
+                file=sys.stderr,
+            )
+            return 1
+        inbox = target_inbox
         inbox.mkdir(parents=True, exist_ok=True)
+        (inbox.parent / "processed").mkdir(exist_ok=True)
 
     # Build or parse report
     if args.json:
@@ -807,8 +956,14 @@ def main():
 
     # Log to Supabase cross_workspace_requests (best-effort audit trail).
     # --no-supabase skips this for tests.
+    # item_type passed from --item-type so routed_task / completion_notification
+    # / fyi rows are recorded under the correct CHECK value (post-2026-04-30
+    # widen migration). Source: wr-sentinel-2026-04-30-009.
     if not args.no_supabase:
-        log_to_supabase(report, item_type="work_request")
+        log_to_supabase(
+            report,
+            item_type=report.get("item_type", DEFAULT_ITEM_TYPE),
+        )
 
     return 0
 
