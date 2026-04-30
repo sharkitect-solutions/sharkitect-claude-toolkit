@@ -3389,3 +3389,59 @@ tags: permissions, settings, autonomy
 **Sunset condition:** Skill Hub permissions scaffold v2.3 (or whatever resolves wr-hq-2026-04-29-004). Re-evaluate this lesson then; it may become obsolete or convert to an explicit security-boundary note.
 
 **Tags:** permissions, bypass-technique, temporary-workaround, wr-hq-2026-04-29-004
+
+## 2026-04-29 — process: TDD + integration smoke test are complementary, not substitutes
+
+**Context:** Phase 2 of card system implementation built `tools/propagate-template.py` via TDD. After Tasks 2.1-2.7 shipped with 6/6 unit tests green, the Task 2.7 smoke test (`python tools/propagate-template.py --template fantastic-floors --slug juan-bernal-74s --dry-run`) surfaced THREE real bugs in `apply.py` that the unit tests had not caught:
+
+1. `cp1252` default encoding on Windows crashing on UTF-8 cloned content
+2. `read_text()` raising `UnicodeDecodeError` on binary files (logos, favicons) in real repos
+3. `rglob('*')` walking into `.git/` directories of cloned repos
+
+All three were invisible to the unit tests because the synthetic fixtures (3 small ASCII HTML files in `tests/fixtures/`) didn't exercise any of these dimensions: no UTF-8 content, no binary files, no `.git/` directories.
+
+**Why this matters:** Unit-test-passing is necessary but not sufficient for "ship-ready." Real environments have characteristics fixtures often don't: encoding diversity, binary content, hidden directories, network effects, large file counts. An integration smoke test against a representative real-world target should be a TDD checkpoint requirement, not optional polish at the end.
+
+**How to apply:** For any tool that operates on real-world inputs (filesystems, repos, APIs, user-supplied data), the plan must include at least one smoke test step that exercises the tool against a real target before declaring the work done. If the smoke test surfaces bugs, those go into the same plan/phase — they are not "v2 follow-ups." For `propagate-template.py`, the smoke-test-found bugs were fixed in `65dff1a` as a Phase 2 commit, not deferred.
+
+**Tags:** tdd, integration-testing, smoke-testing, process, plan-design
+
+
+## 2026-04-29 — direction: notification channel vs two-way communication channel are separate concerns
+
+**Context:** User clarified the long-term architecture. Slack and Telegram are NOT two interchangeable notification options — they serve fundamentally different purposes and should never be conflated.
+
+**Decision:** Slack = outbound notifications (reports, audits, briefs, alerts, urgency pings — everything the system sends TO the user). Telegram = two-way mobile bridge (user ↔ Claude Code from mobile when away from computer; one bot per workspace = three bots total). User reasoning: "Telegram is going to be used exclusively for communication, two-way communication, the bridge between you basic Claude Code in my workspaces."
+
+**Apply when:** Any tool routing decision (delivery target for a notification, choice of API, building new outbound infrastructure). Default for outbound = Slack via Polaris bot to audit-reports channel. Default for inbound (user-to-system) = Telegram bridge (when built). Don't add Telegram-send code paths to new tools — that's the legacy notification surface being deprecated.
+
+**Phasing:** Phase 1 = Slack migration for notifications. Phase 2 = brief/report cleanup (after Slack migration verified working). Phase 3 = build the two-way Telegram bridge. Strict sequencing.
+
+**Tags:** architecture, notifications, channel-design, slack, telegram, sequencing
+
+## 2026-04-29 — process: Skill Hub has NO .routed-tasks/ directory — always use work-request.py
+
+**Context:** Sentinel processed a Skill-Hub-originated routed-task asking for a naming-debt audit. Per advisory step 4, Sentinel was supposed to send a queue handoff back. Sentinel REFLEXIVELY wrote `rt-sentinel-...-naming-debt-audit-result.json` to `<Skill Hub>/.routed-tasks/inbox/`, treating Skill Hub like another HQ↔Sentinel-style peer. The Write tool created `.routed-tasks/inbox/` at Skill Hub (which did not exist before) and dropped the JSON there. User flagged the violation.
+
+**Why it failed:** Per Cross-Workspace Routed Tasks Protocol — "Sending TO Skill Hub: Use `work-request.py`. Do NOT write to `.routed-tasks/` -- Skill Hub has no `.routed-tasks/` directory. All inbound work goes through `.work-requests/inbox/`." The reflex was treating bidirectional pattern (HQ↔Sentinel can both send routed-tasks) as universal. It is NOT — Skill Hub is the work-request processor, not a peer-routed-task workspace.
+
+**The pattern to watch:** Skill Hub CAN send routed-tasks TO Sentinel (Sentinel HAS `.routed-tasks/`). But responses back from Sentinel to Skill Hub do NOT go via reciprocal routed-task — they go via `work-request.py`. Asymmetric channel.
+
+**Correction protocol:** Delete the wrongly-placed JSON. Delete the wrongly-created `.routed-tasks/` directory tree at Skill Hub. Re-file via `work-request.py` (auto-logs to Supabase). Update Sentinel-side outbox MD + audit doc to reference the new WR ID. Save a feedback memory in workspace memory for the recurrence guard.
+
+**Apply when:** Sentinel (or HQ) needs to send anything to Skill Hub. Always `work-request.py`. Pick `--type` from {TASK, MISSING, UNUSED, FALLBACK, BUG, ENHANCE} — there is no "advisory_response" type, so map advisory replies to TASK or ENHANCE.
+
+**Tags:** routing, protocol-violation, skill-hub, work-request, recurring-trap
+
+## 2026-04-29 — process: AUDIT-EXEMPT-STALE-PATHS marker pattern for legitimate historical references
+
+**Context:** Building `tools/structural-integrity-check.py` to scan workspaces for stale HQ paths. Initial pass flagged 3 false positives — comments and documentation that LEGITIMATELY mentioned the old paths to explain a restructure ("moved from `knowledge-base/n8n-workflows/` to `docs/n8n-workflows/`"). Tried complex heuristics (skip lines containing "moved from" / "legacy" near match), but the heuristic gets gamed easily and fails on edge cases.
+
+**Solution:** Per-line opt-out marker. Add `AUDIT-EXEMPT-STALE-PATHS` as a comment on the same line as a deliberate historical reference. The audit skips the line. Explicit, intentional, hard to abuse (you have to add it deliberately).
+
+**Why this beats heuristics:** Heuristics fail silently when they over- or under-match. Explicit markers fail loudly — if you forget to add the marker, the audit flags it; if you add it inappropriately, the marker is visible in code review. Burden is on the writer to mark intent.
+
+**Apply when:** Building any audit tool that scans for patterns where SOME instances are legitimate historical references. Use an explicit opt-out marker over heuristic guessing. Document the marker in the tool's docstring + class docstring of the function that does the scan.
+
+**Tags:** audit-tooling, opt-out-markers, structural-integrity, code-quality
+

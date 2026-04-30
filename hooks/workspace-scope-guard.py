@@ -220,6 +220,76 @@ def check_forbidden_self_path(file_path, current_workspace, cwd):
     return None, None
 
 
+def check_target_workspace_forbidden(file_path):
+    """Check if the WRITE TARGET path lands inside a directory the target
+    workspace structurally does not own, regardless of which workspace the
+    write originates from.
+
+    The existing check_forbidden_self_path only fires on self-writes (CWD
+    matches target workspace). This catches the cross-workspace variant:
+    Sentinel or HQ writing into Skill Hub's .routed-tasks/, which lands in
+    a directory Skill Hub never reads (silent drift).
+
+    Returns (reason, redirect) tuple or (None, None).
+
+    Source: 2026-04-29 incident -- Sentinel filed an advisory_response to
+    `<skill-hub>/.routed-tasks/inbox/rt-sentinel-...` in commit 0c4cff7.
+    The misroute auto-created the .routed-tasks/ directory in Skill Hub.
+    Skill Hub doesn't read .routed-tasks/ (protocol: all inbound through
+    .work-requests/inbox/). User caught it in the next session and
+    surfaced the gap. The existing self-write rule (wr-2026-04-21-001)
+    didn't fire because it was a CROSS-workspace write, and the cross-
+    workspace check is bypassed by .routed-tasks/ in ALWAYS_ALLOWED.
+    This function closes that gap.
+
+    Applied BEFORE is_always_allowed so .routed-tasks/ in ALWAYS_ALLOWED
+    does not bypass it -- the same pattern check_forbidden_self_path uses.
+    """
+    file_norm = normalize_path(file_path)
+
+    # Skill Hub has no .routed-tasks/ -- any write to it from any source is
+    # a misroute. Inbound coordination to Skill Hub goes through
+    # .work-requests/inbox/ via work-request.py.
+    if "/3.- skill management hub/.routed-tasks/" in file_norm:
+        return (
+            "TARGET WORKSPACE STRUCTURE VIOLATION. Skill Hub has NO "
+            ".routed-tasks/ directory per universal-protocols.md. Inbound "
+            "coordination to Skill Hub goes through .work-requests/inbox/ "
+            "via `python ~/.claude/scripts/work-request.py`. Writing to "
+            "Skill Hub's .routed-tasks/ creates silent drift -- the file "
+            "lands in a directory Skill Hub never reads, so the request "
+            "never reaches Skill Hub's processing pipeline.",
+            "Skill Hub's .work-requests/inbox/ via "
+            "`python ~/.claude/scripts/work-request.py --type <TYPE> "
+            "--severity <SEVERITY> --workspace <SOURCE_WORKSPACE> "
+            "--workspace-path \"$(pwd)\" --task \"<DESC>\" ...`",
+        )
+
+    # HQ and Sentinel have no .work-requests/ -- mirror rule. Any write
+    # to <hq>/.work-requests/ or <sentinel>/.work-requests/ is a misroute.
+    if "/1.- sharkitect digital workforce hq/.work-requests/" in file_norm:
+        return (
+            "TARGET WORKSPACE STRUCTURE VIOLATION. HQ has NO "
+            ".work-requests/ directory per universal-protocols.md. "
+            ".work-requests/ is exclusive to Skill Hub. HQ's coordination "
+            "channel is .routed-tasks/{inbox,processed,outbox}/.",
+            "HQ's .routed-tasks/inbox/ (for routing TO HQ) or your own "
+            ".routed-tasks/outbox/ (for outbound audit trail)",
+        )
+
+    if "/4.- sentinel/.work-requests/" in file_norm:
+        return (
+            "TARGET WORKSPACE STRUCTURE VIOLATION. Sentinel has NO "
+            ".work-requests/ directory per universal-protocols.md. "
+            ".work-requests/ is exclusive to Skill Hub. Sentinel's "
+            "coordination channel is .routed-tasks/{inbox,processed,outbox}/.",
+            "Sentinel's .routed-tasks/inbox/ (for routing TO Sentinel) "
+            "or your own .routed-tasks/outbox/ (for outbound audit trail)",
+        )
+
+    return None, None
+
+
 def is_protocol_sanctioned_write(tool_name, tool_input):
     """
     Detect protocol-sanctioned cross-workspace writes that should NOT be blocked.
@@ -317,6 +387,26 @@ def main():
                 }
             }))
             return 0
+
+    # TARGET-side structural forbidden check -- fires regardless of source
+    # workspace. Catches "Sentinel writes to Skill Hub's .routed-tasks/"
+    # which check_forbidden_self_path misses because it requires self-write.
+    # Applied BEFORE is_always_allowed for the same reason: .routed-tasks/
+    # in ALWAYS_ALLOWED would otherwise bypass it.
+    target_forbidden_reason, target_redirect = check_target_workspace_forbidden(file_path)
+    if target_forbidden_reason is not None and target_redirect is not None:
+        warning = (
+            target_forbidden_reason
+            + " Redirect to: " + target_redirect + ". "
+            "If the user explicitly overrides, note the exception in MEMORY.md."
+        )
+        print(json.dumps({
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "additionalContext": warning,
+            }
+        }))
+        return 0
 
     # Skip always-allowed paths (covers .routed-tasks/, .lifecycle-reviews/, etc.)
     if is_always_allowed(file_path):

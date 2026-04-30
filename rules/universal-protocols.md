@@ -1336,6 +1336,127 @@ Bash + Python `open(..., 'w')` via subprocess. This is a different code path tha
 
 ---
 
+## Modifying .env files (NON-NEGOTIABLE)
+
+The Edit and Write tools are DENIED on `.env` files (workspace .env files AND `~/.claude/.env`). This is intentional — `.env` files contain credentials, and the deny rule prevents accidental token leaks via blob-style write tools that could echo content back into transcripts. Do NOT waste time attempting Edit, Write, or alternate path-escape variants. They will all fail.
+
+The same Bash + Python `open(..., 'w')` / `open(..., 'a')` pattern that unblocks `~/.claude/settings.json` editing also unblocks `.env` editing. This is a different code path than the Edit/Write tools and is not blocked by the deny rule.
+
+### When this applies
+
+- Adding a new credential to `~/.claude/.env` or any workspace `.env`
+- Promoting a workspace-local credential to global `.env`
+- Removing a deprecated credential
+- Restructuring or annotating an `.env` file
+- Migrating an `.env` file's section comments
+
+### The ONLY supported path
+
+#### Reading existing `.env` content (for safe append / structured edit)
+
+```python
+import os
+env_path = os.path.expanduser('~/.claude/.env')          # or workspace path
+with open(env_path, 'r', encoding='utf-8') as f:
+    content = f.read()
+```
+
+NOTE: do NOT print existing `.env` content to stdout via `cat`, `head`, `grep`, etc. — those expose credentials in the transcript. Read into Python; act on the variable; never echo. (A guard hook will block credential-dumping reads on global `.env` regardless.)
+
+#### Append-only (idempotent — safest pattern)
+
+```python
+import os, re
+env_path = os.path.expanduser('~/.claude/.env')
+with open(env_path, 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# Idempotent guard: do NOT re-add if a marker key from the new section
+# is already present
+if 'NEW_CREDENTIAL_MARKER_KEY' in content:
+    print('already present -- no change')
+else:
+    section = '''
+# --- new section comment ---
+NEW_CREDENTIAL_KEY_1=value1
+NEW_CREDENTIAL_KEY_2=value2
+'''
+    if not content.endswith('\n'):
+        section = '\n' + section
+    with open(env_path, 'a', encoding='utf-8') as f:
+        f.write(section)
+
+# Verify by counting (no stdout dump)
+with open(env_path, 'r', encoding='utf-8') as f:
+    new_content = f.read()
+keys = re.findall(r'^NEW_CREDENTIAL_\w+=', new_content, re.MULTILINE)
+print(f'Total NEW_CREDENTIAL_* keys after append: {len(keys)}')
+```
+
+#### Full rewrite (workspace `.env` only — never `~/.claude/.env`)
+
+Workspace `.env` files can be fully rewritten when restructuring. ALWAYS snapshot to `archive/env-YYYY-MM-DD-<context>.txt` first via `shutil.copy2` so the prior state is recoverable.
+
+```python
+import shutil, os
+src = '.env'
+dst = 'archive/env-2026-04-29-archived.txt'
+os.makedirs('archive', exist_ok=True)
+shutil.copy2(src, dst)         # snapshot before rewrite
+
+content = '''# Header comment
+KEY1=value1
+KEY2=value2
+'''
+with open('.env', 'w', encoding='utf-8') as f:
+    f.write(content)
+```
+
+`~/.claude/.env` should NEVER be fully rewritten by AI — too many keys live there from too many cleanups. Always append-only. If the global `.env` legitimately needs surgical key removal, do a structured edit:
+
+```python
+import os
+env_path = os.path.expanduser('~/.claude/.env')
+with open(env_path, 'r', encoding='utf-8') as f:
+    lines = f.readlines()
+# Surgically drop ONLY the lines matching the deprecated key
+new_lines = [ln for ln in lines if not ln.startswith('DEPRECATED_KEY=')]
+with open(env_path, 'w', encoding='utf-8') as f:
+    f.writelines(new_lines)
+```
+
+### Required sequence (every time)
+
+1. **Authorization:** explicit user approval for the specific change. A general "approved this work" is NOT enough — `.env` mutations affect every future session that reads the credential. Each modification requires per-action authorization.
+2. **Snapshot:** for full rewrites, `shutil.copy2(src, archive_path)` first. For append-only on `~/.claude/.env`, the idempotent guard substitutes for a snapshot (the new section is the diff).
+3. **Idempotent guard:** before appending, check if a marker key from the new section is already present. Skip if so. This makes re-runs safe.
+4. **Write:** `open(path, 'a' or 'w', encoding='utf-8')`.
+5. **Verify post-write:** re-read with `open(...).read()`, run `re.findall` on the expected keys, print COUNTS only — never the values.
+6. **Empirical test (if applicable):** if a script depends on the new credential, run a one-shot smoke test that confirms the credential is now readable. Use the workspace's `tools/load-env.py KEY` if available.
+
+### What does NOT work — do not attempt
+
+| Approach | Why it fails |
+|---|---|
+| Edit tool on `.env` | Hard-denied by `Edit(.env)` deny rule |
+| Write tool on `.env` | Same deny |
+| `cat`, `head`, or `grep` on `~/.claude/.env` to inspect existing content | Bash hook blocks credential dump; even if it didn't, exposes secrets in transcript |
+| `cmd //c "..."` rewrites | Bash MSYS path conversion mangles quotes |
+| `sed -i` in-place edit | No snapshot, no idempotent guard, fragile against quote variations |
+| Hand-written full-file rewrite of `~/.claude/.env` | Lossy — drops keys from prior cleanups the AI didn't see |
+
+### Precedence
+
+The same global `Edit/Write(.env)` deny that blocks Edit/Write also blocks the corresponding Bash sub-tools that try to wrap them. Bash + Python `open(...)` is the documented path. If a future safety mechanism blocks Python `open()` on `.env`, file a WR — do NOT chain workarounds.
+
+### Source incident
+
+2026-04-29 (Skill Hub session 12): user asked the AI to clean up Skill Hub's workspace `.env` and promote Polaris credentials to `~/.claude/.env` (global). Write tool denied on `.env`. Bash + Python `open(..., 'w')` and `open(..., 'a')` succeeded on first try with archive snapshot + idempotent guard + count-only verification. User instruction (verbatim): "I need you to document what you did so other workspaces know how to do it, because that has been an issue we've had."
+
+The pattern parallels the `~/.claude/settings.json` modification path documented in the section above. Both files are gated by the same family of permission rules; both unblock through the same Bash + Python `open()` mechanism. Documenting them as a single class so workspaces don't re-discover the workaround twice.
+
+---
+
 ## Naming Conventions (NON-NEGOTIABLE)
 
 Every user-facing artifact MUST have a name a non-technical reader can understand within 5 seconds. Engineery, metaphor-based, or self-referential names are prohibited at the user-facing surface.
