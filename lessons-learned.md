@@ -1005,6 +1005,16 @@ Cross-project patterns, API limitations, tool quirks, user preferences, and proc
 **Tags:** voice, email, tone, brand, communication, templates, kpi-reports
 
 ## Process Decisions
+
+### 2026-04-30 — process: When plan-template instructions conflict with universal protocols, protocol wins; document the deviation
+
+**Context:** Phase 2 Task 2.1 of Luminous Foundation Bridge plan instructed to commit `.tmp/historical-drift-manifest-2026-04-30.json` alongside the manifest generator. The .tmp/ Hygiene Protocol (universal-protocols.md NON-NEGOTIABLE) explicitly states `.tmp/` stays gitignored — regenerable artifacts go in `.tmp/`, valuable artifacts get promoted out of it. The manifest is regenerable (running the generator produces a fresh one), so it qualifies for `.tmp/` and stays gitignored.
+
+**Why:** Plan templates are authored at design time and may not reflect every protocol nuance. Universal protocols are normative across all sessions. When they conflict, the protocol is the higher-authority source.
+
+**How to apply:** When executing a plan and a step conflicts with a universal protocol, deviate in the protocol's direction AND document the deviation in the plan task's verification notes ("Step X: Done with deviation. Plan said Y; protocol said Z; resolved by Z because A. See task notes."). Do NOT silently follow the protocol — the future reader of the plan needs to know why the executed result diverged from the template. Skill Hub regenerates `.tmp/` artifacts on its end before consuming.
+
+**Tags:** plan-execution, protocol-precedence, .tmp-hygiene, deviation-documentation
 ### 2026-04-30 -- process: Always discover actual schema state before applying plan-draft DDL
 
 Source: Sentinel session 2026-04-30 (Luminous Foundation Bridge Phase 1 Task 1.0).
