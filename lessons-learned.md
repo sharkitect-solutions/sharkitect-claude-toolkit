@@ -1,5 +1,15 @@
 # Global Lessons Learned
 
+## 2026-04-30 Session Lessons (Skill Hub Session 15 — Batch 3 Hook Architecture)
+
+**tool-usage: `close-inbox-item.py` is NOT a verification tool — it always mutates state.** Tried to "verify" an inbox JSON's state by running `close-inbox-item.py --no-supabase --no-notify` thinking those flags would gate the file mutation. They do NOT. The script always (a) updates JSON status to the requested value, (b) writes resolution + status_history entries, (c) moves the file from inbox/ to processed/. `--no-supabase` only skips the Supabase PATCH; `--no-notify` only skips the completion-notification routed-task. Result: an unintended close on a CRITICAL multi-phase WR that should not have been touched. Recovery: `git status` showed the file as modified; `mv` it back to inbox/; `git restore` to revert content. **Apply when:** if you want to inspect an inbox JSON without mutating, use `Read` or `python -c "import json; print(json.load(...))"`. NEVER use `close-inbox-item.py` for inspection regardless of flags. Tags: #tool-usage #inbox #close-inbox-item.
+
+**process: HOME-override is the right pattern for hermetic hook tests.** Existing `test_brainstorming_enforcer.py` doesn't isolate HOME, so it pulls today's actual `~/.claude/.tmp/skill-invocations-YYYY-MM-DD.json` — which always contains skill invocations from the active session. When the active session has invoked `superpowers:brainstorming` or similar, the hook's bypass logic kicks in and the test cannot exercise the deny path. New `test_wr005_pattern_tightening.py` solves this by passing `HOME=tempdir` and `USERPROFILE=tempdir` to subprocess.run via `env=`. `Path.home()` inside the hook resolves to the tempdir, so the empty `.claude/.tmp/` is what the hook reads. **Apply when:** any future hook test where the hook reads from `~/.claude/.tmp/`. Should retrofit existing test_brainstorming_enforcer.py at some point but not in same batch as new behavior changes. Tags: #testing #hermetic-isolation #hooks.
+
+**process: TDD discipline rule (wr-skillhub-2026-04-30-001) honored — system worked.** Self-filed WR from Session 14 documented a TDD violation (tests-after instead of tests-first on cascade dispatch + drift detector). Session 15 honored the rule: invoked `superpowers:test-driven-development` BEFORE editing the 3 hooks; wrote 26 hermetic tests (RED phase: 14 fail / 12 regression-pass); implemented minimal code (GREEN phase: 26/26 pass); verified full suite (297 green, no regressions). The discipline rule + methodology-nudge hook + self-WR pattern combined into actual behavioral change. **Apply when:** any task with new functions in deliverable scripts (hooks, audit-autonomous-systems, update-project-status). Treat WR-driven work as production code by default; TDD-first, never tests-after. Tags: #tdd #methodology #discipline.
+
+**process: Backup-verify gate (close-out contract step 1) catches uncommitted artifact references.** `close-inbox-item.py` refused to close wr-005 because `docs/hook-classification-policy.md` and `tests/test_wr005_pattern_tightening.py` were uncommitted. v1 of the contract checks workspace artifacts only — for `~/.claude/hooks/` paths, discipline is `sync-skills.py --sync --push` BEFORE close (toolkit mirror is the durable backup; v2 will check the mirror too). Followed pattern: toolkit synced, workspace committed + pushed, then close. **Apply when:** any cross-workspace artifact close where artifacts include `~/.claude/` paths. Run sync-skills.py BEFORE the close command. If artifacts are toolkit-mirrored, use `--skip-backup-check --skip-backup-reason "<documented reason>"` (logged for audit). Tags: #close-out-contract #backup-verify #toolkit-mirror.
+
 ## 2026-04-30 Session Lessons (Sentinel — Data Quality + Cross-Workspace Perm Fix)
 
 **process: Allow+Deny on same path = deny wins.** Discovered Phase 1 permissions overhaul (commit a5ae246, 2026-04-28) added 16 cross-workspace inbox ALLOW rules but never removed the 10 matching DENY rules already in place. Cross-workspace inbox writes silently broken for ~24h. Sentinel-side fix: removed 10 contradictory deny entries from `<Sentinel>/.claude/settings.json` via Bash + Python `open()` (the documented bypass, since Edit tool is denied on settings.json files). Filed wr-007 to Skill Hub with the same diff for HQ + Skill Hub + universal-protocols.md addition. **Apply when:** any future settings.json patch — must explicitly check for and REMOVE conflicting denies, not just append allows. Verify by counting deny entries before/after AND empirically testing one write to the previously-blocked path. Tags: #permissions #settings.json #cross-workspace.
@@ -3533,3 +3543,35 @@ All three were invisible to the unit tests because the synthetic fixtures (3 sma
 **Apply when:** ANY task involves writing new functions to ~/.claude/scripts/ deliverables (update-project-status.py, audit-autonomous-systems.py, register-asset.py, work-request.py, close-inbox-item.py, supabase-sync.py) OR workspace tools/ scripts. WR-driven work is production code by default, not config edits. Invoke superpowers:test-driven-development BEFORE the first edit in this class of work, even when the task feels like protocol/governance hot-fix.
 **Anti-pattern:** Treating WR-driven script enhancement as 'doc edits' or 'governance work' just because it pairs with universal-protocols.md changes. The protocol section IS doc-only and exempt; the script changes are NOT.
 **Tags:** tdd, methodology, process-discipline, deliverable-scripts
+
+
+## 2026-04-30 — Luminous Foundation Bridge planning session
+
+### Process Decisions
+
+**process: Audit-first-then-plan for big strategic initiatives.** When user surfaces a multi-faceted concern (vocabulary + dashboard + schema + cascade + plans), spend 30 minutes producing a written audit BEFORE proposing any plan. The audit constrains the design space and makes the plan defensible.
+- Why: User's initial framing had 6+ overlapping concerns. Without the audit, plan would have been speculative. With the audit, every plan phase maps to specific evidence.
+- How to apply: Any user concern that touches >3 systems or >1 workspace warrants an audit doc first. Audit goes to docs/audits/. Plan goes to docs/plans/ (workspace) or ~/.claude/plans/ (global) and references the audit.
+
+### Architecture Direction
+
+**direction: Plans = projects in Supabase.** Existing universal protocol already says this. Don't create separate plans / plan_phases / plan_tasks tables. Add columns to projects instead (plan_file_path, plan_content, keywords).
+- Apply when: User asks for plan visibility / cross-workspace plan discovery / crash recovery for plans.
+- Design principle: Use what we have. New tables = new sync paths = new drift surfaces. KISS.
+
+**direction: ONE tool for cross-workspace filing, item_type discriminator.** Don't build a separate route-task.py parallel to work-request.py. Extend work-request.py with --item-type flag covering work_request | routed_task | completion_notification | fyi.
+- Apply when: User asks "do we have separate tools for separate item types?" Answer should be: ONE entry point, internal logic resolves target inbox by (item_type, target).
+- Design principle: Convergence over divergence. Two tools doing similar things = inevitable drift.
+
+**direction: Three-bucket vocabulary model OPEN/HOLD/CLOSED.** Every status value across every entity falls into exactly one bucket. tabled is HOLD (not CLOSED) — could come back. paused absorbs deferred with pause_reason text. Cascade behavior follows from bucket transitions.
+- Apply when: Any new entity needs a status field, or any vocabulary refactor.
+- Design principle: KISS via fewer enum values + flexible reason text. Document each value in docs/canonical-status-vocabulary.md.
+
+### Preferences
+
+**preference: User wants per-action authorization for settings.json + .env modifications.** Even with general session approval, each modification to ~/.claude/settings.json or any .env file requires explicit per-action authorization. The Bash+Python pattern is the documented bypass; do NOT skip the authorization step.
+- Apply when: Any settings.json or .env modification is needed.
+- Reason: These files affect every future session in every workspace; misapplied changes compound silently.
+
+**preference: User prefers descriptive event names over short ones.** When activity_stream event names disambiguate (e.g., cascade_client_inactive_with_siblings vs cascade_warned), pick the longer descriptive form. Easier to understand at a glance from the event log without context.
+- Apply when: Naming new activity_stream event_types or similar log labels.
