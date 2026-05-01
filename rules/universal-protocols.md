@@ -1084,6 +1084,54 @@ Before using ANY tool for scheduling or automation, verify what it actually does
 
 Each workspace has a `workflows/cron-schedule.md` listing its specific CronCreate jobs.
 
+## Silent Execution Protocol (NON-NEGOTIABLE)
+
+Every scheduled task or automation must run silently with no visible window. A console flash mid-work interrupts user focus and (per direct user report) causes accidental keystroke errors that corrupt other work. Silent autonomy is a core principle of the system; visible-window automations violate that principle.
+
+**Source:** wr-sentinel-2026-04-30-003. User direction (verbatim, 2026-04-29): *"sometimes a pop-up window can cause me to mess something up."*
+
+### Required mechanisms
+
+| Platform | Silent mechanism | Example |
+|---|---|---|
+| Python entry point (Windows) | `pythonw.exe` instead of `python.exe` | `pythonw.exe "C:\scripts\foo.py"` |
+| .bat orchestration | VBS wrapper with `WshShell.Run windowStyle=0` | `wscript.exe "C:\scripts\silent-runner.vbs"` |
+| Direct VBScript | `cscript.exe //B` (batch mode, no UI) | `cscript.exe //B "C:\scripts\runner.vbs"` |
+| Task Scheduler creation | `schtasks /create /RL HIGHEST /F` plus the hidden-task XML attribute when applicable | XML `<Hidden>true</Hidden>` |
+| PowerShell entry point | `-WindowStyle Hidden` flag (or wrap in VBS) | `powershell.exe -WindowStyle Hidden -File foo.ps1` |
+| Cron / launchd / systemd | Always silent (no terminal allocation) | system default |
+| n8n cloud workflows | Cloud-hosted, no local window | n8n.io scheduling |
+
+**Prohibited:** bare `python.exe`, bare `cmd.exe /c`, bare `.bat` / `.cmd` file references, PowerShell without `-WindowStyle Hidden`. These all flash a console window when the task fires.
+
+### Creation-time invariant (REQUIRED)
+
+`register-asset.py register automation <name> --workspace <ws>` REQUIRES `--silent <mechanism>` where mechanism is one of: `pythonw | vbs-wrapper | task-scheduler-hidden | cron-equivalent | n8n-cloud | other`. Registration without `--silent` is rejected. The mechanism is stored in `metadata.silent_mechanism` for downstream audit.
+
+`other` is an explicit escape hatch for legitimate edge cases (e.g., an interactive task the user actually wants to see). Justify in `--purpose` text.
+
+### Audit invariant (REQUIRED)
+
+`audit-autonomous-systems.py` includes a `visible_window_automation` drift class. Any live Task Scheduler entry whose action invokes `python.exe`, `cmd.exe`, bare `.bat`, or visible PowerShell is surfaced in the morning + evening drift reports as a Silent Execution Protocol violation requiring retrofit.
+
+The drift class is computed from the schtasks `/v` "Task To Run" column. Empty / unknown commands are not flagged (avoid false positives) but the absence of a registered silent mechanism IS surfaced via the existing `missing_from_registry` channel.
+
+### Retrofit responsibility
+
+Each workspace owns the retrofit of its own visible-window automations (per Supabase Ownership Protocol). Skill Hub owns the protocol + audit infrastructure; HQ + Sentinel each retrofit their own Task Scheduler entries when the audit surfaces violations.
+
+When retrofitting:
+1. Identify the visible task via `audit-autonomous-systems.py` output
+2. Pick the appropriate silent mechanism from the table above
+3. Update the .bat / Python entry point or wrap in VBS (whichever applies)
+4. Re-create the Task Scheduler entry pointing at the silent mechanism
+5. Update the registry: `register-asset.py update automation <name> --workspace <ws> --metadata '{"silent_mechanism":"<mechanism>"}'`
+6. Verify via the audit drift report on next run
+
+### Why this matters
+
+Silent autonomy is a load-bearing principle: the user delegates tasks expecting them to complete invisibly while focused on revenue work. Every console flash is a context switch the user did not consent to. Cumulative cost across 8+ scheduled tasks firing daily is real (and the user reports concrete accidental-keystroke incidents). The protocol pushes the cost back where it belongs — to the workspace that built the automation, at registration time.
+
 ## Iterative Work Protocol (NON-NEGOTIABLE)
 
 When work requires build-test-fix cycles, invoke `/ralph-loop` BEFORE starting the first attempt. Do NOT make one attempt, report the result, and wait for the user to say "try again."

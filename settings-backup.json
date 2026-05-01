@@ -317,6 +317,14 @@
             "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/cron-activity-surfacer.py\""
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/process-violation-detector.py\""
+          }
+        ]
       }
     ],
     "SessionEnd": [

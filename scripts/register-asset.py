@@ -52,6 +52,20 @@ from pathlib import Path
 CANONICAL_WORKSPACES = {"workforce-hq", "skill-management-hub", "sentinel", "global"}
 VALID_ASSET_TYPES = {"table", "script", "automation", "hook", "report", "workflow", "plugin", "document", "blueprint"}
 
+# Silent Execution Protocol (universal-protocols.md, NON-NEGOTIABLE).
+# Source: wr-sentinel-2026-04-30-003. Every registered automation must declare
+# its silent-execution mechanism so visible-window tasks cannot enter the
+# registry undetected. The audit-autonomous-systems.py 'visible_window_automation'
+# drift class verifies live runtime against the declared mechanism.
+VALID_SILENT_MECHANISMS = {
+    "pythonw",                # pythonw.exe instead of python.exe
+    "vbs-wrapper",            # WshShell.Run windowStyle=0 wrapper
+    "task-scheduler-hidden",  # /RL HIGHEST + hidden-task XML attribute
+    "cron-equivalent",        # POSIX cron / launchd / systemd timer (always silent)
+    "n8n-cloud",              # n8n cloud workflows (run in cloud, no local window)
+    "other",                  # explicit escape hatch; must be justified in --purpose
+}
+
 
 def _detect_workspace_prefix():
     """Infer workspace prefix from CWD. Returns '' if unknown.
@@ -203,13 +217,54 @@ def cmd_register(args):
         sys.exit(1)
     validate_workspace(ws)
 
+    metadata = parse_metadata(args.metadata)
+
+    # Silent Execution Protocol enforcement (NON-NEGOTIABLE for automation type).
+    # Source: wr-sentinel-2026-04-30-003. Automations must declare their silent
+    # mechanism at registration time so visible-window tasks are caught.
+    silent = getattr(args, "silent", None)
+    if args.asset_type == "automation":
+        if not silent:
+            print(
+                "ERROR: --silent is required when registering an automation.\n"
+                "Silent Execution Protocol (universal-protocols.md, NON-NEGOTIABLE):\n"
+                "  every automation must declare its silent-execution mechanism.\n"
+                "  Valid values: " + ", ".join(sorted(VALID_SILENT_MECHANISMS)) + "\n"
+                "Example: --silent pythonw   (Python entry point via pythonw.exe)\n"
+                "         --silent vbs-wrapper   (WshShell.Run windowStyle=0)\n"
+                "         --silent task-scheduler-hidden   (XML hidden-task attribute)\n"
+                "         --silent cron-equivalent   (POSIX cron/launchd/systemd)\n"
+                "         --silent n8n-cloud   (cloud-hosted, no local window)\n"
+                "         --silent other   (escape hatch; justify in --purpose)",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        if silent not in VALID_SILENT_MECHANISMS:
+            print(
+                f"ERROR: invalid --silent value '{silent}'. Must be one of: "
+                + ", ".join(sorted(VALID_SILENT_MECHANISMS))
+                + " (Silent Execution Protocol, universal-protocols.md).",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        # Stamp the declared mechanism into metadata for downstream audit
+        metadata["silent_mechanism"] = silent
+    elif silent:
+        # --silent on non-automation types is harmless but worth noting
+        print(
+            f"NOTE: --silent ignored on asset_type={args.asset_type} (only "
+            "applies to automation). Stored in metadata for reference.",
+            file=sys.stderr,
+        )
+        metadata["silent_mechanism"] = silent
+
     row = {
         "asset_type": args.asset_type,
         "name": args.name,
         "owner_workspace": ws,
         "purpose": args.purpose,
         "location": args.location,
-        "metadata": parse_metadata(args.metadata),
+        "metadata": metadata,
         "active": not args.inactive,
         "last_updated_by": detect_workspace() or ws,
     }
@@ -322,6 +377,15 @@ def build_parser():
     reg.add_argument("--location")
     reg.add_argument("--metadata")
     reg.add_argument("--inactive", action="store_true")
+    reg.add_argument(
+        "--silent",
+        help=(
+            "Silent-execution mechanism (REQUIRED for asset_type=automation). "
+            "Valid: pythonw | vbs-wrapper | task-scheduler-hidden | "
+            "cron-equivalent | n8n-cloud | other. Source: Silent Execution "
+            "Protocol, universal-protocols.md (NON-NEGOTIABLE)."
+        ),
+    )
 
     lst = sub.add_parser("list", help="List assets (filters optional)")
     lst.add_argument("--type", dest="type")
