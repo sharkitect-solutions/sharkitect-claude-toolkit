@@ -2137,6 +2137,11 @@ No exceptions. If you're creating a new folder for cross-workspace communication
 
 ## Process Decisions
 
+- **2026-04-30** -- process: Compare plan-prescribed code against existing codebase patterns BEFORE applying verbatim. Plan code may be drafted from an older snapshot or generic example; the live codebase usually has established conventions worth matching.
+  - Context: Phase 2 Task 2.3 of luminous-foundation-bridge plan prescribed server-side per-type fetch via `fetchJson(/api/requests?status=any&item_type=${f.itemType})` for the dashboard item_type filter. Existing dashboard pattern for the `from` filter is purely client-side against the broad dataset (cached 2s server-side). Matching the existing pattern avoided redundant Supabase calls and kept cache hit rate; server.py change stayed additive (only fires when explicit `?item_type=...` is in URL). Documented the deviation in commit message + plan markers + topic file.
+  - Apply when: Executing a plan whose code prescriptions touch existing code with established patterns. Read the existing pattern first; if plan code conflicts with it, choose the existing pattern unless the plan code has a stronger reason. Document the deviation inline so the plan stays an auditable record of decisions.
+  - Tags: process, plan-execution, executing-plans, code-architecture
+
 - **2026-04-27** -- process: Validation gates must execute BEFORE any state mutation, not gated behind diagnostic flags (`--no-supabase`, `--dry-run`, etc.).
   - Context: Implementing close-inbox-item.py strict v2 id check (wr-2026-04-25-007 Task 2). First attempt placed validation inside `if update_supabase_row:` block. Test `test_close_v2_missing_id_refused` failed because `--no-supabase` bypassed the entire branch — file was already half-closed (moved + status updated + history appended) before any check ran.
   - Apply when: Adding any correctness gate to a script that mutates state. Place it immediately after data is loaded, before any file move, status update, or commit. Diagnostic flags should NEVER bypass correctness — only optional side effects.
@@ -3671,3 +3676,117 @@ bar'`. JS produces real newline chars (0x0A) at runtime, written to .vcf via Blo
 **process:** When user redirects mid-execution and the active phase no longer applies (Phase 3C of `2026-04-28-card-system-implementation.md` was for Chris's premium card via the n8n pipeline; Chris clarified mid-session his card is a separate in-house build), edit the plan to mark the phase DEFERRED/REDIRECTED with explicit rationale + pointer to where the actual work tracks.
 **Why:** Silent abandonment leaves orphan tasks in plans that confuse future sessions. Explicit deferral preserves plan integrity and makes the redirect auditable. Future sessions reading the plan see "Phase 3C does not apply to Chris's card; see [reference]" instead of "Phase 3C should have been done by now."
 **Tags:** plan-integrity, executing-plans, scope-management
+
+## 2026-04-30 — process: Honest correction when verified data contradicts earlier audit
+
+**Context:** During FF Hibu live investigation, my v2 diagnostic claimed 4 specific things that turned out to be wrong when Chris manually verified via view-source: claimed `<title>` missing (actually present, generic across all SAPs); claimed meta description missing (actually present and city-specific); claimed Open Graph tags absent (og:type + og:url present, fuller OG missing); claimed Google indexes 4 pages (actually 15).
+
+**Why:** The WebFetch tool's "extract head section" returned nothing useful — but I treated absence-from-the-fetch as absence-from-the-page. Same with WebSearch returning a truncated 4-result sample treated as the actual indexed count.
+
+**How to apply going forward:**
+- When a tool returns "no head section" or empty/sparse data, default assumption: tool limitation, not absence-on-page.
+- For client-facing diagnostic claims, every finding needs a verification path the user can run themselves. WebSearch API count ≠ real-browser site: count. WebFetch markdown extract ≠ source-of-truth.
+- When verified data contradicts an earlier claim: write a v3 that names the corrections in a table at the top, sourced specifically (e.g., "Chris's view-source screenshot 2026-04-30"), THEN proceed with the corrected analysis.
+- Better to ship v3 with corrections than defend v2.
+
+**Tags:** verification, defensibility, client-facing-evidence, web-tool-limitations, diagnostic-rigor
+
+## 2026-04-30 — direction: For client-facing vendor audits, lead with PERFORMANCE evidence over placeholder/sloppiness color
+
+**Context:** During FF Hibu diagnostic v2 → v3 work, Chris pivoted the framing: placeholder text + "Lorem Epsom" findings prove sloppiness but don't prove ineffectiveness. Performance metrics (PSI score, page weight, load time, indexing rejection rate) are what Juan can screenshot and feel. Lead with those.
+
+**Apply when:** Building any client-facing competitive vendor audit comparison report.
+
+**Design principles:**
+- Lead with metrics the client can replicate in their browser (PSI score, GTmetrix grade, real Google site: count).
+- Color in the gaps with placeholders/sloppiness/typos — supporting, not headlining.
+- Climax with the math wow-factor (1,170 published vs 15 indexed = 99.74% rejection).
+- Save the pricing pitch for the very end — let evidence build the case for change first.
+
+**Tags:** client-facing, vendor-audit, performance, evidence-hierarchy, marketing-takeover
+
+## 2026-04-30 — preference: Chris prefers Claude AI over ChatGPT for contract analysis
+
+**Context:** Chris's edit to the email v2 added a parenthetical to the contract-analysis prompt: "I suggest using Claude its a bit better."
+
+**Apply when:** Suggesting an AI assistant to a client for document analysis (legal, contracts, complex reading-level breakdowns).
+
+**Tags:** preference, claude-vs-chatgpt, client-tooling, contract-analysis
+
+## 2026-04-30 — process: Reusable workflow extraction from inaugural client engagement
+
+**Context:** After completing the FF Hibu marketing-takeover diagnostic + email + counter-offer planning, Chris asked: "Let's create a structured workflow we can follow anytime this happens — a template for the next client."
+
+**Why:** One-off engagement work compounds when extracted as a workflow template. Same situation will arise with other agencies (BoostUp, ReachLocal, BoldFire, generic in-house marketing teams). Plug in [CLIENT_NAME] / [VENDOR_NAME] / [KEY_METRIC] and follow the same playbook.
+
+**How to apply:**
+- After completing a new pattern of work that took multiple sessions and produced reusable artifacts (email templates, prompts, doc structures): extract the methodology to `workflows/<workflow-name>.md`.
+- Required workflow sections: Purpose, When to Trigger, Operating Mode, Required Inputs, Phase-by-Phase steps, Tools Inventory, Templates (plug-and-play with placeholders), Success Criteria, Failure Modes.
+- Register as a workflow asset (preflight-check.py + register-asset.py).
+- Cross-reference inaugural use case in workflow doc.
+- Add Verification-Before-Building Note documenting why no existing asset covered this gap.
+
+**Tags:** workflow-extraction, methodology-templating, reusable-sops, asset-registry
+
+
+## 2026-04-30 -- PostgREST batched INSERT operational gotchas
+- direction: When batching INSERT to PostgREST, every row in the batch MUST have IDENTICAL keys, or PGRST102 ("All object keys must match") rejects the entire batch. Source: live wr-sentinel-2026-04-30-010 historical backfill -- batch 2 failed because optional fields varied per record.
+- apply-when: Building any PostgREST batched POST. Always populate every nullable column with explicit `None` in EVERY payload, not just when source value is non-null. Heterogeneous-keys-by-omission is the silent failure mode.
+- tags: postgrest, supabase, batch-insert, schema, pgrst102
+
+## 2026-04-30 -- cross_workspace_requests severity CHECK constraint
+- direction: cross_workspace_requests.severity CHECK is `{critical, warning, info}`. Anything else (including common priority labels like 'medium', 'high', 'low') triggers PostgreSQL 23514. Sentinel's generate-drift-manifest.py emitted dirty severity values that needed sanitization at INSERT time.
+- apply-when: Building inserts for cross_workspace_requests; sanitize severity to the 3-value set. Defaulting to 'info' is the safe fallback.
+- tags: postgresql, check-constraint, supabase, cross_workspace_requests
+
+## 2026-04-30 -- Manifest dedup before batched-INSERT
+- direction: Manifests/lists from upstream tools may contain within-list duplicates (Sentinel's drift manifest had 14 dupe item_ids in 259 records). Naively batching produces UNIQUE constraint violations (23505) when both copies hit the same batch. Dedup at manifest-load time, keep first occurrence.
+- apply-when: Any batched-INSERT pipeline reading from external manifests. Don't trust upstream uniqueness; verify with set() check.
+- tags: data-pipelines, deduplication, unique-constraint
+
+## 2026-04-30 -- TDD-first for script extensions is reliable
+- process: Both wr-009 and wr-010 shipped TDD-first (tests before implementation). Tests caught all 3 hardening passes during live execution (PGRST102, 23514, 23505) -- failures surfaced fast with clear error context. Confirmed pattern: extending an existing well-structured script with new mode/flag is the cleanest TDD candidate (~1-2h scope per fix).
+- why: Existing scripts have established Supabase patterns to follow; new modes inherit them. The TDD discipline catches Supabase API quirks during live execution rather than in production drift.
+- tags: tdd, script-extension, claude-process
+
+## 2026-05-01 — direction: Diagnose-before-prescribe is non-negotiable, especially under research pressure
+
+**Context:** During FF Hibu replacement work, AI ran 11 parallel research agents and wrote a ~12K-word research dossier focused on diagnosing Hibu's failures. The diagnostic was thorough on Hibu but never diagnosed FF itself (operational workflow, customer/ICP behavior, pipeline math, Sharkitect capability fit). The pre-existing plan.md from 2026-04-27 had a $2,300/mo + $4K Tier A counter-offer written BEFORE FF was diagnosed; AI treated that as a locked decision and stacked tactics on top. Chris caught this: "we are jumping the gun and trying to prescribe before a full diagnosis... this goes against all of our foundations and how we operate our differentiator."
+
+**Why:** Sharkitect's Good Doctor positioning depends on diagnosing the patient (the client), not just the disease (the failing vendor). When AI focuses on the failing vendor's failures, it produces convincing hostile-takeover narratives but skips the half of the diagnosis that actually matters — what the client actually needs, how they actually work, where their pipeline actually leaks. Hibu's failures motivate the conversation; FF's reality determines the prescription.
+
+**Apply when:** Any client engagement where a vendor is being replaced or a system is being rebuilt. Resist the natural research instinct to focus on what's failing. Diagnose the client AND the failing system in parallel — never the failing system alone.
+
+**Design principles:**
+- "Researched-as-option" != "decided-to-adopt." Agents recommend tools; we evaluate ROI before adopting. Default posture: build on existing Sharkitect stack (HubSpot + Airtable + Notion + n8n + Supabase + Twilio + SMTP).
+- Pre-diagnostic plans written under any framing (DRAFT, hypothesis, scoping) are STILL pre-diagnostic — re-read with fresh eyes before treating any line as locked.
+- When user says "we are skipping steps" or "this goes against our foundations" — that is a process-violation signal. INVOKE superpowers:systematic-debugging before generating a diagnosis.
+
+**Tags:** good-doctor sharkitect-differentiator diagnostic-discipline process-violation client-vs-vendor-diagnosis
+
+## 2026-05-01 — preference: Build on existing stack before adopting new paid tools (ROI gate required)
+
+**Context:** Round 2 research recommended adopting GoHighLevel ($497/mo) + Metricool ($22/mo) + Otterly.AI ($29/mo). AI presented these as locked Session B decisions. Chris pushed back: "where did GoHighLevel come from... I have always just used HubSpot, Airtable, Notion. Am I going to get a return on investment? Is it worth it?"
+
+**Apply when:** Any AI-generated recommendation includes adopting a paid SaaS tool that adds recurring monthly cost.
+
+**Design principles:**
+- Default to building on existing Sharkitect stack: HubSpot (CRM), Airtable (databases), Notion (docs), n8n (automations), Supabase (brain), Twilio (SMS), SMTP via Google App Passwords.
+- New paid tools require explicit ROI math: cost vs hours-saved-at-effective-rate, multi-purpose justification, can-we-build-it-ourselves analysis, faster-payback validation.
+- Reverse-engineer the value of any candidate platform before adopting — if we can replicate core value on existing infrastructure for less, that is the path.
+- Multi-tenant agency tools (GoHighLevel SaaS Pro $497/mo) only justify at 5+ clients — evaluating one-client adoption against margin math is wrong frame.
+
+**Tags:** roi-gate stack-discipline build-vs-buy sharkitect-stack preference
+
+## 2026-05-01 — process: research-as-option vs decided-to-adopt must stay distinct in handoff documents
+
+**Context:** Round 1 + Round 2 research dossiers presented agent-recommended tools in tables labeled "Decisions Locked" and "Resume Next Session" instructions. The framing implied Sharkitect-approved adoption decisions. They were not — they were agent research outputs flagged for evaluation. User interpreted them as decisions and pushed back when reading the close-out summary.
+
+**Why:** When 11 agents return parallel research, AI synthesizing findings tends to compress "agent recommended X" to "we will use X" because that compression produces tighter handoff documents. But it loses the critical distinction: agents recommend; humans + ROI math decide. Recommendations dressed as decisions corrupt the brainstorm phase that should follow.
+
+**Apply when:** Any synthesis of multi-agent research where adoption questions are open. Distinguish in writing between:
+- "Recommended for Phase 2 evaluation" (agent output)
+- "Locked for implementation" (Sharkitect-approved with explicit ROI/decision rationale)
+
+**Tags:** research-synthesis adoption-vs-recommendation handoff-clarity dossier-discipline
+
