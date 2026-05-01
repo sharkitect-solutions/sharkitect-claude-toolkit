@@ -1,5 +1,31 @@
 # Global Lessons Learned
 
+## 2026-05-01 Session Lessons (Skill Hub Session 19 — Inbox Processing + Silent Execution)
+
+### process: WR-as-design-document bypasses brainstorming HARD-GATE
+
+Date: 2026-05-01. When a work request's `recommended_fix` block contains a complete design (options + components list + scope), the `superpowers:brainstorming` HARD-GATE ("no implementation until design presented and approved") is structurally satisfied — the design has already been presented (filer wrote it) and approved (filer authorized the WR). Document the bypass inline in test files and hook headers citing the WR id; the brainstorming skill must still be invoked once (the methodology nudge enforces this) but the design phase is already complete.
+
+**Why:** This session, wr-hq-2026-05-01-001 had two implementation options (extend methodology-nudge.py vs new hook) plus full component list. Brainstorming gate fired on the test file write but the design dialogue would have been redundant. Pattern: invoke brainstorming briefly (satisfies the gate), document the WR-as-design rationale, proceed with TDD-first implementation. Future ambiguity: if the WR's recommended_fix is vague or aspirational rather than concrete, that's a real brainstorming gap, not a bypass case.
+
+Tags: process, brainstorming, hooks, work-requests
+
+### direction: Silent Execution as creation-time invariant, not just runtime audit
+
+Date: 2026-05-01. wr-sentinel-2026-04-30-003 shipped Silent Execution Protocol with two enforcement layers: (1) `register-asset.py` REQUIRES `--silent <mechanism>` for asset_type=automation at REGISTRATION time, rejecting visible-window automations from ever entering the registry; (2) `audit-autonomous-systems.py` adds `visible_window_automation` drift class for tasks that bypassed registration or pre-date the protocol. The runtime audit alone would only surface drift after-the-fact. The creation-time invariant prevents the drift class from growing.
+
+**Apply when:** building any new constraint that must hold across all instances of a class (every automation, every hook, every settings.json mutation). Push the cost back to creation time via the registration gate. The audit becomes the safety net for the legacy population, not the primary enforcement.
+
+Tags: architecture, governance, registration, audit
+
+### preference: Batch decision points into consolidated triage
+
+Date: 2026-05-01. When multiple inbox items need user decisions (settings.json wiring approval, option (a) vs (b) decision, multi-hour task go/defer), present all decision points in one consolidated triage briefing rather than sequentially. Saves round-trips: user responds to N decisions in one message instead of N back-and-forths. Used this session for 4 simultaneous decisions (wr-001 wiring, wr-011 a/b, wr-002 defer, wr-003 approve) — user resolved all four in a single response.
+
+**Apply when:** session has 2+ decision points clustered in time and the user is engaged. Don't batch when decisions depend on each other (later decision informed by outcome of earlier).
+
+Tags: preference, communication, decision-batching
+
 ## 2026-04-30 Session Lessons (Skill Hub Session 16 — Audit + Reconcile + Absorb-pattern)
 
 ### process: Absorb-into-consolidation pattern for WRs touching torn-down artifacts
