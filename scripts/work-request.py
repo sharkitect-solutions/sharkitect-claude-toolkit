@@ -238,17 +238,118 @@ def _used_counters_for_workspace_date(inbox_dir, today, workspace_short, workspa
     return used
 
 
-def get_next_id(inbox_dir, workspace_short, workspace_canonical):
+def _fetch_used_counters_from_supabase(workspace_short, today):
+    """Return set of NNNs already used in Supabase for the workspace+date prefix.
+
+    Source: wr-skillhub-2026-05-04-003. Local file scan misses item_ids whose
+    JSON moved to ANOTHER workspace's inbox (routed_task pattern) -- but the
+    Supabase row stays under that item_id forever. Without consulting Supabase
+    here, the allocator silently picks reused IDs and the next POST fails the
+    UNIQUE constraint.
+
+    Returns:
+        set[int]: NNNs found under prefix `wr-<workspace_short>-<today>-`.
+        None: Supabase unreachable / no creds / non-OK response. Caller MUST
+            treat None as "skip Supabase, fall back to local-only scan" and
+            NOT as "no rows found" -- otherwise an outage would silently
+            re-introduce the bug this fix prevents.
+
+    Test hook: env var `WR_FAKE_SUPABASE_USED_NNNS` (comma-separated ints)
+    bypasses the HTTP call entirely. Empty value -> empty set. Malformed
+    value -> None (treated as fetch failure). Documented in the test file.
+    """
+    fake = os.environ.get("WR_FAKE_SUPABASE_USED_NNNS")
+    if fake is not None:
+        stripped = fake.strip()
+        if not stripped:
+            return set()
+        try:
+            return {int(x.strip()) for x in stripped.split(",") if x.strip()}
+        except ValueError:
+            return None  # malformed test fixture -> behave like fetch failure
+
+    env = load_env()
+    base_url = env.get("SUPABASE_URL", "").rstrip("/")
+    api_key = env.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    if not base_url or not api_key:
+        return None
+
+    prefix = f"wr-{workspace_short}-{today}-"
+    pattern = f"{prefix}*"
+    url = (
+        f"{base_url}/rest/v1/cross_workspace_requests"
+        f"?item_id=like.{pattern}&select=item_id"
+    )
+    req = urllib.request.Request(url, headers={
+        "apikey": api_key,
+        "Authorization": f"Bearer {api_key}",
+        "Accept": "application/json",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            rows = json.loads(resp.read().decode("utf-8"))
+    except (urllib.error.URLError, urllib.error.HTTPError,
+            OSError, json.JSONDecodeError, TimeoutError):
+        return None
+    except Exception:
+        return None
+
+    if not isinstance(rows, list):
+        return None
+
+    used = set()
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        item_id = str(row.get("item_id", ""))
+        if not item_id.startswith(prefix):
+            continue
+        suffix = item_id[len(prefix):]
+        try:
+            used.add(int(suffix))
+        except ValueError:
+            continue
+    return used
+
+
+def get_next_id(inbox_dir, workspace_short, workspace_canonical, skip_supabase=False):
     """Generate next sequential workspace-scoped request ID for today.
 
     v2 format: wr-<workspace_short>-YYYY-MM-DD-NNN
     NNN counter is per-workspace per-date. Cross-workspace collision is now
     impossible by construction (different workspaces have different prefixes).
+
+    Counter sources scanned (union, max+1):
+      1. Local inbox/ + processed/ JSON files (fast, always-on).
+      2. Supabase cross_workspace_requests rows (catches item_ids whose JSON
+         moved to OTHER workspaces' inboxes -- routed-task pattern).
+
     Backward compat: v1 legacy ids in inbox/processed still consume counter
     slots so the next NNN doesn't accidentally reuse one.
+
+    skip_supabase=True bypasses source 2 (used by tests via --no-supabase
+    flag, and by callers that explicitly want pure-local behavior).
+    Source: wr-skillhub-2026-05-04-003.
     """
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    used = _used_counters_for_workspace_date(inbox_dir, today, workspace_short, workspace_canonical)
+    used = _used_counters_for_workspace_date(
+        inbox_dir, today, workspace_short, workspace_canonical
+    )
+    if not skip_supabase:
+        sb_used = _fetch_used_counters_from_supabase(workspace_short, today)
+        if sb_used is not None:
+            new_from_sb = sb_used - used
+            if new_from_sb:
+                # Operator visibility per WR spec: surface a log line so the
+                # discrepancy between local and Supabase is observable.
+                print(
+                    f"  ID allocator: Supabase scan contributed "
+                    f"{len(new_from_sb)} additional used counter(s) not in "
+                    f"local inbox/processed: {sorted(new_from_sb)}. "
+                    f"Allocator will skip past these to avoid UNIQUE collision.",
+                    file=sys.stderr,
+                )
+            used = used | sb_used
     next_n = (max(used) + 1) if used else 1
     return f"wr-{workspace_short}-{today}-{next_n:03d}"
 
@@ -939,7 +1040,10 @@ def main():
     desc_slug = slugify(report.get("what_was_needed", report.get("description", "request"))[:30])
     filepath = None
     for _ in range(10):
-        report["id"] = get_next_id(inbox, workspace_short, source_ws)
+        report["id"] = get_next_id(
+            inbox, workspace_short, source_ws,
+            skip_supabase=args.no_supabase,
+        )
         id_suffix = report["id"].split("-")[-1]
         filename = f"{today}_{ws_slug}_{desc_slug}-{id_suffix}.json"
         candidate = inbox / filename

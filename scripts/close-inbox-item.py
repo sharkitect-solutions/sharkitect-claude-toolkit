@@ -13,16 +13,18 @@ move-and-update mechanism existed. This script is the fix.
 What it does (in order):
   1. Reads the inbox JSON file
   2. Validates: file is in an inbox/ directory, not already in processed/
-  3. Sets top-level status to one of: processed | completed | resolved | rejected
+  3. Sets top-level status to one of: completed | rejected | superseded |
+     duplicate | withdrawn (canonical close vocabulary; 'processed' and
+     'resolved' are accepted aliases that get normalized to 'completed').
   4. Writes/merges resolution object with required fields
-  5. Appends an entry to status_history[]
+  5. Appends an entry to status_history[] (using NORMALIZED status)
   6. Moves the file from inbox/ to processed/ (atomic os.replace)
   7. Optionally updates Supabase cross_workspace_requests row
 
 Usage (CLI):
     python ~/.claude/scripts/close-inbox-item.py \
         --file ".work-requests/inbox/2026-04-19_x.json" \
-        --status processed \
+        --status completed \
         --resolved-by "skill-management-hub" \
         --what-was-done "Built X, deployed Y, verified Z" \
         --fix-type "hook" \
@@ -35,20 +37,30 @@ Usage (Python):
     from close_inbox_item import close_item
     close_item(
         file_path=".work-requests/inbox/foo.json",
-        status="processed",
+        status="completed",
         resolved_by="skill-management-hub",
         what_was_done="...",
         fix_type="task",
     )
 
-Allowed status values:
-  - processed: Standard closure for completed work request / routed task
-  - completed: Same semantic as processed (some workspaces prefer this term)
-  - resolved:  Issue resolved, fix applied
-  - rejected:  Reviewed and declined (with reason)
+Allowed status values (CANONICAL, written to local JSON + Supabase):
+  - completed:  Standard closure for completed work request / routed task
+  - rejected:   Reviewed and declined on merits (with reason)
+  - superseded: Absorbed by a newer request; requires --superseded-by
+  - duplicate:  Duplicate of another request; requires --duplicate-of
+  - withdrawn:  Filed in error and withdrawn by the owning workspace
+
+DEPRECATED ALIASES (accepted on input, auto-normalized to 'completed'):
+  - processed: legacy alias kept for backward compat. New closes write 'completed'.
+  - resolved:  legacy alias kept for backward compat. New closes write 'completed'.
 
 PROHIBITED: leaving status at pending | in_progress | deferred | new |
             awaiting_decision when moving to processed/
+
+Source: wr-sentinel-2026-05-04-007. Canonical close vocabulary unified
+2026-04-28 (plan Phase C) so local JSON status matches Supabase
+cross_workspace_requests.status; the deprecated aliases remain accepted on
+input only to preserve every historical caller.
 
 Dependencies: Python stdlib only.
 """
@@ -939,6 +951,13 @@ def close_item(
             f"Invalid close status '{status}'. "
             f"Must be one of: {sorted(VALID_CLOSE_STATUSES)}"
         )
+    # Normalize legacy aliases -> canonical 'completed' so Python callers
+    # (not just the CLI argparse path) get the same vocabulary on disk +
+    # in status_history. Source: wr-sentinel-2026-05-04-007.
+    # CLI path also applies this earlier in main() to surface the deprecation
+    # warning to stderr; the no-op here when input is already normalized.
+    if status in ("processed", "resolved"):
+        status = "completed"
     # Enforce cross-reference requirement for superseded / duplicate closures
     # per universal-protocols.md "Superseded vs Duplicate" rule. These
     # statuses exist specifically to preserve the audit trail linking this
@@ -1196,9 +1215,14 @@ def main():
         epilog="See module docstring for full protocol description.",
     )
     p.add_argument("--file", required=True, help="Path to inbox JSON file to close")
-    p.add_argument("--status", default="processed",
+    p.add_argument("--status", default="completed",
                    choices=sorted(VALID_CLOSE_STATUSES),
-                   help="New status (default: processed)")
+                   help="Close status (default: completed). Canonical: "
+                        "completed | rejected | superseded | duplicate | "
+                        "withdrawn. Deprecated aliases 'processed' and "
+                        "'resolved' are accepted on input but auto-normalized "
+                        "to 'completed' before write (with stderr deprecation "
+                        "notice). See module docstring for full vocabulary.")
     p.add_argument("--resolved-by", required=True,
                    help="Workspace canonical name (e.g. skill-management-hub)")
     p.add_argument("--what-was-done", required=True,

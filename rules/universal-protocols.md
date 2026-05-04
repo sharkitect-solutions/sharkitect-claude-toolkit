@@ -352,6 +352,7 @@ Three distinct status vocabularies exist, one per layer. Mixing them produces CH
 | **Supabase `cross_workspace_requests.inbox_items_status_check`** | `pending | in_progress | deferred | blocked | completed | superseded | duplicate | rejected | withdrawn`. (Does NOT accept `new` or `processed`. `withdrawn` requires Sentinel migration -- routed task filed in plan Phase G.) | Supabase inserts/updates from any workspace |
 | **Supabase `projects.status` CHECK** | `active | pending | paused | blocked | tabled | complete | rejected | withdrawn`. (Sentinel migration 2026-05-04 widened the CHECK to add `rejected` + `withdrawn` per wr-sentinel-2026-05-04-002. Schema also gained `closure_reason text` column for audit on the new states.) | `update-project-status.py project <name> <status>` and direct Supabase writes |
 | **Supabase `tasks.status` CHECK** | `pending | in_progress | completed | blocked | deferred | tabled | rejected | withdrawn`. (Same migration. Note: rejected + withdrawn tasks DROP OFF the project's `total_tasks` rollup -- see Status Cascade and Rollup section below.) | `update-project-status.py task <text> <status>` and direct Supabase writes |
+| **Supabase `goals.status` CHECK** | `active | at-risk | paused | achieved | missed | superseded | withdrawn`. Goals track outcomes (target_value + deadline) not work streams; progress is rolled up via `current_value` snapshots, not task counts. Source: wr-sentinel-2026-05-04-008; goals shipped 2026-05-04. | HQ rollup script + direct Supabase writes from any workspace that owns goals |
 
 **close-inbox-item.py normalization (line ~116):**
 ```python
@@ -1443,7 +1444,7 @@ If a tool or hook reads its config from `.tmp/`, the tool is wrong, not the fold
 ## Documentation Standards (NON-NEGOTIABLE)
 
 All workspaces follow the Documentation Standards SOP at `~/.claude/docs/documentation-standards.md`. This SOP defines:
-- Every entity type (projects, tasks, plans, system health, lessons learned, etc.)
+- Every entity type (projects, tasks, plans, goals, system health, lessons learned, etc.)
 - Their allowed statuses (no inventing new ones)
 - Required metadata fields
 - Where each entity is stored (Supabase table + local file)
@@ -1456,7 +1457,38 @@ All workspaces follow the Documentation Standards SOP at `~/.claude/docs/documen
 2. **Status updates are immediate** — not deferred to session end
 3. **Use canonical workspace names** in all Supabase writes: `workforce-hq`, `skill-management-hub`, `sentinel`
 4. **Every document needs metadata** — created date, updated date, owner. No exceptions.
-5. **Use only allowed statuses** — projects: `active/pending/paused/blocked/tabled/complete`. Tasks: `pending/in_progress/completed/blocked/deferred/tabled`.
+5. **Use only allowed statuses** — projects: `active/pending/paused/blocked/tabled/complete/rejected/withdrawn`. Tasks: `pending/in_progress/completed/blocked/deferred/tabled/rejected/withdrawn`. Goals: `active/at-risk/paused/achieved/missed/superseded/withdrawn`.
+
+### Entity catalog (canonical reference)
+
+| Entity | Supabase table | Local file pattern | Allowed statuses | Required metadata fields |
+|--------|----------------|--------------------|--------------------|--------------------------|
+| **Project** | `public.projects` | plan files in `~/.claude/plans/` indexed by `~/.claude/docs/plans-registry.md` | `active`, `pending`, `paused`, `blocked`, `tabled`, `complete`, `rejected`, `withdrawn` | `name`, `workspace`, `status`, `priority`, `created_at`, `last_updated_by` |
+| **Task** | `public.tasks` | inline in plan files; tracked via `update-project-status.py` | `pending`, `in_progress`, `completed`, `blocked`, `deferred`, `tabled`, `rejected`, `withdrawn` | `text`, `project` (FK), `assigned_workspace`, `status`, `priority`, `created_at` |
+| **Goal** | `public.goals` | workspace `knowledge-base/strategy/*.md` until rolled into the table | `active`, `at-risk`, `paused`, `achieved`, `missed`, `superseded`, `withdrawn` | `name`, `target_metric`, `target_value`, `unit`, `deadline`, `workspace`, `status`, `current_value` (rollup) |
+| **Plan** | rows in `public.projects` (status = `pending` until active) | `~/.claude/plans/<slug>.md` indexed by `~/.claude/docs/plans-registry.md` | mirrors Project statuses | path, status, workspaces involved, phase markers |
+| **System health component** | `public.system_health` (Sentinel-owned) | `4.- Sentinel/health/*.md` | `healthy`, `degraded`, `unhealthy`, `unknown` | `component`, `status`, `last_check`, `owner_workspace` |
+| **Lessons learned** | none (file-only) | `~/.claude/lessons-learned.md` (7 categories) | n/a (append-only log) | category, date, workspace, what_happened, lesson |
+| **Inbox item** | `public.cross_workspace_requests` | `<workspace>/.work-requests/inbox/`, `.routed-tasks/inbox/`, `.lifecycle-reviews/inbox/` | open: `new`, `pending`, `in_progress`, `deferred`, `blocked`. close: `completed`, `rejected`, `superseded`, `duplicate`, `withdrawn` | `id` (v2 schema), `id_format_version`, `source_workspace`, `status`, `notify_on_completion` |
+| **Asset** | `public.assets` (registry) | source files in `~/.claude/scripts/`, `hooks/`, workspace `tools/`, etc. | `active`, `deprecated`, `retired` | `name`, `type`, `owner_workspace`, `purpose`, `audit_cadence`, `silent_mechanism` (automations) |
+
+**Source of the goals row:** wr-sentinel-2026-05-04-008. `public.goals` shipped 2026-05-04 (HQ rt closed by Sentinel). HQ owns the rollup script that snapshots trajectory + updates `current_value`.
+
+### Goals vs Projects (decision rule, NON-NEGOTIABLE)
+
+**Goals are outcomes; projects are work.** If it has a `target_value` + `deadline` + you measure progress against the target, it is a goal. If it is a stream of work that produces deliverables, it is a project.
+
+Project-shaped goals create the drift class observed when HQ filed its Revenue Target as a project (later deleted, project_id `d345b55b`): the task rollup saw "0 tasks completed → project never advances," while the actual revenue progressed independently of any tasks. Goals must live in `public.goals` so progress is tracked as `current_value` toward `target_value`, not as `total_tasks` / `completed_tasks` rollup.
+
+**Decision aid:**
+- "Hit $20K MRR by Q3" → goal (target_metric=`MRR`, target_value=`20000`, unit=`USD/month`, deadline=`2026-09-30`)
+- "Build CEO daily brief workflow" → project (work stream with discrete deliverable)
+- "Reduce p99 API latency below 200ms" → goal
+- "Migrate database to Supabase" → project
+- "Achieve 95%+ test pass rate on closed PRs" → goal
+- "Fix 13 historical error_fixes via autofix v2" → project (the goal is "v2 reaches confidence threshold X" — the migration is the project)
+
+If you find yourself filing a project whose only "completion" is hitting a metric, stop and refile as a goal.
 
 Sentinel audits compliance with these standards across all workspaces.
 
