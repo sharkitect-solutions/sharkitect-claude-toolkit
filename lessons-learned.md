@@ -4144,3 +4144,26 @@ Apply when: user gives a detailed spec AND a "we can iterate later" reassurance 
 **Apply when:** Designing lifecycle/status fields on any table with operational meaning (assets, projects, tasks, requests, documents). Default to text CHECK enum with explicit reason field, not boolean. If a table starts with a boolean and grows lifecycle complexity, plan a 2-phase migration: (1) additive — add new columns, backfill, keep old for back-compat; (2) drop old once callers update.
 
 **Tags:** schema-design, lifecycle-state, KISS, enum-vs-boolean, two-phase-migration
+
+### 2026-05-04 -- process: WR ID allocator must query Supabase, not just inbox file count
+
+**Context:** Filing wr-skillhub-2026-05-04-002 (settings.json toolkit sync), `work-request.py` allocated id `wr-skillhub-2026-05-04-001` even though that ID had been used earlier in the same session for a different routed-task. Supabase rejected with HTTP 409 (duplicate key on item_id UNIQUE). The earlier file had moved to `processed/`, so the inbox-only count reset.
+
+**Why:** Allocator counts JSON files in `inbox/` to pick `max(NNN)+1`. But Supabase rows are permanent — they don't follow the JSON file as it moves to `processed/`. The two indexes diverge as soon as anything closes.
+
+**Apply when:** Building any ID allocator that touches a permanent store. The source-of-truth for "what IDs exist" is the permanent store, not the working directory. When in doubt, query the store + add a uniqueness retry loop. Filed as wr-skillhub-2026-05-04-003.
+
+**Tags:** id-allocator, work-request, supabase, uniqueness, drift
+
+### 2026-05-04 -- direction: settings.json belongs in toolkit with cross-platform path templating
+
+**Context:** Voice-capture hook registration in `~/.claude/settings.json` was authorized + executed. `sync-skills.py --sync --push` then reported "everything in sync, no changes" because settings.json is not a sync target.
+
+**Why:** The toolkit-source-of-truth principle says fresh-machine restore must reproduce the working environment. settings.json contains hook registrations, permission allow/deny rules, env vars, theme — all critical to a working setup. Without it in the toolkit, restore re-deploys hook FILES but not the matchers that fire them. Adding it requires path templating ({HOME} placeholder + slash normalization) so it works on macOS/Linux as well as Windows. Filed as wr-skillhub-2026-05-04-002.
+
+**Design principles:** (1) Anything that affects WHICH hooks fire / WHICH permissions apply belongs in the toolkit. (2) Cross-platform path-templating is non-optional for any file that gets mirrored — assume the operator may eventually move to a different OS or username. (3) Backwards-compat: if the toolkit lacks the templated file, restore should silently skip rather than fail.
+
+**Apply when:** Designing toolkit sync targets, writing portability-affecting tools, or auditing what's actually in the backup vs what's machine-local.
+
+**Tags:** toolkit, sync, settings.json, cross-platform, path-templating, portability
+
