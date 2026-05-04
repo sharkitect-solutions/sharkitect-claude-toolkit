@@ -52,6 +52,14 @@ from pathlib import Path
 CANONICAL_WORKSPACES = {"workforce-hq", "skill-management-hub", "sentinel", "global"}
 VALID_ASSET_TYPES = {"table", "script", "automation", "hook", "report", "workflow", "plugin", "document", "blueprint"}
 
+# Asset lifecycle status (Sentinel migration 2026-05-04, Phase 1 of Option B).
+# Source: wr-sentinel-2026-05-04-006. The legacy `active` boolean is being
+# consolidated into a single `status` column with richer state. Phase 2 of the
+# migration will DROP COLUMN active; this script writes BOTH during the
+# transition to remain compatible with consumers that still read `active`.
+VALID_ASSET_STATUSES = {"active", "paused", "deactivated", "deprecated"}
+NON_ACTIVE_STATUSES = {"paused", "deactivated", "deprecated"}
+
 # Silent Execution Protocol (universal-protocols.md, NON-NEGOTIABLE).
 # Source: wr-sentinel-2026-04-30-003. Every registered automation must declare
 # its silent-execution mechanism so visible-window tasks cannot enter the
@@ -258,6 +266,31 @@ def cmd_register(args):
         )
         metadata["silent_mechanism"] = silent
 
+    # Resolve status (per wr-sentinel-2026-05-04-006). --status is the new
+    # canonical input. --inactive is preserved for back-compat and maps to
+    # status=deactivated.
+    status = getattr(args, "status", None) or "active"
+    if args.inactive and status == "active":
+        status = "deactivated"
+    if status not in VALID_ASSET_STATUSES:
+        print(
+            f"ERROR: invalid --status '{status}'. Must be one of: "
+            + ", ".join(sorted(VALID_ASSET_STATUSES)),
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    status_reason = getattr(args, "status_reason", None)
+    if status in NON_ACTIVE_STATUSES and not status_reason:
+        print(
+            f"ERROR: --status-reason is required when --status={status}.\n"
+            "Non-active states must carry a one-line reason for audit + drift surfacing.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    from datetime import datetime, timezone
+    now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
     row = {
         "asset_type": args.asset_type,
         "name": args.name,
@@ -265,7 +298,11 @@ def cmd_register(args):
         "purpose": args.purpose,
         "location": args.location,
         "metadata": metadata,
-        "active": not args.inactive,
+        "status": status,
+        "status_reason": status_reason,
+        "status_changed_at": now_iso,
+        # Back-compat boolean (Phase 2 will DROP COLUMN active)
+        "active": status == "active",
         "last_updated_by": detect_workspace() or ws,
     }
     # Upsert on the unique key
@@ -282,21 +319,32 @@ def cmd_register(args):
 
 
 def cmd_list(args):
-    params = {"select": "asset_type,name,owner_workspace,purpose,location,active,updated_at", "order": "asset_type.asc,name.asc"}
+    params = {
+        "select": "asset_type,name,owner_workspace,purpose,location,status,status_reason,active,updated_at",
+        "order": "asset_type.asc,name.asc",
+    }
     if args.type:
         params["asset_type"] = f"eq.{args.type}"
     if args.workspace:
         params["owner_workspace"] = f"eq.{args.workspace}"
     if args.active_only:
-        params["active"] = "eq.true"
+        # Prefer status column (canonical post-migration); fall back implicit
+        # by also including back-compat active=true for transitional rows.
+        params["status"] = "eq.active"
     rows = sb_request("GET", "assets", params=params) or []
     if not rows:
         print("(no assets found)")
         return 0
-    print(f"{'TYPE':<12} {'WORKSPACE':<22} {'NAME':<40} {'ACTIVE':<7} LOCATION")
+    print(f"{'TYPE':<12} {'WORKSPACE':<22} {'NAME':<40} {'STATUS':<13} LOCATION")
     print("-" * 120)
     for r in rows:
-        print(f"{r['asset_type']:<12} {r['owner_workspace']:<22} {r['name'][:40]:<40} {str(r['active']):<7} {(r.get('location') or '')[:60]}")
+        # Read status preferentially; fall back to active boolean for rows
+        # that haven't been migrated yet (defensive).
+        status_val = r.get("status") or ("active" if r.get("active") else "deactivated")
+        print(
+            f"{r['asset_type']:<12} {r['owner_workspace']:<22} "
+            f"{r['name'][:40]:<40} {status_val:<13} {(r.get('location') or '')[:60]}"
+        )
     print(f"\n{len(rows)} asset(s)")
     return 0
 
@@ -306,28 +354,45 @@ def cmd_exists(args):
     params = {
         "asset_type": f"eq.{args.asset_type}",
         "name": f"eq.{urllib.parse.quote(args.name, safe='')}",
-        "select": "id,active",
+        "select": "id,status,active",
     }
     if args.workspace:
         params["owner_workspace"] = f"eq.{args.workspace}"
     rows = sb_request("GET", "assets", params=params) or []
     if rows:
-        active = rows[0].get("active")
-        print(f"FOUND (active={active}): {rows[0]['id']}")
+        status_val = rows[0].get("status") or ("active" if rows[0].get("active") else "deactivated")
+        print(f"FOUND (status={status_val}): {rows[0]['id']}")
         return 0
     print("NOT FOUND")
     sys.exit(2)
 
 
 def cmd_retire(args):
+    """Retire = set status=deactivated. --reason is required (audit trail)."""
     validate_type(args.asset_type)
     validate_workspace(args.workspace)
+    if not getattr(args, "reason", None):
+        print(
+            "ERROR: --reason is required when retiring an asset.\n"
+            "Retire sets status=deactivated; the reason is persisted to "
+            "status_reason for audit and drift surfacing.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    from datetime import datetime, timezone
+    now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     params = {
         "asset_type": f"eq.{args.asset_type}",
         "name": f"eq.{urllib.parse.quote(args.name, safe='')}",
         "owner_workspace": f"eq.{args.workspace}",
     }
-    body = {"active": False, "last_updated_by": detect_workspace() or args.workspace}
+    body = {
+        "status": "deactivated",
+        "status_reason": args.reason,
+        "status_changed_at": now_iso,
+        "active": False,  # back-compat
+        "last_updated_by": detect_workspace() or args.workspace,
+    }
     result = sb_request("PATCH", "assets", params=params, body=body, prefer="return=representation")
     if result is None:
         sys.exit(1)
@@ -353,8 +418,43 @@ def cmd_update(args):
         patch["location"] = args.location
     if args.metadata is not None:
         patch["metadata"] = parse_metadata(args.metadata)
-    if args.inactive:
+
+    # Status update path (preferred). --status takes precedence over --inactive.
+    new_status = getattr(args, "status", None)
+    new_reason = getattr(args, "status_reason", None)
+    if new_status:
+        if new_status not in VALID_ASSET_STATUSES:
+            print(
+                f"ERROR: invalid --status '{new_status}'. Must be one of: "
+                + ", ".join(sorted(VALID_ASSET_STATUSES)),
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        if new_status in NON_ACTIVE_STATUSES and not new_reason:
+            print(
+                f"ERROR: --status-reason is required when transitioning to {new_status}.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        from datetime import datetime, timezone
+        patch["status"] = new_status
+        patch["status_reason"] = new_reason
+        patch["status_changed_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        patch["active"] = new_status == "active"
+    elif args.inactive:
+        # Legacy path: --inactive maps to status=deactivated (requires reason)
+        if not new_reason:
+            print(
+                "ERROR: --status-reason is required when using --inactive (maps to status=deactivated).",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        from datetime import datetime, timezone
+        patch["status"] = "deactivated"
+        patch["status_reason"] = new_reason
+        patch["status_changed_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         patch["active"] = False
+
     result = sb_request("PATCH", "assets", params=params, body=patch, prefer="return=representation")
     if result is None:
         sys.exit(1)
@@ -376,7 +476,25 @@ def build_parser():
     reg.add_argument("--purpose")
     reg.add_argument("--location")
     reg.add_argument("--metadata")
-    reg.add_argument("--inactive", action="store_true")
+    reg.add_argument(
+        "--status",
+        choices=sorted(VALID_ASSET_STATUSES),
+        default=None,
+        help="Asset lifecycle status (default: active). One of: "
+             + ", ".join(sorted(VALID_ASSET_STATUSES))
+             + ". Required: --status-reason when status != active.",
+    )
+    reg.add_argument(
+        "--status-reason",
+        dest="status_reason",
+        help="Required when --status is paused/deactivated/deprecated. "
+             "Persisted to status_reason for audit + drift surfacing.",
+    )
+    reg.add_argument(
+        "--inactive",
+        action="store_true",
+        help="DEPRECATED: maps to --status=deactivated. Use --status instead.",
+    )
     reg.add_argument(
         "--silent",
         help=(
@@ -397,10 +515,15 @@ def build_parser():
     ex.add_argument("name")
     ex.add_argument("--workspace")
 
-    ret = sub.add_parser("retire", help="Soft-delete (set active=false)")
+    ret = sub.add_parser("retire", help="Retire (set status=deactivated). --reason required.")
     ret.add_argument("asset_type")
     ret.add_argument("name")
     ret.add_argument("--workspace", required=True)
+    ret.add_argument(
+        "--reason",
+        required=True,
+        help="REQUIRED: one-line audit trail for retirement (persisted to status_reason).",
+    )
 
     upd = sub.add_parser("update", help="Update fields on an existing asset")
     upd.add_argument("asset_type")
@@ -409,7 +532,22 @@ def build_parser():
     upd.add_argument("--purpose")
     upd.add_argument("--location")
     upd.add_argument("--metadata")
-    upd.add_argument("--inactive", action="store_true")
+    upd.add_argument(
+        "--status",
+        choices=sorted(VALID_ASSET_STATUSES),
+        default=None,
+        help="Transition asset to a new lifecycle status. Required: --status-reason for non-active states.",
+    )
+    upd.add_argument(
+        "--status-reason",
+        dest="status_reason",
+        help="Required when --status or --inactive transitions to a non-active state.",
+    )
+    upd.add_argument(
+        "--inactive",
+        action="store_true",
+        help="DEPRECATED: use --status=deactivated --status-reason '<text>' instead.",
+    )
 
     return p
 

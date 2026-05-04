@@ -209,6 +209,21 @@ INVESTIGATION_MCP_TOOL_RES = [
     re.compile(r"sentry.*(?:list_issues|get_issue|search_events|seer)", re.I),
 ]
 
+# Debug-task pattern (wr-sentinel-2026-05-04-001).
+# When the agent runs a tool/script via Bash, then Reads its source, then
+# starts Editing it -- that's the "I ran it, output was wrong, let me fix
+# the tool" sequence which is exactly when systematic-debugging methodology
+# applies. Earlier signal than the existing 2-edit iterative-patching
+# trigger (which only fires after the agent has already started patching).
+#
+# Path pattern targets the most common debug-task surface: workspace
+# tools/*.py and ~/.claude/scripts/*.py. We DON'T trigger on hooks/ here
+# because hook-development-enforcer.py already gates new hook creation.
+DEBUG_SCRIPT_RUN_RE = re.compile(
+    r"python(?:3|w)?(?:\.exe)?\s+[\"']?([^\s\"']*(?:tools|scripts)[/\\][^\s\"'\\]+\.py)",
+    re.I,
+)
+
 # Bash command patterns that indicate state querying
 INVESTIGATION_BASH_RES = [
     # Generic process / port / log probes
@@ -269,6 +284,13 @@ MARKETING_DELIVERABLE_PATH_RE = re.compile(
     r"|[/\\]gtm[/\\]"
     r"|[/\\]one-pagers?[/\\]"
     r"|[/\\]sales-collateral[/\\]"
+    # Source: wr-hq-2026-05-03-001 (strategy-authorship-detector). HQ K1
+    # canonical positioning + governance + revenue-positioning paths trigger
+    # marketing-strategy-pmm before NEW positioning authorship per HQ
+    # CLAUDE.md "Strategy Creation Rules (NON-NEGOTIABLE)".
+    r"|[/\\]knowledge-base[/\\]strategy[/\\]"
+    r"|[/\\]knowledge-base[/\\]governance[/\\]brand-identity-guide\.md$"
+    r"|[/\\]knowledge-base[/\\]revenue[/\\][^/\\]*?(?:positioning|category|offer)"
     r")",
     re.I,
 )
@@ -484,6 +506,59 @@ def main():
 
     file_path = str(tool_input.get("file_path", ""))
     content = str(tool_input.get("content", "") or tool_input.get("new_string", "") or "")
+
+    # ---- Debug-task tracking (wr-sentinel-2026-05-04-001) -----------------
+    # Track Bash runs of tools/scripts and Read calls on those same scripts;
+    # nudge systematic-debugging on the FIRST Edit of a script that has
+    # been Bash-run + Read this session.
+    debug_runs = state.setdefault("debug_script_runs", [])
+    debug_reads = state.setdefault("debug_script_reads", [])
+    if tool_name == "Bash":
+        cmd = str(tool_input.get("command", ""))
+        m = DEBUG_SCRIPT_RUN_RE.search(cmd)
+        if m:
+            scr = m.group(1).replace("\\", "/").lower()
+            if scr not in debug_runs:
+                debug_runs.append(scr)
+                # Cap list size
+                if len(debug_runs) > 20:
+                    del debug_runs[: len(debug_runs) - 20]
+    elif tool_name == "Read":
+        rp = str(tool_input.get("file_path", "")).replace("\\", "/").lower()
+        if rp:
+            for scr in debug_runs:
+                # Match by basename or path-suffix to handle absolute vs relative paths
+                if rp.endswith(scr) or scr.endswith(rp.split("/")[-1]):
+                    if rp not in debug_reads:
+                        debug_reads.append(rp)
+                        if len(debug_reads) > 20:
+                            del debug_reads[: len(debug_reads) - 20]
+                    break
+    elif tool_name == "Edit":
+        ep = str(tool_input.get("file_path", "")).replace("\\", "/").lower()
+        if ep:
+            # Was this script both Bash-run AND Read in the same session?
+            run_match = any(ep.endswith(scr) or scr.endswith(ep.split("/")[-1])
+                            for scr in debug_runs)
+            read_match = any(ep == r or ep.endswith(r) or r.endswith(ep.split("/")[-1])
+                             for r in debug_reads)
+            if (run_match and read_match
+                    and not skill_invoked("systematic-debugging", log)
+                    and not skill_invoked("superpowers:systematic-debugging", log)):
+                key = f"systematic-debugging:debug-task:{ep}"
+                if not already_nudged(state, key):
+                    nudges.append(
+                        f"DEBUG-TASK PATTERN detected on {os.path.basename(ep)}: "
+                        "this script was run via Bash, then Read, and now you're "
+                        "editing it -- the classic 'tool produced unexpected "
+                        "output, let me patch it' sequence. Invoke "
+                        "`superpowers:systematic-debugging` BEFORE the edit. "
+                        "Even when root cause is already identified, the skill "
+                        "enforces evidence-first / falsification / minimal-fix "
+                        "discipline that shallow patching skips. Source: "
+                        "wr-sentinel-2026-05-04-001."
+                    )
+                    mark_nudged(state, key)
 
     # ---- Triggers on Write/Edit -------------------------------------------
     if tool_name in ("Write", "Edit") and file_path and not is_excluded_path(file_path):
@@ -720,7 +795,16 @@ def main():
         is_marketing_deliverable = bool(MARKETING_DELIVERABLE_PATH_RE.search(file_path))
         keyword_hit = content and MARKETING_KEYWORDS_RE.search(content[:2000])
 
-        if keyword_hit and not is_doc_path and not skill_invoked(MARKETING_SKILL, log):
+        # marketing-deliverable status overrides doc-path: canonical strategy
+        # docs (knowledge-base/strategy/, knowledge-base/governance/brand-
+        # identity-guide.md) ARE deliverables even though they live in
+        # knowledge-base/. wr-hq-2026-05-03-001 source.
+        effective_is_doc = is_doc_path and not is_marketing_deliverable
+
+        # Marketing-deliverable paths fire even WITHOUT keyword hit -- the
+        # path itself is the signal that NEW positioning authorship is
+        # happening (wr-hq-2026-05-03-001 strategy-authorship-detector).
+        if (keyword_hit or is_marketing_deliverable) and not effective_is_doc and not skill_invoked(MARKETING_SKILL, log):
             key = f"marketing:{file_path}"
             if not already_nudged(state, key):
                 tier = "REQUIRED" if is_marketing_deliverable else "RECOMMENDED"
@@ -768,25 +852,50 @@ def main():
         # superpowers:executing-plans" and the AI followed task-by-task with
         # TodoWrite + manual sequencing instead of formally invoking the skill.
         # The plan went smoothly only because the discipline was internalized.
+        #
+        # Broader trigger (wr-hq-2026-05-03-002): also fire when an Edit
+        # appears to be PROGRESSING a plan (checkbox completion, status
+        # updates) regardless of whether the plan header explicitly names
+        # the skill. Distinguishes "writing the plan" (writing-plans nudge
+        # above) from "executing the plan" by detecting the checkbox-flip
+        # pattern in old_string -> new_string.
         if PLAN_FILE_RE.search(file_path) \
                 and not skill_invoked("executing-plans", log) \
                 and not skill_invoked("superpowers:executing-plans", log):
+            old_string = str(tool_input.get("old_string", "") or "")
+            new_string = str(tool_input.get("new_string", "") or "")
+            # Plan-progress signal: checkbox flip (- [ ] -> - [x] | -[ ] -> -[X])
+            checkbox_flip = (
+                tool_name == "Edit"
+                and re.search(r"-\s?\[\s?\]", old_string)
+                and re.search(r"-\s?\[[xX]\]", new_string)
+            )
             try:
                 plan_path = Path(file_path)
                 if plan_path.exists():
                     head = plan_path.read_text(encoding="utf-8", errors="replace").splitlines()[:25]
                     head_text = "\n".join(head)
-                    if re.search(r"REQUIRED\s+SUB-SKILL", head_text, re.IGNORECASE) \
-                            and re.search(r"executing-plans", head_text, re.IGNORECASE):
+                    header_match = (
+                        re.search(r"REQUIRED\s+SUB-SKILL", head_text, re.IGNORECASE)
+                        and re.search(r"executing-plans", head_text, re.IGNORECASE)
+                    )
+                    if header_match or checkbox_flip:
                         key = f"executing-plans:{file_path}"
                         if not already_nudged(state, key):
-                            nudges.append(
-                                f"PLAN REQUIRES executing-plans: {os.path.basename(file_path)} "
+                            why = (
                                 "header explicitly names superpowers:executing-plans as a "
-                                "REQUIRED SUB-SKILL. Invoke it BEFORE iterating on the plan "
-                                "tasks. The named-skill enforcement protocol exists to ensure "
+                                "REQUIRED SUB-SKILL"
+                                if header_match
+                                else "checkbox completion detected (- [ ] -> - [x]) "
+                                     "indicating plan task progression"
+                            )
+                            nudges.append(
+                                f"PLAN EXECUTION DETECTED: {os.path.basename(file_path)} "
+                                f"-- {why}. Invoke `superpowers:executing-plans` BEFORE "
+                                "iterating on the plan tasks. The skill enforces "
                                 "verification-before-completion at each step rather than "
-                                "ad-hoc TodoWrite + manual sequencing."
+                                "ad-hoc TodoWrite + manual sequencing. Source: "
+                                "wr-skillhub-2026-04-27-003 + wr-hq-2026-05-03-002."
                             )
                             mark_nudged(state, key)
             except (OSError, UnicodeDecodeError):

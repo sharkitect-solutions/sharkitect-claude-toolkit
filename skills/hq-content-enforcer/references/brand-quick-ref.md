@@ -59,7 +59,14 @@ Load this file before writing ANY client-facing content. Full brand guide: `~/.c
 
 ## Brand Identity (for context)
 
-- **Who we are**: Digital transformation agency building AI-powered operating systems for SMBs
+**Three-layer brand model** (canonical SoT: HQ K1 `brand-identity-guide.md` §1.5; locked 2026-05-01).
+
+- **Category** (what industry / market we live in): **AI Transformation Agency**
+- **Offering** (what we sell / how we engage): **AI Transformation Partnership**
+- **Outcome** (what the client becomes): **systems-first AI-driven business**
+
+Keep all three in the lexicon — they live at different layers and must NOT be collapsed. "Agency" and "Partnership" are NOT synonyms. Use "Agency" when naming the category; use "Partnership" when naming the offering / engagement model.
+
 - **Who we serve**: SMBs (5-50 employees) in trades, services, professional services
 - **Our position**: The technical co-founder they never had. Partner, not vendor. Systems, not deliverables.
 - **Philosophy**: Good Doctor -- diagnose before prescribing

@@ -651,14 +651,64 @@ def log_to_supabase(report, item_type="work_request"):
         "Prefer": "return=minimal",
     }
 
+    # Source: wr-sentinel-2026-05-04-004. The previous implementation caught
+    # the exception generically and printed only the error message, hiding
+    # PostgREST response bodies (which contain the ACTIONABLE detail like
+    # CHECK violations, duplicate keys, schema mismatches). Result: 1 known
+    # orphan in HQ inbox (rt-skillhub-2026-04-29-autofix-v2-self-request-
+    # capability.json) where the Supabase write silently failed and the
+    # file remained in inbox/ without a matching cross_workspace_requests
+    # row -- invisible to dashboard + drift checks.
+    #
+    # The fix: surface the response body on HTTPError, AND drop a sidecar
+    # marker (.tmp/cross-ws-supabase-failed-<item_id>.json) so a sweep tool
+    # can find these and route them for retry. Returns False so the caller
+    # can decide whether to abort the whole filing.
     try:
         req = urllib.request.Request(url, data=data, headers=headers, method="POST")
         urllib.request.urlopen(req, timeout=10)
         print("  Supabase: logged to cross_workspace_requests")
         return True
-    except (urllib.error.URLError, urllib.error.HTTPError, OSError) as e:
-        print(f"  WARNING: Supabase log failed: {e}", file=sys.stderr)
+    except urllib.error.HTTPError as e:
+        body_text = ""
+        try:
+            body_text = e.read().decode("utf-8", errors="replace")
+        except Exception:
+            pass
+        print(
+            f"  ERROR: Supabase log failed: HTTP {e.code} -- {body_text}",
+            file=sys.stderr,
+        )
+        _record_supabase_failure(row.get("item_id"), e.code, body_text)
         return False
+    except (urllib.error.URLError, OSError) as e:
+        print(f"  ERROR: Supabase log failed (network/transport): {e}", file=sys.stderr)
+        _record_supabase_failure(row.get("item_id"), 0, str(e))
+        return False
+
+
+def _record_supabase_failure(item_id, code, body):
+    """Drop a sidecar marker file so failed Supabase writes are not silent.
+
+    Source: wr-sentinel-2026-05-04-004. The cross-ws-supabase-failed-*.json
+    sidecar lives in ~/.claude/.tmp/ and is consumed by an inbox sweep
+    script (also part of wr-004) to surface orphans + retry candidates.
+    """
+    try:
+        from datetime import datetime, timezone
+        tmp = Path.home() / ".claude" / ".tmp"
+        tmp.mkdir(parents=True, exist_ok=True)
+        safe_id = (item_id or "unknown").replace("/", "_").replace(":", "_")
+        marker = tmp / f"cross-ws-supabase-failed-{safe_id}.json"
+        marker.write_text(json.dumps({
+            "item_id": item_id,
+            "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "http_code": code,
+            "body": (body or "")[:1000],  # truncate
+        }, indent=2), encoding="utf-8")
+    except Exception:
+        # Best-effort marker; never break the caller if disk is full / readonly
+        pass
 
 
 def validate_workspace_name(name):

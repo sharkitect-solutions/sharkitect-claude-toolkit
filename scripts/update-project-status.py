@@ -438,12 +438,30 @@ def _print_project_rollup(base_url, api_key, project_name_or_id, by_id=False):
           f"{done}/{total} ({pct}%) -- status: {status}{auto_marker}")
 
 
-def update_project(base_url, api_key, name, status, phase=None, notes=None, review_date=None):
-    """Update a project's status by name."""
-    valid = ["active", "paused", "complete", "blocked", "pending", "tabled"]
+def update_project(base_url, api_key, name, status, phase=None, notes=None,
+                   review_date=None, closure_reason=None):
+    """Update a project's status by name.
+
+    Source: wr-sentinel-2026-05-04-002 added 'rejected' and 'withdrawn' as
+    valid close states (Phase 5.1 dashboard work). closure_reason is required
+    for those states; persisted to the closure_reason column.
+
+    Note: forward cascade for rejected/withdrawn is intentionally NOT applied
+    here. The DB trigger projects_status_cascade_to_tasks is documented in
+    universal-protocols.md but NOT YET DEPLOYED (Luminous Foundation Bridge
+    Phase 6 will create it). Manual cascade applies until then.
+    """
+    valid = ["active", "paused", "complete", "blocked", "pending", "tabled",
+             "rejected", "withdrawn"]
     if status not in valid:
         print(f"ERROR: Invalid project status '{status}'. Valid: {', '.join(valid)}")
         return False
+    if status in {"rejected", "withdrawn"} and not closure_reason:
+        print(
+            f"WARNING: status={status} without --closure-reason. "
+            "Reason is recommended for audit trail (persisted to "
+            "closure_reason column)."
+        )
 
     # Find project by name (case-insensitive via ilike)
     encoded_name = urllib.parse.quote(name)
@@ -478,16 +496,22 @@ def update_project(base_url, api_key, name, status, phase=None, notes=None, revi
         data["health"] = "on_track"
     if review_date:
         data["review_date"] = review_date
+    if closure_reason:
+        data["closure_reason"] = closure_reason
 
     result = _patch(base_url, api_key, f"projects?id=eq.{project['id']}", data)
     if result:
         print(f"UPDATED: {project['name']}: {old_status} -> {status}")
         if phase:
             print(f"  Phase: {phase}")
+        if closure_reason:
+            print(f"  Closure reason: {closure_reason}")
 
         # Forward cascade -- per universal-protocols.md Status Cascade and Rollup rule.
         # The DB trigger projects_status_cascade_to_tasks does the same;
         # script-side is defense-in-depth + caller feedback.
+        # Note: rejected/withdrawn states do NOT cascade to children. The cascade
+        # trigger is documented but not yet deployed (Luminous Phase 6).
         if status == "paused":
             _cascade_pause(base_url, api_key, project['name'])
         elif status == "tabled":
@@ -509,12 +533,26 @@ def update_project(base_url, api_key, name, status, phase=None, notes=None, revi
     return False
 
 
-def update_task(base_url, api_key, task_text, status, project=None, notes=None):
-    """Update a task's status by matching task text."""
-    valid = ["pending", "in_progress", "completed", "blocked", "deferred", "tabled"]
+def update_task(base_url, api_key, task_text, status, project=None, notes=None,
+                closure_reason=None):
+    """Update a task's status by matching task text.
+
+    Source: wr-sentinel-2026-05-04-002 added 'rejected' and 'withdrawn' as
+    valid close states. Per wr-sentinel-2026-05-04-003, the DB trigger
+    trg_recompute_project_task_counts now EXCLUDES rejected + withdrawn
+    tasks from total_tasks (they drop off the project plan).
+    """
+    valid = ["pending", "in_progress", "completed", "blocked", "deferred",
+             "tabled", "rejected", "withdrawn"]
     if status not in valid:
         print(f"ERROR: Invalid task status '{status}'. Valid: {', '.join(valid)}")
         return False
+    if status in {"rejected", "withdrawn"} and not closure_reason:
+        print(
+            f"WARNING: status={status} without --closure-reason. "
+            "Reason is recommended for audit trail (persisted to "
+            "closure_reason column)."
+        )
 
     # Build query
     encoded = urllib.parse.quote(task_text)
@@ -547,6 +585,8 @@ def update_task(base_url, api_key, task_text, status, project=None, notes=None):
         data["notes"] = notes
     if status == "completed":
         data["completed_at"] = datetime.now(timezone.utc).isoformat()
+    if closure_reason:
+        data["closure_reason"] = closure_reason
 
     result = _patch(base_url, api_key, f"tasks?id=eq.{task['id']}", data)
     if result:
@@ -793,7 +833,13 @@ def add_task(base_url, api_key, task_text, project, workspace, priority="medium"
 
 
 VALID_PROJECT_CATEGORIES = {"formal", "idea", "tabled"}
-VALID_PROJECT_STATUSES = {"active", "pending", "paused", "blocked", "tabled", "complete", "completed"}
+# Source: wr-sentinel-2026-05-04-002 added 'rejected' and 'withdrawn' as
+# legitimate close states (Phase 5.1 dashboard work). Schema CHECK constraint
+# was widened in the same migration.
+VALID_PROJECT_STATUSES = {
+    "active", "pending", "paused", "blocked", "tabled",
+    "complete", "completed", "rejected", "withdrawn",
+}
 
 
 def add_project(base_url, api_key, name, workspace, status="pending",
@@ -1185,6 +1231,7 @@ def main():
         status = sys.argv[3]
         phase = None
         notes = None
+        closure_reason = None
         i = 4
         while i < len(sys.argv):
             if sys.argv[i] == "--phase" and i + 1 < len(sys.argv):
@@ -1193,9 +1240,15 @@ def main():
             elif sys.argv[i] == "--notes" and i + 1 < len(sys.argv):
                 notes = sys.argv[i + 1]
                 i += 2
+            elif sys.argv[i] == "--closure-reason" and i + 1 < len(sys.argv):
+                closure_reason = sys.argv[i + 1]
+                i += 2
             else:
                 i += 1
-        success = update_project(base_url, api_key, name, status, phase, notes)
+        success = update_project(
+            base_url, api_key, name, status, phase, notes,
+            closure_reason=closure_reason,
+        )
         sys.exit(0 if success else 1)
 
     elif cmd == "task" and len(sys.argv) >= 4:
@@ -1203,6 +1256,7 @@ def main():
         status = sys.argv[3]
         project = None
         notes = None
+        closure_reason = None
         i = 4
         while i < len(sys.argv):
             if sys.argv[i] == "--project" and i + 1 < len(sys.argv):
@@ -1211,9 +1265,15 @@ def main():
             elif sys.argv[i] == "--notes" and i + 1 < len(sys.argv):
                 notes = sys.argv[i + 1]
                 i += 2
+            elif sys.argv[i] == "--closure-reason" and i + 1 < len(sys.argv):
+                closure_reason = sys.argv[i + 1]
+                i += 2
             else:
                 i += 1
-        success = update_task(base_url, api_key, task_text, status, project, notes)
+        success = update_task(
+            base_url, api_key, task_text, status, project, notes,
+            closure_reason=closure_reason,
+        )
         sys.exit(0 if success else 1)
 
     elif cmd == "add-task" and len(sys.argv) >= 3:

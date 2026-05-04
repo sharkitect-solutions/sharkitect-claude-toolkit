@@ -350,6 +350,8 @@ Three distinct status vocabularies exist, one per layer. Mixing them produces CH
 | **Local JSON inbox files** (`.work-requests/inbox/*.json`, `.routed-tasks/inbox/*.json`, etc.) | Open states: `new`, `pending`, `in_progress`, `deferred`, `blocked`. Close states: `completed`, `rejected`, `superseded`, `duplicate`, `withdrawn`. (Legacy historical files may show `processed | resolved` -- read-only history, not used for new closes.) | AI agents writing inbox JSON directly |
 | **close-inbox-item.py output** | Close-only: `completed | rejected | superseded | duplicate | withdrawn`. Legacy `processed | resolved` accepted but auto-converted to `completed` with deprecation warning. Rejects all open-state values at close. | All workspaces closing inbox items |
 | **Supabase `cross_workspace_requests.inbox_items_status_check`** | `pending | in_progress | deferred | blocked | completed | superseded | duplicate | rejected | withdrawn`. (Does NOT accept `new` or `processed`. `withdrawn` requires Sentinel migration -- routed task filed in plan Phase G.) | Supabase inserts/updates from any workspace |
+| **Supabase `projects.status` CHECK** | `active | pending | paused | blocked | tabled | complete | rejected | withdrawn`. (Sentinel migration 2026-05-04 widened the CHECK to add `rejected` + `withdrawn` per wr-sentinel-2026-05-04-002. Schema also gained `closure_reason text` column for audit on the new states.) | `update-project-status.py project <name> <status>` and direct Supabase writes |
+| **Supabase `tasks.status` CHECK** | `pending | in_progress | completed | blocked | deferred | tabled | rejected | withdrawn`. (Same migration. Note: rejected + withdrawn tasks DROP OFF the project's `total_tasks` rollup -- see Status Cascade and Rollup section below.) | `update-project-status.py task <text> <status>` and direct Supabase writes |
 
 **close-inbox-item.py normalization (line ~116):**
 ```python
@@ -1215,8 +1217,16 @@ When a project's `status` transitions to a non-active value, every non-final chi
 - `completed_tasks integer NOT NULL DEFAULT 0`
 
 The trigger `trg_recompute_project_task_counts` fires AFTER INSERT/UPDATE/DELETE on `public.tasks` and recomputes both counts on the affected project(s). Behavior:
+- `total_tasks` counts ONLY non-rejected-non-withdrawn tasks. Specifically: `total_tasks = COUNT(*) FILTER (WHERE status NOT IN ('rejected','withdrawn'))`. Rationale: rejected and withdrawn tasks are dropped from the project plan -- they no longer count toward what the project needs to ship. A project with 5 tasks where 2 are withdrawn shows `total_tasks=3`; complete the remaining 3 and the project auto-completes correctly. If a withdrawn task is replaced with a new task, total goes back up to 4. Source: user direction 2026-05-04 during Phase 5.1 dashboard work; trigger source verified at `recompute_project_task_counts`. Filed via wr-sentinel-2026-05-04-003.
 - If `total_tasks > 0 AND completed_tasks = total_tasks` AND project is not already `complete`, the trigger sets `projects.status = complete` automatically.
 - If a previously-complete project sees a non-final task arrive, the trigger reopens it to `active`.
+
+#### Forward cascade trigger deployment status
+
+The forward cascade rule above is documented but the matching DB trigger `projects_status_cascade_to_tasks` is **DOCUMENTED BUT NOT YET DEPLOYED** in the database (verified 2026-05-04 by Sentinel). It will land in Luminous Foundation Bridge Phase 6 (Vocabulary harmonization + cascade rules + pause_reason fields). Until then:
+- Manual cascade applies: when an agent updates a project status to `paused | tabled | blocked | complete`, it must explicitly invoke `update-project-status.py project ...`, which performs script-side cascade.
+- Direct Supabase writes that change `projects.status` will NOT trigger child-task cascade until Phase 6 ships.
+- `rejected` and `withdrawn` are explicitly NOT cascaded by either the future trigger or current script; their semantics are "drops off the plan," not "applied to children." Source: wr-sentinel-2026-05-04-002.
 
 #### Why both halves exist
 

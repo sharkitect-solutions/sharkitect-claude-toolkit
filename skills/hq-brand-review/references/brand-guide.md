@@ -2,11 +2,19 @@
 
 ## Brand Identity
 
-**Who we are**: A digital transformation agency that builds AI-powered operating systems for SMBs. We turn overwhelmed business owners into operators with leverage.
+**Three-layer brand model** (canonical SoT: HQ K1 `brand-identity-guide.md` §1.5; locked 2026-05-01).
+
+- **Category** (industry / market layer): **AI Transformation Agency**
+- **Offering** (engagement model layer): **AI Transformation Partnership**
+- **Outcome** (client transformation layer): **systems-first AI-driven business**
+
+These three layers are distinct and must NOT be collapsed. "Agency" names the category we operate in; "Partnership" names the way we engage clients; "systems-first AI-driven business" names what the client becomes after the engagement. When reviewing content, flag conflation (e.g., "AI Transformation Partner" used as a category descriptor is incorrect — that's offering language standing in for category language).
+
+**Who we are**: An AI Transformation Agency that delivers AI Transformation Partnerships to SMBs, turning overwhelmed business owners into operators with leverage running systems-first AI-driven businesses.
 
 **Who we serve**: Small-to-medium businesses (5-50 employees) in trades, services, and professional services. They're good at their craft but drowning in operations.
 
-**Our position**: We're the technical co-founder they never had. Not a vendor — a partner who builds systems, not just deliverables.
+**Our position**: The technical co-founder they never had. Not a vendor — a partner who builds systems, not just deliverables. Partnership-but-authoritative posture (we run the engagement, the client is the operator who has to live with the systems we leave behind).
 
 ## Voice Attributes (Detailed)
 
