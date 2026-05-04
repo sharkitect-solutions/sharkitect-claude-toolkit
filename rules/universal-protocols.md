@@ -913,6 +913,17 @@ Before running ANY script, tool, or command referenced in a skill, workflow, MEM
 
 **Why this exists:** During Foundation Reset Phase 3, a skill referenced `checkpoint.py` -- a script that was planned but never built. The session followed the instruction blindly, reported "blocked by missing plugin," and failed to recognize that `supabase-sync.py` (the actual working tool) was right there in `tools/`. This happened during a cleanup session, eroding trust in the system's ability to self-correct. Phantom references in skills and docs must be caught at execution time, not trusted blindly.
 
+## Verify Before Filing Protocol (NON-NEGOTIABLE)
+
+Before filing ANY work request, routed task, or lifecycle review whose premise is "system X does not do Y":
+
+1. **Read the script that ships X.** `grep` for the function or behavior Y. If it exists, the premise is wrong — do not file.
+2. **Distinguish "no diff" from "no participation".** Sync-tool output messages like "no changes detected" / "everything in sync" / "nothing to do" describe state-against-last-run, not whether the file is in the sync set. Hash both copies (live + backup) before claiming a file isn't synced.
+3. **Tool output ≠ tool intent.** If the only evidence for the premise is a single line of CLI output, you are inferring the missing behavior. Read source before filing.
+4. **2-minute verification rule.** Every WR/RT premise must survive 2 minutes of grep + hash + ls. If you have not done that, you are not ready to file.
+
+**Why this exists:** 2026-05-04, wr-skillhub-2026-05-04-002 was filed claiming sync-skills.py does not mirror ~/.claude/settings.json to the toolkit repo. Source inspection showed `sync_settings()` had been mirroring it the whole time. Author had observed `sync-skills.py --sync --push` print "Everything is in sync. No changes detected" and concluded the file wasn't in the sync set, when in fact the file was already in sync from the prior run that same session (the voice-capture-hook registration two minutes earlier). Drift-corrected via activity_stream event 8d45c0f6-32f3-4197-a1cb-128302812aad. Real residual concern (cross-platform path templating) was a separable narrower issue and got fixed inline. The class of error the rule prevents: confusing run-summary output with feature absence, then filing infrastructure WRs that re-do work the codebase already does.
+
 ## Investigation Protocol (NON-NEGOTIABLE)
 
 When investigating bugs, unexpected behavior, system failures, recurring issues, or any situation requiring a hypothesis-test cycle -- INVOKE `superpowers:systematic-debugging` BEFORE generating hypotheses.

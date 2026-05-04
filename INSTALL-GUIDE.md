@@ -343,6 +343,40 @@ Copy-Item -Path "lessons-learned.md" -Destination "$env:USERPROFILE\.claude\less
 
 ---
 
+## Step 7.8: Restore settings.json (hooks, permissions, env vars)
+
+The toolkit ships `settings-backup.json` — a cross-platform-templated mirror of `~/.claude/settings.json` (added 2026-05-04). It uses a `{HOME}` sentinel so all 53+ hook command paths, permission allow/deny rules, and env vars restore correctly on Windows, macOS, or Linux without manual editing.
+
+After Step 7.5 (cross-workspace scripts), run the restore helper:
+
+```bash
+# Mac/Linux/Windows: detects current platform and home directory automatically
+python ~/.claude/scripts/restore-settings.py
+
+# Preview without writing (recommended first run)
+python ~/.claude/scripts/restore-settings.py --dry-run
+
+# Override target platform or home (rare — useful for moving between users)
+python ~/.claude/scripts/restore-settings.py --platform linux --home /home/newuser
+```
+
+Behavior:
+- Reads `sharkitect-claude-toolkit/settings-backup.json` from the Skill Hub clone (or pass `--backup PATH`)
+- Expands `{HOME}` to the running platform's home directory
+- On macOS/Linux: also rewrites `python.exe` → `python` in hook commands
+- Validates restored content as JSON before writing
+- Takes a timestamped backup of any existing `~/.claude/settings.json` first (filename: `settings.json.pre-restore.YYYYMMDD-HHMMSS`)
+
+Verify the restore:
+```bash
+# Hook count should match what was on the source machine (53+ as of 2026-05-04)
+python -c "import json; d=json.load(open('$HOME/.claude/settings.json')); print(sum(len(e) for e in d.get('hooks', {}).values() if isinstance(e, list)), 'hook groups')"
+```
+
+Note: every subsequent `python tools/sync-skills.py --sync` re-templates and updates `settings-backup.json`, so the backup stays current automatically.
+
+---
+
 ## Step 8: MCP Servers
 
 ### GitHub MCP (recommended for repo management)
