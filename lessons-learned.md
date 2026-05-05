@@ -4258,3 +4258,32 @@ Apply when: user gives a detailed spec AND a "we can iterate later" reassurance 
 
 **Tags:** toolkit, sync, settings.json, cross-platform, path-templating, portability
 
+
+## 2026-05-05 (S26) — Hook Dispatcher Consolidation Phase 0
+
+### Preferences
+
+- **preference: "Hook Dispatcher" naming over "Hook Router"** — context: hook consolidation. apply-when: any consolidation that would clash with higher-level architectural terms. why: "Router" is also the name of the AIOS Feedback Loop's decision-routing component. User cited 5-second test (Naming Conventions rule, NON-NEGOTIABLE) — "cluster" failed (vague), "dispatcher" passed (functional, identifiable). Frees "Router" for the higher-level Feedback Loop sense. tags: naming, naming-conventions, 5-second-test, semantic-clarity.
+
+- **preference: "Good idea, documented" format for brain-dump items** — context: user often brain-dumps related ideas mid-session that belong to a different project (AIOS build, etc.). apply-when: user expresses an idea/feature for a future system that isn't directly related to current work. why: Don't deep-dive on every brain-dump; just acknowledge briefly + capture in a dedicated notes file for the future build session. Save deep analysis for when actually building. tags: format, brain-dump, communication, focus-discipline.
+
+- **preference: No parallel subagents unless VERY LOW risk** — context: user explicitly set the bar for parallel subagent dispatch. apply-when: considering parallel subagents for multi-task work. why: Medium risk (TDD discipline drift, source fidelity drift, coordination tax) does NOT clear the bar. User: "If there's any risk, we will bypass parallel sub-agents... If it's capable with high efficiency and very low risk, then we can do it." Default to sequential. tags: subagents, risk-tolerance, parallel-dispatch, quality-bar.
+
+### Process Decisions
+
+- **process: Hook consolidation is infrastructure, not differentiation** — context: founder vision questions during S26. why: User asked "is this taking us toward the ultimate vision?" Honest answer: hygiene step that unblocks higher-leverage work (Feedback Loop Types 2/3/5, Community Learning) — necessary but not differentiating. Don't oversell consolidation as the strategic work. tags: framing, founder-vision, infrastructure-vs-strategic, honest-pushback.
+
+- **process: Stop session at sustainable checkpoint when fatigued, not when tired** — context: S26 had 5+ hours of architectural redesign + scope expansion + 2 sub-rules. apply-when: long session, decision fatigue building, error risk increasing. why: Fresh session does 4-6 sub-rules where fatigued one does 2. Restart cost is low; debugging hastily-built work is high. Commit before stopping (durable checkpoint = restart-safe). tags: session-pacing, sustainable-ship, fatigue-management.
+
+- **process: Per-day skill-log tracker can misfire across calendar boundaries** — context: writing-plans skill was invoked S25 (2026-05-04) but multistep-plan-nudge fired S26 (2026-05-05) because it checks today's skill log only. apply-when: building skill-tracking hooks. why: Per-day reset means cross-day work shows as "skill not invoked" even when it was just yesterday. Either expand lookback to N days OR design hooks tolerant of this drift. Filing as follow-up consideration for hook-development discipline. tags: skill-log, calendar-boundary, hook-design.
+
+### Architecture Direction
+
+- **direction: Cluster hooks by SEMANTIC CONCERN, not mechanism** — context: full categorical pass against 44 hooks during S26. apply-when: organizing hooks into dispatchers/clusters. design principles: (1) Methodology cluster = "did you invoke the right HOW-TO-WORK skill?" (2) Content-Governance = "is this content brand-compliant for what it IS?" (3) Post-Action = "did you do the workflow follow-up?" — each cluster has a single semantic boundary. Rejected axes: gate severity (cuts across), matcher type (cuts across), complexity (sequencing concern, not category), HQ-only scope (per-rule guard). tags: hook-architecture, semantic-clustering, dispatcher-design.
+
+- **direction: Feedback events as first-class dispatcher concern** — context: AIOS Feedback Loop spec re-read during S26. apply-when: building any hook router/dispatcher. design principle: every sub-rule writes structured event records to a shared `_feedback_events.py` interface — becomes input data for Type 5 System Learning. Free during build, expensive retrofit. Sentinel mirrors stream nightly to Supabase feedback_events table. tags: feedback-loop, type-5-system-learning, dispatcher-architecture.
+
+- **direction: sync-skills.py needs subdirectory recursion** — context: discovered S26 when `_dispatchers/` package not synced to toolkit despite manual sync run. apply-when: any tool that mirrors directory structures. design principle: flat-file sync misses package directories. Need recursive directory walk OR explicit subdir registration. Filing follow-up WR after consolidation lands. tags: sync-tools, directory-recursion, toolkit-backup, tool-design.
+
+- **direction: Brain-dump file separate from plans/specs** — context: user wanted to capture mid-session ideas about future systems without polluting current plan. apply-when: long-running multi-session projects where unrelated ideas arise. design principle: dedicated `docs/<project>-build-notes.md` file. Path NOT in plans/ to avoid plan-blocking hooks. Each entry: (1) idea as captured, (2) my comments + connections to existing specs, (3) date + source session. Reviewed when entering the dedicated build session. tags: brain-dump-capture, focus-discipline, document-organization.
+
