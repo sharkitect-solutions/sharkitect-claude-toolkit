@@ -274,11 +274,12 @@ class TestBrainstormingSubRule:
 # ---------------------------------------------------------------------------
 
 class TestWritingPlansSubRule:
-    def test_write_to_plan_path_with_substantial_content_triggers(self, tmp_path):
+    def test_write_to_plan_path_with_substantial_content_triggers(self, tmp_path, monkeypatch):
+        from _dispatchers.methodology import writing_plans
+        monkeypatch.setattr(writing_plans, "TMP_DIR", tmp_path / ".tmp")
         plan_path = tmp_path / "plans" / "new.md"
         plan_path.parent.mkdir(parents=True)
         transcript = _write_transcript(tmp_path, "ok")
-        from _dispatchers.methodology import writing_plans
         result = writing_plans.evaluate({
             "tool_name": "Write",
             "tool_input": {"file_path": str(plan_path), "content": "x" * 250},
@@ -313,12 +314,13 @@ class TestWritingPlansSubRule:
         })
         assert result is None
 
-    def test_edit_with_structural_keyword_triggers(self, tmp_path):
+    def test_edit_with_structural_keyword_triggers(self, tmp_path, monkeypatch):
+        from _dispatchers.methodology import writing_plans
+        monkeypatch.setattr(writing_plans, "TMP_DIR", tmp_path / ".tmp")
         plan_path = tmp_path / "plans" / "x.md"
         plan_path.parent.mkdir(parents=True)
         plan_path.write_text("# Plan\n", encoding="utf-8")
         transcript = _write_transcript(tmp_path, "ok")
-        from _dispatchers.methodology import writing_plans
         result = writing_plans.evaluate({
             "tool_name": "Edit",
             "tool_input": {
