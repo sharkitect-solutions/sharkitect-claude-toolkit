@@ -1109,6 +1109,20 @@ Cross-project patterns, API limitations, tool quirks, user preferences, and proc
 
 ## Process Decisions
 
+### 2026-05-04 — process: Hook-budget-aware triage on incoming hook-build WRs (annotate-with-absorption-plan, don't reflexively build)
+
+**Context:** Skill Hub session 25 received `wr-hq-2026-05-04-008` from HQ asking for a new `kb-governance-enforcer.py` PreToolUse:Edit|Write hook. The hook itself was small and well-scoped (matches existing brainstorming-enforcer/methodology-nudge pattern). Default reflex is "build it." Reflex would have produced hook #45 against a 30-cap with 17 already on PreToolUse:Edit|Write — worsening the cumulative-friction problem the Hook Introduction Rule was filed to prevent (wr-hq-2026-04-27-006).
+
+**Why:** A WR's reasonable specification of an individual hook is NOT sufficient evidence to build it. Each hook in isolation is reasonable; the layer becomes hostile when count grows monotonically. Triage MUST consult: (1) current global hook count vs cap, (2) matcher density, (3) whether the proposed hook can be absorbed into an existing or planned consolidation effort.
+
+**How to apply:** When receiving a WR proposing a new hook, follow this sequence BEFORE designing:
+1. Check `ls ~/.claude/hooks/*.py | wc -l` (currently 44).
+2. Check density on the proposed matcher (currently 17 on PreToolUse:Edit|Write).
+3. Search inbox for active consolidation WRs that share the proposed hook's domain. If found, **absorb** the new requirement as a sub-rule of the planned router. Use `close-inbox-item.py --annotate` to record the absorption plan; the WR stays in inbox at `pending` and closes jointly with the consolidation ship.
+4. Only build standalone if: (a) no consolidation absorbs it AND (b) one-in-one-out trade with retirement of an existing hook in same matcher+category.
+
+**Tags:** hook-introduction-rule, work-request-triage, router-consolidation, cumulative-friction, hook-budget
+
 ### 2026-04-30 — process: When plan-template instructions conflict with universal protocols, protocol wins; document the deviation
 
 **Context:** Phase 2 Task 2.1 of Luminous Foundation Bridge plan instructed to commit `.tmp/historical-drift-manifest-2026-04-30.json` alongside the manifest generator. The .tmp/ Hygiene Protocol (universal-protocols.md NON-NEGOTIABLE) explicitly states `.tmp/` stays gitignored — regenerable artifacts go in `.tmp/`, valuable artifacts get promoted out of it. The manifest is regenerable (running the generator produces a fresh one), so it qualifies for `.tmp/` and stays gitignored.
