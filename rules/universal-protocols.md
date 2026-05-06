@@ -819,6 +819,94 @@ python ~/.claude/scripts/voice-write.py correction "<what was corrected and why>
 ### Why This Exists
 Dream consolidation synthesizes voice samples nightly into distilled rules. Without input data, the voice phase finds 0 samples. Every uncaptured correction is a lost learning signal. The correction rate metric (trending down = system is learning) requires real-time capture to be meaningful.
 
+## Brain Dump Capture Protocol (NON-NEGOTIABLE)
+
+When the user drops information, ideas, questions, or strategic topics that are off-topic-but-relevant during in-flight work, the AI MUST capture them WITHOUT derailing the current session. This is the universal pattern for every workspace, not just one. Pattern proven 2026-05-06 (Skill Hub S28); user direction (verbatim): *"this is perfect, exactly what it's meant to be... I want this to be a global protocol."*
+
+### Trigger signals (any one fires capture)
+
+- **Explicit:** "brain dump this," "side note," "off topic but," "this reminds me," "while I'm thinking about it," "park this for later," "different topic but"
+- **Slash command (when built):** `/brain-dump <text>`
+- **Detected drift mid-task:** user message that introduces 2+ new strategic topics while a focused task is in progress (heuristic: ≥3 distinct subject changes vs. the active todo)
+- **AI judgment:** if the user's message is going to derail the current task AND contains forward-looking ideas worth preserving, capture without being told
+
+### What the AI MUST do
+
+| Step | Action |
+|---|---|
+| 1 | **Acknowledge briefly** -- one sentence, plain language, confirming you heard the dump and you're parking it |
+| 2 | **Capture preliminary thoughts AT DUMP TIME** -- frozen snapshot of your initial reactions per topic. These don't have to be deep; they exist so the eventual conversation has a starting point that isn't blank. The user explicitly wants these preserved: *"document all of that so we don't forget what your original thoughts are."* |
+| 3 | **Park to `<workspace>/brain-dump/YYYY-MM-DD-<short-slug>.md`** with frontmatter (date, session_context, status=new, relates_to, priority, ai_preliminary_thoughts) and body sections (raw dump, preliminary thoughts per topic, triage decision placeholder, action taken placeholder) |
+| 4 | **Answer ONLY the tactical questions** in the dump that are blocking immediate progress (yes/no, do-now/defer, single-step decisions) |
+| 5 | **Continue the in-flight task** as if the strategic items don't exist for the current session -- they're parked, not pending |
+
+### What the AI MUST NOT do
+
+- Write a full deep response to strategic questions
+- Start implementing anything from the dump
+- Spawn TodoWrite items for parked topics (those go in the brain-dump file, not the active todo list)
+- Open a plan file or run brainstorming/writing-plans for parked topics
+- Mention the dump in the in-flight task's deliverable
+- Ask permission to capture -- capture is automatic, the user has already authorized this protocol
+
+### Folder structure (every workspace)
+
+```
+<workspace-root>/
+  brain-dump/
+    README.md              # protocol explanation + frontmatter template
+    YYYY-MM-DD-<slug>.md   # one file per dump (date-sortable)
+```
+
+The `README.md` template ships once from Skill Hub at workspace instantiation; from there each workspace owns its own brain-dump folder. Folder is git-tracked (it's not scratch -- these are forward-looking commitments).
+
+### Frontmatter template
+
+```yaml
+---
+date: YYYY-MM-DD
+session_context: <what was being worked on when the dump happened>
+status: new | triaged | absorbed | new-project-pending | follow-up | dropped
+relates_to: <project name(s) if applicable>
+priority: low | medium | high | critical
+ai_preliminary_thoughts: <captured at dump time so they're not lost>
+---
+```
+
+### Sweep cadence (when triaged + acted on)
+
+- **Session start (preferred)** -- before new task work begins, AI checks `brain-dump/` for items with `status: new` and surfaces them in the startup status table. User decides per-item: discuss now, defer to specific session, drop. Items that get discussed/acted on move to `status: triaged`.
+- **Session end** -- session-checkpoint sweeps and confirms each entry has either been acted on or has a clear next-touch decision recorded.
+- **On demand** -- user types "sweep brain dumps" / "triage brain dumps" any time.
+- **Sentinel weekly review (when built)** -- entries older than 14 days flagged as stale; routed for forced-decision.
+
+### Triage decision categories
+
+When sweeping, each entry resolves to one of:
+
+| Decision | Action |
+|---|---|
+| **Absorb-into-current-project** | Update related Supabase project / WR / plan; mark entry `status: absorbed` |
+| **New project** | File new Supabase project (`status: pending`); add to `~/.claude/docs/plans-registry.md`; mark entry `status: new-project-pending` |
+| **Follow-up question** | Park as discussion item for next relevant session; mark entry `status: follow-up` with `next_touch` date |
+| **Drop** | On review, decided not worth pursuing; mark entry `status: dropped` with one-line reason. Stays in folder as historical record |
+
+### Implementation tiers
+
+This protocol ships in three tiers, in order:
+
+1. **v0 (NOW, manual)** -- folder + MD files + AI-side discipline per the rules above. No tooling required. ALREADY LIVE in Skill Hub from S28; pattern proven.
+2. **v1 (next build)** -- workspace-startup-guard auto-creates `brain-dump/` folder + README.md if missing. Surfaces `status: new` count at session start. Routes to a follow-up WR when implemented.
+3. **v2 (future)** -- in-session detection hook (PreToolUse on user prompts catches the trigger phrases listed above) AND `/brain-dump` slash command for explicit invocation. Both write to the same folder structure.
+
+### Why this exists
+
+The user demonstrated the failure mode: while focused on one task, ideas come up that pertain to other workspaces or future projects. Without a capture mechanism, those ideas are lost when the session ends. With the prior model (dump-then-AI-goes-deep), the current task derails because the AI tries to address everything at once. This protocol resolves the dilemma: capture preserves the idea, the discipline of "tactical answer + park strategic" preserves the current task's focus.
+
+### Pattern verification (incident record)
+
+- **2026-05-06 (Skill Hub S28):** User dropped 5 strategic topics + AIOS executive summary mid-session during dispatcher consolidation work. AI captured all 5 to `brain-dump/2026-05-06-aios-dogfood-and-brain-dump-workflow.md` with preliminary thoughts per topic, answered only the 2 tactical questions (end session yes; build hook now no), and did not derail. User confirmed: "this is perfect, exactly what it's meant to be... worked perfectly fine." Promoted to universal protocol the same session.
+
 ## Human Action Required Protocol (NON-NEGOTIABLE)
 
 When any workspace closes work that requires a user-facing action before dependent work can proceed, it MUST surface that ask actively. Silent drift is prohibited.

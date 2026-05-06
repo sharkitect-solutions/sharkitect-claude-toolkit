@@ -4324,3 +4324,48 @@ Apply when: user gives a detailed spec AND a "we can iterate later" reassurance 
 - **apply-when:** Building cross-workspace routing tooling. Watch for the inverse failure too: rt-* writes to inbox/ that bypass Supabase logging.
 - **tags:** work-request-py, cross-workspace-routing, silent-failure, infrastructure-tooling
 
+
+## 2026-05-05 — AIOS pricing anchoring lesson
+
+**Category:** preference / process
+
+**preference:** AIOS pricing must NOT be anchored against productivity SaaS shelf ($20-$497/mo tier). It's a productized version of Chris's full partnership method — closer to fractional CXO replacement ($5K-$15K/mo) or AI agency retainer ($5K-$25K/mo). Reference set determines the anchor; the framework was right but my reference set was wrong.
+
+**Why:** During AIOS Cohort A1 lock session 2026-05-05, I initially anchored at $497-$697/mo using "premium SaaS" reference frame. Chris pushed back hard: "$497, even $697 a month, that is worth much, much more. This is like having your own AI Transformation Agency in-house. It's a mixture of that with a fractional chief of staff." Locked at $4,997/mo standard ($49,997/yr annual). Rationale: positions AIOS as fractional CXO replacement, not SaaS tool.
+
+**How to apply:** When pricing any flagship product, identify the operator's REAL cost ledger (the headcount/retainers/consulting line items they ALREADY pay for) — not the SaaS shelf they might glance at. The reference set determines whether the anchor is high enough.
+
+**Tags:** pricing-strategy, AIOS, anchoring, flagship
+
+---
+
+## 2026-05-05 — Lock-at-entry-for-life as brand differentiator
+
+**Category:** architecture direction
+
+**direction:** Lock-at-entry-for-life is a contrarian SaaS pricing mechanism that fits the AIOS brand narrative ("we don't do what other SaaS does"). Most SaaS raises prices on existing customers all the time. Sharkitect's AIOS doesn't — locked rate is permanent for as long as subscription is continuous.
+
+**Why:** Built into the product's brand promise. The lock IS the goodwill premise. Operators who genuinely value it won't cancel; those who cancel signal lower commitment. Network-effect framing: locked-rate operators aren't "getting upgrades for free" — they're co-creators of the value (their data, patterns, feedback fed into making the system what it is at any future point). The lock is recognition of contribution, not a discount.
+
+**Apply when:** Pricing decisions for flagship products where retention + brand differentiation are more valuable than ARPU expansion. Aligns with No-Yes-Agent + Transparency + Engineered-Right principles.
+
+**Design principles:** Continuity rule (cancellation = lock reset); tier upgrade rule (priced at then-current tier rate); no version migration (continuously-current systems don't have version cliffs).
+
+**Tags:** AIOS, pricing-strategy, brand-positioning, retention
+
+---
+
+## 2026-05-05 — Active Deactivation Protocol pattern for licensed software
+
+**Category:** architecture direction
+
+**direction:** When licensed software persists locally on operator's machine, license revocation alone doesn't prevent continued use. Need an explicit deactivation push mechanism. Industry-standard pattern (Adobe Creative Cloud / JetBrains All-Products / Autodesk / Microsoft 365): perfect prevention is impossible, but make legitimate use clearly better than piracy.
+
+**Why:** During AIOS A1.2 P2 lock, identified that license-tied dynamic fetch alone doesn't prevent operator from continuing to use AIOS after cancellation. Bootstrap CLAUDE.md + .claude/aios-system-files/ persist on their machine. Need 4-step protocol: (1) forced license validation at session start, (2) push deactivation commit via Sharkitect-aios-bot collaborator (removes system files, leaves operator-protected files intact), (3) revoke license + bot access in Central Hub, (4) local self-deactivation after pull.
+
+**Apply when:** Building any licensed software that distributes code/config to operator's machine. The collaborator-bot model (push commits to remove software components) combined with license-validation phone-home is the right architecture.
+
+**Design principles:** Don't try to prevent piracy perfectly; make value-of-staying-legitimate vastly exceed value-of-piracy. Watermarking traceability for any operator-generated content. First-activation-required pattern prevents offline-dodge gaming.
+
+**Tags:** licensing, AIOS, software-distribution, deactivation, anti-piracy
+
