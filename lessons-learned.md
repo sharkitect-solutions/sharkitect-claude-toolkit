@@ -4300,3 +4300,27 @@ Apply when: user gives a detailed spec AND a "we can iterate later" reassurance 
 2026-05-05  preference: Naming must pass the 5-second test (already in HQ CLAUDE.md Naming Conventions, reaffirmed). Specifically for tracker/monitor components: 'Tracker' implies passive recording; 'Monitor' implies active watching with alerts. Pick based on actual function. Reject names with vague nouns ('class' is too vague; 'recurrence' is concrete). **Apply when:** naming any new component, asset, or concept that will be referenced repeatedly. Source: Chris ruling on 'Error Recurrence Tracker' (chosen) over 'Error Class Tracker' (rejected for vagueness) and 'Error Recurrence Monitor' (rejected because no alerting layer yet). Tags: naming, clarity, autofix-v2.
 
 2026-05-05  process: When a routed task arrives with an attached implementation plan AND user authorizes 'work autonomously and knock that out', the build can be executed end-to-end in one session IF context budget supports it. Self-request capability build for autofix v2 took 1 session (recon + 5-guard module + runner + prompt + server.py persist + 81 test checks + synthetic simulation + commit + close + dependency-chain routing). Total: 14 todos completed in sequence with TodoWrite tracking, full test green, blast radius contained by AUTOFIX_V2_MODE shadow flag. **Why:** routed task came pre-specced with explicit fix_instructions, success_criteria, dependencies, exclusions -- removed all design/scoping ambiguity. **Apply when:** routed task has detailed fix_instructions with named files + measurable success_criteria + explicit exclusions, AND user has authorized autonomous execution. Tags: autonomous-execution, routed-tasks, autofix-v2.
+
+
+## Process Decisions
+
+### 2026-05-05: TDD-first sequential pattern for hook dispatcher sub-rule consolidation
+- **process:** When extracting source hooks into dispatcher sub-rules, work sequentially in TDD style: (1) read source hook end-to-end, (2) write test class in tests/test_<dispatcher>.py with `_isolate_state` helper that monkeypatches TMP_DIR + STATE_FILE to tmp_path, (3) write sub-rule at hooks/_dispatchers/<cluster>/<rule>.py preserving 1:1 source behavior + adding intent_detection.is_user_driven() bypass layer + _feedback_events.record() telemetry, (4) run pytest on the new test class, fix any failures, (5) commit, move to next.
+- **why:** S27 shipped 8 sub-rules in one session at ~10min/sub-rule using this pattern. The discipline keeps each sub-rule small and provable; the established pattern means the SECOND sub-rule and onward are mechanical.
+- **apply-when:** Any consolidation/extraction work that maps source hooks 1:1 to sub-rule modules. NOT for greenfield design (use brainstorming + writing-plans first).
+- **tags:** tdd, hook-consolidation, methodology-dispatcher, sub-rule-extraction
+
+## Architecture Direction
+
+### 2026-05-05: Project status pending->active should auto-flip on first task progress
+- **direction:** Reverse-rollup trigger on tasks should flip projects.status from `pending` to `active` when ANY child task transitions to `in_progress` or `completed`. Currently the cascade rules only handle paused/tabled/blocked/complete forward and complete reverse -- the start-of-work signal is not handled, so projects with active task work sit at `pending` until manual intervention.
+- **context:** S27 caught this when user noticed Ultimate Sharkitect AIOS Build was 5/39 done but status was `pending`. Class of bug: any project where workspace A owns the project but workspace B owns task work drifts to pending. Filed rt-skillhub-2026-05-06-001-cascade-trigger to Sentinel (schema owner).
+- **apply-when:** Designing or extending Supabase trigger logic on tasks/projects. Document in universal-protocols.md Status Cascade and Rollup once Sentinel ships the trigger.
+- **tags:** supabase, status-cascade, projects, tasks, sentinel-schema
+
+### 2026-05-05: work-request.py --target-workspace flag must route to target's .routed-tasks/inbox/, not source's local inbox
+- **direction:** When work-request.py is invoked with --target-workspace, AND target != source workspace, the script must write a routed_task-shape JSON to target's .routed-tasks/inbox/ (with rt-* naming) and keep an audit-trail in source's .work-requests/outbox/. Per Cross-Workspace Routed Tasks Protocol in universal-protocols.md.
+- **context:** Discovered S27 when filing rt-skillhub-2026-05-06-001 to Sentinel via --target-workspace=sentinel. Script wrote to Skill Hub's local inbox; Sentinel polls its own .routed-tasks/inbox/ via filesystem and would never have discovered the item via routine polling. Manually relocated and superseded the local copy. Class of silent failure across all workspaces using --target-workspace.
+- **apply-when:** Building cross-workspace routing tooling. Watch for the inverse failure too: rt-* writes to inbox/ that bypass Supabase logging.
+- **tags:** work-request-py, cross-workspace-routing, silent-failure, infrastructure-tooling
+
