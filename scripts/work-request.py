@@ -598,6 +598,14 @@ def build_report(args):
 
     report["impact_assessment"] = args.impact or "Impact not specified."
 
+    # Origin tag for downstream segmentation (e.g. cadence-engine,
+    # autofix-agent). Propagates into the Supabase row in log_to_supabase
+    # so HQ's monthly_postmortem_query can segment by origin.
+    # Source: wr-hq-2026-05-05-002.
+    origin_tag = getattr(args, "origin_tag", None)
+    if origin_tag:
+        report["origin_tag"] = origin_tag
+
     # Blocked-by fields (if this item depends on another completing first)
     blocked_by = getattr(args, "blocked_by", None)
     if blocked_by:
@@ -743,6 +751,14 @@ def log_to_supabase(report, item_type="work_request"):
         "last_updated_by": source_ws,
     }
 
+    # Source: wr-hq-2026-05-05-002. When the report carries an origin_tag
+    # (e.g. cadence-engine, autofix-agent), include it in the INSERT so
+    # downstream queries (HQ's monthly_postmortem_query) can segment WRs
+    # by origin. Sentinel migration 2026-05-XX added the origin_tag column.
+    origin_tag = report.get("origin_tag")
+    if origin_tag:
+        row["origin_tag"] = origin_tag
+
     url = f"{base_url}/rest/v1/cross_workspace_requests"
     data = json.dumps(row).encode("utf-8")
     headers = {
@@ -875,6 +891,10 @@ def main():
     parser.add_argument("--target-file", help="Target file for BUG/ENHANCE types")
     parser.add_argument("--edit-count", type=int, default=0,
                         help="Edit counter value at time of report")
+    parser.add_argument("--origin-tag",
+                        help="Origin segmentation tag (e.g. cadence-engine, autofix-agent). "
+                             "Stored in cross_workspace_requests.origin_tag for downstream "
+                             "queries (HQ's monthly_postmortem_query). Source: wr-hq-2026-05-05-002.")
     parser.add_argument("--blocked-by", help="Supabase UUID of blocking record")
     parser.add_argument("--blocked-by-type",
                         choices=["task", "project", "cross_workspace_request"],

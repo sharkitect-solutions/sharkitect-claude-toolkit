@@ -4369,3 +4369,35 @@ Apply when: user gives a detailed spec AND a "we can iterate later" reassurance 
 
 **Tags:** licensing, AIOS, software-distribution, deactivation, anti-piracy
 
+---
+
+## 2026-05-06 — Brain-dump capture pattern: tactical + park-strategic, never both
+
+**Category:** preference / process decision
+
+**preference:** When user dumps strategic topics mid-session, AI must (1) acknowledge briefly, (2) capture preliminary thoughts AT DUMP TIME so they aren't lost, (3) park to `<workspace>/brain-dump/YYYY-MM-DD-<slug>.md`, (4) answer ONLY tactical blocking questions, (5) continue in-flight task. Do NOT write deep responses, start implementing, run brainstorming/writing-plans on parked items, or spawn TodoWrite for parked work. User exact phrasing: *"All I want is for you to acknowledge... document all of that so we don't forget what your original thoughts are, and we can come back and touch it later."*
+
+**Apply when:** User message contains explicit phrases ("brain dump this", "side note", "off topic but", "this reminds me", "park this for later"), uses `/brain-dump` slash command (when v2 ships), introduces 2+ new strategic topics mid-task, OR AI judges that the message would derail current work AND contains forward-looking ideas worth preserving.
+
+**Design principles:** Capture preserves the idea; the discipline of "tactical answer + park strategic" preserves the current task's focus. The two are not in tension once the protocol is in place — they're the same moment, just routed differently.
+
+**Tags:** brain-dump, workflow, capture-not-derail, universal-protocol, AI-discipline
+
+**Status:** Pattern proven in S28 (5 strategic topics + AIOS executive summary parked without derailing dispatcher Tier 1 work). Promoted to universal-protocols.md same session. Future tiers: v1 startup-guard auto-folder, v2 detection hook + `/brain-dump` slash command.
+
+---
+
+## 2026-05-06 — Build-for-ourselves-first IS building the AIOS
+
+**Category:** architecture direction
+
+**direction:** Every workflow we build for the Sharkitect internal toolkit (audits, drift detection, consolidation, hook governance, brain-dump, dispatcher patterns, voice-auto-load) IS an AIOS pillar applied to ourselves first. The lessons we extract here ship into client AIOS instances. Working patterns become deployable AIOS modules; failed patterns get explicitly captured in lessons-learned and excluded from the AIOS spec. This IS the dogfood model.
+
+**Why:** Re-read of `sharkitect-aios-executive-summary.pdf` 2026-05-06 confirmed direct mapping: AIOS Chief of Systems & Operations = Sentinel + dispatcher infra + WR pipeline. AIOS Stack Intelligence = our toolkit audit + drift detection. AIOS Waste Elimination = Hook Introduction Rule + 90-day sunset clause. AIOS Honest Decision Intelligence = Pushback Protocol + No Yes-Agent rule. AIOS Strategic Workflow Audits = audit-autonomous-systems.py + workspace-data-quality-audit. AIOS Time Given Back = inbox coordination + cron triage + structural hook enforcement. AIOS "proposes its own improvements" = brain-dump folder + WR pipeline + Type 5 System Learning data capture (`_feedback_events.py`). The patterns are 1:1.
+
+**Apply when:** Designing any new workflow, hook, audit, or governance pattern in Skill Hub / HQ / Sentinel. The implicit question to ask first: "Does this workflow embody an AIOS pillar?" If yes, build it for us first, harvest what works, ship to clients later. If no, reconsider whether it should exist.
+
+**Design principles:** Internal-first deployment surfaces failure modes that synthetic testing cannot. The AIOS spec evolves from what works in our own toolkit, not from theoretical best practices. Every successful internal pattern is a deployable AIOS module; every failed pattern is captured in lessons-learned.md as an exclusion rule.
+
+**Tags:** AIOS, dogfood, architecture, internal-first, sharkitect-methodology
+
