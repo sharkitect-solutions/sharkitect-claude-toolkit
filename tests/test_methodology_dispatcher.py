@@ -460,12 +460,14 @@ class TestClaudeApiSubRule:
         assert "advisory" in result
 
     def test_thinking_beta_tools_triggers_advisory(self, tmp_path, monkeypatch):
-        """Beta features signal: beta.tools.* / computer_use / extended_thinking.
+        """Beta features signal: thinking={...} / beta.tools.* / computer_use / extended_thinking.
 
-        Note: the legacy `thinking\\s*=\\s*\\{` branch in source has a known
-        regex bug (trailing \\b after \\{ never matches against typical
-        non-word follow-ups like '{"key"...'). 1:1 preservation keeps the
-        bug; a follow-up WR will fix the regex post-consolidation.
+        Regex was previously `\\b(?:thinking\\s*=\\s*\\{|beta\\.tools\\.|...)\\b` --
+        trailing \\b after \\{ or \\. could never match typical non-word follow-ups
+        like '{"type":...' or 'tools.run(...)'. wr-skillhub-2026-05-05-001 fixed by
+        dropping leading + trailing global \\b and pinning word-boundaries only on
+        the branches ending in word chars (computer_use\\b, extended_thinking\\b).
+        This test now uses the literal thinking={...} pattern that previously dead-fired.
         """
         self._isolate_state(tmp_path, monkeypatch)
         from _dispatchers.methodology import claude_api
@@ -473,7 +475,15 @@ class TestClaudeApiSubRule:
             "tool_name": "Write",
             "tool_input": {
                 "file_path": str(tmp_path / "thinking.py"),
-                "content": "from anthropic.beta.tools import run\nresult = beta.tools.run(args)\n",
+                "content": (
+                    "from anthropic import Anthropic\n"
+                    "client = Anthropic()\n"
+                    "response = client.messages.create(\n"
+                    '    model="claude-sonnet-4-5",\n'
+                    '    thinking={"type":"enabled","budget_tokens":10000},\n'
+                    "    messages=[{\"role\":\"user\",\"content\":\"hi\"}],\n"
+                    ")\n"
+                ),
             },
             "transcript_path": _write_transcript(tmp_path, "ok"),
         })
@@ -1623,3 +1633,1203 @@ class TestPlanFileReadSubRule:
             ),
         })
         assert result is None
+
+
+# ---------------------------------------------------------------------------
+# Sub-rule: multi_file_build (NEW from wr-sentinel-2026-05-04-009 first half)
+# Trigger: PreToolUse:Edit|Write. Tracks distinct file-type categories
+# (spec, tool, bat, vbs, doc) written across the session. Crosses 5 ->
+# advisory nudge to invoke superpowers:writing-plans.
+# Preservation: bypass via skill log (writing-plans /
+# superpowers:writing-plans), transcript phrase, intent_detection.
+# Severity: ADVISORY.
+# ---------------------------------------------------------------------------
+
+class TestMultiFileBuildSubRule:
+    def _isolate_state(self, tmp_path, monkeypatch):
+        from _dispatchers.methodology import multi_file_build
+        state_dir = tmp_path / ".tmp"
+        state_dir.mkdir(exist_ok=True)
+        monkeypatch.setattr(multi_file_build, "TMP_DIR", state_dir)
+        monkeypatch.setattr(
+            multi_file_build, "STATE_FILE",
+            state_dir / "multi-file-build-state.json",
+        )
+
+    def _write(self, file_path, transcript_path, content="content"):
+        return {
+            "tool_name": "Write",
+            "tool_input": {"file_path": str(file_path), "content": content},
+            "transcript_path": transcript_path,
+        }
+
+    def test_below_threshold_does_not_trigger(self, tmp_path, monkeypatch):
+        """4 distinct categories -- under threshold of 5."""
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import multi_file_build
+        transcript = _write_transcript(tmp_path, "ok")
+        paths = [
+            tmp_path / "docs" / "specs" / "x.md",
+            tmp_path / "tools" / "y.py",
+            tmp_path / "scripts" / "z.bat",
+            tmp_path / "scripts" / "w.vbs",
+        ]
+        last_result = None
+        for p in paths:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            last_result = multi_file_build.evaluate(self._write(p, transcript))
+        assert last_result is None
+
+    def test_5_distinct_file_types_triggers_advisory(self, tmp_path, monkeypatch):
+        """spec + tool + bat + vbs + doc = 5 categories -> advisory."""
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import multi_file_build
+        transcript = _write_transcript(tmp_path, "ok")
+        paths = [
+            tmp_path / "docs" / "specs" / "x.md",
+            tmp_path / "tools" / "y.py",
+            tmp_path / "scripts" / "z.bat",
+            tmp_path / "scripts" / "w.vbs",
+            tmp_path / "docs" / "guide.md",
+        ]
+        last_result = None
+        for p in paths:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            last_result = multi_file_build.evaluate(self._write(p, transcript))
+        assert last_result is not None
+        assert "advisory" in last_result
+        assert "writing-plans" in last_result["advisory"].lower()
+
+    def test_5_writes_same_category_does_not_trigger(self, tmp_path, monkeypatch):
+        """5 .py files all under tools/ = 1 category, no nudge."""
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import multi_file_build
+        transcript = _write_transcript(tmp_path, "ok")
+        last_result = None
+        for i in range(5):
+            p = tmp_path / "tools" / f"f{i}.py"
+            p.parent.mkdir(parents=True, exist_ok=True)
+            last_result = multi_file_build.evaluate(self._write(p, transcript))
+        assert last_result is None
+
+    def test_classification_spec_path(self, tmp_path, monkeypatch):
+        from _dispatchers.methodology import multi_file_build
+        assert multi_file_build._classify("/x/docs/superpowers/specs/foo.md") == "spec"
+        assert multi_file_build._classify("/y/specs/bar.md") == "spec"
+
+    def test_classification_tool_path(self, tmp_path, monkeypatch):
+        from _dispatchers.methodology import multi_file_build
+        assert multi_file_build._classify("/repo/tools/foo.py") == "tool"
+        assert multi_file_build._classify("/repo/scripts/bar.py") == "tool"
+
+    def test_classification_bat_and_vbs(self, tmp_path, monkeypatch):
+        from _dispatchers.methodology import multi_file_build
+        assert multi_file_build._classify("/x/silent.bat") == "bat"
+        assert multi_file_build._classify("/x/runner.vbs") == "vbs"
+
+    def test_classification_doc_path(self, tmp_path, monkeypatch):
+        from _dispatchers.methodology import multi_file_build
+        assert multi_file_build._classify("/repo/docs/guide.md") == "doc"
+
+    def test_classification_unrecognized_returns_none(self, tmp_path, monkeypatch):
+        from _dispatchers.methodology import multi_file_build
+        assert multi_file_build._classify("/repo/src/main.go") is None
+        assert multi_file_build._classify("/repo/random.txt") is None
+        assert multi_file_build._classify("") is None
+
+    def test_bypass_via_skill_log_writing_plans(self, tmp_path, monkeypatch):
+        self._isolate_state(tmp_path, monkeypatch)
+        # Place skill log in TMP_DIR (state_dir) per dispatcher convention
+        from datetime import datetime
+        today = datetime.now().strftime("%Y-%m-%d")
+        log_path = tmp_path / ".tmp" / f"skill-invocations-{today}.json"
+        log_path.write_text(
+            json.dumps({"invocations": [{"skill": "writing-plans"}]}),
+            encoding="utf-8",
+        )
+        from _dispatchers.methodology import multi_file_build
+        transcript = _write_transcript(tmp_path, "ok")
+        paths = [
+            tmp_path / "docs" / "specs" / "x.md",
+            tmp_path / "tools" / "y.py",
+            tmp_path / "scripts" / "z.bat",
+            tmp_path / "scripts" / "w.vbs",
+            tmp_path / "docs" / "guide.md",
+        ]
+        last_result = None
+        for p in paths:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            last_result = multi_file_build.evaluate(self._write(p, transcript))
+        assert last_result is None
+
+    def test_bypass_via_skill_log_superpowers_writing_plans(self, tmp_path, monkeypatch):
+        self._isolate_state(tmp_path, monkeypatch)
+        from datetime import datetime
+        today = datetime.now().strftime("%Y-%m-%d")
+        log_path = tmp_path / ".tmp" / f"skill-invocations-{today}.json"
+        log_path.write_text(
+            json.dumps({"invocations": [{"skill": "superpowers:writing-plans"}]}),
+            encoding="utf-8",
+        )
+        from _dispatchers.methodology import multi_file_build
+        transcript = _write_transcript(tmp_path, "ok")
+        paths = [
+            tmp_path / "docs" / "specs" / "x.md",
+            tmp_path / "tools" / "y.py",
+            tmp_path / "scripts" / "z.bat",
+            tmp_path / "scripts" / "w.vbs",
+            tmp_path / "docs" / "guide.md",
+        ]
+        last_result = None
+        for p in paths:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            last_result = multi_file_build.evaluate(self._write(p, transcript))
+        assert last_result is None
+
+    def test_bypass_via_transcript_phrase(self, tmp_path, monkeypatch):
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import multi_file_build
+        transcript = _write_transcript(tmp_path, "skip multi-file-build")
+        paths = [
+            tmp_path / "docs" / "specs" / "x.md",
+            tmp_path / "tools" / "y.py",
+            tmp_path / "scripts" / "z.bat",
+            tmp_path / "scripts" / "w.vbs",
+            tmp_path / "docs" / "guide.md",
+        ]
+        last_result = None
+        for p in paths:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            last_result = multi_file_build.evaluate(self._write(p, transcript))
+        assert last_result is None
+
+    def test_debounce_once_per_session(self, tmp_path, monkeypatch):
+        """First crossing nudges; subsequent writes do not re-nudge."""
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import multi_file_build
+        transcript = _write_transcript(tmp_path, "ok")
+        paths = [
+            tmp_path / "docs" / "specs" / "x.md",
+            tmp_path / "tools" / "y.py",
+            tmp_path / "scripts" / "z.bat",
+            tmp_path / "scripts" / "w.vbs",
+            tmp_path / "docs" / "guide.md",
+        ]
+        first_nudge = None
+        for p in paths:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            r = multi_file_build.evaluate(self._write(p, transcript))
+            if r is not None:
+                first_nudge = r
+        assert first_nudge is not None
+        # Add a 6th distinct category-equivalent write (another doc); should be debounced
+        extra = tmp_path / "docs" / "another.md"
+        result2 = multi_file_build.evaluate(self._write(extra, transcript))
+        assert result2 is None
+
+    def test_non_write_edit_tool_ignored(self, tmp_path, monkeypatch):
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import multi_file_build
+        transcript = _write_transcript(tmp_path, "ok")
+        result = multi_file_build.evaluate({
+            "tool_name": "Bash",
+            "tool_input": {"command": "ls"},
+            "transcript_path": transcript,
+        })
+        assert result is None
+
+    def test_intent_detection_user_driven_bypass(self, tmp_path, monkeypatch):
+        """NEW LAYER: user-driven imperative bypass."""
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import multi_file_build
+        transcript = _write_transcript(
+            tmp_path,
+            "go ahead and create all the files we agreed on for this build",
+        )
+        paths = [
+            tmp_path / "docs" / "specs" / "x.md",
+            tmp_path / "tools" / "y.py",
+            tmp_path / "scripts" / "z.bat",
+            tmp_path / "scripts" / "w.vbs",
+            tmp_path / "docs" / "guide.md",
+        ]
+        last_result = None
+        for p in paths:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            last_result = multi_file_build.evaluate(self._write(p, transcript))
+        assert last_result is None
+
+    def test_edit_tool_also_counts(self, tmp_path, monkeypatch):
+        """Edit tool counts toward threshold same as Write."""
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import multi_file_build
+        transcript = _write_transcript(tmp_path, "ok")
+        # 4 Writes + 1 Edit on a different category
+        paths_writes = [
+            tmp_path / "docs" / "specs" / "x.md",
+            tmp_path / "tools" / "y.py",
+            tmp_path / "scripts" / "z.bat",
+            tmp_path / "scripts" / "w.vbs",
+        ]
+        for p in paths_writes:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            multi_file_build.evaluate(self._write(p, transcript))
+        # 5th: Edit on a doc -- should push to threshold and nudge
+        edit_path = tmp_path / "docs" / "guide.md"
+        edit_path.parent.mkdir(parents=True, exist_ok=True)
+        result = multi_file_build.evaluate({
+            "tool_name": "Edit",
+            "tool_input": {
+                "file_path": str(edit_path),
+                "old_string": "x", "new_string": "y",
+            },
+            "transcript_path": transcript,
+        })
+        assert result is not None
+        assert "advisory" in result
+
+
+# ---------------------------------------------------------------------------
+# Sub-rule: production_tool (NEW from wr-sentinel-2026-05-04-009 second half)
+# Trigger: PreToolUse:Edit|Write on Python files under /tools/ or /scripts/
+# whose content shows production-impact patterns (urllib.request import,
+# HTTP PATCH verb, or Supabase execute_sql / apply_migration call) AND no
+# matching test_<basename>.py file exists. Advisory pointing to
+# testing-strategy / test-driven-development skill.
+# ---------------------------------------------------------------------------
+
+class TestProductionToolSubRule:
+    def _isolate_state(self, tmp_path, monkeypatch):
+        from _dispatchers.methodology import production_tool
+        state_dir = tmp_path / ".tmp"
+        state_dir.mkdir(exist_ok=True)
+        monkeypatch.setattr(production_tool, "TMP_DIR", state_dir)
+        monkeypatch.setattr(
+            production_tool, "STATE_FILE",
+            state_dir / "production-tool-state.json",
+        )
+
+    def _make_tool(self, tmp_path, name="ship_data.py", content="import sys\n"):
+        tool_dir = tmp_path / "tools"
+        tool_dir.mkdir(parents=True, exist_ok=True)
+        tool_path = tool_dir / name
+        tool_path.write_text(content, encoding="utf-8")
+        return tool_path
+
+    def _make_test(self, tmp_path, basename):
+        test_dir = tmp_path / "tests"
+        test_dir.mkdir(parents=True, exist_ok=True)
+        test_path = test_dir / f"test_{basename}.py"
+        test_path.write_text("def test_x(): pass\n", encoding="utf-8")
+        return test_path
+
+    def test_urllib_request_no_test_triggers(self, tmp_path, monkeypatch):
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import production_tool
+        tool = self._make_tool(tmp_path)
+        result = production_tool.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(tool),
+                "content": "import urllib.request\nurllib.request.urlopen('http://x')\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        assert result is not None
+        assert "advisory" in result
+        assert "test" in result["advisory"].lower()
+
+    def test_http_patch_no_test_triggers(self, tmp_path, monkeypatch):
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import production_tool
+        tool = self._make_tool(tmp_path, name="patcher.py")
+        result = production_tool.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(tool),
+                "content": "import requests\nrequests.patch(url, json={'a':1})\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        assert result is not None
+        assert "PATCH" in result["advisory"]
+
+    def test_method_eq_patch_string_triggers(self, tmp_path, monkeypatch):
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import production_tool
+        tool = self._make_tool(tmp_path, name="updater.py")
+        result = production_tool.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(tool),
+                "content": "method='PATCH'\nmake_req(url, method=method)\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        assert result is not None
+
+    def test_execute_sql_no_test_triggers(self, tmp_path, monkeypatch):
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import production_tool
+        tool = self._make_tool(tmp_path, name="db_writer.py")
+        result = production_tool.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(tool),
+                "content": "from db import execute_sql\nexecute_sql('UPDATE users SET x=1')\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        assert result is not None
+        assert "execute_sql" in result["advisory"] or "SQL" in result["advisory"]
+
+    def test_existing_test_file_does_not_trigger(self, tmp_path, monkeypatch):
+        """tests/test_<basename>.py exists -> no nudge."""
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import production_tool
+        tool = self._make_tool(tmp_path, name="db_writer.py")
+        self._make_test(tmp_path, "db_writer")
+        result = production_tool.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(tool),
+                "content": "from db import execute_sql\nexecute_sql('UPDATE x')\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        assert result is None
+
+    def test_non_python_file_does_not_trigger(self, tmp_path, monkeypatch):
+        """JS file under tools/ -- pattern is Python-specific."""
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import production_tool
+        tool_dir = tmp_path / "tools"
+        tool_dir.mkdir(parents=True, exist_ok=True)
+        js_tool = tool_dir / "ship.js"
+        result = production_tool.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(js_tool),
+                "content": "fetch(url, {method:'PATCH'})",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        assert result is None
+
+    def test_non_tools_path_does_not_trigger(self, tmp_path, monkeypatch):
+        """Python file outside /tools/ or /scripts/ -- not a tool."""
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import production_tool
+        random_dir = tmp_path / "src"
+        random_dir.mkdir(parents=True, exist_ok=True)
+        py_file = random_dir / "main.py"
+        result = production_tool.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(py_file),
+                "content": "import urllib.request\nurllib.request.urlopen('http://x')\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        assert result is None
+
+    def test_python_without_dangerous_patterns_does_not_trigger(self, tmp_path, monkeypatch):
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import production_tool
+        tool = self._make_tool(tmp_path)
+        result = production_tool.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(tool),
+                "content": "import os\nimport json\nprint('hello')\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        assert result is None
+
+    def test_bypass_via_skill_log_test_driven_development(self, tmp_path, monkeypatch):
+        self._isolate_state(tmp_path, monkeypatch)
+        from datetime import datetime
+        today = datetime.now().strftime("%Y-%m-%d")
+        log_path = tmp_path / ".tmp" / f"skill-invocations-{today}.json"
+        log_path.write_text(
+            json.dumps({"invocations": [{"skill": "test-driven-development"}]}),
+            encoding="utf-8",
+        )
+        from _dispatchers.methodology import production_tool
+        tool = self._make_tool(tmp_path)
+        result = production_tool.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(tool),
+                "content": "import urllib.request\nurllib.request.urlopen('http://x')\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        assert result is None
+
+    def test_bypass_via_skill_log_superpowers_test_driven_development(self, tmp_path, monkeypatch):
+        self._isolate_state(tmp_path, monkeypatch)
+        from datetime import datetime
+        today = datetime.now().strftime("%Y-%m-%d")
+        log_path = tmp_path / ".tmp" / f"skill-invocations-{today}.json"
+        log_path.write_text(
+            json.dumps({"invocations": [{"skill": "superpowers:test-driven-development"}]}),
+            encoding="utf-8",
+        )
+        from _dispatchers.methodology import production_tool
+        tool = self._make_tool(tmp_path)
+        result = production_tool.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(tool),
+                "content": "import urllib.request\nurllib.request.urlopen('http://x')\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        assert result is None
+
+    def test_bypass_via_transcript_phrase(self, tmp_path, monkeypatch):
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import production_tool
+        tool = self._make_tool(tmp_path)
+        result = production_tool.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(tool),
+                "content": "import urllib.request\nurllib.request.urlopen('http://x')\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "skip production-tool"),
+        })
+        assert result is None
+
+    def test_debounce_per_file(self, tmp_path, monkeypatch):
+        """Same tool re-edited in same session: nudges only once."""
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import production_tool
+        tool = self._make_tool(tmp_path)
+        first = production_tool.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(tool),
+                "content": "import urllib.request\nurllib.request.urlopen('http://x')\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        assert first is not None
+        second = production_tool.evaluate({
+            "tool_name": "Edit",
+            "tool_input": {
+                "file_path": str(tool),
+                "old_string": "x",
+                "new_string": "import urllib.request\nurllib.request.urlopen('http://y')\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        assert second is None
+
+    def test_non_write_edit_tool_ignored(self, tmp_path, monkeypatch):
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import production_tool
+        result = production_tool.evaluate({
+            "tool_name": "Bash",
+            "tool_input": {"command": "ls"},
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        assert result is None
+
+    def test_intent_detection_user_driven_bypass(self, tmp_path, monkeypatch):
+        """NEW LAYER: user-driven imperative bypass."""
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import production_tool
+        tool = self._make_tool(tmp_path)
+        result = production_tool.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(tool),
+                "content": "import urllib.request\nurllib.request.urlopen('http://x')\n",
+            },
+            "transcript_path": _write_transcript(
+                tmp_path,
+                f"go ahead and ship {tool.name} we will write tests after",
+            ),
+        })
+        assert result is None
+
+
+# ---------------------------------------------------------------------------
+# Sub-rule: creation_gate (NEW unifies hook + verification-before-build)
+# Source absorption:
+#   Tier 1 - hook-development-enforcer.py: HARD GATE on new ~/.claude/hooks/*.py
+#   Tier 2 - verification-before-build-enforcer.py: ADVISORY on infra writes
+#            without recent preflight-check.py
+# Spec: docs/superpowers/specs/2026-05-05-hook-dispatcher-consolidation-spec.md
+# ---------------------------------------------------------------------------
+
+class TestCreationGateSubRuleHookTier:
+    """Tier 1: hook-creation HARD GATE."""
+
+    def _isolate_state(self, tmp_path, monkeypatch):
+        from _dispatchers.methodology import creation_gate
+        state_dir = tmp_path / ".tmp"
+        state_dir.mkdir(exist_ok=True)
+        monkeypatch.setattr(creation_gate, "TMP_DIR", state_dir)
+        monkeypatch.setattr(
+            creation_gate, "PREFLIGHT_STATE_FILE",
+            state_dir / "creation-gate-preflight-state.json",
+        )
+        # Use isolated preflight marker so absent file = no recent preflight
+        marker = tmp_path / "preflight_invocations.jsonl"
+        monkeypatch.setattr(creation_gate, "PREFLIGHT_MARKER_PATH", marker)
+
+    def test_new_hook_write_without_skill_blocks(self, tmp_path, monkeypatch):
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import creation_gate
+        # Use a path that contains .claude/hooks/ but does NOT yet exist
+        hook_path = tmp_path / ".claude" / "hooks" / "new_hook.py"
+        hook_path.parent.mkdir(parents=True, exist_ok=True)
+        # Do NOT create the file -- new-hook detection requires non-existence
+        result = creation_gate.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(hook_path),
+                "content": "# new hook code\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        assert result is not None
+        assert "decision" in result
+        assert result["decision"] == "deny"
+        assert "hook-development" in result["reason"]
+
+    def test_existing_hook_edit_does_not_trigger(self, tmp_path, monkeypatch):
+        """Hook tier only fires on Write to NEW files; edits / Write-overwrites pass."""
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import creation_gate
+        hook_path = tmp_path / ".claude" / "hooks" / "existing_hook.py"
+        hook_path.parent.mkdir(parents=True, exist_ok=True)
+        hook_path.write_text("# existing\n", encoding="utf-8")
+        result = creation_gate.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(hook_path),
+                "content": "# updated\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        # Hook tier passes (file exists). May still emit Tier 2 advisory; that's fine.
+        # Confirm if a result, it's NOT a hook-tier deny.
+        if result is not None and "decision" in result:
+            assert "deny" not in str(result).lower() or "hook-development" not in str(result)
+
+    def test_edit_tool_on_new_hook_does_not_trigger(self, tmp_path, monkeypatch):
+        """Hook tier is Write-only; Edit tool ignored."""
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import creation_gate
+        hook_path = tmp_path / ".claude" / "hooks" / "x.py"
+        hook_path.parent.mkdir(parents=True, exist_ok=True)
+        result = creation_gate.evaluate({
+            "tool_name": "Edit",
+            "tool_input": {
+                "file_path": str(hook_path),
+                "old_string": "x", "new_string": "y",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        # Should not be a hook-tier deny
+        if result is not None:
+            assert result.get("decision") != "deny"
+
+    def test_meta_path_exempt(self, tmp_path, monkeypatch):
+        """Files under /.work-requests/ etc. are structurally exempt."""
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import creation_gate
+        meta_path = tmp_path / ".work-requests" / ".claude" / "hooks" / "draft.py"
+        meta_path.parent.mkdir(parents=True, exist_ok=True)
+        result = creation_gate.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(meta_path),
+                "content": "# meta\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        # Should NOT deny (meta path exempt). May not advise either.
+        if result is not None:
+            assert result.get("decision") != "deny"
+
+    def test_test_file_path_exempt(self, tmp_path, monkeypatch):
+        """Files matching tests/.../hook*.py are not 'hook' files."""
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import creation_gate
+        test_path = tmp_path / "tests" / "test_hook_things.py"
+        test_path.parent.mkdir(parents=True, exist_ok=True)
+        result = creation_gate.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(test_path),
+                "content": "def test_x(): pass\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        # No hook-tier deny
+        if result is not None:
+            assert result.get("decision") != "deny"
+
+    def test_bypass_via_skill_log_hook_development(self, tmp_path, monkeypatch):
+        self._isolate_state(tmp_path, monkeypatch)
+        from datetime import datetime
+        today = datetime.now().strftime("%Y-%m-%d")
+        log_path = tmp_path / ".tmp" / f"skill-invocations-{today}.json"
+        log_path.write_text(
+            json.dumps({"invocations": [{"skill": "hook-development"}]}),
+            encoding="utf-8",
+        )
+        from _dispatchers.methodology import creation_gate
+        hook_path = tmp_path / ".claude" / "hooks" / "new_hook.py"
+        hook_path.parent.mkdir(parents=True, exist_ok=True)
+        result = creation_gate.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(hook_path),
+                "content": "# new hook\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        # Hook tier bypassed; may emit Tier 2 preflight advisory but not a deny
+        if result is not None:
+            assert result.get("decision") != "deny"
+
+    def test_bypass_via_skill_log_plugin_dev_namespace(self, tmp_path, monkeypatch):
+        self._isolate_state(tmp_path, monkeypatch)
+        from datetime import datetime
+        today = datetime.now().strftime("%Y-%m-%d")
+        log_path = tmp_path / ".tmp" / f"skill-invocations-{today}.json"
+        log_path.write_text(
+            json.dumps({"invocations": [{"skill": "plugin-dev:hook-development"}]}),
+            encoding="utf-8",
+        )
+        from _dispatchers.methodology import creation_gate
+        hook_path = tmp_path / ".claude" / "hooks" / "new_hook.py"
+        hook_path.parent.mkdir(parents=True, exist_ok=True)
+        result = creation_gate.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(hook_path),
+                "content": "# new hook\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        if result is not None:
+            assert result.get("decision") != "deny"
+
+    def test_bypass_via_transcript_phrase(self, tmp_path, monkeypatch):
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import creation_gate
+        hook_path = tmp_path / ".claude" / "hooks" / "new_hook.py"
+        hook_path.parent.mkdir(parents=True, exist_ok=True)
+        result = creation_gate.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(hook_path),
+                "content": "# new hook\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "skip hook-development"),
+        })
+        if result is not None:
+            assert result.get("decision") != "deny"
+
+    def test_bypass_via_content_phrase(self, tmp_path, monkeypatch):
+        """Phrase in the file content (for filing gap reports about hooks)."""
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import creation_gate
+        hook_path = tmp_path / ".claude" / "hooks" / "new_hook.py"
+        hook_path.parent.mkdir(parents=True, exist_ok=True)
+        result = creation_gate.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(hook_path),
+                "content": "# skip hook-development -- this is a gap report\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        if result is not None:
+            assert result.get("decision") != "deny"
+
+    def test_intent_detection_user_driven_bypass(self, tmp_path, monkeypatch):
+        """NEW LAYER: user-driven imperative bypass on hook tier."""
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import creation_gate
+        hook_path = tmp_path / ".claude" / "hooks" / "new_hook.py"
+        hook_path.parent.mkdir(parents=True, exist_ok=True)
+        result = creation_gate.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(hook_path),
+                "content": "# new hook\n",
+            },
+            "transcript_path": _write_transcript(
+                tmp_path,
+                f"go ahead and create {hook_path.name} we already discussed it",
+            ),
+        })
+        if result is not None:
+            assert result.get("decision") != "deny"
+
+    def test_non_hook_path_does_not_trigger_hook_tier(self, tmp_path, monkeypatch):
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import creation_gate
+        random_path = tmp_path / "src" / "main.py"
+        random_path.parent.mkdir(parents=True, exist_ok=True)
+        result = creation_gate.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(random_path),
+                "content": "# regular code\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        # No hook-tier deny
+        if result is not None:
+            assert result.get("decision") != "deny"
+
+
+class TestCreationGateSubRulePreflightTier:
+    """Tier 2: verification-before-build ADVISORY."""
+
+    def _isolate_state(self, tmp_path, monkeypatch):
+        from _dispatchers.methodology import creation_gate
+        state_dir = tmp_path / ".tmp"
+        state_dir.mkdir(exist_ok=True)
+        monkeypatch.setattr(creation_gate, "TMP_DIR", state_dir)
+        monkeypatch.setattr(
+            creation_gate, "PREFLIGHT_STATE_FILE",
+            state_dir / "creation-gate-preflight-state.json",
+        )
+        marker = tmp_path / "preflight_invocations.jsonl"
+        monkeypatch.setattr(creation_gate, "PREFLIGHT_MARKER_PATH", marker)
+        return marker
+
+    def test_new_script_without_recent_preflight_triggers_advisory(self, tmp_path, monkeypatch):
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import creation_gate
+        # An ~/.claude/scripts/-shaped path (no real fs creation needed)
+        script_path = tmp_path / ".claude" / "scripts" / "new_tool.py"
+        script_path.parent.mkdir(parents=True, exist_ok=True)
+        result = creation_gate.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(script_path),
+                "content": "import sys\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        assert result is not None
+        assert "advisory" in result
+        assert "preflight" in result["advisory"].lower()
+
+    def test_workspace_tool_path_triggers(self, tmp_path, monkeypatch):
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import creation_gate
+        tool_path = tmp_path / "tools" / "ship.py"
+        tool_path.parent.mkdir(parents=True, exist_ok=True)
+        result = creation_gate.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(tool_path),
+                "content": "import sys\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        assert result is not None
+        assert "advisory" in result
+
+    def test_workflow_md_path_triggers(self, tmp_path, monkeypatch):
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import creation_gate
+        wf_path = tmp_path / "workflows" / "new-sop.md"
+        wf_path.parent.mkdir(parents=True, exist_ok=True)
+        result = creation_gate.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(wf_path),
+                "content": "# SOP\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        assert result is not None
+        assert "advisory" in result
+
+    def test_recent_preflight_suppresses_advisory(self, tmp_path, monkeypatch):
+        marker = self._isolate_state(tmp_path, monkeypatch)
+        # Write a recent preflight invocation into the marker file
+        from datetime import datetime
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text(
+            json.dumps({"timestamp": datetime.now().isoformat()}) + "\n",
+            encoding="utf-8",
+        )
+        from _dispatchers.methodology import creation_gate
+        tool_path = tmp_path / "tools" / "ship.py"
+        tool_path.parent.mkdir(parents=True, exist_ok=True)
+        result = creation_gate.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(tool_path),
+                "content": "import sys\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        assert result is None
+
+    def test_old_preflight_does_not_suppress(self, tmp_path, monkeypatch):
+        """Preflight older than 90 minutes does not suppress."""
+        marker = self._isolate_state(tmp_path, monkeypatch)
+        from datetime import datetime, timedelta
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        old_ts = (datetime.now() - timedelta(hours=2)).isoformat()
+        marker.write_text(
+            json.dumps({"timestamp": old_ts}) + "\n",
+            encoding="utf-8",
+        )
+        from _dispatchers.methodology import creation_gate
+        tool_path = tmp_path / "tools" / "ship.py"
+        tool_path.parent.mkdir(parents=True, exist_ok=True)
+        result = creation_gate.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(tool_path),
+                "content": "import sys\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        assert result is not None
+        assert "advisory" in result
+
+    def test_per_path_debounce(self, tmp_path, monkeypatch):
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import creation_gate
+        tool_path = tmp_path / "tools" / "ship.py"
+        tool_path.parent.mkdir(parents=True, exist_ok=True)
+        first = creation_gate.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(tool_path),
+                "content": "import sys\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        assert first is not None
+        second = creation_gate.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(tool_path),
+                "content": "import sys\nimport os\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        assert second is None
+
+    def test_non_infra_path_does_not_trigger(self, tmp_path, monkeypatch):
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import creation_gate
+        random_path = tmp_path / "src" / "main.py"
+        random_path.parent.mkdir(parents=True, exist_ok=True)
+        result = creation_gate.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(random_path),
+                "content": "import sys\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        assert result is None
+
+    def test_bypass_via_transcript_phrase(self, tmp_path, monkeypatch):
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import creation_gate
+        tool_path = tmp_path / "tools" / "ship.py"
+        tool_path.parent.mkdir(parents=True, exist_ok=True)
+        result = creation_gate.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(tool_path),
+                "content": "import sys\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "skip preflight"),
+        })
+        assert result is None
+
+    def test_intent_detection_user_driven_bypass(self, tmp_path, monkeypatch):
+        """NEW LAYER on preflight tier."""
+        self._isolate_state(tmp_path, monkeypatch)
+        from _dispatchers.methodology import creation_gate
+        tool_path = tmp_path / "tools" / "ship.py"
+        tool_path.parent.mkdir(parents=True, exist_ok=True)
+        result = creation_gate.evaluate({
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(tool_path),
+                "content": "import sys\n",
+            },
+            "transcript_path": _write_transcript(
+                tmp_path,
+                f"go ahead and create {tool_path.name} I already checked existing tools",
+            ),
+        })
+        assert result is None
+
+
+# ---------------------------------------------------------------------------
+# TestDispatcher: top-level methodology-dispatcher.py orchestration
+# Verifies routing, HARD GATE short-circuit, advisory concatenation,
+# graceful degradation, and event-class filtering.
+# ---------------------------------------------------------------------------
+
+class TestDispatcher:
+    """Tests for methodology-dispatcher.py top-level entry."""
+
+    def _import_dispatcher(self):
+        """Import methodology-dispatcher.py as a module despite the dash in filename."""
+        import importlib.util
+        path = os.path.expanduser("~/.claude/hooks/methodology-dispatcher.py")
+        spec = importlib.util.spec_from_file_location("methodology_dispatcher", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_unknown_event_returns_none(self, tmp_path):
+        d = self._import_dispatcher()
+        assert d.dispatch({"hook_event_name": "UnknownEvent"}) is None
+
+    def test_no_subrule_contributions_returns_none(self, tmp_path):
+        """Bash command with no triggers -> no advisories -> None."""
+        d = self._import_dispatcher()
+        result = d.dispatch({
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Bash",
+            "tool_input": {"command": "echo hi"},
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        # No applicable sub-rule fires for Bash on PreToolUse (sub-rules
+        # filter internally; brainstorming wants Write, etc.)
+        assert result is None
+
+    def test_hard_gate_short_circuits(self, tmp_path, monkeypatch):
+        """First sub-rule that returns deny short-circuits the rest."""
+        d = self._import_dispatcher()
+
+        # Stub two sub-rules: first returns deny, second would assert called
+        called = {"second": False}
+
+        class StubFirst:
+            @staticmethod
+            def evaluate(payload):
+                return {"decision": "deny", "reason": "stub deny reason"}
+
+        class StubSecond:
+            @staticmethod
+            def evaluate(payload):
+                called["second"] = True
+                return {"advisory": "should not appear"}
+
+        monkeypatch.setattr(d, "PRE_TOOL_USE_SUBRULES", [StubFirst, StubSecond])
+        monkeypatch.setattr(
+            d, "EVENT_TO_SUBRULES",
+            {"PreToolUse": [StubFirst, StubSecond]},
+        )
+
+        result = d.dispatch({
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Write",
+            "tool_input": {"file_path": "/x", "content": "y"},
+        })
+        assert result is not None
+        ho = result["hookSpecificOutput"]
+        assert ho["hookEventName"] == "PreToolUse"
+        assert ho["permissionDecision"] == "deny"
+        assert "stub deny reason" in ho["permissionDecisionReason"]
+        # Second sub-rule must NOT have been called (short-circuit)
+        assert called["second"] is False
+
+    def test_multiple_advisories_concatenate(self, tmp_path, monkeypatch):
+        d = self._import_dispatcher()
+
+        class StubA:
+            @staticmethod
+            def evaluate(payload):
+                return {"advisory": "first advisory text"}
+
+        class StubB:
+            @staticmethod
+            def evaluate(payload):
+                return None
+
+        class StubC:
+            @staticmethod
+            def evaluate(payload):
+                return {"advisory": "third advisory text"}
+
+        monkeypatch.setattr(
+            d, "EVENT_TO_SUBRULES",
+            {"PreToolUse": [StubA, StubB, StubC]},
+        )
+
+        result = d.dispatch({
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Write",
+            "tool_input": {"file_path": "/x", "content": "y"},
+        })
+        assert result is not None
+        ctx = result["hookSpecificOutput"]["additionalContext"]
+        assert "first advisory text" in ctx
+        assert "third advisory text" in ctx
+        assert "---" in ctx  # separator
+
+    def test_subrule_exception_does_not_crash(self, tmp_path, monkeypatch):
+        d = self._import_dispatcher()
+
+        class StubBoom:
+            @staticmethod
+            def evaluate(payload):
+                raise RuntimeError("kaboom")
+
+        class StubGood:
+            @staticmethod
+            def evaluate(payload):
+                return {"advisory": "good advisory"}
+
+        monkeypatch.setattr(
+            d, "EVENT_TO_SUBRULES",
+            {"PreToolUse": [StubBoom, StubGood]},
+        )
+
+        result = d.dispatch({
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Write",
+            "tool_input": {"file_path": "/x", "content": "y"},
+        })
+        # Boom is suppressed; Good still runs
+        assert result is not None
+        assert "good advisory" in result["hookSpecificOutput"]["additionalContext"]
+
+    def test_post_tool_use_routes_to_correct_subrules(self, tmp_path, monkeypatch):
+        d = self._import_dispatcher()
+
+        called = []
+
+        class StubPost:
+            @staticmethod
+            def evaluate(payload):
+                called.append("post")
+                return None
+
+        class StubPre:
+            @staticmethod
+            def evaluate(payload):
+                called.append("pre")
+                return None
+
+        monkeypatch.setattr(
+            d, "EVENT_TO_SUBRULES",
+            {"PreToolUse": [StubPre], "PostToolUse": [StubPost]},
+        )
+
+        d.dispatch({
+            "hook_event_name": "PostToolUse",
+            "tool_name": "Bash",
+            "tool_input": {"command": "ls"},
+            "tool_response": "",
+        })
+        assert called == ["post"]
+
+    def test_user_prompt_submit_routes(self, tmp_path, monkeypatch):
+        d = self._import_dispatcher()
+
+        called = []
+
+        class StubUPS:
+            @staticmethod
+            def evaluate(payload):
+                called.append("ups")
+                return None
+
+        monkeypatch.setattr(
+            d, "EVENT_TO_SUBRULES",
+            {"UserPromptSubmit": [StubUPS]},
+        )
+
+        d.dispatch({
+            "hook_event_name": "UserPromptSubmit",
+            "user_prompt": "test",
+        })
+        assert called == ["ups"]
+
+    def test_failed_import_subrule_skipped(self, tmp_path, monkeypatch):
+        """If a sub-rule failed to import (None in the list), it's skipped."""
+        d = self._import_dispatcher()
+
+        class StubGood:
+            @staticmethod
+            def evaluate(payload):
+                return {"advisory": "good"}
+
+        monkeypatch.setattr(
+            d, "EVENT_TO_SUBRULES",
+            {"PreToolUse": [None, StubGood, None]},
+        )
+
+        result = d.dispatch({
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Write",
+            "tool_input": {"file_path": "/x", "content": "y"},
+        })
+        assert result is not None
+        assert "good" in result["hookSpecificOutput"]["additionalContext"]
+
+    def test_real_subrules_loaded_for_pre_tool_use(self, tmp_path):
+        """Sanity: actual PRE_TOOL_USE_SUBRULES list is populated post-import."""
+        d = self._import_dispatcher()
+        # All 10 PreToolUse sub-rules should have imported successfully.
+        # Filter Nones (none expected, but graceful).
+        loaded = [s for s in d.PRE_TOOL_USE_SUBRULES if s is not None]
+        assert len(loaded) == 10
+
+    def test_real_dispatcher_does_not_crash_on_pre_tool_use_write(self, tmp_path):
+        """End-to-end smoke: dispatcher accepts a real PreToolUse:Write payload
+        and returns either None or a valid hookSpecificOutput dict without
+        crashing. Specific sub-rule outcomes depend on each sub-rule's internal
+        bypass and threshold logic; this test just verifies the dispatcher
+        plumbing works against the live sub-rule chain."""
+        d = self._import_dispatcher()
+        plan_path = tmp_path / "src" / "main.py"
+        plan_path.parent.mkdir(parents=True, exist_ok=True)
+        result = d.dispatch({
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(plan_path),
+                "content": "import os\nprint('hello')\n",
+            },
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        # Either None (no sub-rule fired) or valid output structure
+        if result is not None:
+            assert "hookSpecificOutput" in result
+            ho = result["hookSpecificOutput"]
+            assert "hookEventName" in ho
+            assert "permissionDecision" in ho or "additionalContext" in ho
+
+    def test_real_dispatcher_post_tool_use_smoke(self, tmp_path):
+        """End-to-end smoke for PostToolUse routing."""
+        d = self._import_dispatcher()
+        result = d.dispatch({
+            "hook_event_name": "PostToolUse",
+            "tool_name": "Bash",
+            "tool_input": {"command": "echo hi"},
+            "tool_response": "hi",
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+        # Smoke: doesn't crash; result is None or valid
+        if result is not None:
+            assert "hookSpecificOutput" in result

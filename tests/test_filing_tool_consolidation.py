@@ -620,3 +620,135 @@ def test_item_type_validation_against_5_value_check_list(tmp_path, monkeypatch):
     # Unknown id prefix -> None (caller must reject)
     assert cii._derive_item_type({"id": "unknown-prefix-foo"}) is None
     assert cii._derive_item_type({}) is None
+
+
+# =============================================================================
+# Cross-workspace routing auto-promotion (wr-skillhub-2026-05-06-002)
+# =============================================================================
+
+def test_target_workspace_with_default_work_request_auto_promotes_to_routed_task(tmp_path):
+    """When --target-workspace=NON_SKILLHUB is given without explicit --item-type,
+    default work_request is auto-promoted to routed_task with stderr warning.
+
+    Source: wr-skillhub-2026-05-06-002. Legacy bug: such filings silently
+    routed to Skill Hub's local inbox. Fix: detect, auto-convert, warn.
+    """
+    inbox = tmp_path / "inbox"
+    # Build cmd manually so we can pass --target-workspace WITHOUT item_type override
+    cmd = [
+        sys.executable, str(WR_SCRIPT),
+        "--type", "TASK",
+        "--severity", "info",
+        "--workspace", "skill-management-hub",
+        "--workspace-path", str(inbox),
+        "--task", "Cross-workspace routing test",
+        "--category", "operations",
+        "--needed", "test-needed",
+        "--gap", "test-gap",
+        "--impact", GOOD_IMPACT,
+        "--fix-type", "task",
+        "--fix-desc", "test-fix-desc",
+        "--no-supabase",
+        "--output-dir", str(inbox),
+        "--skip-dedup",
+        "--target-workspace", "sentinel",
+        # NO --item-type -> defaults to work_request -> should auto-promote
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0, (
+        f"stdout={result.stdout!r} stderr={result.stderr!r}"
+    )
+    # Stderr warning fired
+    assert "auto-promoting" in result.stderr.lower() or "auto-promote" in result.stderr.lower(), (
+        f"expected auto-promote warning on stderr; got {result.stderr!r}"
+    )
+    assert "wr-skillhub-2026-05-06-002" in result.stderr
+    # Resulting JSON has routed_task semantics
+    _, data = _read_only_json_in(inbox)
+    assert data.get("item_type") == "routed_task"
+    assert data.get("routed_to") == "sentinel"
+    assert data.get("routed_from") == "skill-management-hub"
+
+
+def test_target_workspace_skill_management_hub_does_not_auto_promote(tmp_path):
+    """target_workspace=skill-management-hub stays as work_request (default semantics).
+
+    Skill Hub IS the work-request inbox, so addressing a WR to it is valid
+    and should NOT auto-promote.
+    """
+    inbox = tmp_path / "inbox"
+    cmd = [
+        sys.executable, str(WR_SCRIPT),
+        "--type", "TASK",
+        "--severity", "info",
+        "--workspace", "workforce-hq",
+        "--workspace-path", str(inbox),
+        "--task", "WR addressed to Skill Hub explicitly",
+        "--category", "operations",
+        "--needed", "test-needed",
+        "--gap", "test-gap",
+        "--impact", GOOD_IMPACT,
+        "--fix-type", "task",
+        "--fix-desc", "test-fix-desc",
+        "--no-supabase",
+        "--output-dir", str(inbox),
+        "--skip-dedup",
+        "--target-workspace", "skill-management-hub",
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0
+    # No auto-promote warning
+    assert "auto-promot" not in result.stderr.lower(), result.stderr
+    _, data = _read_only_json_in(inbox)
+    assert data.get("item_type") == "work_request"
+
+
+def test_target_workspace_same_as_source_does_not_auto_promote(tmp_path):
+    """Self-targeted (target == source) stays as work_request.
+
+    Edge case: a workspace filing a WR to itself for tracking purposes.
+    Should NOT auto-promote (no real cross-workspace dispatch).
+    """
+    inbox = tmp_path / "inbox"
+    cmd = [
+        sys.executable, str(WR_SCRIPT),
+        "--type", "TASK",
+        "--severity", "info",
+        "--workspace", "skill-management-hub",
+        "--workspace-path", str(inbox),
+        "--task", "Self-targeted WR",
+        "--category", "operations",
+        "--needed", "test-needed",
+        "--gap", "test-gap",
+        "--impact", GOOD_IMPACT,
+        "--fix-type", "task",
+        "--fix-desc", "test-fix-desc",
+        "--no-supabase",
+        "--output-dir", str(inbox),
+        "--skip-dedup",
+        "--target-workspace", "skill-management-hub",
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0
+    assert "auto-promot" not in result.stderr.lower(), result.stderr
+    _, data = _read_only_json_in(inbox)
+    assert data.get("item_type") == "work_request"
+
+
+def test_explicit_routed_task_does_not_trigger_auto_promote_warning(tmp_path):
+    """Caller explicitly passes --item-type=routed_task -- no warning.
+
+    Auto-promote is for legacy callers who forgot the flag. Explicit caller
+    sees no warning.
+    """
+    inbox = tmp_path / "inbox"
+    result = _run_wr_subprocess(
+        inbox,
+        item_type="routed_task",
+        target_workspace="sentinel",
+    )
+    assert result.returncode == 0
+    assert "auto-promot" not in result.stderr.lower(), result.stderr
+    _, data = _read_only_json_in(inbox)
+    assert data.get("item_type") == "routed_task"
+    assert data.get("routed_to") == "sentinel"

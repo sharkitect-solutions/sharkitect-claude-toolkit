@@ -937,6 +937,35 @@ def main():
     # Normalize workspace name to canonical kebab-case
     if args.workspace:
         args.workspace = validate_workspace_name(args.workspace)
+    if args.target_workspace:
+        args.target_workspace = validate_workspace_name(args.target_workspace)
+
+    # Cross-workspace routing auto-promotion (wr-skillhub-2026-05-06-002).
+    # If --item-type=work_request (default) AND --target-workspace is explicitly
+    # specified AND target != source AND target != skill-management-hub, then
+    # the caller is asking to dispatch to a non-Skill-Hub workspace -- which can
+    # only mean a routed_task. The legacy behavior silently routed such filings
+    # to Skill Hub's own inbox, where they sat unprocessed. Auto-promote with a
+    # stderr warning so the user sees what happened.
+    # Note: applies even with --output-dir; the JSON content semantics
+    # (routed_from/routed_to/item_type) need updating regardless of write dest.
+    if (
+        (args.item_type or DEFAULT_ITEM_TYPE).strip().lower() == "work_request"
+        and args.target_workspace
+        and args.target_workspace.lower() != (args.workspace or "").lower()
+        and args.target_workspace.lower() != "skill-management-hub"
+    ):
+        print(
+            f"WARNING: --target-workspace={args.target_workspace!r} with "
+            f"--item-type=work_request points at a non-Skill-Hub workspace. "
+            f"work_request items always route to Skill Hub by definition; "
+            f"items addressed to other workspaces must be routed_tasks. "
+            f"Auto-promoting --item-type to 'routed_task'. "
+            f"To suppress this warning, pass --item-type=routed_task explicitly. "
+            f"Source: wr-skillhub-2026-05-06-002.",
+            file=sys.stderr,
+        )
+        args.item_type = "routed_task"
 
     # Find target inbox.
     # --output-dir overrides for tests (creation goes wherever the test asks).

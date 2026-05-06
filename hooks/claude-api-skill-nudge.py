@@ -77,7 +77,7 @@ CACHE_CONTROL_RE = re.compile(
     re.I,
 )
 THINKING_TOOLS_RE = re.compile(
-    r"\b(?:thinking\s*=\s*\{|beta\.tools\.|computer_use|extended_thinking)\b",
+    r"(?:thinking\s*=\s*\{|beta\.tools\.|computer_use\b|extended_thinking\b)",
     re.I,
 )
 PATH_HINT_RE = re.compile(r"(?:[/\\_-]|^)(?:anthropic|claude|prompt[s]?)(?:[/\\_.-]|$)", re.I)
