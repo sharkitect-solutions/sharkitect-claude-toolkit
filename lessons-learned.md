@@ -4527,3 +4527,47 @@ When writing instructions for a non-technical reader to perform a manual operati
 **Apply when:** Writing runbooks, SOPs, support documentation, or any operational instruction the user (or a future team member) might follow under stress.
 
 **Tags:** documentation, ux-writing, accessibility
+
+---
+
+## S29 close-out additions (2026-05-07)
+
+### Preferences
+
+**preference: Continuous voice/preference learning is non-negotiable -- AI must capture automatically, never asking for permission.**
+Context: 2026-05-06 Chris explicitly directed: "It should just be automatic. The AI and the agents should be conscious and aware of every interaction... I shouldn't have to say things like, 'Hey, we have to capture this.'"
+Apply-when: Every UserPromptSubmit. The voice-capture-hook handles real-time runtime; AI should NOT manually invoke voice-write.py for every interaction. Only add explicit captures when runtime would miss them (multi-paragraph nuanced critiques without trigger phrases).
+Tags: voice-capture, autonomy, runtime-enforcement, user-direction
+
+**preference: "Could almost clone me" is the autonomy benchmark.**
+Context: 2026-05-06 Chris: "Let's say two to three weeks down the line, you could almost clone me." Sets the depth-of-capture target.
+Apply-when: When evaluating whether persona capture is sufficient -- the question is "could the system make this decision in Chris's voice without instruction?" If no, capture is incomplete.
+Tags: voice-capture, autonomy-benchmark, profile-synthesis
+
+### Process Decisions
+
+**process: Cross-workspace coordination on shared concepts (e.g. persona profile) goes through inbox FYIs, not parallel duplicate builds.**
+Context: 2026-05-07 HQ filed wr-hq-2026-05-07-003 FYI announcing about-chris.md v0.1 SEED at the same time Skill Hub was building its own about-user.md. Without HQ's FYI, two parallel artifacts would have diverged. With FYI, Skill Hub absorbed HQ's structure as canonical.
+Why: Per Supabase Ownership Protocol "read globally, write locally" -- only one workspace owns the K1 SoT. Other workspaces consume + contribute via routed-tasks/synthesis tables. FYI inbox is the coordination signal that prevents duplicate writes.
+Apply-when: Any cross-workspace concept where multiple workspaces could legitimately build the same artifact. File FYI BEFORE building, not after. Reverse-FYI back to source workspace after absorbing their work.
+Tags: coordination, ownership-protocol, inbox-driven-coordination
+
+**process: Even when source workspace says notify_on_completion=false, file a reverse FYI if your work creates state the source needs to know.**
+Context: 2026-05-07 HQ FYI to Skill Hub had notify_on_completion=false. Skill Hub absorbed HQ's structure + answered 5 open architecture questions + extended Sentinel WR scope -- material new state HQ needs awareness of. User instructed: "I think you still should file an FYI."
+Why: notify_on_completion=false says "don't ack receipt of THIS message." It does NOT say "don't tell us if downstream work creates new state." Reverse FYI closes the awareness loop without violating the no-ack rule.
+Apply-when: After absorbing a cross-workspace FYI/coordination signal, if your response generates rule changes, scope extensions, or architectural answers the source needs to validate, file an FYI back to them.
+Tags: coordination, FYI-protocol, awareness-loop
+
+### Architecture Direction
+
+**direction: Persona profile uses split ownership -- HQ owns the K1 SoT (about-chris.md content), Skill Hub owns the meta-doc (~/.claude/about-user.md = how-to layer), Sentinel owns the synthesis pipeline + Supabase table.**
+Context: 2026-05-07 reconciliation between HQ wr-hq-2026-05-07-003 and Skill Hub's parallel about-user.md work.
+Apply-when: Any cross-workspace artifact where one workspace owns content + others contribute structured signals. Pattern: K1 file (content) + meta-doc (how-to) + synthesis pipeline (writes to a Supabase table the K1-owner pulls from) + read-globally-write-locally enforcement.
+Design principles: One canonical writer per artifact. Consumers pull, not push. Synthesis happens upstream of the K1; K1 owner integrates downstream. Cross-workspace edits are forbidden -- route findings via routed-tasks or write to a shared Supabase table the owner reads.
+Tags: ownership, cross-workspace, persona-profile, K1-SoT, synthesis-pipeline
+
+**direction: Tier 1/2/3 application framework extends Proactive Autonomy Protocol with profile-grounded decision routing.**
+Context: 2026-05-07 HQ asked whether their Tier 1/2/3 framework should be a global standard. Yes -- it complements the existing 3-tier Proactive Autonomy Protocol (confidence-based action) by adding profile consultation depth.
+Apply-when: Any decision the AI makes. Tier 1 (routine matching established patterns) = act per profile priors loaded at session start. Tier 2 (high-stakes / novel / affects revenue/brand/client/architecture) = re-read profile section on-demand, cite source. Tier 3 (outside captured signal) = Pushback Protocol, do not act unilaterally.
+Design principles: Profile depth gates autonomy. Confidence gates action. Both layers enforce different protections.
+Tags: autonomy, decision-framework, persona-grounding, proactive-action
