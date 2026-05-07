@@ -66,6 +66,15 @@ LOG_FILENAME = "voice-capture-log.jsonl"
 DEDUP_FILENAME = "voice-capture-dedup.json"
 DEDUP_MAX_ENTRIES = 200  # cap to avoid unbounded growth
 
+# Continuous raw-sample stream (Continuous Voice & Preference Learning Protocol).
+# Every user message that passes filters lands here as a raw sample for
+# dream-consolidation pattern distillation. Source: 2026-05-06 user direction
+# expanding the protocol from reactive-only to continuous.
+RAW_SAMPLES_FILENAME = "voice-samples-raw.jsonl"
+RAW_SAMPLES_DEDUP_FILENAME = "voice-samples-raw-dedup.json"
+RAW_SAMPLES_DEDUP_MAX_ENTRIES = 500  # higher than feedback dedup -- more turns
+RAW_SAMPLES_MAX_LEN = 8000  # truncate longer prompts to bound storage
+
 
 # Pattern lists. Each entry is (regex, category). Word-boundary anchored.
 # Patterns chosen for unambiguous-feedback context. Deliberately conservative;
@@ -226,6 +235,102 @@ def _log_capture(entry: dict) -> None:
         pass
 
 
+# ── Continuous raw-sample stream ─────────────────────────────────────
+# Source: 2026-05-06 user direction expanding Continuous Voice & Preference
+# Learning Protocol from reactive-only to continuous. Every user message
+# that passes filters lands here as a raw sample for dream-consolidation
+# pattern distillation (sentence rhythm, word choice, formality, etc.).
+
+def _load_raw_dedup() -> dict:
+    path = _tmp_dir() / RAW_SAMPLES_DEDUP_FILENAME
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _save_raw_dedup(d: dict) -> None:
+    path = _tmp_dir() / RAW_SAMPLES_DEDUP_FILENAME
+    if len(d) > RAW_SAMPLES_DEDUP_MAX_ENTRIES:
+        items = sorted(d.items(), key=lambda kv: kv[1].get("ts", ""))
+        d = dict(items[-RAW_SAMPLES_DEDUP_MAX_ENTRIES:])
+    try:
+        path.write_text(json.dumps(d), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _is_raw_dup(prompt_hash: str, session_id: str) -> bool:
+    d = _load_raw_dedup()
+    return f"{session_id}:{prompt_hash}" in d
+
+
+def _mark_raw_seen(prompt_hash: str, session_id: str) -> None:
+    d = _load_raw_dedup()
+    d[f"{session_id}:{prompt_hash}"] = {"ts": _now_iso()}
+    _save_raw_dedup(d)
+
+
+def _should_capture_raw(prompt: str) -> bool:
+    """Same filters as feedback capture: skip slash commands and <MIN_WORDS.
+    Empty/whitespace prompts are skipped as well."""
+    if not prompt:
+        return False
+    p = prompt.strip()
+    if not p:
+        return False
+    if p.startswith("/"):
+        return False
+    if len(p.split()) < MIN_WORDS:
+        return False
+    return True
+
+
+def _log_raw_sample(entry: dict) -> None:
+    path = _tmp_dir() / RAW_SAMPLES_FILENAME
+    try:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry) + "\n")
+    except Exception:
+        pass
+
+
+def _capture_raw_sample(prompt: str, session_id: str, workspace: str) -> None:
+    """Append a raw voice sample for the user's message. Continuous-capture
+    mandate of the Continuous Voice & Preference Learning Protocol. Silent
+    fail-open. Truncates long prompts; dedups within session."""
+    if not _should_capture_raw(prompt):
+        return
+
+    h = _prompt_hash(prompt)
+    if _is_raw_dup(h, session_id):
+        return
+
+    text = prompt.strip()
+    truncated = False
+    if len(text) > RAW_SAMPLES_MAX_LEN:
+        text = text[:RAW_SAMPLES_MAX_LEN] + "..."
+        truncated = True
+
+    word_count = len(prompt.split())
+    char_count = len(prompt)
+
+    entry = {
+        "ts": _now_iso(),
+        "session_id": session_id,
+        "workspace": workspace,
+        "prompt_hash": h,
+        "word_count": word_count,
+        "char_count": char_count,
+        "truncated": truncated,
+        "text": text,
+    }
+    _log_raw_sample(entry)
+    _mark_raw_seen(h, session_id)
+
+
 def _detect_workspace_canonical() -> str:
     """Best-effort detection of canonical workspace name from CWD."""
     s = os.getcwd().replace("\\", "/").lower()
@@ -273,6 +378,16 @@ def main() -> int:
 
         prompt = payload.get("prompt") or ""
         session_id = (payload.get("session_id") or "default")[:64]
+        workspace = _detect_workspace_canonical()
+
+        # CONTINUOUS RAW-SAMPLE CAPTURE (Continuous Voice & Preference Learning
+        # Protocol). Runs on EVERY UserPromptSubmit before pattern matching --
+        # every prompt is a voice sample regardless of whether explicit feedback
+        # patterns match. Silent + fail-open + dedup'd separately from feedback.
+        try:
+            _capture_raw_sample(prompt, session_id, workspace)
+        except Exception:
+            pass  # never let raw-capture failures block feedback capture
 
         signals = detect_signals(prompt)
         if not signals:
@@ -281,8 +396,6 @@ def main() -> int:
         h = _prompt_hash(prompt)
         if _is_dup(h, session_id):
             return 0
-
-        workspace = _detect_workspace_canonical()
 
         cats = sorted(set(s["category"] for s in signals))
         sample_phrase = signals[0]["matched_phrase"]

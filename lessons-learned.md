@@ -1109,6 +1109,16 @@ Cross-project patterns, API limitations, tool quirks, user preferences, and proc
 
 ## Process Decisions
 
+### 2026-05-06 — process: Invoke writing-clearly-and-concisely at K1 SoT authoring time, not just brand-review post-hoc
+
+**Context:** During HQ Cohort A3 session, authored §1.5.1 (Contrarian Truth Operating Standard) in `brand-identity-guide.md` plus lightweight passes on `positioning.md` §1 and `executive-summary.md` opening. Invoked `marketing-strategy-pmm` + `hq-content-enforcer` + `superpowers:brainstorming` during alternatives generation. Did NOT invoke `writing-clearly-and-concisely` at draft time. The brand-reviewer agent (running `hq-brand-review` post-draft) caught a 50-word compound sentence in `executive-summary.md` opening (Direct attribute scored 5/10, below 7-9 target) and a duplicate "systems-first" phrase in the same sentence. Fix A had to be applied after brand-review — ~5 min cost + cognitive overhead of revising freshly-authored prose.
+
+**Why:** `writing-clearly-and-concisely` is a preventive prose-quality skill (sentence length, parallel structure, readability standards). `hq-brand-review` is detective (catches violations post-draft). For K1 SoT authoring, the cost of fix-after-review compounds because K1 SoTs are reused across many downstream surfaces. The Contrarian Truth cascade plan has 17 remaining downstream docs — 17 opportunities for the same prose-quality issue to slip past at draft time if the skill stack stays detective-only. `hq-content-enforcer`'s `content-routing-guide.md` does NOT currently route to `writing-clearly-and-concisely` for any content type — that's the missing gap. The enforcer treats brand-review as the final quality gate, but for K1 SoT prose specifically the structural prose-quality dimension needs preventive enforcement.
+
+**How to apply:** When authoring K1 SoT prose (anything in `knowledge-base/governance/*.md` or `knowledge-base/strategy/*.md` that's classification K1), invoke `writing-clearly-and-concisely` BEFORE drafting, alongside `marketing-strategy-pmm` (for positioning content) or `pricing-strategy` (for pricing content) or other domain skills. Then run `hq-brand-review` LAST as the final quality gate. K1 SoT path is distinct from landing-page or proposal paths because K1 SoTs are reused across many downstream surfaces and prose quality is structural rather than persuasive.
+
+**Source:** Resource-auditor filed FALLBACK gap to Skill Hub (`wr-hq-2026-05-06-002`) with proposed fix: add "K1 SoT authoring" content type to `hq-content-enforcer/references/content-routing-guide.md` decision tree routing to writing-clearly-and-concisely first, then domain skills, then hq-brand-review last.
+
 ### 2026-05-04 — process: Hook-budget-aware triage on incoming hook-build WRs (annotate-with-absorption-plan, don't reflexively build)
 
 **Context:** Skill Hub session 25 received `wr-hq-2026-05-04-008` from HQ asking for a new `kb-governance-enforcer.py` PreToolUse:Edit|Write hook. The hook itself was small and well-scoped (matches existing brainstorming-enforcer/methodology-nudge pattern). Default reflex is "build it." Reflex would have produced hook #45 against a 30-cap with 17 already on PreToolUse:Edit|Write — worsening the cumulative-friction problem the Hook Introduction Rule was filed to prevent (wr-hq-2026-04-27-006).
@@ -4401,3 +4411,119 @@ Apply when: user gives a detailed spec AND a "we can iterate later" reassurance 
 
 **Tags:** AIOS, dogfood, architecture, internal-first, sharkitect-methodology
 
+
+---
+
+## 2026-05-06 — Premature locking pattern (process)
+
+**process:** When finishing a multi-sub-decision section, do NOT headline with "✅ locked" until the user has explicitly confirmed EACH piece. Show recommendation + reasoning per item, wait for explicit lock per item, THEN summarize as locked.
+
+**Context:** AIOS HQ Cohort A2 lock session, Q4 (recruitment process + qualification framework). I presented Q4 as "## Q4 — actual locks" with a table of "Locked value" entries before Chris had given input on diversity cap (was 2-of-6 hard, he wanted hybrid 1-month time-box) + threshold (was 19/76%, he wanted 18 with flexibility) + Q9 (was hard YES, he confirmed). Chris caught the pattern: "you locked things HE hadn't decided on yet."
+
+**Why:** Premature locking pre-commits the user to a position they haven't endorsed. If they redirect, the lock has to be retracted, which feels like backtracking even when it's just course-correction. Worse, the AI's "✅ locked" framing creates social pressure on the user to accept rather than redirect.
+
+**Apply when:** Any multi-sub-decision section being summarized, ANY time the AI is presenting recommendations that map 1:1 to user-controlled decisions. Pattern is most dangerous in fast Decision Protocol flows (item-at-a-time presentation where momentum makes premature lock-claims feel natural).
+
+**Tags:** process, decision-protocol, premature-commitment, ai-failure-mode
+
+---
+
+## 2026-05-06 — Do it right the first time (architecture direction)
+
+**direction:** Non-negotiable: keep work simple within the confines of what's needed, AND take the path of excellent outcome — never the path of least resistance. Whatever the final decision is, it must produce the long-term solution, not a quick fix to redo later. Spanish saying: "the lazy work twice as hard because they don't get it right the first time and have to go back."
+
+**Context:** AIOS HQ Cohort A2 lock, Path 1 vs Path 2 decision on whether to invoke marketing-strategy-pmm + superpowers:brainstorming BEFORE locking the qualification framework (Path 2) or AFTER while doing form-build (Path 1). I recommended Path 1 for momentum. Chris overrode with Path 2 and explicit reasoning: "I've been dealing with going back and redoing things already, and I'm done with it... we're going to keep it simple within the confines of what we need... at the same time, we're going to take the path of excellent outcome, not the path of least resistance every time."
+
+**Apply when:**
+- Any methodology decision (invoke now vs invoke later)
+- Any infrastructure decision (build minimum-viable vs build right)
+- Any K1 SoT authorship (write skeleton now and revise vs write right the first time)
+- Any time the AI is tempted to recommend "we can refine later" — that's the rationalization the rule is designed to prevent
+
+Don't conflate "keep it simple" with "do it lazy." Simplicity is about avoiding unnecessary complexity. The non-negotiable is about NOT taking shortcuts that require redo work.
+
+**Tags:** architecture-direction, non-negotiable, technical-debt-prevention, chris-quote
+
+---
+
+## 2026-05-06 — Anti-gameability for forms with multi-choice scoring (process)
+
+**process:** When designing any qualification form, scoring rubric, or rating system where respondents will see the options:
+
+1. **Shuffle option display order on the form.** Server-side scoring is unchanged but applicants see options in random order so they can't infer which scores highest by reading top-to-bottom.
+2. **Hide point values from the form entirely.** No scoring math visible on the form. No "this answer = 5 pts" labels. No tiered visual ladder. Server scores after submission.
+3. **Apply across all multi-choice questions, not just the one most-obviously-gameable.** The pattern repeats wherever the form ladders pain/quality/intensity.
+
+**Context:** AIOS Beta Program qualification framework Q3 (cost of doing nothing) had 5 options ordered low-pain to high-pain in my draft. Brainstorming stress-test surfaced: smart applicants would pick the highest-pain answer to maximize their score, defeating the diagnostic purpose. Chris's lock: shuffle across the board.
+
+**Apply when:** any multi-choice question whose options are visibly ordered by an underlying score, quality, intensity, or desirability dimension. Risk is highest in self-rated qualification, hiring screens, lead-quality forms, RFI/RFP forms, and beta program applications.
+
+**Counter-example (don't shuffle):** demographic categoricals (industry, business model, team size) where there's no underlying score ladder — these can be displayed in normal order.
+
+**Tags:** form-design, gameability, scoring-rubric, qualification-framework, beta-program-design
+
+---
+
+## 2026-05-06 — Single application path > held-slots split (architecture direction)
+
+**direction:** For invitation/cohort programs (beta cohorts, founding partners, exclusive access tiers): use a SINGLE application path for everyone. Do NOT split direct-invite slots vs application slots.
+
+**Apply when:**
+- Designing recruitment for a limited cohort (beta testers, founding members, exclusive launches)
+- Tempted to "reserve N slots for our network and N for public applications"
+
+**Why this beats slot-splitting:**
+1. Eliminates favoritism risk on the qualification bar — your friends still pass the threshold
+2. Cleaner brand story: "we're invite-only, application-driven" (avoids two-tier perception)
+3. Database becomes a marketing asset (waitlist = future revenue pipeline)
+4. AI/founder can't accidentally lower threshold for a friend — the form forces objectivity
+
+**Personal touch is preserved through framing, not slots:** When founder reaches out to network, the message is "I'm hand-picking applicants for the first wave. I think you'd be a strong fit. Here's the application: [link]." The personal touch is in WHO they reach out to and HOW they word it, not in held slots.
+
+**Context:** AIOS Beta Program (Cohort A2). Original decision packet recommended 3 direct invites + 2 application slots. Chris pushed back: "Let's just do it straightforward... I'm not going to hold any spots... they all funnel through the same form." This produced cleaner mental model, eliminated favoritism risk, and produced a marketing artifact (the public-facing "Be one of the first" landing page).
+
+**Tags:** architecture-direction, recruitment-design, cohort-programs, beta-program-design, application-design
+
+---
+
+## 2026-05-06 — Sentinel Reports Restructure brainstorm Round 1
+
+### preference: 3-options-format for design questions
+
+For any architectural/design decision during brainstorming, present three options (narrow / middle / broad ground) with what each triggers, plus a recommendation and reasoning. The user explicitly requested this format and confirmed it works well across all 5 Qs of Round 1.
+
+**Apply when:** Brainstorming creative decisions where multiple valid approaches exist. Especially for surface design (reports, alerts, notifications) where scope can drift.
+
+**Tags:** brainstorming, format, ux-design
+
+### direction: Sentinel = data layer, HQ = presentation layer
+
+For unified daily briefs (CEO Morning/Midday/Evening), Sentinel becomes the data preparer (audit, prep, intelligence) and HQ becomes the presenter (synthesize, format, deliver). Sentinel writes its prepared sections to a shared Supabase table; HQ pulls and embeds at brief generation time. Coupling is data-only, not code-call. Each can break without taking down the other.
+
+**Apply when:** Designing cross-workspace report/data-flow architecture where one workspace specializes in data audit/intelligence and another specializes in user-facing delivery.
+
+**Tags:** architecture, cross-workspace, data-flow
+
+### process: 5-Q brainstorm loop per surface (Purpose / Trigger / Content / Click-through / Vocabulary)
+
+When designing a new report or notification surface, lock these 5 questions in order before building. Each question gets 3 options + recommendation. Lock current Q before moving to next. Surface = report, alert, notification, brief — anything user-facing with a recurring delivery cadence.
+
+**Why:** Without this structure, brainstorming tends to converge on content first (skipping purpose), or on delivery channel before knowing what's being delivered. The fixed loop forces foundations before details.
+
+**Tags:** brainstorming, process, report-design
+
+### direction: Hybrid Slack Canvas + Notion for click-through detail
+
+Per-incident transient detail → Slack Canvas (mobile-native, near the alert, no extra service). Evergreen reusable how-tos → Notion (searchable, stable URLs, dedicated KB tool). Lazy creation + annual refresh policy.
+
+**Apply when:** Designing notification systems that need detail click-through. Avoids over-stuffing notifications AND avoids forcing every detail into a single repository tool.
+
+**Tags:** notifications, knowledge-base, architecture
+
+### preference: Third-grade reading level for manual-task walkthroughs
+
+When writing instructions for a non-technical reader to perform a manual operational task (rotate credential, restart service, fix a workflow), the walkthrough must be at third-grade reading level: every step click-by-click, exact URL, exact button name, exact field, expected outcome, recovery for common failures, verification check at the end. NO jargon, NO assumed knowledge.
+
+**Apply when:** Writing runbooks, SOPs, support documentation, or any operational instruction the user (or a future team member) might follow under stress.
+
+**Tags:** documentation, ux-writing, accessibility

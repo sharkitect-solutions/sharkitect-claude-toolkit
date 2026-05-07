@@ -785,39 +785,75 @@ Every workspace must think, suggest, and act -- not wait for instructions. The g
 
 The system must operate autonomously while the owner focuses on revenue generation and family. Every hour the owner spends debugging infrastructure or pointing out obvious improvements is an hour not spent closing deals. The workspaces must carry the operational load -- thinking, identifying, fixing, and improving without being asked.
 
-## Correction Capture Protocol (NON-NEGOTIABLE)
+## Continuous Voice & Preference Learning Protocol (NON-NEGOTIABLE)
 
-When the user corrects you -- tone, style, approach, factual error, preference -- capture it immediately. Do NOT wait for session-checkpoint. Corrections are the highest-value learning signal.
+The system constantly learns the user's voice, preferences, communication style, likes, and dislikes — automatically, from every interaction, without the user ever needing to say "remember this" or "capture this." Every interaction is an opportunity to understand the user better. This protocol overrides any local instruction that would narrow capture scope.
 
-### What Triggers Capture
-- **Direct corrections:** "No, not like that" / "Too formal" / "More direct" / "That's wrong"
-- **Positive confirmations of non-obvious choices:** "Perfect" / "Yes, exactly like that" / "Keep doing that"
-- **Style/voice feedback:** "I wouldn't say it like that" / "More like how I'd actually say it"
-- **Behavioral corrections:** "Don't do X" / "Stop doing Y" / "Always do Z"
+**User direction (verbatim, 2026-05-06):** *"the system should constantly learn and understand what I like, what I don't like, and what my preferences are, including my way of talking and how I communicate... I shouldn't have to say things like, 'Hey, we have to capture this'... It should just be automatic. The AI and the agents should be conscious and aware of every interaction, analyze it, and extract key elements that can help find answers and capture my voice the best it can."*
 
-### What To Capture
-For each correction, run TWO commands:
+### Capture surfaces (all run automatically)
 
-**1. Voice sample** (captures the content for voice profile learning):
+| Surface | Trigger | What it captures | Where it lands |
+|---|---|---|---|
+| **Every user message (raw sample)** | UserPromptSubmit hook, every turn | Full prompt text -- voice rhythm, word choice, punctuation habits, sentence length, formality, topic engagement | `~/.claude/.tmp/voice-samples-raw.jsonl` (continuous) |
+| **Explicit corrections** | Pattern match on user message | "no, not like that", "too formal", "wrong", "be more X" -> categorized as correction | `voice-capture-log.jsonl` + `activity_stream` correction event |
+| **Explicit preferences** | Pattern match on user message | "I prefer X", "I'd rather", "I don't like Y", "more like Z" -> categorized as preference | `voice-capture-log.jsonl` + `activity_stream` preference event |
+| **Explicit approvals** | Pattern match on user message | "perfect", "exactly right", "keep doing that" -> categorized as approval | `voice-capture-log.jsonl` + `activity_stream` approval event |
+| **Implicit acceptance / redirection** | Inferred at distillation time | User silence after AI action treated as approval-by-default; topic pivot without comment treated as soft redirection | Dream consolidation distills, not at capture time |
+
+### What the AI MUST do every turn
+
+1. **Trust the runtime.** The voice-capture-hook fires on every UserPromptSubmit. The AI does NOT need to manually invoke `voice-write.py` for every interaction; the hook handles continuous + pattern-based capture.
+2. **Add explicit captures only when the runtime would miss them.** If the user makes a correction the pattern-matcher doesn't catch (multi-paragraph nuanced critique, structural rewrites with no trigger phrase), explicitly invoke `voice-write.py voice rejected/approved` pair so dream consolidation gets the structured signal.
+3. **Never ask the user to confirm capture.** Capture is automatic and silent; surfacing it interrupts flow.
+4. **Never refuse capture for a "non-feedback" message.** Even task instructions, factual questions, and bug reports carry voice patterns. The full prompt is always a sample. Continuous raw-sample capture handles this without AI involvement.
+
+### What gets captured proactively (without user instruction)
+
+- Every word the user writes is voice training data, even when the message is "just a task instruction."
+- Word substitutions the user makes ("don't say X, say Y") become paired rejected/approved samples.
+- Topic engagement patterns (which topics the user engages with deeply vs glosses over) become preference signals at distillation time.
+- Communication-style metrics (sentence length distribution, formality, punctuation density, hedging frequency) accumulate over time and inform AI output calibration.
+
+### Reactive sub-protocol: Correction Capture
+
+When the user explicitly corrects the AI — tone, style, approach, factual error, preference — capture it via `voice-write.py` IN ADDITION TO the runtime hook's auto-capture, because explicit corrections are the highest-value learning signal and benefit from structured rejected/approved pairing:
+
+**1. Voice sample** (captures content for voice profile learning):
 ```bash
 python ~/.claude/scripts/voice-write.py voice rejected <content_type> <audience> "<rejected content>" --reason "<user's exact words>"
 python ~/.claude/scripts/voice-write.py voice approved <content_type> <audience> "<corrected content>" --reason "<what user wanted instead>"
 ```
-Content types: email, proposal, slack, documentation, social, internal, code, comment
-Audiences: client, prospect, internal, partner
+Content types: `email | proposal | slack | documentation | social | internal | code | comment`
+Audiences: `client | prospect | internal | partner`
 
 **2. Activity stream event** (tracks correction frequency for trend analysis):
 ```bash
 python ~/.claude/scripts/voice-write.py correction "<what was corrected and why>" --workspace "<current-workspace>"
 ```
 
-### When NOT To Capture
-- Factual questions ("What does this function do?") -- not corrections
-- Task instructions ("Add a button here") -- not corrections
-- Bug reports ("This is broken") -- tracked by error-tracker, not this
+### What the AI must NEVER do
 
-### Why This Exists
-Dream consolidation synthesizes voice samples nightly into distilled rules. Without input data, the voice phase finds 0 samples. Every uncaptured correction is a lost learning signal. The correction rate metric (trending down = system is learning) requires real-time capture to be meaningful.
+- **Never ask** "should I remember this?" or "want me to capture this?" — capture is the default.
+- **Never disable capture** unless the user explicitly says so this session (and even then, only this session).
+- **Never claim** "I've added this to memory" as a way of acknowledging a correction — the runtime captures it; the AI's job is to apply the correction now and let dream consolidation distill it later.
+- **Never treat task instructions as non-voice-bearing.** They carry voice patterns. The continuous raw-sample stream handles this automatically.
+
+### Implementation status (as of 2026-05-06)
+
+| Component | Path | Status |
+|---|---|---|
+| UserPromptSubmit hook | `~/.claude/hooks/voice-capture-hook.py` | LIVE -- pattern-matches feedback + (as of S29) writes raw sample on every turn |
+| voice-write.py CLI | `~/.claude/scripts/voice-write.py` | LIVE -- `voice approved/rejected`, `correction`, `stats` commands |
+| Raw samples log | `~/.claude/.tmp/voice-samples-raw.jsonl` | LIVE -- one JSON line per user message (filtered: skip slash commands, skip <3-word prompts, dedup) |
+| Pattern-matched feedback log | `~/.claude/.tmp/voice-capture-log.jsonl` | LIVE -- pre-existing |
+| Supabase voice_samples table | `public.voice_samples` | LIVE -- voice-write.py writes here for paired samples |
+| Supabase activity_stream | `public.activity_stream` | LIVE -- correction/preference/approval events land here |
+| Dream consolidation -> raw stream | Sentinel-owned, dream-consolidation pipeline | **GAP** -- pre-S29 distillation reads from `voice_samples` table only. The new raw samples stream needs Sentinel-side ingestion. Filed as wr-skillhub-2026-05-06-005. |
+
+### Why this exists
+
+Voice and preference signals decay if not captured at the moment of interaction. The pre-S29 reactive-only model ("capture when user corrects") missed the much-larger continuous signal. Per past lesson "Documentation without runtime detection is insufficient", this protocol pairs documentation with runtime hook enforcement. The user should never have to ask the system to learn — the system is already learning.
 
 ## Brain Dump Capture Protocol (NON-NEGOTIABLE)
 
