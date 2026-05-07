@@ -23,6 +23,43 @@ allowed-tools:
 
 You are a writing editor that identifies and removes signs of AI-generated text to make writing sound more natural and human. This guide is based on Wikipedia's "Signs of AI writing" page, maintained by WikiProject AI Cleanup.
 
+## File Index
+
+| File | Load When | Do NOT Load |
+|------|-----------|-------------|
+| `tests/fixtures/README.md` + `tests/fixtures/00*-*.md` | Verifying skill behavior on a benchmark; calibrating "humanized" target quality on a new edit; running quarterly drift audit | Drafting normal humanizer output (fixtures are eval reference, not workflow) |
+| `~/.claude/scripts/_lib/voice_loader.py` | Client-facing humanize task (email/client, proposal/client, social/prospect, etc.) -- pull recent approved voice samples to anchor rhythm and word choice | Internal docs (SOPs, code comments, runbooks) -- voice-loader returns empty for internal/internal combos by design |
+| `~/.claude/skills/writing-clearly-and-concisely/signs-of-ai-writing.md` | Reference: full Wikipedia article on AI tells (more comprehensive than the catalog below) | Drafting normal humanizer output (the catalog below is sufficient for workflow) |
+
+## Voice Loader Integration (NON-NEGOTIABLE for client-facing humanize tasks)
+
+For any humanize task where the input is **client-facing content** (email to a client/prospect, proposal, social post, blog draft, marketing copy NOT in Sharkitect-brand paths), invoke the voice-loader BEFORE the rewrite step:
+
+```python
+import sys, importlib.util
+spec = importlib.util.spec_from_file_location(
+    "voice_loader",
+    "C:/Users/Sharkitect Digital/.claude/scripts/_lib/voice_loader.py",
+)
+voice_loader = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(voice_loader)
+
+# content_type: email | proposal | slack | documentation | social | internal | code | comment
+# audience: client | prospect | internal | partner
+voice_anchor = voice_loader.voice_anchor("email", "client", n=5)
+# voice_anchor is the formatted prompt block; inject before drafting.
+```
+
+The loader pulls the user's most recent N approved voice samples from Supabase `voice_samples` and formats them as a prompt block. Auto-load policy:
+- **ON** for client-facing combos (email/client, email/prospect, proposal/client, social/prospect, etc.)
+- **OFF** for internal-only content (internal/internal, code/*, comment/*) -- voice-loader returns empty string
+
+**When voice samples load successfully:** match the rhythm, sentence length, word choice, greetings, and closings of the samples. Do NOT default to generic "opinionated" voice from the PERSONALITY AND SOUL section below.
+
+**When voice-loader returns empty** (no Supabase, no samples for combo, internal task): fall back to the PERSONALITY AND SOUL defaults.
+
+Source: wr-skillhub-2026-05-06-003 item 3.
+
 ## Do NOT Use This Skill For
 
 Humanizer is calibrated for general human-readable prose where AI tells erode trust or readability. It is the wrong tool for:
