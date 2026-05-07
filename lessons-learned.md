@@ -1109,6 +1109,16 @@ Cross-project patterns, API limitations, tool quirks, user preferences, and proc
 
 ## Process Decisions
 
+### 2026-05-07 — process: Channel-context awareness in brand-review prevents false-positive HOLDs
+
+**Context:** During HQ Cohort A3 PM revision (SHARKITECT STANDARD callout reword), brand-reviewer initially HOLDed Piece 2 ("The AI Transformation Agency is the contrarian truth in an industry that profits from confusion") at 15/30 because it scored Confident 4 / Direct 3 / Action-Oriented 4 against landing-page-hero criteria (Energy 7/10 target). When re-dispatched with EXPLICIT proposal/title-slide channel-context targets (Energy 5/10), same wording scored 29/30 Brand-Clear with reviewer noting "deliberate deceleration — invites prove-it engagement from a seated, prepared audience" (Apple/Ogilvy reference class).
+
+**Why:** brand-quick-ref.md has channel-specific tone targets (Landing pages 5/10 formality + 7/10 energy / Client proposals 6/10 formality + 5/10 energy / Internal 3/10 + 4/10). Without explicit channel context, brand-reviewer defaults to a generic register and scores substantive declarative claims as "low energy" when they're actually on-target for proposal/title-slide register. Substantive claims at proposal register score lower on kinetic-energy rubrics but higher on actual brand impact — they invite engagement, not just absorption. Apple's "iPhone is a phone reimagined" works the same way.
+
+**How to apply:** When dispatching brand-reviewer agent on lead-language pieces, ALWAYS specify the channel context explicitly in the prompt: landing-page-hero / proposal / title-slide / brand-mark / sales-deck-divider / email-subject / etc. Reference brand-quick-ref.md tone-by-channel table targets. Channel mismatch produces false-positive HOLDs that waste 30-50 min of fix-after-review iterations on copy that didn't actually need changing.
+
+**Source:** Encoded as Application Rule #6 in brand-identity-guide.md §1.5.1 on 2026-05-06 PM. Pattern caught when Chris pushed back on brand-reviewer's HOLD on his "X IS Y" copula construction — he was right; reviewer was applying wrong channel target. Rule #6 prevents recurrence.
+
 ### 2026-05-06 — process: Invoke writing-clearly-and-concisely at K1 SoT authoring time, not just brand-review post-hoc
 
 **Context:** During HQ Cohort A3 session, authored §1.5.1 (Contrarian Truth Operating Standard) in `brand-identity-guide.md` plus lightweight passes on `positioning.md` §1 and `executive-summary.md` opening. Invoked `marketing-strategy-pmm` + `hq-content-enforcer` + `superpowers:brainstorming` during alternatives generation. Did NOT invoke `writing-clearly-and-concisely` at draft time. The brand-reviewer agent (running `hq-brand-review` post-draft) caught a 50-word compound sentence in `executive-summary.md` opening (Direct attribute scored 5/10, below 7-9 target) and a duplicate "systems-first" phrase in the same sentence. Fix A had to be applied after brand-review — ~5 min cost + cognitive overhead of revising freshly-authored prose.
