@@ -1,5 +1,32 @@
 # Global Lessons Learned
 
+## 2026-05-07 Session Lessons (Sentinel — Inbox cleanup + lifecycle gate + goals + skill-type CHECK)
+
+### process: NOT VALID is the right CHECK-widening move when legacy outliers exist
+**Context:** Adding `assets_asset_type_check` CHECK constraint to `public.assets` would have failed because 2 dormant test rows from 2026-04-25 use `asset_type IN ('document','blueprint')` — neither is part of the protocol's documented enum. Those rows are Skill Hub-owned, deactivated, and explicitly marked "will be retired immediately" in their `purpose` field — but were never cleaned up.
+
+**Why:** Two paths existed: (a) include the outliers in the CHECK enum (forever pollution of the documented taxonomy), or (b) clean them up first (out-of-scope per Supabase Ownership — Sentinel can't write to Skill Hub's rows). NOT VALID is the third path: ship the disciplined enum NOW, the constraint enforces forward, existing rows are grandfathered, and once Skill Hub cleans up Sentinel re-runs `VALIDATE CONSTRAINT` to fully close the loop.
+
+**Apply when:** Widening or adding CHECK constraints to tables that already have data with values outside the new enum. Particularly when those legacy rows are owned by another workspace (cross-workspace cleanup adds latency).
+
+**Tags:** schema-migration, supabase, postgres, scope-discipline
+
+### process: scope violation recurrence — Supabase row is authoritative for inflight cross-workspace requests, NOT the JSON in the target's inbox
+**Context:** Sentinel filed `wr-sentinel-2026-05-07-006` to Skill Hub. User authorized escalation. Sentinel correctly UPDATEd the `cross_workspace_requests` Supabase row (priority low→high, severity warning→critical). Sentinel ALSO edited the JSON file at `<Skill Hub>/.work-requests/inbox/...006.json` to mirror the bump — workspace-scope hook fired with VIOLATION DETECTED. The revert itself fired the same hook (touching the same file again).
+
+**Why this matters:** This is the SECOND occurrence of the same rule (first was wr-019 on 2026-04-27). Pattern: Sentinel files a WR, later wants to update its priority, reaches for the JSON because that's the visible artifact. The Supabase row is the authoritative state — Skill Hub triages from Supabase, so the bump always lands. The JSON file is a working copy that gets reconciled at close time.
+
+**Apply when:** ANY workspace wants to update an inflight cross-workspace request (priority, severity, status note, escalation reason). Update the Supabase row only — never the JSON in the target's inbox, even if you authored it. Delivery transfers ownership.
+
+**Tags:** scope-discipline, supabase-ownership, cross-workspace-coordination, recurring-violation
+
+### preference: when something blocks user visibility, package the values + route, don't just escalate
+**Context:** User reported "$750 from FF not showing in goals." Two filed-but-pending blockers existed (wr-006 broken rollup + rt-clients-ff stale mirror). Sentinel could have just escalated wr-006 priority and moved on. Instead Sentinel queried HubSpot via MCP, computed the actual current_value ($750 across all 3 active MRR goals), packaged the exact UPDATE SQL, and routed to HQ as a one-shot manual rollup. User's visibility unblocked same day rather than waiting for Skill Hub's queue.
+
+**Apply when:** A user-visibility issue blocks a dashboard, brief, or report AND the systemic fix is in another workspace's queue. Package + route the values for immediate manual application alongside the systemic-fix escalation. Don't make the user wait for the slowest workspace's triage cycle.
+
+**Tags:** user-visibility, autonomy-posture, cross-workspace-handoff
+
 ## 2026-05-07 Session Lessons (Skill Hub Session 30 — Item 2 Compound Effect)
 
 ### process: structural fix delivers compound dimension lifts vs tactical edits
