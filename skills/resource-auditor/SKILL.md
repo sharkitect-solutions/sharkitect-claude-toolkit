@@ -205,9 +205,23 @@ For each gap found, write a structured JSON report.
 
 **Report destination:** Read `~/.claude/config/skill-hub-path.txt` for the Skill Management Hub path. Write reports to `{skill-hub-path}/.work-requests/inbox/`.
 
-**Filename format:** `{date}_{workspace}_{brief-description}.json`
+**Filename format:** `{date}_{workspace}_{brief-description}.json` (filename is grep convenience; the JSON `id` field is authoritative).
 
-Load `references/gap-report-schema.md` for the complete field specification.
+**Allocate the `id` BEFORE writing the JSON (NON-NEGOTIABLE).** The WR id schema v2 requires unique `wr-<workspace_short>-YYYY-MM-DD-NNN` ids. Two filings on the same day MUST get different NNN suffixes. Do NOT pick the suffix manually -- the central allocator scans both inbox/processed and Supabase to prevent collisions. Source: wr-hq-2026-05-07-001.
+
+```bash
+# Get a collision-free id for THIS workspace's filing:
+python ~/.claude/scripts/work-request.py --allocate-id-only --workspace <canonical-workspace-name>
+# Output (stdout): wr-<short>-YYYY-MM-DD-NNN
+# Examples:
+#   --workspace skill-management-hub  ->  wr-skillhub-2026-05-07-004
+#   --workspace workforce-hq          ->  wr-hq-2026-05-07-005
+#   --workspace sentinel              ->  wr-sentinel-2026-05-07-009
+```
+
+Use the returned id verbatim as the JSON's `id` field AND `id_format_version: 2`. Do NOT use the legacy `gap-YYYY-MM-DD-NNN` format -- the schema doc historically referenced it but the current contract is `wr-<workspace_short>-YYYY-MM-DD-NNN` enforced by inbox-json-validate.py PreToolUse hook.
+
+Load `references/gap-report-schema.md` for the complete field specification (schema doc legacy `gap-*` examples are being aligned to v2 in a follow-up edit).
 
 **CRITICAL:** Every gap report must include `recommended_fix` with enough detail that the Skill Hub can build the solution without re-investigating the problem. Include:
 - Fix type (skill, hook, plugin, CLAUDE.md rule, or package)

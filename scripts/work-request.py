@@ -943,8 +943,59 @@ def main():
                              "Required when --item-type is routed_task, "
                              "completion_notification, or fyi. Ignored for "
                              "work_request (always routes to Skill Hub).")
+    # Allocate-only mode (wr-hq-2026-05-07-001).
+    # External filers (resource-auditor skill, ad-hoc JSON writers) need a
+    # collision-free id WITHOUT going through full filing flow. This mode
+    # prints `next_id` to stdout and exits. Skips impact floor, dedup,
+    # Supabase POST -- pure id allocation only.
+    parser.add_argument("--allocate-id-only", action="store_true",
+                        help="Print next collision-free WR id for the given "
+                             "--workspace and exit. Does NOT file a request. "
+                             "Use for ad-hoc JSON writers (e.g. resource-auditor "
+                             "skill) that compose their own JSON but need the "
+                             "central allocator to pick the id. Required: "
+                             "--workspace. Optional: --no-supabase to skip "
+                             "the Supabase counter scan.")
 
     args = parser.parse_args()
+
+    # Allocate-only short-circuit (wr-hq-2026-05-07-001).
+    # Run BEFORE all other validation so the caller gets a clean id even if
+    # other fields aren't set (they're not relevant for allocation). Always
+    # allocates a `wr-<workspace_short>-YYYY-MM-DD-NNN` id by scanning Skill
+    # Hub's .work-requests/inbox/ + processed/ (and Supabase, unless
+    # --no-supabase). Routed tasks use slug-based ids and don't need this
+    # helper; they pick their own filenames per the WR id schema.
+    if args.allocate_id_only:
+        if not args.workspace:
+            print("ERROR: --allocate-id-only requires --workspace",
+                  file=sys.stderr)
+            return 1
+        try:
+            ws_canonical = validate_workspace_name(args.workspace)
+        except SystemExit:
+            return 1
+        ws_short = WORKSPACE_SHORT_MAP.get(ws_canonical)
+        if not ws_short:
+            print(
+                f"ERROR: no workspace short prefix registered for "
+                f"{ws_canonical!r}. Update WORKSPACE_SHORT_MAP in work-request.py.",
+                file=sys.stderr,
+            )
+            return 1
+        inbox = _resolve_target_inbox("work_request", None)
+        if inbox is None:
+            print(
+                "ERROR: cannot resolve Skill Hub .work-requests/inbox/ path. "
+                "Check ~/.claude/config/skill-hub-path.txt or workspace dir.",
+                file=sys.stderr,
+            )
+            return 1
+        next_id = get_next_id(
+            inbox, ws_short, ws_canonical, skip_supabase=args.no_supabase
+        )
+        print(next_id)
+        return 0
 
     # Severity floor on --impact (wr-2026-04-25-001 INFRA 9).
     # Skipped in JSON mode (caller takes responsibility) and when --skip-impact-floor.
