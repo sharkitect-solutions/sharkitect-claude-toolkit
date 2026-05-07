@@ -3,6 +3,8 @@
 Load this file before writing ANY client-facing content. Full brand guide: `~/.claude/skills/hq-brand-review/references/brand-guide.md`
 
 > **Companion:** brand-quick-ref.md is the brand RULES (attributes, banned terms, tone targets). For content authored AS CHRIS (from solutions@ to clients), ALSO load `knowledge-base/governance/voice-profile-chris.md` (from workforce-hq cwd) -- the brand RULES alone score "Brand-Clear" technically while still missing Chris's actual voice. The voice profile carries sample-based patterns (greeting/closing conventions, signature tiers, voice equation by content type) that brand RULES don't encode. When in doubt, load both.
+>
+> **For K1 SoT authoring** (any document under `knowledge-base/governance/` or `knowledge-base/strategy/`, or any document classified K1 in DOCUMENT-MAP), ALSO invoke `writing-clearly-and-concisely` skill BEFORE drafting. brand-quick-ref enforces voice attributes but does NOT enforce sentence-length, parallel-structure, or readability standards. K1 prose propagates to every downstream surface that quotes the SoT; preventive prose quality at draft time is cheaper than fix-after-review iteration. Source: wr-hq-2026-05-06-002 (brand-review caught 50-word compound sentence in `executive-summary.md` opening that writing-clearly-and-concisely would have prevented). Full routing rule: see `content-routing-guide.md` "Writing-Clearly Load Rule (NON-NEGOTIABLE for K1 SoT prose)".
 
 ## Voice Attributes
 

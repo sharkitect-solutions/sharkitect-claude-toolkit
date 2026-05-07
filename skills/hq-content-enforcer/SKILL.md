@@ -66,6 +66,7 @@ The full routing decision tree with all skill combinations lives in `references/
 
 | Content Type | Identification Signals |
 |---|---|
+| **K1 SoT prose** | Path matches `knowledge-base/governance/**/*.md` or `knowledge-base/strategy/**/*.md`; document classified K1 in DOCUMENT-MAP; foundational SoT type (brand-identity-guide, positioning, ICP, messaging-framework, voice-profile, audience-profile). REQUIRES `writing-clearly-and-concisely` BEFORE drafting (preventive prose quality), not just brand-review (detective). |
 | **Landing page / website copy** | URL destination, hero section, CTA, conversion goal |
 | **Email (cold/outreach)** | First contact, prospecting, no prior relationship |
 | **Email (nurture/sequence)** | Multi-touch, drip, follow-up, existing lead |

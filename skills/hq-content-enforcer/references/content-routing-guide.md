@@ -16,6 +16,32 @@ TASK INVOLVES WRITING/EDITING TEXT
   |             Is it a landing/service page? --> copywriting + page-cro + seo-optimizer + hq-brand-review
   |             Is it a form/signup? --> form-cro + signup-flow-cro + hq-brand-review
   |
+  +-- Is it K1 SoT prose? (knowledge-base/governance/**.md or knowledge-base/strategy/**.md path,
+  |     OR document classified K1 in DOCUMENT-MAP, OR foundational source-of-truth type:
+  |     brand-identity-guide, positioning, ICP, messaging-framework, voice-profile,
+  |     audience-profile, or other governance/strategy SoT)
+  |     YES --> writing-clearly-and-concisely (FIRST -- preventive prose quality at draft time)
+  |             + hq-brand-review (LAST -- detective quality gate)
+  |             ALSO LOAD: knowledge-base/DOCUMENT-MAP.md (verify tier classification before authoring)
+  |             ALSO LOAD: knowledge-base/governance/voice-profile-chris.md if Chris is the
+  |                        document's named author or signatory
+  |             FOR EMBEDDED OPERATOR-FACING COPY (example email, embedded landing-page hero,
+  |                pitch line, etc.): route THAT specific copy through this enforcer's other
+  |                branches (e.g., embedded cold email -> cold-email + outreach-specialist;
+  |                embedded hero -> page-cro + seo-optimizer). The K1 doc as a whole still goes
+  |                through writing-clearly-and-concisely.
+  |             INVOKE hq-knowledge-governance skill in parallel for K-tier classification
+  |                discipline (cross-reference integrity in DOCUMENT-MAP + INDEX, version-bump,
+  |                changelog metadata). Prose quality + governance discipline are orthogonal
+  |                concerns -- both fire on K1 SoT writes.
+  |             RATIONALE: K1 SoTs propagate to N downstream surfaces. Sentence-length and
+  |                parallel-structure violations baked into K1 prose multiply across every
+  |                downstream surface that quotes or references the SoT. Preventive prose
+  |                quality at draft time is cheaper than fix-after-review iteration.
+  |                Source: wr-hq-2026-05-06-002 (Cohort A3 Lock session, brand-review caught
+  |                a 50-word compound sentence in executive-summary opening that
+  |                writing-clearly-and-concisely would have prevented preventively).
+  |
   +-- Is it sent to someone (email, message)?
   |     YES --> First contact / cold? --> cold-email + outreach-specialist + hq-brand-review
   |             Part of a sequence? --> email-sequence + copywriting + hq-brand-review
@@ -53,6 +79,25 @@ For each content task, invoke skills in this sequence:
 5. **Invoke copywriting/content-creator** to draft content following all loaded guidance
 6. **Invoke hq-brand-review** on the completed draft (always last -- final quality gate)
 
+## Writing-Clearly Load Rule (NON-NEGOTIABLE for K1 SoT prose)
+
+When content is **K1 SoT prose** -- file path under `knowledge-base/governance/**/*.md` or `knowledge-base/strategy/**/*.md`, OR document classified K1 in `knowledge-base/DOCUMENT-MAP.md`, OR document type matches a foundational SoT (brand-identity-guide, positioning, ICP, messaging-framework, voice-profile, audience-profile, or other governance/strategy SoT) -- you MUST invoke `writing-clearly-and-concisely` skill BEFORE drafting, IN ADDITION TO `brand-quick-ref.md`. The brand-quick-ref enforces voice attributes (Confident, Direct, Expert, Approachable, Action-Oriented) but does NOT enforce sentence-length, parallel-structure, or readability standards. K1 prose quality propagates to every downstream surface that quotes or references the SoT; preventive prose quality at draft time is cheaper than fix-after-review iteration.
+
+**Required for these document patterns:**
+- Files under `knowledge-base/governance/` (any `.md`)
+- Files under `knowledge-base/strategy/` (any `.md`)
+- Documents marked `tier: K1` in frontmatter or DOCUMENT-MAP
+- Foundational SoT types: brand-identity-guide, positioning, ICP/audience-profile, messaging-framework, voice-profile, value-proposition, competitive-positioning
+
+**Not required when:**
+- Knowledge base operational docs (K3/K4 tier: SOPs, runbooks, technical specs)
+- Internal Slack messages, code comments, JSON/YAML configs
+- Edits that don't change prose (frontmatter-only updates, table-cell tweaks, link-only adds)
+
+**Parallel skill invocation:** Also invoke `hq-knowledge-governance` for K-tier classification + cross-reference integrity (DOCUMENT-MAP + INDEX consistency, version-bump, changelog metadata). Prose quality and governance discipline are orthogonal concerns -- both fire on K1 SoT writes. The dependency between them is sequential: `writing-clearly-and-concisely` runs at DRAFT TIME (preventive); `hq-knowledge-governance` runs at COMMIT TIME (audit + propagation); `hq-brand-review` runs LAST as the detective gate.
+
+**Failure mode this prevents:** brand-quick-ref alone scores Brand-Clear technically (e.g. 27/30) while K1 prose still contains 50-word compound sentences, parallel-structure violations, or unclear lead-language that brand-review catches AFTER drafting. Required fix-after-review iterations on K1 docs compound across N downstream surfaces. Source: wr-hq-2026-05-06-002 -- Cohort A3 Lock session, brand-review caught a 50-word compound sentence in `executive-summary.md` opening (Direct attribute scored 5/10, below 7-9 target). `writing-clearly-and-concisely` would have prevented the violation at draft time; estimated 17 cascade docs at ~5 min avoidable cost each = ~85 min if pattern recurs without preventive control.
+
 ## Voice Profile Load Rule (NON-NEGOTIABLE for from-Chris content)
 
 When content is **authored AS CHRIS** -- author identity = Chris, message originates from solutions@, sender persona is Chris -- you MUST load `knowledge-base/governance/voice-profile-chris.md` (from workforce-hq cwd) IN ADDITION TO brand-quick-ref.md before drafting. brand-quick-ref.md is the brand RULES (compliance scoring); voice-profile-chris.md is the STYLE within those rules (sample-based actual voice patterns, greeting/closing conventions, signature tiers, voice equation by content type).
@@ -75,6 +120,7 @@ When content is **authored AS CHRIS** -- author identity = Chris, message origin
 
 | Content Type | Additional Docs to Load | Why |
 |---|---|---|
+| **K1 SoT prose** (governance/, strategy/, foundational SoT) | `knowledge-base/DOCUMENT-MAP.md` (verify tier classification) + INVOKE `writing-clearly-and-concisely` skill BEFORE drafting + INVOKE `hq-knowledge-governance` skill in parallel + `governance/voice-profile-chris.md` if Chris is named author | Tier verification prevents misclassification (K1 vs K2). Writing-clearly-and-concisely enforces sentence-length + parallel-structure preventively at draft time (brand-review alone is detective). Knowledge-governance enforces cross-ref integrity + version-bump + changelog metadata. Voice-profile load when Chris is signatory. |
 | Cold email (from Chris) | `governance/voice-profile-chris.md` | Chris's actual voice patterns (greeting, closing, signature tiers, voice equation by content type) |
 | Email sequence (from Chris) | `governance/voice-profile-chris.md` | Same -- multi-touch sequences must maintain Chris's voice across all messages |
 | One-off email (from Chris) | `governance/voice-profile-chris.md` | Same -- single emails under his name need voice fidelity |

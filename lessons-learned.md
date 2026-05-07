@@ -4571,3 +4571,29 @@ Context: 2026-05-07 HQ asked whether their Tier 1/2/3 framework should be a glob
 Apply-when: Any decision the AI makes. Tier 1 (routine matching established patterns) = act per profile priors loaded at session start. Tier 2 (high-stakes / novel / affects revenue/brand/client/architecture) = re-read profile section on-demand, cite source. Tier 3 (outside captured signal) = Pushback Protocol, do not act unilaterally.
 Design principles: Profile depth gates autonomy. Confidence gates action. Both layers enforce different protections.
 Tags: autonomy, decision-framework, persona-grounding, proactive-action
+
+## 2026-05-07 — Architecture Direction: dual source-of-truth is a drift trap (Sentinel)
+
+direction: Pick ONE canonical source per metric. Everything else is a cached mirror, updated by one-way sync. Never sum across mirroring sources.
+
+context: Goals MRR architecture had two independent authorities -- HubSpot deals/subscriptions AND public.clients.monthly_total. Both manually authored. They drifted: clients.monthly_total = $1,100 (stale, from when both FF line items were active) vs HubSpot reality = $750 (one paused). User correctly rejected the first-pass `data_sources` array design that would have summed both -- that would double-count rather than reconcile.
+
+apply-when: Designing rollup or aggregation systems where multiple sources could provide the same number. Especially: revenue, count of active items, status-of-work signals. If two sources are intended to mirror each other, treat as cache+SoT (one-way sync) not as additive contributions.
+
+design-principles:
+1. Identify which source is ground truth based on where the user actually authors changes (HubSpot, since that's where invoicing happens).
+2. The other source becomes a downstream mirror, not an independent author.
+3. For goals: each goal gets ONE data_source (jsonb singleton), not an array. Multiple sources only when they're orthogonal (different domains entirely).
+4. Build a drift detector that compares stored values against fresh source pulls -- catches the case where the rollup silently breaks.
+
+tags: architecture, source-of-truth, goals, data-quality, drift-detection
+
+## 2026-05-07 — Process: stop iterating on type hints, switch to single decisive fix (Sentinel)
+
+process: When Pyright/Ruff complain about type narrowing in a multi-edit cycle, stop after the second patch and apply ONE root-cause fix (often: type annotation on the function return, or change the data shape) rather than patching iteratively.
+
+context: Built goals-drift-check.py. http_json returned `tuple[int, dict | list | str]` based on JSON parse outcome. Pyright complained about attribute access on str. First instinct was to add `if not isinstance(data, dict)` guards at each call site -- but Pyright's narrowing doesn't persist across loop re-assignments, so each guard had to be re-applied per iteration. After the third patch, the REPEAT EDIT hook fired. The right fix was annotating the function return as `tuple[int, Any]` once -- single change, all sites pass.
+
+why: Iterative patching for type errors is the same anti-pattern as iterative patching for runtime bugs -- just on a static-analysis surface instead of a behavior surface. Stepping back to find the root assertion (return type) is faster than patching N call sites.
+
+tags: process, debugging, type-hints, pyright, systematic-debugging
