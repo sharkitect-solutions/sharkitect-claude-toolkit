@@ -859,30 +859,35 @@ Capture is the input. **Persona synthesis is the output.** The system does not j
 
 **User direction (verbatim, 2026-05-06):** *"I want the workspace and the system as a whole to understand who I am, what I like, what I sound like, how I like to talk, my preferences. My vision, my brand, and my way of thinking so that eventually you guys can make autonomous decisions without me having to worry about it. As we go back and forth talking about this, or just working on things in general, you should be constantly observant and constantly understanding, constantly paying attention to how I talk, what I like, what my purpose is, what I say, what I don't say, what I say that I don't like. Even in the small nonsense, you should be able to extract key insights to build a complete profile of who Chris Sharkey is. Let's say two to three weeks down the line, you could almost clone me."*
 
-**The 11 dimensions to track (all populated continuously, never asked):**
+**Authoritative K1 SoT:** `1.- SHARKITECT DIGITAL WORKFORCE HQ/knowledge-base/governance/about-chris.md` (HQ-owned, v0.1 SEED as of 2026-05-07). Per Supabase Ownership Protocol: read globally, write locally. All workspaces load it at session start; only HQ writes it. Skill Hub + Sentinel route findings to HQ via routed-tasks rather than editing directly.
 
-| # | Dimension | What signals feed it |
-|---|---|---|
-| 1 | **Identity** -- who they are | Role, work patterns, recurring concerns, decisions made over time |
-| 2 | **Likes** -- what they engage with | Topics they expand on, approaches they accept without redirect, vocabulary they reuse |
-| 3 | **Dislikes** -- what they reject | Patterns they correct repeatedly, banned phrases, things they push back on |
-| 4 | **Voice** -- what they sound like | Sentence rhythm, word choice, register (casual/formal mix), punctuation habits |
-| 5 | **Speech style** -- how they like to talk | Direct vs hedged, structured vs flowing, decisive openers, rule-of-three usage |
-| 6 | **Preferences** -- choices they make consistently | Tool preferences, workflow shapes, naming conventions, decision criteria |
-| 7 | **Vision** -- what they're building toward | Recurring themes in long-term direction, end-state language ("autonomous", "elite", "world-class") |
-| 8 | **Brand** -- their public-facing voice | Brand-specific vocabulary, banned terms, tone targets per audience |
-| 9 | **Way of thinking** -- their mental models | Frameworks they reach for, metaphors they use, analogies that recur |
-| 10 | **What they say (explicit)** -- positive direction | Stated requests, named goals, articulated standards |
-| 11 | **What they don't say but mean (implicit)** -- inferred from gaps and silence | What they accept by silence, what they pivot away from, what they assume the system already knows |
+**Canonical structure (12 sections, defined by HQ):** Who Chris is / How he thinks / Values / Communication / Operational preferences / Vision / Anti-patterns / How to make decisions on his behalf / Capture protocol / Application / Open questions / Capture log.
 
-**Output target: `~/.claude/about-user.md`** — a global, AI-readable persona document maintained by dream consolidation. All workspaces load it at session start so every AI decision is informed by the synthesized profile.
+**Capture cadence (4 tiers):**
+1. **Real-time** — voice-capture-hook fires on every UserPromptSubmit
+2. **Session-end** — synthesis appended to memory; significant signals routed to HQ
+3. **Weekly synthesis** — Sentinel dream consolidation distills into `about_chris_synthesis` Supabase table; HQ pulls into about-chris.md sections
+4. **Monthly drift detection** — Sentinel surfaces sections aging without updates and contradictions between captured signals and current K1 state
+
+**Quality bar (per HQ):** direct quote > paraphrase, confirmed pattern (≥2 instances) > single instance, source citation required, confidence marking per assertion (SEED → LOW → MEDIUM → HIGH).
+
+**Application layer — how AI uses the profile:**
+- **Tier 1 (routine work matching established patterns):** load profile at session start as context priors; act per established preferences without re-querying.
+- **Tier 2 (high-stakes or novel decisions affecting revenue, brand, client, or architecture):** re-read relevant section on-demand; cite source if making a judgment call.
+- **Tier 3 (decisions outside captured signal):** default to Pushback Protocol — articulate the gap, propose path, do not act unilaterally.
+
+This Tier 1/2/3 framework EXTENDS the existing Proactive Autonomy Protocol with profile-grounded decision routing.
 
 **Why this matters: the autonomy goal.** Capture without synthesis is just data hoarding. The "could almost clone me" benchmark means: at sufficient depth, the system makes decisions the user would make, in the voice they would use, without being told what to do. The capture protocol is the means; the persona profile is the structural artifact that enables the autonomy.
 
-**Implementation status (as of 2026-05-06):**
-- Capture infrastructure: LIVE (continuous + pattern-matched + paired-sample)
-- Persona synthesis: GAP — Sentinel-owned dream consolidation needs to ingest raw samples + paired samples and emit `about-user.md` updates. Filed as part of `wr-skillhub-2026-05-07-001` (extended scope).
-- About-user document: SEEDED at `~/.claude/about-user.md` with structure for the 11 dimensions; populated over time by dream consolidation.
+**System-level meta-doc:** `~/.claude/about-user.md` documents WHERE the profile lives + HOW the AI uses it + HOW capture works. The profile content itself lives in HQ's about-chris.md (above). Skill Hub-owned meta-doc.
+
+**Implementation status (as of 2026-05-07):**
+- Capture infrastructure: LIVE (continuous raw-sample + pattern-matched + paired-sample via voice-capture-hook + voice-write.py)
+- HQ K1 SoT: v0.1 SEED at `about-chris.md` (HQ filed `wr-hq-2026-05-07-003` FYI on 2026-05-07 announcing this)
+- Skill Hub meta-doc: `~/.claude/about-user.md` (rewritten as meta layer pointing to HQ K1)
+- Sentinel synthesis pipeline + about_chris_synthesis Supabase table: GAP — `wr-skillhub-2026-05-07-001` (extended scope, reconciled with HQ on 2026-05-07)
+- Open questions Q&A: in progress, Chris answering sequentially starting 2026-05-07
 
 ### Why this exists
 

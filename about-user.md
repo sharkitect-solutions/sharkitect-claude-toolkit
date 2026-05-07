@@ -1,109 +1,101 @@
-<!-- skip checkpoint: mid-session save, persona seed document creation -->
+<!-- skip checkpoint: meta-doc rewrite to align with HQ wr-hq-2026-05-07-003 reconciliation -->
 
-# About the User -- Persona Profile (auto-maintained)
+# About-User META Document (system-level)
 
-> **Source of truth for who the user is.** Loaded at session start by every workspace. Maintained continuously by Sentinel's dream consolidation pipeline (per wr-skillhub-2026-05-07-001). Manual edits are allowed but will be reconciled against captured signals on next nightly run -- if a manual edit contradicts captured evidence, the dream consolidation flags it for review rather than silently overwriting.
+> **This is the META layer.** It tells the AI WHERE to find Chris's persona profile + HOW to use it + HOW capture works. The actual profile content lives in HQ's K1 SoT (see Authoritative Source below).
 
-> **Goal:** sufficient depth that AI can make autonomous decisions in the user's voice and preferences without asking. "Could almost clone me" is the benchmark.
+> **Source of truth for the profile content:** `1.- SHARKITECT DIGITAL WORKFORCE HQ/knowledge-base/governance/about-chris.md` (K1, HQ-owned). Per Supabase Ownership Protocol: read globally, write locally. Skill Hub + Sentinel READ it; only HQ writes it.
 
-> **Source protocol:** Continuous Voice & Preference Learning Protocol in `~/.claude/rules/universal-protocols.md`.
-
-**Last full synthesis:** _(populated by dream consolidation; currently SEEDED ONLY)_
-**Confidence level:** SEED -- minimal capture data so far; populated rapidly over next 2-3 weeks of continuous capture.
+> **Coordination history:** HQ filed `wr-hq-2026-05-07-003` (FYI) on 2026-05-07 announcing v0.1 SEED of about-chris.md. This meta-doc absorbs HQ's 12-section structure + 8 signal categories + 4-tier cadence as canonical, replacing Skill Hub's earlier 11-dimension proposal. Reconciled in `wr-skillhub-2026-05-07-001` status_history.
 
 ---
 
-## 1. Identity -- who they are
+## 1. Authoritative Source — what to load at session start
 
-**Name:** Chris Sharkey
-**Company:** Sharkitect Digital (sharkitectdigital.com)
-**Email:** solutions@sharkitectdigital.com
-**Role:** Founder / CEO / operator. Builds an AI workforce ("AIOS") to support SMB clients while staying lean as a solo operator with family responsibilities.
+Every workspace's startup-guard MUST load this file at session start. The file is HQ-owned K1 SoT. Read-only for non-HQ workspaces.
 
-**Recurring concerns (from captured work):**
-- Operational autonomy -- the system should run without him so he can focus on revenue + family
-- Quality + accuracy over speed (zero-tolerance for sloppy work, accuracy is non-negotiable)
-- Brand integrity (Sharkitect voice is deliberate; generic AI voice erodes it)
-- Cost discipline (unit economics, sustainable bootstrapping)
+**Path:** `1.- SHARKITECT DIGITAL WORKFORCE HQ/knowledge-base/governance/about-chris.md`
+**Owner:** HQ (workforce-hq)
+**Sections (canonical, 12 — defined by HQ):**
+1. Who Chris is
+2. How he thinks
+3. Values
+4. Communication
+5. Operational preferences
+6. Vision
+7. Anti-patterns
+8. How to make decisions on his behalf
+9. Capture protocol
+10. Application
+11. Open questions (sequential Q&A in progress)
+12. Capture log
 
-_(Populated further by dream consolidation as more sessions land.)_
+**Confidence levels (per HQ quality bar):**
+- Direct quote > paraphrase
+- Confirmed pattern (≥2 instances) > single instance
+- Source citation required
+- Confidence marking per assertion (SEED → LOW → MEDIUM → HIGH)
 
-## 2. Likes -- what they engage with
-
-_(Empty -- to be populated from voice-samples-raw.jsonl topic-engagement clustering. Initial signals: dispatcher consolidation work, brain-dump capture pattern, AIOS architecture decisions, autonomous self-healing systems, naming conventions.)_
-
-## 3. Dislikes -- what they reject
-
-_(Empty -- to be populated from corrections + push-backs. Initial signals from MEMORY.md feedback files: yes-agent behavior, generic AI voice patterns, hook proliferation friction, engineery names that fail the 5-second test.)_
-
-## 4. Voice -- what they sound like
-
-_(Empty -- to be populated from raw-sample sentence-rhythm + word-frequency distillation. Manual seed signals from captured voice samples: uses "nonsense" colloquially ("small nonsense"), uses "almost clone me", uses "guys" plural-second-person to address the system. Direct register, decisive openers.)_
-
-## 5. Speech style -- how they like to talk
-
-_(Empty -- to be populated. Manual seed: long flowing requests followed by direct asks; uses bullet lists in their own messages when enumerating; will dictate verbatim when intent matters; pushes back when AI proposes complexity.)_
-
-## 6. Preferences -- choices they make consistently
-
-_(Empty -- to be populated from decision-pattern observation. Manual seed signals from MEMORY.md feedback files:_
-- _Optimize-to-max, not stop-at-gate (B 96+ for skills/agents, push to A)_
-- _Verify before filing -- 2-minute check on every WR premise_
-- _Resolution before move -- never move WR to processed without resolution object_
-- _Inbox-driven coordination -- never copy-paste between workspaces_
-- _Pushback is mandatory -- never yes-agent_
-- _Annealing loop is mandatory -- build-judge-optimize-deploy_
-- _Proactive autonomy -- 100% confidence = just build it; high = pitch with reasoning; lower = flag and explore)_
-
-## 7. Vision -- what they're building toward
-
-_(Empty -- to be populated from long-term-direction language clustering. Manual seed signals:_
-- _AIOS as universal AI operating system for SMBs_
-- _Sharkitect AIOS Central Hub as cross-client learning + delivery infrastructure_
-- _Three-product strategy P1/P2/P3 (locked S21-S22)_
-- _Self-healing tiered system that improves without operator intervention_
-- _Voice/persona profile sufficient for the system to make autonomous decisions in the user's voice_
-- _"World-class," "elite," "non-negotiable" appear repeatedly as quality bar)_
-
-## 8. Brand -- their public-facing voice
-
-**Brand:** Sharkitect Digital
-_(Brand voice details captured under `~/.claude/skills/hq-brand-review/` + `hq-content-enforcer`. The dream consolidation should pull brand voice attributes from those skill files plus voice-samples-raw analysis on outbound client communications.)_
-
-## 9. Way of thinking -- mental models
-
-_(Empty -- to be populated from framework-usage and metaphor-recurrence clustering. Manual seed signals:_
-- _WAT framework (Workflows, Agents, Tools)_
-- _Probabilistic AI handles reasoning; deterministic code handles execution_
-- _Capture is input, synthesis is output -- this very document's pattern_
-- _One-in-one-out budget exchanges (hooks, complexity)_
-- _Documentation without runtime detection is insufficient -- pair rules with hooks_
-- _Deferred not equal to processed -- discipline against silent drift)_
-
-## 10. What they say (explicit) -- positive direction
-
-_(Empty -- populated from explicit requests + named goals + articulated standards captured across sessions. Manual seed: see the universal-protocols.md `## Continuous Voice & Preference Learning Protocol` section for the most recent verbatim direction.)_
-
-## 11. What they don't say but mean (implicit)
-
-_(Empty -- inferred from gaps, silences, and topic pivots. Highest-difficulty dimension to populate; requires longitudinal data. Will be populated only after 2-3 weeks of continuous capture provides the baseline against which silences and pivots become readable.)_
+**Versioning:** v0.1 SEED as of 2026-05-07. v1.0 target after Chris answers HQ's 8 open questions.
 
 ---
 
-## How to use this document (for the AI)
+## 2. Capture mechanism — how signals flow
 
-1. **Load at session start.** Every workspace's startup-guard should pull this doc into context.
-2. **Reference before voice-bearing output.** Before writing emails, proposals, social posts, or any content that will represent the user, check this doc for the relevant voice/brand/preference signals.
-3. **Honor the silences.** What's NOT in this doc matters. If you'd write something the doc doesn't endorse, default to the user's known register (direct, decisive, non-yes-agent), not generic AI defaults.
-4. **Update is automatic.** Do NOT manually edit this document during normal work. It updates nightly. Manual edits are reserved for explicit user direction or correction of distillation errors flagged by Sentinel.
-5. **Confidence-gating.** When the document is at SEED confidence, treat its content as priors only. As confidence rises (per dream consolidation's confidence score), use it more authoritatively for autonomous decisions.
+| Tier | Trigger | Owner | Output |
+|---|---|---|---|
+| **Real-time** | UserPromptSubmit hook fires on every user message | `~/.claude/hooks/voice-capture-hook.py` (Skill Hub-owned, global) | Raw sample → `voice-samples-raw.jsonl`; pattern-matched feedback → `voice-capture-log.jsonl` + `activity_stream` |
+| **Session-end** | Session-checkpoint skill | Each workspace | Session-end synthesis appended to memory; significant signals routed to HQ via routed-task |
+| **Weekly synthesis** | Sentinel dream consolidation, weekly cadence | Sentinel (`tools/dream-consolidation`) | Distilled signals written to `about_chris_synthesis` Supabase table tagged by HQ 12-section taxonomy. HQ pulls from this table weekly into `about-chris.md` |
+| **Monthly drift detection** | Sentinel monthly audit | Sentinel | Drift report (sections aging without updates, contradictions between captured signals and current K1 state) routed to HQ for review |
+
+The 8 signal categories HQ defined map onto the 12 sections (signal categories are inputs; sections are outputs). Mapping maintained in HQ's about-chris.md Capture protocol section.
 
 ---
 
-## Maintenance log
+## 3. Application — how AI uses the profile
 
-| Date | Event | Source |
+| Decision class | When to consult | How |
 |---|---|---|
-| 2026-05-06 | SEED -- initial structure created with manual seed signals from MEMORY.md + captured voice samples | S29 ship of Continuous Voice & Preference Learning Protocol |
+| **Tier 1 — Routine work matching established patterns** | Always | Load profile at session start as context priors; act per established preferences without re-querying |
+| **Tier 2 — High-stakes or novel decisions** | When the decision could materially affect revenue, brand, client relationship, or system architecture | Re-read relevant section of `about-chris.md` on-demand; cite source in your response if making a judgment call |
+| **Tier 3 — Decisions outside captured signal** | When the profile doesn't cover the decision | Default to Pushback Protocol — articulate the gap to Chris, propose path, do not act unilaterally |
 
-_(Dream consolidation will append entries here on each nightly run.)_
+**Alignment with existing Proactive Autonomy Protocol (universal-protocols.md):** the Tier 1/2/3 framework above EXTENDS the existing 3-tier Proactive Autonomy Protocol with profile-grounded decision routing. The existing protocol defines confidence levels for proactive action; this layer adds the question "what does the profile say about this kind of decision?"
+
+---
+
+## 4. What the AI MUST do
+
+1. **Load HQ's about-chris.md at session start.** Every workspace startup-guard reads it. Treat it as priors for the session's voice/decision behavior.
+2. **Trust the runtime for capture.** voice-capture-hook handles real-time signal capture. Do NOT manually capture every interaction.
+3. **Honor the silences.** What's NOT in about-chris.md matters. If you'd write something the profile doesn't endorse, default to Chris's known register (direct, decisive, non-yes-agent), not generic AI defaults.
+4. **Flag profile gaps to Chris when they block a decision.** If Tier 3 fires, surface the gap explicitly so the next capture cycle fills it.
+5. **Do not write to HQ's about-chris.md from outside HQ.** Cross-workspace edits violate Supabase Ownership Protocol. Route findings to HQ via routed-task instead.
+
+## 5. What the AI must NEVER do
+
+- **Never duplicate the profile.** Only HQ's about-chris.md is canonical. Workspace-local copies drift.
+- **Never claim "I've added this to memory"** as acknowledgment of a correction. Capture is automatic; the runtime handles it.
+- **Never refuse capture for a "non-feedback" message.** Continuous raw-sample capture handles this.
+- **Never override profile-grounded decisions silently.** If you deviate from what the profile would predict, say so explicitly and cite reason.
+
+---
+
+## 6. Cross-references
+
+- **Capture protocol (rule):** `~/.claude/rules/universal-protocols.md` § Continuous Voice & Preference Learning Protocol
+- **Capture hook (runtime):** `~/.claude/hooks/voice-capture-hook.py`
+- **Capture CLI (paired samples):** `~/.claude/scripts/voice-write.py`
+- **HQ K1 SoT (profile content):** `1.- SHARKITECT DIGITAL WORKFORCE HQ/knowledge-base/governance/about-chris.md`
+- **Sentinel synthesis pipeline (build pending):** `wr-skillhub-2026-05-07-001` (extended scope reconciled with HQ)
+- **HQ FYI signal:** `wr-hq-2026-05-07-003`
+- **Supplementary brand voice:** `~/.claude/skills/hq-brand-review/` + `~/.claude/skills/hq-content-enforcer/` (brand voice is a separate artifact from Chris persona profile per HQ direction)
+
+---
+
+## 7. Maintenance
+
+- **This file (meta-doc):** Skill Hub-owned. Update when capture mechanism, application layer, or cross-references change.
+- **HQ's about-chris.md (content):** HQ-owned. Updated by HQ on weekly synthesis cadence (after Sentinel writes to about_chris_synthesis Supabase table). HQ also updates ad-hoc when answering open questions or processing direct user direction.
+- **Maintenance log table:** lives in HQ's about-chris.md § 12 Capture log. This meta-doc does not duplicate it.
