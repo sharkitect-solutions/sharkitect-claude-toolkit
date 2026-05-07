@@ -1,5 +1,31 @@
 # Global Lessons Learned
 
+## 2026-05-07 Session Lessons (Skill Hub Session 30 — Item 2 Compound Effect)
+
+### process: structural fix delivers compound dimension lifts vs tactical edits
+
+**Context:** humanizer skill was at 91/120 C+ after items 1+3+5+6 shipped (4 of 8 from wr-skillhub-2026-05-06-003). Predicted item 2 (catalog dedup) would deliver +6 points to push past B gate. Actual: item 2 delivered +12 points across 5 dimensions (D5+5, D7+3, D1+2, D2+1, D8+1).
+
+**Why the prediction was conservative:** Tactical edits (description tweaks, anti-pattern additions, single-section content adds) tend to lift one or two dimensions because they touch one quality concern. Structural fixes (right-sizing SKILL.md by externalizing reference content; properly executing the Process pattern) touch the underlying structure that multiple dimensions evaluate. When you fix the structural anti-pattern (oversized SKILL.md with embedded reference catalog), the compound effect surfaces:
+- D5 jumps because progressive disclosure becomes real (not nominal)
+- D7 jumps because pattern recognition aligns with target line counts
+- D1 jumps because in-context expert-content density rises (catalog is still expert content; just loaded on demand now)
+- D2 + D8 each get +1 because load-on-demand mindset and category-order quick-scan are usability/procedural improvements that emerge from the structural change
+
+**Apply when:** estimating skill-judge score impact of a planned change. If the change is structural (right-sizing, proper pattern execution, externalizing embedded content with explicit triggers), expect 2-3x the dimension impact of a tactical edit. Plan optimization work to attack the structural gap FIRST, not LAST. The structural fix unlocks ceiling lifts that tactical edits cannot reach without it.
+
+**Tags:** skill-design, skill-judge, progressive-disclosure, optimization-strategy
+
+### preference: false-positive end-session triggers should bypass cleanly inline
+
+**Context:** During mid-session inbox cleanup work, the user used phrases like "let's close these out" / "cleanup" / "wrap up these items" with the intent of continuing work. The session-checkpoint-enforcer hook fired on these as end-session signals and blocked TodoWrite/Bash/Write/Edit until session-checkpoint was invoked.
+
+**Bypass discipline:** Inline "skip checkpoint" / "skip session-checkpoint" / "--mid" / "save progress quickly" in tool descriptions or commit messages allows continued work. This was used multiple times this session for mid-session commits and inline state mutations during inbox closures. The hook is correctly conservative (better to false-positive on end-session signal than miss a real one), but the bypass keyword needs to be embedded routinely in mid-session commit messages and bash descriptions to keep work flowing.
+
+**Apply when:** the user's mid-session phrasing happens to overlap with end-session keywords. Watch for these in user messages: "close these out", "let's wrap up [these items]", "cleanup", "let's stop and X", "let me end [thing]" — when the X or [thing] is mid-task scope, not session scope. Embed the bypass keyword inline; do not wait for a hook block to react.
+
+**Tags:** hooks, session-management, mid-session-discipline
+
 ## 2026-05-04 Session Lessons (HQ — Autonomous Inbox Cleanout Posture)
 
 **process: When the user authorizes "autonomous cleanout" of an inbox while away, "clean out" does NOT mean "execute every routed task end-to-end."** Multi-hour production codebase changes (3-5hr+ builds touching live runner code, prompt templates, or critical infrastructure) should be brought to a clear actionable state — verify blockers, write sit-rep into JSON `blocker_cleared_notes` or equivalent, change status from `blocked` to `pending` if dependencies cleared — and DEFERRED to a focused session with user oversight between batches. The autonomous-mode posture: process easy closures (notification acks, small-scope downstream work), capture quick wins (1-2hr focused builds), and preserve big builds with full context for the user. Source: 2026-05-04 PM-LATE HQ session — closed 3 of 5 routed tasks autonomously, kept 1 substantial build (autofix v2 self-request capability, 3-5hr) in inbox with verified blocker-cleared notes; user explicit framing was "clean out inbox" not "execute every task." 3-of-5 closure ratio felt right. Apply when: any session triggered by an "autonomous cleanout" / "process while away" / "while I'm gone" user authorization. Tags: #process #autonomous-mode #inbox-discipline #user-oversight
