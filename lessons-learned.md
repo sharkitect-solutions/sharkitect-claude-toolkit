@@ -4660,3 +4660,37 @@ context: Built goals-drift-check.py. http_json returned `tuple[int, dict | list 
 why: Iterative patching for type errors is the same anti-pattern as iterative patching for runtime bugs -- just on a static-analysis surface instead of a behavior surface. Stepping back to find the root assertion (return type) is faster than patching N call sites.
 
 tags: process, debugging, type-hints, pyright, systematic-debugging
+
+### 2026-05-07 process: AI-side caution misclassified as hook denial
+
+**Context:** HQ filed wr-2026-05-07-004 reporting that a "supabase-write-protection-guard" blocked them from `UPDATE goals SET current_value=750`. Investigation: grep -r over `~/.claude/hooks/` and HQ workspace `.claude/hooks/` for the exact error phrases ("manually invented data", "did not authorize"). Zero matches. The "block" was the AI itself self-restraining — model judgment, not programmatic hook.
+
+**Lesson:** When a workspace reports a hook denial, FIRST grep for the literal error message across all hook files. If no match, the constraint is AI-side (model behavior/policy), not infrastructure. Building a "guard hook" to fix AI behavior is the wrong layer — fix it at the protocol/CLAUDE.md level, not the runtime level.
+
+**Apply when:** Triaging WRs that propose tuning a guard hook, especially around Supabase writes, financial values, or "authorized vs invented data" distinctions. Source: this session, Skill Hub triage of HQ wr-2026-05-07-004 annotated with two paths (protocol clarification vs new hook + Hook Introduction Rule budget swap).
+
+Tags: filer-quality, debugging, hook-vs-protocol, layering
+
+### 2026-05-07 direction: investigate before building duplicates
+
+**Context:** Sentinel filed wr-2026-05-07-004 asking for a `schema-eval-skill-enforcer` hook to block `mcp__claude_ai_Supabase__apply_migration` calls without `supabase-postgres-best-practices` invocation. Investigation: `~/.claude/hooks/supabase-ddl-skill-nudge.py` already does exactly this (PreToolUse BLOCKING, matches apply_migration + execute_sql, denies if skill not invoked, has bypass mechanism). It's even cited as deriving from "wr-2026-04-25 from Sentinel" — same author. Yet 3 migrations apparently bypassed it 2026-05-06.
+
+**Lesson:** When a WR proposes building hook X and a similar hook exists, the question is NOT "extend or replace?" — it's "why didn't the existing hook catch the case?" Either the existing hook failed to fire (bug), fired and was bypassed silently (instrumentation gap), or wasn't registered at the time (timeline mismatch). Investigate the existing hook before building parallel infrastructure.
+
+**Apply when:** Hook Introduction Rule budget pressure forces "swap-target" analysis. The cheapest swap-target is often the duplicate-author's own prior hook from a few weeks back.
+
+Tags: hook-budget, filer-quality, investigation-protocol
+
+### 2026-05-07 process: tightly-specced WRs are the autonomy safe zone
+
+**Context:** This session shipped 4 deliverables fully autonomously while user away. Common pattern across all 4: Sentinel/HQ provided exact patch logic, exact file paths, exact verification steps. The work that could NOT be done autonomously had option-presentation language ("Consider whether...", "Both options are tunable", "Per Hook Introduction Rule, identify retire-target").
+
+**Lesson:** Three classes of WR:
+1. Tight spec (exact code change + tests + verification) -> safe to ship autonomously, close with full artifacts list and verification summary.
+2. Tight spec but System-Configuration class (hooks, CLAUDE.md, settings.json, ~/.claude/rules/) -> still needs user review per System-Configuration Edit Hold protocol, even if spec is tight.
+3. Option-presentation spec (multiple paths, retirement-target identification, design choice) -> annotate + leave in inbox for user review per User-Review Flag Honor.
+
+**Apply when:** Triaging an inbox under Auto Mode. The spec's specificity determines the close path: completed (1) vs completed-with-protocol-flag (2) vs annotated-only (3).
+
+Tags: autonomy, triage, user-review-honor
+
