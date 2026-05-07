@@ -851,9 +851,42 @@ python ~/.claude/scripts/voice-write.py correction "<what was corrected and why>
 | Supabase activity_stream | `public.activity_stream` | LIVE -- correction/preference/approval events land here |
 | Dream consolidation -> raw stream | Sentinel-owned, dream-consolidation pipeline | **GAP** -- pre-S29 distillation reads from `voice_samples` table only. The new raw samples stream needs Sentinel-side ingestion. Filed as wr-skillhub-2026-05-06-005. |
 
+<!-- skip checkpoint: mid-session save during persona-profile expansion -->
+
+### Persona Profile Synthesis (the end goal of capture)
+
+Capture is the input. **Persona synthesis is the output.** The system does not just hoard voice samples — it distills them into a coherent, evolving profile of who the user is, so the system can make autonomous decisions on the user's behalf without needing instruction.
+
+**User direction (verbatim, 2026-05-06):** *"I want the workspace and the system as a whole to understand who I am, what I like, what I sound like, how I like to talk, my preferences. My vision, my brand, and my way of thinking so that eventually you guys can make autonomous decisions without me having to worry about it. As we go back and forth talking about this, or just working on things in general, you should be constantly observant and constantly understanding, constantly paying attention to how I talk, what I like, what my purpose is, what I say, what I don't say, what I say that I don't like. Even in the small nonsense, you should be able to extract key insights to build a complete profile of who Chris Sharkey is. Let's say two to three weeks down the line, you could almost clone me."*
+
+**The 11 dimensions to track (all populated continuously, never asked):**
+
+| # | Dimension | What signals feed it |
+|---|---|---|
+| 1 | **Identity** -- who they are | Role, work patterns, recurring concerns, decisions made over time |
+| 2 | **Likes** -- what they engage with | Topics they expand on, approaches they accept without redirect, vocabulary they reuse |
+| 3 | **Dislikes** -- what they reject | Patterns they correct repeatedly, banned phrases, things they push back on |
+| 4 | **Voice** -- what they sound like | Sentence rhythm, word choice, register (casual/formal mix), punctuation habits |
+| 5 | **Speech style** -- how they like to talk | Direct vs hedged, structured vs flowing, decisive openers, rule-of-three usage |
+| 6 | **Preferences** -- choices they make consistently | Tool preferences, workflow shapes, naming conventions, decision criteria |
+| 7 | **Vision** -- what they're building toward | Recurring themes in long-term direction, end-state language ("autonomous", "elite", "world-class") |
+| 8 | **Brand** -- their public-facing voice | Brand-specific vocabulary, banned terms, tone targets per audience |
+| 9 | **Way of thinking** -- their mental models | Frameworks they reach for, metaphors they use, analogies that recur |
+| 10 | **What they say (explicit)** -- positive direction | Stated requests, named goals, articulated standards |
+| 11 | **What they don't say but mean (implicit)** -- inferred from gaps and silence | What they accept by silence, what they pivot away from, what they assume the system already knows |
+
+**Output target: `~/.claude/about-user.md`** — a global, AI-readable persona document maintained by dream consolidation. All workspaces load it at session start so every AI decision is informed by the synthesized profile.
+
+**Why this matters: the autonomy goal.** Capture without synthesis is just data hoarding. The "could almost clone me" benchmark means: at sufficient depth, the system makes decisions the user would make, in the voice they would use, without being told what to do. The capture protocol is the means; the persona profile is the structural artifact that enables the autonomy.
+
+**Implementation status (as of 2026-05-06):**
+- Capture infrastructure: LIVE (continuous + pattern-matched + paired-sample)
+- Persona synthesis: GAP — Sentinel-owned dream consolidation needs to ingest raw samples + paired samples and emit `about-user.md` updates. Filed as part of `wr-skillhub-2026-05-07-001` (extended scope).
+- About-user document: SEEDED at `~/.claude/about-user.md` with structure for the 11 dimensions; populated over time by dream consolidation.
+
 ### Why this exists
 
-Voice and preference signals decay if not captured at the moment of interaction. The pre-S29 reactive-only model ("capture when user corrects") missed the much-larger continuous signal. Per past lesson "Documentation without runtime detection is insufficient", this protocol pairs documentation with runtime hook enforcement. The user should never have to ask the system to learn — the system is already learning.
+Voice and preference signals decay if not captured at the moment of interaction. The pre-S29 reactive-only model ("capture when user corrects") missed the much-larger continuous signal. Per past lesson "Documentation without runtime detection is insufficient", this protocol pairs documentation with runtime hook enforcement. The user should never have to ask the system to learn — the system is already learning, and synthesizing what it learns into a coherent persona that enables autonomous decision-making.
 
 ## Brain Dump Capture Protocol (NON-NEGOTIABLE)
 
