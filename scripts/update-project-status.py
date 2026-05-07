@@ -796,12 +796,44 @@ def _validate_workspace(workspace):
 
 def add_task(base_url, api_key, task_text, project, workspace, priority="medium",
              depends_on=None):
-    """Create a new task in Supabase."""
+    """Create a new task in Supabase.
+
+    Fails fast (returns False before POST) when project_id resolution fails.
+    Source: wr-sentinel-2026-05-07-001 -- the public.tasks.project_id column
+    is NOT NULL as of migration tasks_project_id_not_null (2026-05-06).
+    Without this guard, callers see opaque Postgres 23502 not-null violations
+    instead of an actionable "create the project first" message.
+    """
     workspace = _validate_workspace(workspace)
     # Resolve project name to project_id FK
     project_id, matched_name = _resolve_project_id(base_url, api_key, project)
-    if project_id:
-        project = matched_name  # Use canonical name from projects table
+    if not project_id:
+        print(
+            f"ERROR: No project match found for '{project}' -- cannot create task.",
+            file=sys.stderr,
+        )
+        print(
+            f"  public.tasks.project_id is NOT NULL (since 2026-05-06 migration).",
+            file=sys.stderr,
+        )
+        print(f"  Resolution options:", file=sys.stderr)
+        print(
+            f"    1. Create the project first:",
+            file=sys.stderr,
+        )
+        print(
+            f"       python ~/.claude/scripts/update-project-status.py "
+            f'project "{project}" pending --workspace "{workspace}"',
+            file=sys.stderr,
+        )
+        print(
+            f"    2. Or pass the EXACT existing project name (case-insensitive ilike). "
+            f"Run `update-project-status.py list` to see existing projects.",
+            file=sys.stderr,
+        )
+        return False
+
+    project = matched_name  # Use canonical name from projects table
 
     data = {
         "task": task_text,
@@ -822,10 +854,7 @@ def add_task(base_url, api_key, task_text, project, workspace, priority="medium"
         print(f"CREATED: [{project}] {task_text[:60]}")
         print(f"  ID: {task_id}")
         print(f"  Workspace: {workspace} | Priority: {priority}")
-        if project_id:
-            print(f"  Project FK: {project_id[:8]}...")
-        else:
-            print(f"  WARNING: No project match found for '{project}' -- project_id is NULL")
+        print(f"  Project FK: {project_id[:8]}...")
         if depends_on:
             print(f"  Depends on: {len(depends_on)} task(s)")
         return True
