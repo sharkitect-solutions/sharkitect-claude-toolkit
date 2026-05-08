@@ -1,5 +1,53 @@
 # Global Lessons Learned
 
+## 2026-05-07 Session Lessons (Skill Hub S32 — Autonomous inbox batch reinforces Verify Before Filing)
+
+### process: phantom-artifact WR pattern recurs — 2nd instance in 4 days
+
+Skill Hub S32 (2026-05-07 evening) found wr-hq-2026-05-07-004 references a hook (`supabase-write-protection-guard`) that does NOT exist anywhere in `~/.claude/hooks/`. Verified via grep + ls — zero matches. Routed back to HQ as drift_correction_request. This is the SECOND instance in 4 days of the same class as wr-skillhub-2026-05-04-002 (S24 drift-correction: claimed sync-skills.py doesn't mirror settings.json when source showed it did).
+
+Pattern: hooks named "X-guard" mentioned in transcript text get filed against as if they fired, when often they're reflexive AI-caution wording mistaken for actual hook firings. Bypass for filers: 2 minutes of grep + ls before filing any "tune existing hook X" WR. The Verify Before Filing Protocol in universal-protocols.md formalizes this — the rule is documented; this lesson notes it has now caught 2 instances and likely catches more if filers consistently apply the 2-minute verification rule.
+
+**Tags:** verify-before-filing, drift-correction, work-requests, hook-naming
+
+### process: Auto Mode + "work autonomously while away" = 6 closes + 4 routes + 3 annotations is sustainable rhythm
+
+Skill Hub S32 demonstrated the templated inbox-processing rhythm under Auto Mode + "work on everything you can" directive. Decomposition: build what's safe → route what belongs to other workspaces → annotate what needs user auth → write a return-brief. Did NOT invoke writing-plans skill despite 13 distinct todo items, because each item follows a deterministic protocol pattern (close-inbox-item.py contract or write-routed-task) and TodoWrite served as plan substitute. Per S30's just-closed self-audit: "writing-plans for multi-WR session is a behavioral lesson, no new fix needed." This S32 instance confirms the lesson holds when items follow standardized protocols. (Different rhythm if items required novel design — those would need writing-plans + brainstorming.)
+
+**Tags:** auto-mode, autonomous-batch, work-rhythm, writing-plans
+
+## 2026-05-07 Session Lessons (HQ — FF Hibu Cyncly meeting prep + 5-LLM cross-reference)
+
+### process: cross-LLM same-prompt run catches single-source errors a single pass misses
+
+When intel matters and stakes are high (e.g., competitive intelligence for a client meeting), running the same research prompt across 5 different LLMs (ChatGPT, DeepSeek, Perplexity, Gemini, Kimi K2) catches single-source errors that a one-LLM pass would have shipped as fact. Today: Kimi reported Cyncly Websites Flooring tiers as "Standard / Premium / Elite" (matching kitchen/bath product, wrong for flooring); 4/5 other LLMs + my own direct fetch correctly returned "Standard / Premium / Platinum." Without cross-reference, we'd have shipped the wrong tier name to the client. Verdict: for high-stakes intel where errors compound (FF Hibu meeting deadline 2026-05-22), cross-LLM is the right rigor; for low-stakes operational research, single-source is fine.
+
+**Tags:** intel, research, cross-reference, ff-hibu
+
+### direction: Sharkitect pricing model — build-to-need + transparent bundling, no tiers, volume is the only differentiator
+
+Chris locked this 2026-05-07 (also recurring from earlier sessions): "We do not hide things behind higher tiers — they get what they need. The difference is the volume." This is NON-NEGOTIABLE architecture for any pricing-related work. Captured in workspace memory as `feedback_pricing_strategy_principle.md`. Implications: (a) any "Tier A / Tier B" language in internal Sharkitect strategy docs is wrong — there are no tiers; (b) discovery-before-quote is the only valid sequence; (c) memory entries containing prices, scope commitments, or strategic claims MUST tag `[PLACEHOLDER]` vs `[VALIDATED]` so future sessions don't read illustrative numbers as real (this lesson surfaced when I treated a captured "$2,300/mo Tier A pitch" as a real Sharkitect quote — it wasn't, it was placeholder, captured to memory without the placeholder tag, future session read it as committed).
+
+**Tags:** sharkitect-pricing, architecture, memory-hygiene, ff-hibu
+
+### preference: plan first, one step at a time, no bundling next deliverable into current response
+
+Chris quote (2026-05-07, after I shipped FF pack + grading framework + interactive form vision in one response): "I do not like just going at it like this, I like to plan, strategies, understand, one step at a time to ensure every step is done right and optimal." Recurring pattern through the session — pushback on (a) over-broad Cyncly analysis (initial scope wrong), (b) $2,300 placeholder treated as real, (c) jumping past validation to scorecard + form vision. Fix going forward: ship deliverable → present cleanly → wait for direction → next step. Never propose 3 deliverables in the same response that just shipped 1. Captured in `feedback_strategic_planning_pattern.md`.
+
+**Tags:** preference, communication, sharkitect-process
+
+### preference: uploads land in resources/incoming/, HQ routes from there
+
+Chris explicit 2026-05-07: "I'm going to put everything I upload to you there, and you can move it where you need it from there. From now on, just know that." Means: at session start, check `resources/incoming/` for new files (don't wait to be told). Read each, determine permanent home, move it there, group multi-file batches into `evidence-YYYY-MM-DD/` subfolders. After moving, `resources/incoming/` should be empty (per CLAUDE.md "incoming file lifecycle: process → route to KB or DELETE"). Captured in `feedback_resources_incoming_routing.md`.
+
+**Tags:** preference, file-routing, ff-hibu
+
+### process: hook layer false-positives recur on path-keyword matches without skill_invocation_history
+
+The hq-content-enforcer + drift-detection hooks fire on path keywords (e.g., "marketing-takeover" in path) without checking whether the file is internal session notes vs new client-facing copy, AND without checking whether the required skills were already invoked this session. Today: hq-content-enforcer fired ~10 times on internal synthesis files that explicitly stated "Internal Sharkitect operational intel. NOT client-facing." in their metadata, AND fired again on the FF deliverable AFTER hq-content-enforcer + writing-clearly-and-concisely + hq-brand-review had been correctly invoked end-to-end. Filed wr-hq-2026-05-07-004 for the supabase-write-protection-guard tuning; the content-enforcer + drift-detection false-positive class is the same architectural issue (hook layer needs skill_invocation_history awareness or else cumulative friction grows monotonically per Hook Introduction Rule). This is the 5th friction WR Chris has filed against the hook layer; cumulative cost is real.
+
+**Tags:** hook-layer, friction, hq-content-enforcer, drift-detection
+
 ## 2026-05-07 Session Lessons (Sentinel — Inbox cleanup + lifecycle gate + goals + skill-type CHECK)
 
 ### process: NOT VALID is the right CHECK-widening move when legacy outliers exist
@@ -4694,3 +4742,78 @@ Tags: hook-budget, filer-quality, investigation-protocol
 
 Tags: autonomy, triage, user-review-honor
 
+
+## 2026-05-08 -- process: Sweep backend when frontend gets a data-field migration fix
+
+**Context:** The dashboard frontend migrated from `tasks.workspace` to `tasks.assigned_workspace` on 2026-05-06 (with extensive audit comments in `renderTasks` + `chipKeyAccessor`). The backend `summary()` was MISSED in that migration. Eight days later the user noticed via overview vs detail-tab mismatch (HQ overcounted, Sentinel showed zero).
+
+**Why:** Frontend fixes often address SYMPTOMS but the same logic exists in multiple places. A field migration is rarely complete with a single edit.
+
+**How to apply:** When any commit lands containing audit-style comments about data-field choices ("prefer X || Y", "91% of rows default to Z"), grep that field name across the entire codebase to find every reader/writer and verify each handles the same way. Specifically for backend `summary()`-style aggregations — they often duplicate logic from frontend renderers.
+
+**Tags:** data-migration, dashboard, debugging-pattern
+
+## 2026-05-08 -- process: PostgREST upsert needs on_conflict URL parameter to target a unique constraint
+
+**Context:** Built memory-index-distillation.py with `Prefer: resolution=merge-duplicates,return=minimal` for upsert. First run wrote 256 rows correctly. Re-run failed with 256x HTTP 409 Conflict on `(tenant_id, agent_id, key)` UNIQUE constraint.
+
+**Why:** PostgREST `Prefer: resolution=merge-duplicates` defaults to PRIMARY KEY for conflict resolution. If you don't send `id` (because it's auto-generated), the upsert behaves as INSERT and hits the unique constraint. To target a different constraint, append `?on_conflict=col1,col2,...` to the URL.
+
+**How to apply:** Whenever upserting to a Supabase table via PostgREST REST API where the conflict target isn't the PK, ALWAYS include `?on_conflict=col1,col2,...` in the URL. Watch out for voice-synthesis.py — same pattern, currently masked because archival empties the input on re-run.
+
+**Tags:** supabase, postgrest, upsert, idempotence
+
+## 2026-05-08 Session Lessons (HQ — FF Cyncly Evaluation System v1 build)
+
+### process: re-fetch BOTH vendors' primary sources when comparing competing contracts, not just the new one
+
+When comparing two competing vendors (e.g., Cyncly vs Hibu), the temptation is to deeply research the NEW vendor and rely on prior memory for the INCUMBENT. This produces drift. Today: previous Cyncly briefing draft inferred "yearly auto-renewal" for Hibu from cross-LLM research without verifying against hibu.com/legal. Re-fetched primary source 2026-05-08 → Hibu actually auto-renews month-to-month after 6-month (Hibu One) or 12-month (Smart Sites) minimum. Material correction to the comparison framing. Lesson: re-fetch ALL referenced primary sources at briefing-write time, not just the new vendor's. Five-minute cost prevents factual drift that erodes client trust.
+
+**Tags:** primary-source-verification, vendor-comparison, drift-prevention, ff-hibu, cyncly
+
+### process: yes-agent failure mode at session start — brainstorming should fire EARLIER on architectural-decision signals
+
+Session 2026-05-08 started with Chris asking to "pick up where we left off" on FF Cyncly briefing. AI went into delivery mode (drafted briefing, ran brand-review, captured voice sample). When Chris introduced multi-step architectural decisions (3-doc framework + decoder workflow), AI continued delivering reflective summaries instead of invoking brainstorming. Chris pushed back explicitly: "You haven't activated any skills or anything to plan this out... You're functioning as a yes agent." Brainstorming was then invoked correctly and rest of session followed structured planning. Pattern: yes-agent behavior emerges when AI optimizes for momentum on user requests. Trigger phrases that should auto-fire brainstorming earlier: "we need to plan this out", "should we", "three documents", "two-piece architecture", "workflow with X then Y then Z", "decoder", "multi-step", "architecture" (in user prompt context). Filed as `wr-hq-2026-05-08-001` at Skill Hub recommending hook to detect these signals before AI commits to delivery mode.
+
+**Tags:** yes-agent, brainstorming-trigger, process-discipline, hook-recommendation
+
+### direction: voice gold-standard locked — Costco/Instacart analogy pattern designated for ALL client-facing explanation content
+
+Chris explicitly designated the FF Cyncly checklist intro (Costco kiosk samples + Instacart shopping-list framing) as his voice exemplar for ALL future explanation content: marketing promos, website + landing pages including AIOS landing page, executive summaries, public-facing information about Sharkitect, email explanations, general communication. Pattern signature: real-world analogies that a 3rd-grader recognizes (household-name references), failure scenario first, specific numbers ($200 not "more"), bold pivot line that crystallizes the lesson, inverse analogy showing the solution, direct quoted speech for action, generalized lesson at the end. Chris quote: "I can tell my third grader this and she will understand exactly what I'm talking about." Voice sample captured to Supabase `voice_samples` id `e195810c-9fd5-4961-a127-cc8e85e4c5a1`. Reference samples and pattern rules in `memory/feedback_voice_gold_standard_analogy_pattern.md`. Apply to all marketing/AIOS/exec-summary content authoring going forward.
+
+**Tags:** voice-profile, brand-voice, analogy-pattern, gold-standard, content-authoring
+
+### process: memory drift on "sent" status — verify delivery against actual ground truth
+
+Session memory (MEMORY.md 2026-05-07 entry) claimed "Vendor Questions Pack SENT to Krystal+Emmanuel at 2026-05-08T00:38:41Z (msg 19e0505bf63fa24e)" with timestamp + msg id specificity. Chris corrected mid-session: "I never sent that. You created the draft, but I never sent it because I didn't like the way it was worded." The pack file exists as a draft template, not a delivered artifact. Memory captured fabricated send confirmation with high specificity (timestamp, message id, brand-review score) — confidence-weighted as if real. Lesson: when a memory entry claims an external action (sent, called, scheduled, posted) with delivery metadata, verify against the underlying system before treating it as ground truth. Email "sent" should be confirmed via Gmail MCP. Slack "posted" via Slack MCP. Form "delivered" via Jotform submission record. Don't propagate fabricated send metadata as fact.
+
+**Tags:** memory-drift, hallucination, send-verification, fabricated-metadata
+
+
+---
+
+## Process Decisions
+
+**date:** 2026-05-08
+**process:** When auditing a Supabase column for "is this still being written?", check column DEFAULT and triggers, not just application-layer writers. A DB-level DEFAULT will silently populate every new row even when every application writer has migrated off the column.
+
+**context:** While cleaning up tasks.workspace (legacy field) vs assigned_workspace (canonical), application audit showed update-project-status.py add_task only writes assigned_workspace. But every newly-created row still had workspace='workforce-hq'. Cause: tasks.workspace had DEFAULT 'workforce-hq'::text. The DB layer was the silent poisoner, not the app layer.
+
+**why:** Migration plans that assume "all writers stop = column goes stale" are wrong when DB defaults exist. Drop the DEFAULT before assuming the data will stop drifting.
+
+**how to apply:** During schema audits, run `SELECT column_name, column_default FROM information_schema.columns WHERE table_name='X'` BEFORE concluding writer migration is complete. If DEFAULT exists for a column being phased out, drop it first (reversible) — then verify new rows actually get NULL — then drop the column.
+
+**Tags:** schema-audit, postgres, column-default, migration
+
+---
+
+**date:** 2026-05-08
+**preference:** When given a dual-field schema with poisoned legacy data, default to ELIMINATING the legacy field, not enforcing it. User direction (verbatim): "If it's rarely used and that's what was causing the issue, we should maybe refocus and not even worry about using it. Let's do away with it and update any scripts that reference it."
+
+**context:** tasks.workspace + tasks.assigned_workspace dual-field cleanup. Could have backfilled workspace from assigned_workspace and kept it, or dropped workspace and standardized on assigned_workspace. User chose elimination.
+
+**why:** Field that the system has already converged off-of (frontend migrated 2026-05-06) should not be revived just to preserve a legacy column name. Carrying both = ongoing drift surface.
+
+**how to apply:** When proposing dual-field cleanup options, lead with the elimination path and ask only if explicit reasons to preserve exist (FK constraints, external consumers, immutable audit history). Don't waste a round-trip asking "drop or backfill?" — default drop, mention backfill as alternative.
+
+**Tags:** schema-cleanup, user-preference, dual-field, migration

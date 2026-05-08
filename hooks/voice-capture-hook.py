@@ -75,6 +75,23 @@ RAW_SAMPLES_DEDUP_FILENAME = "voice-samples-raw-dedup.json"
 RAW_SAMPLES_DEDUP_MAX_ENTRIES = 500  # higher than feedback dedup -- more turns
 RAW_SAMPLES_MAX_LEN = 8000  # truncate longer prompts to bound storage
 
+# Cron / system-generated prompts that should NOT be treated as voice samples.
+# Mirrors sentinel/tools/voice-synthesis.py:SYSTEM_PROMPT_PREFIXES (consumer-side
+# filter). Producer-side skip added per wr-sentinel-2026-05-08-001 so the raw
+# log only ever contains genuine human voice -- defense-in-depth keeps both
+# filters to prevent symbol drift if a future analyzer skips the consumer one.
+# skip brainstorming -- canonical prefix list, not a design choice.
+SYSTEM_PROMPT_PREFIXES = (
+    "MID-SESSION INBOX POLL",
+    "Autonomous check complete",
+    "<<autonomous-loop",
+    "<<autonomous-loop-dynamic>>",
+    "AUTONOMOUS CRON ACTIVITY",
+    "[skip ",
+    "this is a regular task instruction",  # S29 self-test sample
+    "no, that is wrong, be more direct",   # S29 self-test sample
+)
+
 
 # Pattern lists. Each entry is (regex, category). Word-boundary anchored.
 # Patterns chosen for unambiguous-feedback context. Deliberately conservative;
@@ -273,9 +290,27 @@ def _mark_raw_seen(prompt_hash: str, session_id: str) -> None:
     _save_raw_dedup(d)
 
 
+def _is_system_prompt(text) -> bool:
+    """Detect cron-fired or system-generated prompts that should not be
+    captured as voice samples. Mirrors sentinel/tools/voice-synthesis.py
+    is_system_prompt for producer-side defense-in-depth.
+
+    Returns True if the text (after lstrip) starts with any known system
+    prefix. Returns False for empty/None inputs -- other filters handle
+    those cases earlier in the capture flow.
+    """
+    if not text:
+        return False
+    stripped = text.lstrip()
+    for prefix in SYSTEM_PROMPT_PREFIXES:
+        if stripped.startswith(prefix):
+            return True
+    return False
+
+
 def _should_capture_raw(prompt: str) -> bool:
-    """Same filters as feedback capture: skip slash commands and <MIN_WORDS.
-    Empty/whitespace prompts are skipped as well."""
+    """Same filters as feedback capture: skip slash commands, <MIN_WORDS,
+    and cron-fired system prompts. Empty/whitespace prompts skipped too."""
     if not prompt:
         return False
     p = prompt.strip()
@@ -284,6 +319,8 @@ def _should_capture_raw(prompt: str) -> bool:
     if p.startswith("/"):
         return False
     if len(p.split()) < MIN_WORDS:
+        return False
+    if _is_system_prompt(p):
         return False
     return True
 
