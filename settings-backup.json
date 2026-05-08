@@ -92,19 +92,7 @@
           },
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/brainstorming-enforcer.py\""
-          },
-          {
-            "type": "command",
             "command": "python \"{HOME}/.claude/hooks/content-pitching-detector.py\""
-          },
-          {
-            "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/writing-plans-enforcer.py\""
-          },
-          {
-            "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/hook-development-enforcer.py\""
           },
           {
             "type": "command",
@@ -113,11 +101,6 @@
           {
             "type": "command",
             "command": "python \"{HOME}/.claude/hooks/hq-content-skill-stack-enforcer.py\"",
-            "timeout": 10
-          },
-          {
-            "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/claude-api-skill-nudge.py\"",
             "timeout": 10
           },
           {
@@ -132,16 +115,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/brainstorming-enforcer.py\""
-          },
-          {
-            "type": "command",
             "command": "python \"{HOME}/.claude/hooks/session-checkpoint-enforcer.py\""
-          },
-          {
-            "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/multistep-plan-nudge.py\"",
-            "timeout": 10
           }
         ]
       },
@@ -170,10 +144,6 @@
           },
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/supabase-ddl-skill-nudge.py\""
-          },
-          {
-            "type": "command",
             "command": "python \"{HOME}/.claude/hooks/session-checkpoint-enforcer.py\""
           }
         ]
@@ -183,11 +153,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/deep-interview-gate.py\""
-          },
+            "command": "python \"{HOME}/.claude/hooks/skill-invocation-tracker.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|TodoWrite|Bash|Skill|Read|mcp__",
+        "hooks": [
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/skill-invocation-tracker.py\""
+            "command": "python \"{HOME}/.claude/hooks/methodology-dispatcher.py\""
           }
         ]
       }
@@ -219,10 +194,6 @@
           {
             "type": "command",
             "command": "python \"{HOME}/.claude/hooks/asset-registration-nudge.py\""
-          },
-          {
-            "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/verification-before-build-enforcer.py\""
           }
         ]
       },
@@ -235,14 +206,6 @@
           },
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/iterative-work-nudge.py\""
-          },
-          {
-            "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/mcp-auth-error-guard.py\""
-          },
-          {
-            "type": "command",
             "command": "python \"{HOME}/.claude/hooks/notification-write-verify.py\""
           }
         ]
@@ -250,10 +213,6 @@
       {
         "matcher": "Skill",
         "hooks": [
-          {
-            "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/iterative-work-nudge.py\""
-          },
           {
             "type": "command",
             "command": "python \"{HOME}/.claude/hooks/log-tool-invocation.py\""
@@ -275,6 +234,15 @@
           {
             "type": "command",
             "command": "python \"{HOME}/.claude/hooks/cron-activity-logger.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|mcp__",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"{HOME}/.claude/hooks/methodology-dispatcher.py\""
           }
         ]
       }
@@ -319,10 +287,14 @@
         ]
       },
       {
+        "hooks": []
+      },
+      {
+        "matcher": "*",
         "hooks": [
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/process-violation-detector.py\""
+            "command": "python \"{HOME}/.claude/hooks/voice-capture-hook.py\""
           }
         ]
       },
@@ -331,7 +303,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/voice-capture-hook.py\""
+            "command": "python \"{HOME}/.claude/hooks/methodology-dispatcher.py\""
           }
         ]
       }

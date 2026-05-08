@@ -1,5 +1,76 @@
 # Global Lessons Learned
 
+## 2026-05-08 Session Lessons (HQ — Inbox + AIOS 1A-1D + drift-correction)
+
+### direction: Premium tier = STABILITY, not speed
+
+**context:** AIOS update routing for Cohort A1+A2 license tiers. Initial proposal had FPs delayed (assumed "FPs are premium so they wait for vetted code"). Chris corrected twice (delay direction 1C + filter direction 1D).
+
+**why:** FP + pilot pay reduced rates AS PAYMENT for being beta testers. The discount IS the cost of being a guinea pig. Standard tier customers pay full price for VETTED code and get the 14-day delay (not as punishment but as the premium experience: stability). Apple-style: any standard customer can opt-in for free if they want first-wave + are willing to give feedback.
+
+**apply-when:** Any tiering decision where reduced-price tiers exist. The premium tier gets the polished/stable experience, not the bleeding edge. Discount tiers carry the testing burden as part of the deal.
+
+**design principles:**
+- Premium = stability (not "first-class first-access")
+- Discount = beta-testing-as-payment
+- Opt-in availability for full-price customers preserves choice without breaking the model
+
+**tags:** product-strategy, tier-design, beta-cohort, aios
+
+### process: drift-correction recurrence pattern (3rd incident, structural fix filed)
+
+**context:** AI hedges on its own writes even after explicit user authorization. Three confirmed incidents in 4 days:
+- 2026-05-04 BREVO (`wr-skillhub-2026-05-04-002`) — AI observed CLI output, inferred a hook fired, filed WR; Skill Hub verified no hook
+- 2026-05-07 phantom supabase-write-protection-guard (`wr-hq-2026-05-07-004`) — drift-corrected this session
+- 2026-05-08 drift-correction-itself — Chris said "do A" → activity_stream INSERT denied → required explicit "yes execute drift-correction" to proceed
+
+**why:** AI's self-restraint on its own writes is a fundamental behavior pattern. Documentation alone is insufficient ("documentation without runtime detection" lesson). The AI wasn't reading a hook gate — it was hedging via own judgment caution-text, then either misnaming it as a hook firing OR refusing to execute despite proposal-level authorization.
+
+**apply-when:** Any multi-step proposal that includes Supabase writes, filesystem actions, or cross-workspace effects. User affirmative responses to specific proposals must be treated as full per-operation authorization for ALL operations enumerated.
+
+**Structural fix filed:** `wr-hq-2026-05-08-003` — add Affirmative Authorization Vocabulary section to `~/.claude/rules/universal-protocols.md`. Path A (broad settings.json allow) explicitly skipped per Chris to preserve safety net for genuinely-destructive SQL. Path B alone binds AI behavior at the protocol layer for everyone.
+
+**tags:** drift-correction, ai-self-restraint, protocol-layer, authorization
+
+### process: verify schema EXISTS before drafting routed-task as add-column
+
+**context:** Started drafting `rt-hq-2026-05-08-aios-licenses-and-update-log-schema` framed as "add license_tier column to AIOS licenses table". Mid-draft verification: neither `aios_licenses` nor `aios_update_log` existed in `public.*`. Reframed routed task to CREATE TABLE migrations.
+
+**why:** Source routed task assumed table existed. Schema verification belongs at the START of routed-task drafting, not mid-draft. Cost of late discovery: throw away most of the partially-drafted JSON, restructure scope. Cheap fix (`SELECT table_name FROM information_schema.tables WHERE table_name IN ('X','Y')`) takes 5 seconds and catches the framing error before the doc is written.
+
+**apply-when:** Any routed task or work request involving schema changes. Run a 30-second `information_schema.tables` + `information_schema.columns` query BEFORE writing fix_instructions. Verify everything the source spec assumed.
+
+**tags:** schema-design, verify-before-acting, routed-task-drafting
+
+### direction: two-axis schema design vs collapsed
+
+**context:** AIOS update routing has TWO distinct concerns: how-urgent (criticality_tier locked Cohort C13: info/standard/critical) and what-kind-of-change (release_classification NEW: feature/patch/security). Tempting to collapse for "cleaner schema."
+
+**why:** They answer different questions, the routing logic reads them differently, and conflating them produces silent data poisoning when meanings drift. Same anti-pattern Sentinel just made HQ migrate off (`tasks.workspace` silent poisoner — single field carrying two meanings: workforce-hq default semi-poisoned `assigned_workspace`).
+
+**apply-when:** Any time you're deciding between a single column with multiple semantic meanings vs separate columns. Default to separate. Two columns are cheap; collapsing one is expensive when meanings diverge.
+
+**design principles:**
+- One column per concern
+- CHECK constraints can always be widened later via migration; can't unwiden as cheaply
+- "Cleaner schema" is a false optimization when domains are distinct
+
+**tags:** schema-design, separation-of-concerns
+
+### process: repeat-edit hook false positives during planned multi-location refactor
+
+**context:** PreToolUse repeat-edit hook fires on 2+ edits to same file with "RE-PATCHING prior change → invoke systematic-debugging" message. Triggered TWICE this session during goals-rollup dispatcher refactor — both false positives. Pattern: Write the new full version → Edit two distinct functions for unused-param hints (different code regions, different concerns).
+
+**why:** The hook heuristic conflates "multi-edit on same file" with "iterative patching of same code". Misses the difference between (a) iterating on the same lines because first attempt failed, vs (b) sequential edits to distinct regions of a planned multi-location refactor.
+
+**apply-when:** When the hook fires after a Write + 2+ Edits on the same file: check whether the edits are to DISTINCT regions (refactor) or the SAME region (iterating). If distinct → ignore hook, verify via test. If same → invoke systematic-debugging skill.
+
+**Decision rule:** False positive if Edit `old_string` and `new_string` are in different functions OR different concern domains. True positive if iterating on the same `old_string` text.
+
+**tags:** hook-tuning, false-positive, refactor-pattern
+
+---
+
 ## 2026-05-07 Session Lessons (Skill Hub S32 — Autonomous inbox batch reinforces Verify Before Filing)
 
 ### process: phantom-artifact WR pattern recurs — 2nd instance in 4 days
@@ -4817,3 +4888,13 @@ Session memory (MEMORY.md 2026-05-07 entry) claimed "Vendor Questions Pack SENT 
 **how to apply:** When proposing dual-field cleanup options, lead with the elimination path and ask only if explicit reasons to preserve exist (FK constraints, external consumers, immutable audit history). Don't waste a round-trip asking "drop or backfill?" — default drop, mention backfill as alternative.
 
 **Tags:** schema-cleanup, user-preference, dual-field, migration
+
+### 2026-05-08 — process: Single-letter answers are too ambiguous for destructive DDL authorization
+
+**Context:** Sentinel session 2026-05-08 attempted DROP DEFAULT on `tasks.workspace` after the user replied "A" to a multi-question briefing (option A vs option B for sequencing). The Supabase apply_migration was correctly blocked by the safety system — single-letter "A" was too ambiguous given the destructive nature of the DDL.
+
+**Why:** Schema gatekeeping rules require explicit per-action authorization. A vote on a multi-question briefing does not authorize the underlying destructive operation; the user might have meant the question but not the action. The safety system's friction is correct here, not bureaucratic.
+
+**Apply when:** Any time a user answer that picks an option requires a follow-on destructive action (DROP/RENAME/DELETE on production schema, force-push, hard-reset). Treat the option-pick as authorization-of-intent, not authorization-of-execution. Pause and ask explicit yes/go before running the destructive call. The user gave the explicit re-authorization "yes, drop default" the second time and it executed cleanly.
+
+**Tags:** schema-gatekeeping, ambiguity, destructive-ddl, sentinel, supabase
