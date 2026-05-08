@@ -1,5 +1,47 @@
 # Global Lessons Learned
 
+## 2026-05-08 Session Lessons (Sentinel — AIOS Coordination Fix Strategic Build)
+
+### direction: build observability + coordination BEFORE making architectural decisions
+
+**context:** Sentinel proposed putting Q3 (AIOS architectural decision: separate `sharkitect-aios-central-hub` project vs reuse `sharkitect-brain`) FIRST in a 9-step strategic build. User pushed back: "fix the issue first, backfill, rename, THEN Q3 because Q3 is dependent on everything else." User's reordering was correct.
+
+**why:** Q3 only affects WHERE the AIOS schema eventually lands. It doesn't affect the COORDINATION INFRASTRUCTURE (parent_task_id linkage, auto-task-from-plan, blocker surfacing, drift detection, discipline hooks). All those F-fixes apply system-wide, not just to AIOS. Making an architectural decision while the dependency graph is invisible (3.5% deps populated, 0 blocked tasks) means deciding without seeing the full chain of phases that depend on Phase 1. Once F3+F1+F4 ship, the dashboard shows the full Phase 1→10 chain with owners + blocked status; Q3 is decided WITH complete context, not partially blind.
+
+**apply-when:** Any time you're about to make an architectural decision in a system whose state isn't fully observable. Stop. Ask: "If I make this decision wrong, will I see the consequences clearly enough to roll back?" If not, fix observability first.
+
+**design principles:**
+- Architectural decisions made in unobservable systems are bad decisions
+- Build the system that makes the decision visible BEFORE making the decision
+
+**tags:** architecture, coordination-protocol, q3-aios, strategic-ordering
+
+---
+
+### preference: priority order = execution order — don't shift it in the recommendation
+
+**context:** Sentinel presented 6 fixes in "priority order" then in the recommendation paragraph re-shuffled to "approve F4+F5+F6 inline + F1 as plan + F2/F3 deferred." User: "you are contradicting yourself. That is a problem... give me the exact order in which I should approve these and how we should work on them. Not because it's cheaper, not because it's faster, but because that is the right order they should be done."
+
+**apply-when:** Any multi-step plan, fix list, or recommendation set. The numbered order I present MUST be the order to execute. If parallelism is safe, say "parallel-safe with #N" inline. If something is cheaper or faster, that's a separate annotation — not an excuse to renumber.
+
+**why:** Two orderings = user can't trust either. Train yourself to commit to one order and explain WHY each item is in its slot — dependency reason, not cost.
+
+**tags:** communication, plan-presentation, priority-discipline
+
+---
+
+### process: demonstrate the discipline in the plan that proposes the discipline
+
+**context:** Strategic build plan proposed fixing system-wide dependency-encoding drift (3.5% deps populated). Sentinel created the matching Supabase project + 9 tasks with FULL `depends_on` chain encoded — F3 root, F1←F3, F4←F1, F5 root (parallel), F2←F4+F5, F6←F1, F7←F2, F8←F3+F1, Q3←F2+F6+F7+F8. The plan demonstrates the discipline it proposes.
+
+**why:** A plan that proposes "always populate `depends_on`" but itself ships with empty `depends_on` is hypocritical. Living the standard you're setting builds credibility AND makes the plan auditable against itself. When F1 (auto-task-from-plan) ships, this plan re-registers to verify F1's idempotency.
+
+**apply-when:** Any plan that introduces or enforces a discipline. Check: does the plan itself follow the discipline? If not, fix the plan before shipping it.
+
+**tags:** plan-design, idempotency, demonstrate-don't-just-document
+
+---
+
 ## 2026-05-08 Session Lessons (HQ — Inbox + AIOS 1A-1D + drift-correction)
 
 ### direction: Premium tier = STABILITY, not speed
@@ -648,8 +690,33 @@ Cross-project patterns, API limitations, tool quirks, user preferences, and proc
 ### [2026-04-14] api-limitation: Gmail MCP does not support file attachments on drafts
 - **Attempted:** Creating a Gmail draft with a PDF attachment
 - **Error:** `gmail_create_draft` has no attachment parameter
-- **Solution:** Include a Google Drive link to the document in the email body instead. Professional and avoids attachment size limits.
+- **Solution (UPDATED 2026-05-08):** Use `gws` CLI instead — see entry below. Gmail MCP remains the right tool ONLY when no attachment is needed AND gws CLI is unavailable. Drive link in body is the third-tier fallback.
 - **Tags:** gmail, mcp, attachments
+
+### [2026-05-08] process: gws CLI is the canonical path for client emails with attachments and threading
+- **Context:** Gmail MCP `create_draft` cannot attach files (see 2026-04-14 entry). Verified today that `gws gmail +reply --draft` handles attachments natively, plus auto-threading via `--message-id`, BCC support, HTML body, and draft mode. This supersedes the prior "use Drive link" workflow for any task that needs attachments.
+- **Working command pattern:**
+  ```
+  gws gmail +reply \
+    --draft \
+    --message-id <gmail-message-id-from-thread> \
+    --cc <email> \
+    --bcc 244469204@bcc.na2.hubspot.com \
+    --html \
+    --body "$(cat path/to/body.html)" \
+    -a path/to/attachment.docx
+  ```
+  Attachment limit: 25MB total. Use `-a` multiple times for multiple files. `--draft` saves to drafts; omit to send immediately. For new threads use `+send` instead of `+reply` (no `--message-id`).
+- **Auth requirements:** gws CLI must be authenticated against the account that owns the thread. For FF/client work this is `solutions@sharkitectdigital.com`. Re-auth via `gws auth login` (interactive — opens browser, OAuth flow). Once authenticated, refresh token survives weeks; sessions only re-auth when token explicitly expires.
+- **Verify auth before drafting:** `gws auth status` (look for `token_valid: true`). To confirm WHICH account: `gws gmail users getProfile --params '{"userId":"me"}'` returns `emailAddress`.
+- **Pre-flight checklist for any client email:**
+  1. Grep this file for `email|gmail|hubspot|attachment|bcc` and apply every documented pattern (per the recurring-failure rule from this same date).
+  2. HubSpot BCC `244469204@bcc.na2.hubspot.com` is mandatory (per 2026-04-17 entry — STRICT BCC, never TO/CC).
+  3. If attachment needed → gws CLI. If not → Gmail MCP is fine.
+  4. Verify gws auth status BEFORE building body. If token invalid, run `gws auth login` first.
+- **Source:** 2026-05-08 — Krystal/Emmanuel email for FF Cyncly evaluation. Gmail MCP path created two broken drafts (one missing BCC, one missing attachment); gws CLI single command produced one clean draft with BCC + attachment + auto-threading. Chris confirmed: *"that's how you. That's all. We were able to attach it. See, the CLI is allowed to attach a document, so I just sent it."*
+- **Anti-pattern this prevents:** Defaulting to Gmail MCP `create_draft` for attachment-bearing client emails, then asking user to manually attach in Gmail UI. That's a process failure when gws CLI handles it in one command.
+- **Tags:** gmail, gws, cli, attachments, threading, hubspot-bcc, client-outreach, canonical-pattern
 
 ### [2026-04-14] api-limitation: Airtable MCP pastMonth filter is unreliable for exact calendar month filtering
 - **Attempted:** Using `isWithin` with `mode: pastMonth` to filter records for the previous calendar month
@@ -4941,3 +5008,39 @@ Session memory (MEMORY.md 2026-05-07 entry) claimed "Vendor Questions Pack SENT 
 
 **Tags:** cron, orphan-detection, triage, idle-mode, autonomous-processing, safety-default
 
+
+---
+
+## 2026-05-08 — Lesson-base exists, consultation discipline does not (process)
+
+**process:** Before drafting ANY client-facing email, grep `~/.claude/lessons-learned.md` for `email|gmail|hubspot|bcc|attachment|gws|client-outreach`. Apply EVERY surfaced pattern. If a documented pattern conflicts with the current draft, fix the draft before proceeding. The lesson-base catches what working memory does not.
+
+**Why:** 2026-05-08 session — drafted Krystal/Emmanuel email via Gmail MCP without HubSpot BCC AND without using gws CLI for the attachment. Both failures had documented prevention 22+ days old in lessons-learned (2026-04-17 BCC mandate, 2026-04-14 Gmail MCP attachment limitation). Three drafts created where one would have sufficed. User exhaustion compounded across session. Cross-cutting pattern: documentation alone doesn't prevent recurrence — consultation discipline is the actual fix. Per the global rule "Documentation without runtime detection is insufficient."
+
+**Apply when:** Every client-facing email draft. Every time. No exceptions. The grep takes <2 seconds; the recovery from skipping it consumed ~45 minutes today.
+
+**Tags:** email, lessons-learned, consultation-discipline, recurring-failure, hq-email-workflow
+
+---
+
+## 2026-05-08 — gws gmail +reply --to explicit, always (process)
+
+**process:** When using `gws gmail +reply` to reply to a thread, ALWAYS specify `--to <recipient-email>` explicitly. Do NOT rely on default routing.
+
+**Why:** gws CLI's default reply behavior routes to the SENDER of the message being replied to. In any forward scenario where YOU sent the original (e.g., Chris's forward of the Hibu thread to Krystal), the reply lands BACK on YOURSELF. 2026-05-08: replied to Chris's own forward, the email went to solutions@ instead of Krystal. Krystal — primary intended recipient — received nothing. Chris had to manually forward.
+
+**Apply when:** Every `gws gmail +reply` invocation. After every send, verify recipients via `mcp__claude_ai_Gmail__get_thread` BEFORE declaring complete. Verification is non-negotiable on client emails.
+
+**Tags:** gws, gmail, reply, recipient-routing, forward-scenarios, verification
+
+---
+
+## 2026-05-08 — "Show me before you write it" is a sticky session mode (preference)
+
+**preference:** When user says "I can't trust you to write the draft, provide me what you're going to write here, we'll proof it here before you write it" — that mode is sticky for the rest of the session. ALL drafts/edits go to chat for proof first. No file ops on prose content until user types yes/approved/go/apply. Mechanical operations (file moves, schema edits, regenerations) may be exempt only if user pre-authorized them in the same session.
+
+**Why:** Session 2026-05-08 — user issued the directive after a series of unilateral file edits that created scrap (3 wrong Airtable tables, several drafts). Trust was eroded; the "proof first" mode was the corrective discipline. Treating it as soft guidance instead of binding produced further erosion.
+
+**Apply when:** Once user issues "show me first" or equivalent, default to chat-proof for the rest of the session unless explicitly lifted. Even when changes feel mechanical or pre-approved, err toward asking.
+
+**Tags:** trust, drafts, chat-proof, sticky-mode, prose-content

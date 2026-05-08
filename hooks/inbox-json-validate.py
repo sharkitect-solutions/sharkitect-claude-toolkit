@@ -62,13 +62,49 @@ INBOX_PATH_RE = re.compile(
 ID_RE_V2 = re.compile(r"^(wr|rt)-(hq|skillhub|sentinel)-\d{4}-\d{2}-\d{2}-(\d{3}|[a-z0-9-]+)$")
 ID_RE_V1 = re.compile(r"^(wr|rt)-\d{4}-\d{2}-\d{2}-(\d{3}|[a-z0-9-]+)$")
 
+# F3 (wr-skillhub-2026-05-08-001): parent_task_id is an OPTIONAL UUID linking
+# this inbox item to a parent task in public.tasks. When present, must match
+# canonical 8-4-4-4-12 hex format. Source: wr-skillhub-2026-05-08-001.
+UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.I,
+)
+
 BYPASS_PHRASES = (
     "skip json-validate",
     "skip inbox-validate",
     "skip inbox-json-validate",
     "skip wr-id-schema",  # bypass id-schema check only
+    "skip parent-task-id",  # bypass parent_task_id UUID check only
 )
 TRANSCRIPT_USER_LOOKBACK = 3
+
+
+def validate_parent_task_id(parsed_json):
+    """Return (ok: bool, reason: str). parent_task_id is optional but if
+    present must be a valid canonical UUID string.
+
+    Source: wr-skillhub-2026-05-08-001 (F3). Defense-in-depth complement to
+    the argparse type= validators in close-inbox-item.py + work-request.py;
+    catches hand-emitted JSON that bypasses those scripts.
+    """
+    pid = parsed_json.get("parent_task_id")
+    # Missing/None is fine -- field is optional
+    if pid is None:
+        return True, "ok (parent_task_id absent)"
+    # Empty string is fine too -- treat as absent
+    if isinstance(pid, str) and not pid.strip():
+        return True, "ok (parent_task_id empty)"
+    if not isinstance(pid, str):
+        return False, (
+            f"parent_task_id must be a UUID string, got {type(pid).__name__}"
+        )
+    if not UUID_RE.match(pid.strip()):
+        return False, (
+            f"parent_task_id {pid!r} is not a valid UUID. Expected canonical "
+            "8-4-4-4-12 hex format (e.g. 550e8400-e29b-41d4-a716-446655440000)."
+        )
+    return True, "ok (parent_task_id valid UUID)"
 
 
 def validate_wr_id_schema(parsed_json):
@@ -241,6 +277,22 @@ def main():
                     "Supabase updates in the 2026-04-25 batch close.\n\n"
                     "To bypass for emergency manual repair, include 'skip "
                     "wr-id-schema' in your next user message."
+                )
+                sys.exit(2)
+            # F3 (wr-skillhub-2026-05-08-001): parent_task_id UUID validation.
+            # Optional field; if present must be a canonical UUID string.
+            ok2, reason2 = validate_parent_task_id(parsed)
+            if not ok2:
+                base = os.path.basename(file_path)
+                deny(
+                    f"BLOCKING: Write to inbox file `{base}` has invalid "
+                    f"parent_task_id. {reason2}\n\n"
+                    "Source: wr-skillhub-2026-05-08-001 (F3 of AIOS Coordination "
+                    "Fix Strategic Build). parent_task_id links sub-scope "
+                    "inbox items to a parent task in public.tasks; invalid "
+                    "values would break the parent-task progress rollup.\n\n"
+                    "To bypass for emergency manual repair, include 'skip "
+                    "parent-task-id' in your next user message."
                 )
                 sys.exit(2)
         return 0

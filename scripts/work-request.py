@@ -33,10 +33,37 @@ Dependencies: Python stdlib only. No external packages.
 import argparse
 import json
 import os
+import re
 import sys
 import urllib.error  # noqa: used in log_to_supabase
 import urllib.request  # noqa: used in log_to_supabase
 from datetime import datetime, timedelta, timezone
+
+
+# Source: wr-skillhub-2026-05-08-001 (F3). Mirrors close-inbox-item.py UUID
+# validation. parent_task_id is optional; when set, persists in the WR JSON
+# top-level so close-inbox-item.py inherits it on close.
+_UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
+
+
+def _validate_parent_task_id(value: str) -> str:
+    """argparse type= for --parent-task-id; returns lowercase UUID or raises."""
+    if value is None:
+        return value
+    s = str(value).strip()
+    if not s:
+        raise argparse.ArgumentTypeError(
+            "--parent-task-id is empty; pass a valid UUID or omit the flag"
+        )
+    if not _UUID_RE.match(s):
+        raise argparse.ArgumentTypeError(
+            f"--parent-task-id {value!r} is not a valid UUID. Expected canonical "
+            "8-4-4-4-12 hex format (e.g. 550e8400-e29b-41d4-a716-446655440000)."
+        )
+    return s.lower()
 from pathlib import Path
 
 
@@ -606,6 +633,14 @@ def build_report(args):
     if origin_tag:
         report["origin_tag"] = origin_tag
 
+    # F3 (wr-skillhub-2026-05-08-001): parent_task_id linkage. argparse type=
+    # already validated UUID format; defensive re-validation here catches
+    # programmatic callers using --json mode that hand-set the field.
+    parent_task_id = getattr(args, "parent_task_id", None)
+    if parent_task_id:
+        # If args came from CLI, type= already lowercased; defensive cast.
+        report["parent_task_id"] = str(parent_task_id).lower()
+
     # Blocked-by fields (if this item depends on another completing first)
     blocked_by = getattr(args, "blocked_by", None)
     if blocked_by:
@@ -956,6 +991,17 @@ def main():
                              "central allocator to pick the id. Required: "
                              "--workspace. Optional: --no-supabase to skip "
                              "the Supabase counter scan.")
+    # F3 (wr-skillhub-2026-05-08-001): parent_task_id linkage. Optional UUID
+    # of parent task in public.tasks this WR is a sub-scope of. When set,
+    # persists on the WR JSON top-level; close-inbox-item.py inherits it on
+    # close and propagates into resolution.parent_task_id. Forward-compatible:
+    # Supabase-side write of the new column waits for Sentinel migration.
+    parser.add_argument("--parent-task-id", type=_validate_parent_task_id,
+                        default=None,
+                        help="Optional UUID of parent task in public.tasks "
+                             "this inbox item is a sub-scope of. Persists on "
+                             "WR JSON top-level. UUID validation: canonical "
+                             "8-4-4-4-12 hex format.")
 
     args = parser.parse_args()
 

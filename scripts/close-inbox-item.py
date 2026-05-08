@@ -68,6 +68,7 @@ Dependencies: Python stdlib only.
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -75,6 +76,36 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
+
+
+# Source: wr-skillhub-2026-05-08-001 (F3 of AIOS Coordination Fix Strategic Build).
+# parent_task_id links inbox items to a parent task in public.tasks. Validates
+# canonical UUID format (case-insensitive); 32 hex digits in 8-4-4-4-12 layout.
+_UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
+
+
+def _validate_parent_task_id(value: str) -> str:
+    """Return normalized lowercase UUID, or raise argparse.ArgumentTypeError.
+
+    Used both as argparse type= and as a defensive check anywhere
+    parent_task_id flows through the script.
+    """
+    if value is None:
+        return value
+    s = str(value).strip()
+    if not s:
+        raise argparse.ArgumentTypeError(
+            "--parent-task-id is empty; pass a valid UUID or omit the flag"
+        )
+    if not _UUID_RE.match(s):
+        raise argparse.ArgumentTypeError(
+            f"--parent-task-id {value!r} is not a valid UUID. Expected canonical "
+            "8-4-4-4-12 hex format (e.g. 550e8400-e29b-41d4-a716-446655440000)."
+        )
+    return s.lower()
 
 
 VALID_CLOSE_STATUSES = {"processed", "completed", "resolved", "rejected",
@@ -936,6 +967,7 @@ def close_item(
     what_originator_can_do_now=None,
     skip_backup_check: bool = False,
     skip_backup_reason: str = "",
+    parent_task_id: str | None = None,
 ) -> dict:
     """
     Atomically close an inbox item.
@@ -1090,6 +1122,20 @@ def close_item(
     if skip_backup_check:
         resolution["backup_check_skipped"] = True
         resolution["backup_check_skip_reason"] = skip_backup_reason.strip()
+    # F3 (wr-skillhub-2026-05-08-001): parent_task_id linkage. Resolution order:
+    #   1. Explicit parent_task_id arg wins (CLI override or programmatic caller)
+    #   2. Otherwise inherit from existing JSON top-level field (set at filing time)
+    # Persist on data top-level + inside resolution so audit trail carries linkage.
+    effective_parent = None
+    if parent_task_id:
+        effective_parent = _validate_parent_task_id(parent_task_id)
+    elif data.get("parent_task_id"):
+        existing = str(data["parent_task_id"]).strip()
+        if existing and _UUID_RE.match(existing):
+            effective_parent = existing.lower()
+    if effective_parent:
+        data["parent_task_id"] = effective_parent
+        resolution["parent_task_id"] = effective_parent
     if extra_resolution:
         resolution.update(extra_resolution)
     data["resolution"] = resolution
@@ -1280,6 +1326,18 @@ def main():
                    help="Required with --skip-backup-check. Plain-text "
                         "justification (>=10 chars) explaining why the "
                         "backup-verify gate was bypassed.")
+    # F3 (wr-skillhub-2026-05-08-001): parent_task_id links this inbox item
+    # to a parent task in public.tasks. When set, the closed JSON persists
+    # parent_task_id at top-level + inside resolution; downstream Sentinel
+    # cascade can roll up sub-scope progress to the parent task notes.
+    # Forward-compatible: Supabase-side write of the new column waits for
+    # Sentinel migration (rt-skillhub-2026-05-08-f3-parent-task-id-schema-
+    # migration) before being enabled.
+    p.add_argument("--parent-task-id", default=None, type=_validate_parent_task_id,
+                   help="Optional UUID of parent task in public.tasks this "
+                        "inbox item is a sub-scope of. When set, persisted on "
+                        "the closed JSON top-level + inside resolution.parent_"
+                        "task_id. UUID validation: canonical 8-4-4-4-12 hex.")
     args = p.parse_args()
 
     # Deprecation: collapse processed/resolved -> completed (2026-04-28
@@ -1372,6 +1430,7 @@ def main():
             what_originator_can_do_now=next_actions,
             skip_backup_check=args.skip_backup_check,
             skip_backup_reason=args.skip_backup_reason,
+            parent_task_id=args.parent_task_id,
         )
     except (ValueError, FileNotFoundError, FileExistsError) as e:
         print(f"ERROR: {e}", file=sys.stderr)
