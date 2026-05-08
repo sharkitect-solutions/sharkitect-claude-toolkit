@@ -385,6 +385,7 @@ All work-request, routed-task, and lifecycle-review JSON files written into any 
 | `id_format_version` | integer | YES | `2` |
 | `source_workspace` | string | YES (WR) | Canonical name: `workforce-hq` / `skill-management-hub` / `sentinel` |
 | `status` | string | YES | One of the 9 values per Status Vocabulary Layers (above) |
+| `parent_task_id` | string (UUID) | NO | Optional FK to parent task in `public.tasks`. Canonical 8-4-4-4-12 hex format (case-insensitive on input, lowercased on persist). Absent or null when not a sub-scope item. Source: wr-skillhub-2026-05-08-001 (F3 of AIOS Coordination Fix Strategic Build). When set, persists at JSON top-level + inside `resolution.parent_task_id` after close. |
 
 #### Workspace short-prefix map (canonical → short, used in `id`)
 
@@ -410,7 +411,7 @@ Result: Supabase holds a permanent mix of v1 and v2 `item_id` strings. Both are 
 
 #### Bypass
 
-To skip the write-time hook for emergency manual repair, include `skip wr-id-schema` in your next user message (or `skip json-validate` to skip both JSON-syntax + id-schema gates).
+To skip the write-time hook for emergency manual repair, include `skip wr-id-schema` in your next user message (or `skip json-validate` to skip both JSON-syntax + id-schema gates). To skip ONLY the `parent_task_id` UUID validation gate, include `skip parent-task-id`.
 
 #### References
 
@@ -418,6 +419,10 @@ To skip the write-time hook for emergency manual repair, include `skip wr-id-sch
 - Plan: `~/.claude/plans/2026-04-27-wr-id-schema-workspace-prefixed.md`
 - Trigger WR: `wr-2026-04-25-007` (Skill Hub) -- close-side filename-fallback collision discovered during 2026-04-25 batch close of 11 WRs.
 - Tests: `~/.claude/tests/test_wr_id_schema.py` (12 cases covering all 3 gates)
+
+#### parent_task_id field (F3 of AIOS Coordination Fix Strategic Build)
+
+The optional `parent_task_id` UUID field links sub-scope inbox items (a routed-task that's logically a phase-step of a multi-phase project) to a parent task in `public.tasks`. The same three-gate enforcement model applies: creation gate (`work-request.py --parent-task-id` argparse type=), write-time gate (`inbox-json-validate.py validate_parent_task_id()`), closure gate (`close-inbox-item.py --parent-task-id` argparse type=, with CLI flag overriding existing JSON value, otherwise inheriting from JSON top-level). Persists at JSON top-level AND inside `resolution.parent_task_id` after close. Supabase-side write to `cross_workspace_requests.parent_task_id` is gated on Sentinel migration (rt-skillhub-2026-05-08-f3-parent-task-id-schema-migration). Source: wr-skillhub-2026-05-08-001. Spec: `3.- Skill Management Hub/docs/superpowers/specs/2026-05-08-parent-task-id-field-design.md`. Tests: `~/.claude/tests/test_parent_task_id.py` (12 cases across all 3 gates).
 
 ### Inbox-Driven Coordination (NON-NEGOTIABLE)
 
