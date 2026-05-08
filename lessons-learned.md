@@ -4898,3 +4898,46 @@ Session memory (MEMORY.md 2026-05-07 entry) claimed "Vendor Questions Pack SENT 
 **Apply when:** Any time a user answer that picks an option requires a follow-on destructive action (DROP/RENAME/DELETE on production schema, force-push, hard-reset). Treat the option-pick as authorization-of-intent, not authorization-of-execution. Pause and ask explicit yes/go before running the destructive call. The user gave the explicit re-authorization "yes, drop default" the second time and it executed cleanly.
 
 **Tags:** schema-gatekeeping, ambiguity, destructive-ddl, sentinel, supabase
+
+---
+
+## 2026-05-08 — Forward-looking audits beat reactive scope (process)
+
+**process:** When a stakeholder requests scope verification on infrastructure work, run a 3-5 year productization lens BEFORE confirming scope. Even when the stakeholder's stated criteria look complete, divergent thinking surfaces dimensions that retrofit expensively later.
+
+**Why:** HQ filed wr-hq-2026-05-08-002 asking us to verify kb_governance.py scope with 4 criteria. The 4 criteria looked complete on first read. Running brainstorming with explicit "what about 100 clients in 3 years" framing surfaced 8 additional dimensions (multi-tenant path resolution, tenant-scoped skill name, automation/cron bypass, file-op surface beyond Edit/Write, telemetry, etc.) plus 3 P2 forward-compat notes. ~150 lines of spec widening NOW vs 3-session scramble at first AIOS client deployment.
+
+**Apply when:** Any infrastructure spec, hook, automation, or system-level decision. Default lens before sign-off: "what does this look like at 100x scale, multi-tenant, automation-driven, cross-platform?" If the answer reveals gaps, document them as P0/P1/P2 in the spec. P0+P1 bake in now; P2 documents forward-compat.
+
+**Tags:** kb-governance, productization, audit-lens, forward-compat, brainstorming-skill, dispatcher-consolidation
+
+---
+
+## 2026-05-08 — Affirmative authorization vocabulary (architecture)
+
+**direction:** When the AI presents an enumerated proposal and the user replies with an unambiguous affirmative, treat that as full per-operation authorization for ALL operations in the proposal. Do NOT re-prompt for individual operation approvals. Hard Wall list (settings.json deny mods, force-push main, prod data deletes, destructive SQL without WHERE, cross-workspace shared automation modification, AIOS cross-instance push) still requires explicit per-action authorization regardless of any proposal-level affirmative.
+
+**Why:** Recurring failure mode this session and prior: AI re-prompts per-step despite proposal-level approval, producing redundant friction. User's time is the bottleneck. Path B (AI-behavior rule) preserves safety net for genuinely-destructive ops while removing redundant friction. Path A (settings.json broad allow) was rejected to keep destructive-op safety net intact.
+
+**Design principles:**
+- Multi-step proposals exist precisely so the user can authorize a coherent unit of work once
+- Hard Wall list is explicit (not implicit) — Hard Wall ops within a multi-op proposal must be flagged + get separate per-action auth in the same exchange
+- Authorization is revocable — "stop" / "wait" mid-execution is honored
+- Safety system at harness level (settings.json deny) takes precedence over this rule
+
+**Apply when:** Every cross-workspace coordination work, every multi-step build, every infrastructure mutation. Section landed in `~/.claude/rules/universal-protocols.md` between Pushback Protocol and Proactive Autonomy Protocol — auto-loads in every session in every workspace.
+
+**Tags:** authorization, ai-behavior, per-action-auth, hard-wall, universal-protocols, path-b, friction-reduction
+
+---
+
+## 2026-05-08 — Cron suspect-orphan triage discipline (process)
+
+**process:** When cron-fire warnings indicate "process N hours old, suspect orphan," default to triage-only mode regardless of cron-to-cron user-activity signal. Log the fire to `~/.claude/.tmp/cron-activity-log.jsonl` and present minimal output. Do NOT process inbox items unless they are critical AND blocking other work. The suspect-orphan signal is the SAFER default and overrides the cron-to-cron user-activity check.
+
+**Why:** Process age >4h means the user almost certainly cannot see the output even if they sent a message between cron fires. Autonomous processing in this state risks invisible state changes. The activity log preserves the breadcrumb trail; the user can see what was held + decide on return.
+
+**Apply when:** Any cron fire that surfaces the "suspect orphan" warning. Confirmed working pattern this session: 6 cron fires, 5 of them suspect-orphan, all properly held + logged + surfaced when user returned.
+
+**Tags:** cron, orphan-detection, triage, idle-mode, autonomous-processing, safety-default
+

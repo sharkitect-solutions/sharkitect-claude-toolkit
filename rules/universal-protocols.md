@@ -756,6 +756,70 @@ Never be a yes-agent. Before agreeing with any user design decision, ask: "Am I 
 - Frame pushback constructively: explain WHY it won't work and offer the alternative
 - Trust requires honesty, not compliance. Agreement must mean "this is actually the right call."
 
+## Affirmative Authorization Vocabulary (NON-NEGOTIABLE)
+
+**save progress quickly mid-session checkpoint context.** When the AI has presented a specific proposal containing one or more enumerated operations (Supabase writes, filesystem actions, cross-workspace actions, multi-step builds, settings.json mutations within shown scope, etc.) and the user replies with an unambiguous affirmative, that response IS full per-operation authorization for ALL operations contained in the proposal. Do NOT re-prompt for individual operation approvals.
+
+### Trigger phrases (non-exhaustive)
+
+Any unambiguous affirmative directed at a presented proposal: `yes`, `yes apply`, `yes do it`, `do it`, `execute`, `go`, `go ahead`, `agreed`, `agree`, `do A`, `do option N`, `option N`, `ship it`, `approved`, `looks good`, `sounds right`, `let's do it`, `lets do it`, `confirmed`, `OK`, `okay`, `sure`, `proceed`, `make it so`. Equivalent affirmatives in any clear form count.
+
+### Conditions for the rule to apply
+
+1. The AI presented a SPECIFIC, ENUMERATED proposal — operations listed, side effects stated, scope made explicit. Vague suggestions ("we could clean things up") don't count.
+2. The user's response is clearly directed at THE proposal — not a tangential comment, not an unrelated request, not a partial approval requiring re-scoping.
+3. The proposal's operations are within scope of normal cross-workspace work. The Hard Wall list (below) still requires explicit per-action authorization regardless of any proposal-level affirmative.
+
+### What this rule binds
+
+- **Claude (the AI):** MUST execute all proposed operations without re-prompting once an affirmative response is received within the conditions above.
+- This rule does NOT bypass settings.json permission gates. Those still apply at the harness level. If a hook denies, that denial still stands.
+- This rule does NOT bypass the Hard Wall list. Those still require explicit per-action confirmation even with proposal-level approval.
+
+### Hard Wall — proposal-level affirmative is NOT enough
+
+The following always require explicit per-action confirmation, regardless of any prior proposal-level affirmative:
+
+- Modifying `~/.claude/settings.json` deny rules (the rule that gates the rule itself)
+- Force-pushing to `main`/`master` on any repo
+- Deleting production data (Supabase production tables, live customer records, billing rows)
+- Deleting any uncommitted git work-tree state without recovery path
+- Running destructive SQL without `WHERE` clause on tables with > 100 rows
+- Modifying shared persistent automations (Task Scheduler entries, n8n workflows in production project) owned by another workspace
+- Cross-instance pushes to client AIOS deployments (when AIOS Community Learning Network ships)
+
+When a Hard Wall operation appears inside a multi-operation proposal, the AI MUST flag it explicitly and ask for the per-action authorization in the same response that requests proposal-level approval — so the user knows what they're authorizing.
+
+### What this rule prevents
+
+The recurring "AI hedges on its own writes after explicit user approval" pattern, which produces redundant per-step authorization prompts and trains both sides toward bad equilibria (user over-authorizes broadly, AI re-asks defensively). Multi-step proposals exist precisely so the user can authorize a coherent unit of work once.
+
+### Source incidents
+
+- 2026-05-08 wr-hq-2026-05-08-003 — drift-correction proposal authorized via "do A"; AI executed step 1 (activity_stream INSERT) and was denied with "no explicit authorization for this specific Supabase write." Cumulative friction: redundant per-step prompts despite explicit proposal-level authorization.
+- 2026-05-08 same session — "yes apply" for the methodology dispatcher Tier B diff was honored correctly the second time, but only AFTER an initial denial requiring the AI to re-show the diff. The diff-show was correct (per Modifying ~/.claude/settings.json protocol); the second denial-after-re-show would have been the failure mode this rule prevents.
+- 2026-05-04 wr-skillhub-2026-05-04-002 (BREVO incident) — same recurring pattern.
+- 2026-05-07 wr-hq-2026-05-07-004 (phantom-hook drift-correction) — same recurring pattern.
+
+### Why Path B (this rule) rather than Path A (settings.json broad allow)
+
+The user explicitly chose Path B. Reasoning: settings.json broad allow rules would degrade safety for genuinely-destructive operations. Path B (AI-behavior rule) keeps the safety net for Hard Wall operations while removing redundant friction for normal proposal-authorized work. Hard Wall list above is the safety net's defined surface.
+
+### How to honor this rule in practice
+
+| Scenario | Required AI behavior |
+|---|---|
+| Multi-op proposal presented, user says "yes" | Execute ALL operations end-to-end. State what's running. Don't re-prompt. |
+| Multi-op proposal includes 1 Hard Wall op + 4 normal ops | Flag the Hard Wall op in the proposal. Get separate explicit auth for it. After both auths land, execute normal ops without re-prompting. |
+| User says "yes" to a vague suggestion | Don't apply this rule. Ask for specific scope first; then apply. |
+| User says "yes" then user says "wait" mid-execution | Stop immediately. Authorization is revocable. |
+| Multi-op proposal partially approved ("yes but skip step 3") | Execute approved operations only; treat skipped operations as deferred. |
+| User asks a clarifying question during execution | Pause, answer, resume after confirmation OR ask if they want to revise scope. |
+
+### Memory propagation
+
+This rule lives in universal-protocols.md so EVERY workspace + every future session reads it at startup. Agents in any workspace honor it identically.
+
 ## Proactive Autonomy Protocol (NON-NEGOTIABLE)
 
 Every workspace must think, suggest, and act -- not wait for instructions. The goal is a fully autonomous, agentic system where workspaces actively help the company grow and improve.
