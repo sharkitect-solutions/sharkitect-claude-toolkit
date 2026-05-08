@@ -5044,3 +5044,33 @@ Session memory (MEMORY.md 2026-05-07 entry) claimed "Vendor Questions Pack SENT 
 **Apply when:** Once user issues "show me first" or equivalent, default to chat-proof for the rest of the session unless explicitly lifted. Even when changes feel mechanical or pre-approved, err toward asking.
 
 **Tags:** trust, drafts, chat-proof, sticky-mode, prose-content
+
+## Process Decisions — 2026-05-08 (S34 F3 parent-task-id ship)
+
+**process: Parallel-ship pattern for schema-dependent script work — split work along the schema boundary so the script-side ships independently of the migration.**
+
+**Context:** F3 (parent_task_id field) needed both a Supabase column add (Sentinel-owned) AND script + hook changes (Skill Hub-owned). Could have waited for Sentinel's migration window before starting the script-side. Instead: routed the schema RT to Sentinel and built the script-side in parallel, deliberately NOT writing the new column to Supabase yet. The Supabase write becomes a 1-block uncomment after migration lands.
+
+**Why:** Multi-phase strategic builds (this is step 1 of a 9-step plan with downstream consumers F1+F8) bottleneck if foundation steps wait on cross-workspace coordination. Parallel-ship halves the calendar time without sacrificing correctness — as long as the script side is forward-compatible (writes to JSON only, never to the missing column).
+
+**Apply when:** Script change depends on a schema change owned by a different workspace, AND the script can be made forward-compatible by deferring the new-column write until the column exists. Document the deferred enable as a 1-line uncomment so it's trivial to flip when the migration completes.
+
+**Tags:** parallel-ship, schema-migration, cross-workspace, forward-compatibility, F3
+
+## Architecture Direction — 2026-05-08 (S34 three-gate parallel)
+
+**direction: For any optional persistent field added to inbox JSON schema, replicate the three-gate enforcement model already used for WR id schema (creation gate + write-time gate + closure gate).**
+
+**Context:** F3 added `parent_task_id` UUID field. Used the same three-gate pattern that landed for `id` validation in wr-2026-04-25-007: argparse type= in the creation script (work-request.py), validator function in the PreToolUse Write hook (inbox-json-validate.py), argparse type= in the closure script (close-inbox-item.py). Each gate reuses the same regex / format spec.
+
+**Apply when:** Adding ANY new optional/required field to the WR/RT/lifecycle JSON schema — the three-gate model is the standard. Tests parallel: ~/.claude/tests/test_<field>.py with 12+ cases covering all 3 gates. Documentation: workspace spec doc + universal-protocols.md schema contract update.
+
+**Design principles:**
+- Defense-in-depth: hand-emitted JSON bypassing the scripts gets caught by the hook
+- Argparse type= validators are the right place for format checks (CLI fails fast, no ad-hoc validation later)
+- Spec doc lives in workspace `docs/superpowers/specs/` (System-Config Hold prevents autonomous rules-file edits)
+- Bypass phrases per gate (e.g., `skip parent-task-id`) keep emergency repair paths open
+- Forward-compat first: if the field has Supabase persistence, the script-side ships before the column exists, with the Supabase write deferred
+
+**Tags:** three-gate-enforcement, schema-extension, defense-in-depth, F3, JSON-schema-contract
+
