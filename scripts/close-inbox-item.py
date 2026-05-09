@@ -449,7 +449,7 @@ def _build_insert_row(item_id: str, source_data: dict) -> dict:
         or "No summary"
     )
 
-    return {
+    row = {
         "item_id": item_id,
         "item_type": item_type,
         "summary": str(summary)[:500],
@@ -465,6 +465,14 @@ def _build_insert_row(item_id: str, source_data: dict) -> dict:
         )[:500],
         "last_updated_by": requested_by,
     }
+    # F3 (wr-skillhub-2026-05-08-001): include parent_task_id on INSERT path
+    # too -- when a row is created from local JSON during close (UPSERT step
+    # 2), the parent linkage must round-trip. Mirrors update_supabase() PATCH
+    # body. Schema column added via Sentinel migration 2026-05-08.
+    ptid = source_data.get("parent_task_id")
+    if ptid:
+        row["parent_task_id"] = str(ptid).lower()
+    return row
 
 
 def update_supabase(item_id: str, status: str, resolution_summary: str,
@@ -519,14 +527,26 @@ def update_supabase(item_id: str, status: str, resolution_summary: str,
 
     # Step 3: PATCH close fields (runs whether row pre-existed or was
     # just inserted -- mirrors the close lifecycle).
-    payload = json.dumps({
+    patch_body = {
         "status": sb_status,
         "resolution_summary": resolution_summary[:1000],
         "resolved_by": resolved_by,
         "resolved_at": now_iso(),
         "last_updated_by": resolved_by,
         "updated_at": now_iso(),
-    }).encode("utf-8")
+    }
+    # F3 (wr-skillhub-2026-05-08-001): persist parent_task_id to Supabase.
+    # Sentinel migration add_parent_task_id_to_cross_workspace_requests_2026_05_08
+    # added the column (uuid REFERENCES public.tasks(id) ON DELETE SET NULL,
+    # nullable, partial index idx_cwr_parent_task_id). source_data carries
+    # the post-merge JSON which already has parent_task_id at top level (set
+    # by the close logic at line ~1137). Forward-only: omit the field when
+    # absent so unrelated WRs don't NULL out previously-set values on PATCH.
+    if source_data is not None:
+        ptid = source_data.get("parent_task_id")
+        if ptid:
+            patch_body["parent_task_id"] = str(ptid).lower()
+    payload = json.dumps(patch_body).encode("utf-8")
     endpoint = f"{url}/rest/v1/cross_workspace_requests?item_id=eq.{item_id}"
     req = urllib.request.Request(
         endpoint,

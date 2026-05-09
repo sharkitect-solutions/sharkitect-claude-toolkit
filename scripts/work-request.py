@@ -794,6 +794,16 @@ def log_to_supabase(report, item_type="work_request"):
     if origin_tag:
         row["origin_tag"] = origin_tag
 
+    # F3 (wr-skillhub-2026-05-08-001): when the report carries parent_task_id,
+    # include it in the INSERT so cross_workspace_requests.parent_task_id
+    # populates at WR filing time (not just at close). Sentinel migration
+    # add_parent_task_id_to_cross_workspace_requests_2026_05_08 added the
+    # column. The script-side gate (--parent-task-id flag) already validates
+    # UUID format and lowercases the value before this point (see line 642).
+    parent_task_id = report.get("parent_task_id")
+    if parent_task_id:
+        row["parent_task_id"] = str(parent_task_id).lower()
+
     url = f"{base_url}/rest/v1/cross_workspace_requests"
     data = json.dumps(row).encode("utf-8")
     headers = {

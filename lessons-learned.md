@@ -5074,3 +5074,8 @@ Session memory (MEMORY.md 2026-05-07 entry) claimed "Vendor Questions Pack SENT 
 
 **Tags:** three-gate-enforcement, schema-extension, defense-in-depth, F3, JSON-schema-contract
 
+
+## Process Decisions — 2026-05-08
+
+- 2026-05-08 [sentinel] **process: investigation closures must verify conclusion under PRODUCTION conditions, not synthetic test fixtures.** Context: rt-skillhub-2026-05-08-investigate-supabase-ddl-nudge-firing closed earlier today declaring methodology-dispatcher fixes the supabase-ddl silent-no-op H1. Tests piped synthetic payloads directly into the dispatcher via subprocess+stdin, bypassing Claude Code's matcher entirely. Verification this session: 1210 historical feedback_events contain ZERO real-session mcp__ tool events. The hook works in isolation; the hook never runs in production. The matcher pattern `'mcp__'` in settings.json doesn't route real MCP tool calls (Claude Code uses re.fullmatch; needs `mcp__.*`). Why: investigations that test only the unit (handler) and not the path (matcher → handler) miss routing failures entirely. Apply when: closing any investigation about "system X does not do Y" — at least one verification step MUST exercise the production path end-to-end (real session, real tool call, observed event). Tags: investigation, verification, methodology, hooks. Source: this session 2026-05-08 evening (Sentinel re-opened item A as wr-sentinel-2026-05-09-001).
+
