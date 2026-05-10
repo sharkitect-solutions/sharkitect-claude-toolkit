@@ -369,6 +369,103 @@ So the three semantic close variants collapse to `completed` in Supabase; only e
 - Whenever you need to directly INSERT or UPDATE a row in `cross_workspace_requests`, reference this table first.
 - If a CHECK rejection occurs, re-read this subsection rather than guessing at the right value.
 
+### Severity Vocabulary (NON-NEGOTIABLE) — also called "log-level taxonomy"
+
+**Naming clarification first** (added 2026-05-10 per user feedback): The DB column is named `severity`, but the **values** (info / warning / critical) are a **log-level taxonomy** — the same vocabulary Python's `logging` module uses, the same vocabulary syslog uses, the same vocabulary CloudWatch / Datadog / observability tools use. If "severity" sounds like priority to you (low/medium/high), you're not wrong — that's a real linguistic collision. **Mental model:** read `severity` as "log level" or "message tier" or "alert class." It's NOT urgency. Urgency is `priority` (separate field, see Priority Vocabulary section below).
+
+(A future schema rename `severity → level` is queued as post-hard-stop reassessment work. Until then, the column name stays `severity` for backward compatibility, but the mental model is log-level taxonomy.)
+
+**Source:** wr-sentinel-2026-05-10-003 (third recurrence; HQ writer emitted severity='medium' on rt-hq-2026-05-10-pause-scheduled-reports.json; close-inbox-item.py UPSERT INSERT path passed it through and got HTTP 400 from `cross_workspace_requests.severity` CHECK constraint; brain row went missing; drift accumulated).
+
+#### The vocabulary (log-level taxonomy)
+
+`cross_workspace_requests.severity` accepts EXACTLY three values per the `inbox_items_severity_check` Postgres CHECK constraint:
+
+| Value | Log-level analog | Definition | Use when |
+|---|---|---|---|
+| **info** | Python `logging.INFO` / syslog `info` | Informational. No user attention required. Logged for awareness. | FYI / acknowledgement / status-update / completion-notification routed-tasks. Default when message tier is not relevant. |
+| **warning** | Python `logging.WARNING` / syslog `warning` | Quality/operational concern. Should be addressed but not blocking. | Output is functional but suboptimal. Drift detected but compensable. Process gap recoverable. Audit finding without immediate impact. Most cross-workspace work falls here. |
+| **critical** | Python `logging.CRITICAL` / syslog `crit` | Blocks work / breaks production / data loss / user-visible failure. | Pipeline broken. Data corruption. Cross-workspace coordination failed. Plugin wiped. Anything where the next session would step into a worse state if not fixed first. |
+
+Anything outside this set — `medium`, `high`, `low`, `urgent`, `nice-to-have`, `error`, `debug`, etc. — is **invalid**. The DB CHECK rejects it; the brain row is never created; filesystem-Supabase drift accumulates silently.
+
+If you're tempted to write `medium` / `high` / `low`, you're reaching for the **priority** field. See Priority Vocabulary section directly below.
+
+### Priority Vocabulary (NON-NEGOTIABLE)
+
+**Source:** Companion to the Severity Vocabulary, formalized 2026-05-10 to make the severity-vs-priority distinction explicit and prevent future confusion.
+
+#### What priority means
+
+`priority` answers: **"how soon should this be picked up?"** — scheduling intent. It is NOT about how bad the underlying condition is (that's severity). It is about queue ordering.
+
+`cross_workspace_requests.priority` accepts these values (non-CHECK-constrained today, but tooling validates):
+
+| Value | Definition | Use when |
+|---|---|---|
+| **low** | Background work. Pick up when nothing higher is pending. | Idea queue. Documentation cleanup. Non-blocking enhancement. Nice-to-have. |
+| **medium** | Normal work. Pick up in routine flow. | Default for most work. The bulk of cross-workspace tasks. |
+| **high** | Front-of-queue. Bumps medium/low items. | Blocks downstream work. Has a deadline. User explicitly flagged. |
+| **critical** | Drop everything. Process before anything else. | Production down. Revenue blocked. User waiting in real time. Should be rare. |
+
+#### Severity vs Priority — side-by-side
+
+| Field | Question it answers | Vocabulary | Mental model |
+|---|---|---|---|
+| **severity** | "What kind of message is this?" | info / warning / critical | log-level taxonomy (Python `logging`, syslog) |
+| **priority** | "How soon should we pick this up?" | low / medium / high / critical | queue position |
+
+They overlap on the value `critical` (a critical-severity production-down issue almost always also gets critical-priority), but they are otherwise orthogonal:
+
+| Realistic combinations |
+|---|
+| `priority: low, severity: info` — informational FYI, no rush |
+| `priority: medium, severity: warning` — most regular work |
+| `priority: high, severity: info` — feature request the user wants soon, but no quality issue |
+| `priority: low, severity: critical` — broken thing nobody depends on right now |
+| `priority: critical, severity: critical` — actual emergency |
+| `priority: high, severity: warning` — important quality fix that's blocking something |
+
+**Test for which field you mean:** if you'd describe it as "this is a low-priority bug" → priority=low, severity=warning (or critical depending on impact). If you'd describe it as "this is a low-severity bug" → severity is what you mean, but use `info` not `low` because the schema vocabulary is log-level. If both feel right, you're conflating them — pick the field that matches the question.
+
+#### Common writer mistakes (and what to do instead)
+
+| Wrote | What it should be |
+|---|---|
+| `severity: medium` | If urgency: `priority: medium`. If message tier: `severity: warning`. |
+| `severity: high` | If urgency: `priority: high`. If message tier: `severity: warning` or `severity: critical` based on impact. |
+| `severity: low` | If urgency: `priority: low`. If message tier: `severity: info`. |
+| `priority: info` | You meant severity. `severity: info, priority: low` (or whichever urgency fits). |
+| `priority: warning` | You meant severity. `severity: warning, priority: medium` (or whichever urgency fits). |
+
+#### Enforcement layers (mirrors the Status Vocabulary Layers pattern)
+
+| Layer | Enforcement | Behavior |
+|---|---|---|
+| **work-request.py argparse** | `--severity choices=[critical, warning, info]` | Hard-rejects invalid input at CLI |
+| **close-inbox-item.py UPSERT INSERT** | Normalizes invalid -> `warning` with stderr deprecation | Defends the brain row even when local JSON has an invalid value |
+| **PreToolUse Write hook (`inbox-severity-gate.py`)** | Rejects writes to `*/inbox/*.json` whose `severity` is outside the vocabulary | Catches invalid values BEFORE they hit disk |
+| **Supabase CHECK constraint** | Hard-rejects with HTTP 400 | Last line of defense; only valid values land in the brain |
+
+#### Bypass
+
+To skip the write-time `inbox-severity-gate.py` for emergency manual repair, include `skip severity-gate` in your next user message OR in the tool content (filename, command, file content).
+
+#### Rules for direct Supabase writes (bypassing close-inbox-item.py)
+
+1. Use the Severity Vocabulary, NOT priority labels. `medium` -> use `warning` (or `info` if not impactful). `high` -> use `warning` or `critical` based on actual impact.
+2. If you don't know what severity to use, ask the user OR default to `warning`. Do not guess `medium`.
+3. Routed tasks with no real severity meaning (kind=`completion_notification`, kind=`fyi`) should use `info`.
+
+#### Recurrence note
+
+This is the **third** documented recurrence of the same class of bug:
+- 2026-05-10: HQ writer emitted `medium` on `rt-hq-2026-05-10-pause-scheduled-reports`. Brain row missing. → Filed as wr-sentinel-2026-05-10-003.
+- Earlier: a writer emitted `high` (per user recollection at 2026-05-10 filing).
+- Earlier: similar incident referenced in brain-dump capture protocol discussions.
+
+Documentation alone has not been sufficient — runtime detection (the new gate hook) is required per the documented "Documentation without runtime detection eventually fails" lesson.
+
 ### WR/RT/Lifecycle JSON Schema Contract (NON-NEGOTIABLE)
 
 All work-request, routed-task, and lifecycle-review JSON files written into any inbox directory MUST conform to the schema below. The JSON `id` field is the SINGLE authoritative identifier; the filename is grep convenience only and MUST NOT be used to derive identity.

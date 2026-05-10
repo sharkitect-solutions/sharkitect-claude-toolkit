@@ -76,8 +76,54 @@ BYPASS_PHRASES = (
     "skip inbox-json-validate",
     "skip wr-id-schema",  # bypass id-schema check only
     "skip parent-task-id",  # bypass parent_task_id UUID check only
+    "skip severity-gate",  # bypass severity vocabulary check only (wr-sentinel-2026-05-10-003)
 )
 TRANSCRIPT_USER_LOOKBACK = 3
+
+
+VALID_SEVERITIES = {"info", "warning", "critical"}
+
+
+def validate_severity(parsed_json):
+    """Severity Vocabulary gate (wr-sentinel-2026-05-10-003).
+
+    cross_workspace_requests.severity Postgres CHECK accepts ONLY:
+        info | warning | critical
+
+    Recurring failure mode: writers emit medium / high / low (priority labels)
+    instead of severity values. The DB CHECK rejects with HTTP 400, brain row
+    never lands, filesystem-Supabase drift accumulates silently. Documentation
+    alone has not been sufficient (third recurrence as of 2026-05-10).
+
+    This gate catches invalid severity at write time, BEFORE the file lands
+    on disk and BEFORE close-inbox-item.py UPSERT INSERT path runs.
+
+    Returns (True, "") if severity is absent OR valid; (False, reason) if invalid.
+    Absent severity is allowed -- not all inbox items require it (completion
+    notifications, fyi). Only present-but-invalid values are blocked.
+    """
+    if not isinstance(parsed_json, dict):
+        return True, ""
+    if "severity" not in parsed_json:
+        return True, ""
+    raw = parsed_json["severity"]
+    if raw is None or raw == "":
+        return True, ""
+    if not isinstance(raw, str):
+        return False, (
+            f"severity field must be a string, got {type(raw).__name__}={raw!r}. "
+            f"Valid values: {sorted(VALID_SEVERITIES)}"
+        )
+    s = raw.strip().lower()
+    if s not in VALID_SEVERITIES:
+        return False, (
+            f"severity={raw!r} is not in the documented vocabulary. "
+            f"Valid values: info | warning | critical. "
+            f"Common mistakes: 'medium' / 'high' / 'low' are PRIORITY labels, "
+            f"not severity values. See ~/.claude/rules/universal-protocols.md "
+            f"section 'Severity Vocabulary' for definitions."
+        )
+    return True, ""
 
 
 def validate_parent_task_id(parsed_json):
@@ -293,6 +339,25 @@ def main():
                     "values would break the parent-task progress rollup.\n\n"
                     "To bypass for emergency manual repair, include 'skip "
                     "parent-task-id' in your next user message."
+                )
+                sys.exit(2)
+            # Severity Vocabulary gate (wr-sentinel-2026-05-10-003).
+            # cross_workspace_requests.severity CHECK = info|warning|critical.
+            # Catches invalid values BEFORE they hit disk -> close path -> Supabase.
+            ok3, reason3 = validate_severity(parsed)
+            if not ok3:
+                base = os.path.basename(file_path)
+                deny(
+                    f"BLOCKING: Write to inbox file `{base}` has invalid "
+                    f"severity. {reason3}\n\n"
+                    "Source: wr-sentinel-2026-05-10-003 (third recurrence of "
+                    "writer emitting priority label instead of severity value). "
+                    "The cross_workspace_requests.severity Postgres CHECK "
+                    "rejects anything outside info|warning|critical with HTTP "
+                    "400; the brain row never lands and filesystem-Supabase "
+                    "drift accumulates silently.\n\n"
+                    "To bypass for emergency manual repair, include 'skip "
+                    "severity-gate' in your next user message."
                 )
                 sys.exit(2)
         return 0

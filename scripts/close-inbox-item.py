@@ -110,6 +110,15 @@ def _validate_parent_task_id(value: str) -> str:
 
 VALID_CLOSE_STATUSES = {"processed", "completed", "resolved", "rejected",
                          "superseded", "duplicate", "withdrawn"}
+# Severity vocabulary -- mirrors cross_workspace_requests.severity CHECK
+# constraint (inbox_items_severity_check). Only these three values are
+# valid in Supabase. Any other value (medium, high, low, etc.) is invalid
+# and gets HTTP 400 from the DB. close-inbox-item.py normalizes invalid
+# values to 'warning' with stderr deprecation, mirroring the status
+# normalization pattern. work-request.py argparse choices already enforce
+# this correctly. Source: wr-sentinel-2026-05-10-003.
+VALID_SEVERITIES = {"info", "warning", "critical"}
+DEFAULT_SEVERITY = "info"
 # Supabase close-vocabulary — what _verify_supabase_close() expects to find
 # on a row after the PATCH lands. Mirrors update_supabase()'s output mapping.
 SUPABASE_CLOSE_VOCABULARY = {
@@ -449,6 +458,31 @@ def _build_insert_row(item_id: str, source_data: dict) -> dict:
         or "No summary"
     )
 
+    # Severity normalization (wr-sentinel-2026-05-10-003): the schema
+    # CHECK accepts only info|warning|critical. Local JSON sometimes carries
+    # invalid values (medium, high, low) from ad-hoc writers that didn't
+    # consult the vocabulary. Normalize invalid -> 'warning' with stderr
+    # deprecation notice, mirroring the status normalization pattern at
+    # ~line 1009. Missing/None -> DEFAULT_SEVERITY ('info').
+    raw_severity = source_data.get("severity")
+    if raw_severity is None or raw_severity == "":
+        norm_severity = DEFAULT_SEVERITY
+    else:
+        s = str(raw_severity).strip().lower()
+        if s in VALID_SEVERITIES:
+            norm_severity = s
+        else:
+            print(
+                f"DEPRECATION: severity={raw_severity!r} is invalid "
+                f"(valid: {sorted(VALID_SEVERITIES)}). "
+                f"Auto-normalized to 'warning' for INSERT. Per the Severity "
+                f"Vocabulary section of universal-protocols.md, only "
+                f"info|warning|critical are accepted by the DB CHECK "
+                f"constraint. Fix the writer that emitted {raw_severity!r}.",
+                file=sys.stderr,
+            )
+            norm_severity = "warning"
+
     row = {
         "item_id": item_id,
         "item_type": item_type,
@@ -457,7 +491,7 @@ def _build_insert_row(item_id: str, source_data: dict) -> dict:
         "assigned_to": assigned_to,
         "status": "pending",
         "priority": source_data.get("priority", "medium"),
-        "severity": source_data.get("severity", "info"),
+        "severity": norm_severity,
         "context": str(
             source_data.get("task_description")
             or source_data.get("context")
