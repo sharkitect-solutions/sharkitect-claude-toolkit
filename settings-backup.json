@@ -158,7 +158,7 @@
         ]
       },
       {
-        "matcher": "Edit|Write|TodoWrite|Bash|Skill|Read|mcp__",
+        "matcher": "Edit|Write|TodoWrite|Bash|Skill|Read|mcp__.*",
         "hooks": [
           {
             "type": "command",
@@ -238,7 +238,7 @@
         ]
       },
       {
-        "matcher": "Bash|mcp__",
+        "matcher": "Bash|mcp__.*",
         "hooks": [
           {
             "type": "command",
