@@ -667,6 +667,63 @@ Inbox check: 1 work request -- plugin cache wiped, 3 plugins missing.
 Each workspace creates a CronCreate durable job at session start if not already configured.
 The startup guard (Step 5) detects missing cron and instructs creation. The prompt varies per workspace -- see workspace CLAUDE.md for the exact prompt.
 
+## Pending-Items Briefing Protocol (NON-NEGOTIABLE)
+
+When the user asks any variant of "what's next" / "pick up where we left off" / "what projects" / "where are we at" / "what should we do" — DO NOT free-form a list, paragraph, or jump straight into work. Present a STRUCTURED briefing using the canonical format below. Applies UNIFORMLY to every workspace (HQ, Skill Hub, Sentinel). User direction (verbatim, 2026-05-10): *"I want it to be there whenever I get the list of pending items and you recommend what to do next so we can stay focused and stay on track... your job is to show me the suggested order and say, 'Okay, this is the order we suggest, and here's why.'"*
+
+### Trigger phrases (non-exhaustive)
+
+Any clear conversational form asking for state-of-play or next actions:
+- "what's next" / "what's up next" / "what do we have"
+- "pick up where we left off" / "let's continue" / "where are we at"
+- "what projects are we working on" / "what's pending" / "what's on the list"
+- "what should we do" / "what's going on" / "give me the rundown"
+
+### When this protocol does NOT fire
+
+- User names a SPECIFIC item ("let's work on X") -> dive into X, no briefing needed
+- User asks status of ONE specific thing ("how's the dispatcher going?") -> answer that, no full briefing
+- User explicitly says "skip the briefing" / "just continue" / "no list, just go" -> resume previous in-flight task
+- Empty queue (no inbox items, no parked dumps, no open HARs, no blockers, no in-progress work) -> one-line "All clear. Want to start something new?" — no table needed
+
+### Required output structure
+
+**Section 1 -- Pending-items table.** Columns: `# | Item | Status | Why this matters now`. Sources to draw from:
+- Inbox items: `.work-requests/inbox/`, `.routed-tasks/inbox/`, `.lifecycle-reviews/inbox/`
+- Active Supabase projects + tasks for THIS workspace (status NOT IN `complete`, `rejected`, `withdrawn`)
+- Brain dumps in `brain-dump/` with `status: new` or `status: follow-up`
+- `HUMAN-ACTION-REQUIRED.md` open entries (status: `open`)
+- `~/.claude/docs/plans-registry.md` active plans
+- Blockers surfaced by session-startup-guard
+
+Each row is one line. The "Why this matters now" column is the recommendation reasoning at a glance ("blocks downstream work", "quick win, no decisions needed", "user-review-required, decision pending", "parked — waiting on prerequisite", "stale 14d — review or drop", "in_progress: resumable").
+
+**Section 2 -- Recommended order.** Explicit 1st / 2nd / 3rd / Nth ordering with one-line reasoning per slot. Order rules:
+- Quick wins with no decisions needed go FIRST (clear the deck before discussion items)
+- Items blocking other items go ahead of items they block (Priority Escalation Protocol)
+- User-review-required items go before infra builds (decisions unlock work)
+- In-progress work resumes ahead of new pickups unless user signals pivot
+- If anything is urgent enough to bump the order, FLAG it explicitly
+
+**Section 3 -- Confirm or redirect.** One short line: "Want me to start with #1, or different order?" — make redirection cheap.
+
+### What this is NOT
+
+- Not a delay tactic. The full briefing is one table + 4-line order section + one redirect ask. Brief, then execute.
+- Not decision-deferral. Quick wins where the AI has high confidence and the user has clearly authorized the work pattern can be executed inline; the AI states what it's doing while presenting the briefing.
+- Not a substitute for proactive autonomy. Per the Proactive Autonomy Protocol, 100%-confidence work still gets done; the briefing surfaces it as "doing this first as part of cleanup."
+
+### Edge cases
+
+- **Single-item queue:** show the table for consistency; the order section collapses to "Just the one — proceed?"
+- **Mid-task interruption:** if user asks "what's next" while a task is `in_progress`, list the in-progress task as item #0 and explicitly ask whether to resume or pivot.
+- **New arrivals during session:** if items land between briefings (cron poll, inbound routed task), include them in the next briefing with a `(new)` marker and re-rank if needed.
+- **Critical/urgent items:** flag with a leading marker (e.g., `[CRITICAL]`) in both the table and the order section; reasoning must explain WHY it bumped lower-priority work.
+
+### Why this exists
+
+Unstructured "here's what's pending" responses force the user to parse paragraphs and re-derive the order. The briefing format makes order explicit and reasoning visible, so the user can redirect with one word ("swap 2 and 3") instead of re-explaining the queue. Strategy stays coherent across sessions because every "what's next" produces the same shape.
+
 ## Priority Escalation Protocol (NON-NEGOTIABLE)
 
 When an item blocks another item, its effective priority automatically escalates. This applies to inbox items, Supabase tasks, and Supabase projects.
