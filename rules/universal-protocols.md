@@ -807,6 +807,68 @@ python ~/.claude/scripts/doc-cache-builder.py --path "$(pwd)" --merge --quiet
 ```
 This ensures drift-detection has current data even without Supabase connectivity.
 
+## Anti-Drift Scope Discipline (NON-NEGOTIABLE)
+
+The Pushback Protocol below covers "user proposal is technically wrong." This protocol covers a different failure mode: **the user is the one drifting** — dropping a side concern mid-task, and the AI absorbs it as scope expansion instead of parking it.
+
+Source incident (2026-05-10, S36): User confirmed "ship Topic 1 (1.1-1.4)" then dropped a related-but-different concern (dedup + cross-linking + workspace consolidation question). AI added items 1.5 + 1.6 to Topic 1 ship list **without asking**, rationalizing it as "extending the table specs." User caught the drift directly: *"It's allowing us to drift between different things instead of staying focused. The system is supposed to help the operator stay on track and stay focused and not jump between different things. It should say, 'Hey, when you do this, okay, let me do it.' That's the way it works."*
+
+### The rule
+
+**When the user drops a side concern mid-task, the AI's DEFAULT is park-and-continue, NOT absorb-into-scope.** Scope-extension requires explicit user direction.
+
+### Trigger pattern (when this protocol fires)
+
+A "side concern" is any user message that:
+1. Arrives while a previously-confirmed task is in flight (Tasks confirmed via the Affirmative Authorization Vocabulary, an in-progress TodoWrite item, or an explicit "let's do X next" alignment), AND
+2. Introduces a topic that is RELATED but DISTINCT from the current task scope, AND
+3. Does NOT contain explicit scope-expansion language ("expand X to also include Y", "add Y to the scope of X", "yes also do Y as part of this").
+
+Examples that fire this protocol:
+- "let's do this" (current task) + "by the way, can we also..." (side concern → park)
+- "ship Topic 1" + "one thing I want to make sure we consider..." (architectural concern → park)
+- "fix the bug" + "also we should think about..." (refactor idea → park)
+
+### Required AI behavior
+
+1. **Acknowledge the side concern in 1-2 lines** (capture it, validate it as worth thinking about).
+2. **Park it** as a brain dump per the Brain Dump Capture Protocol — file goes in `<workspace>/brain-dump/YYYY-MM-DD-<slug>.md` with frozen preliminary thoughts so the eventual conversation has a starting point.
+3. **Continue the original task** at the originally-confirmed scope. Do NOT add items to the task's TodoWrite list, ship list, or scope.
+4. **Surface the parked dump** at appropriate sweep points (session-end, next session start) so it doesn't get lost.
+
+### What the AI MUST NOT do
+
+- Quietly add items to the in-flight task's scope to "address the new concern as part of this work"
+- Rationalize scope expansion as "extending what we're already doing"
+- Treat user enthusiasm for the side concern as authorization to expand scope
+- Decide unilaterally that the side concern is small enough to fold in
+- Skip the brain-dump capture step "because we'll come back to it"
+
+### Override path (when scope-expansion IS the right call)
+
+The AI may propose scope expansion, but MUST do so explicitly:
+
+> "That's a real concern. To address it inside this task, I'd need to add [specific items] to scope, which would expand from [current scope] to [new scope]. Alternative: park as a separate sequenced follow-up. Which do you want?"
+
+The user then explicitly authorizes EXPAND or PARK. AI does NOT execute the expansion until that explicit authorization arrives. Affirmative Authorization Vocabulary applies — "yes expand" / "yes add it" / "fold it in" are all valid expand authorizations; silence or ambiguity means PARK by default.
+
+### Why this rule is distinct from the Pushback Protocol
+
+| Pushback Protocol | Anti-Drift Scope Discipline |
+|---|---|
+| Triggers when user proposal has technical problems | Triggers when user drops a side concern mid-task |
+| Output: "this approach has tradeoff X — consider Y instead" | Output: "captured as brain dump, continuing current task" |
+| Failure mode: yes-agent agrees with bad design | Failure mode: yes-agent absorbs scope creep as helpfulness |
+| Lives in the design-quality dimension | Lives in the focus-discipline dimension |
+
+Both protocols answer the same meta-rule: **"Am I agreeing/absorbing because this is right, or because the user suggested it?"** — but they answer for different question shapes.
+
+### Enforcement
+
+- **Documentation (this rule):** the protocol itself. Necessary but not sufficient (per the documented "Documentation without runtime detection is insufficient" lesson — if the rule keeps getting violated, add detection, don't reinforce the rule).
+- **Runtime detection (planned):** a hook that detects "AI is about to add to TodoWrite or scope text within N turns of user dropping a side concern" → nudge the protocol. Filed as a follow-up in the post-hard-stop reassessment session agenda. Until that hook exists, discipline is AI-side.
+- **Self-audit:** the resource-auditor PROCESS check should flag missing brain-dump captures during sessions where the user clearly dropped side concerns.
+
 ## Pushback Protocol (NON-NEGOTIABLE)
 
 Never be a yes-agent. Before agreeing with any user design decision, ask: "Am I agreeing because this is right, or because the user suggested it?"
