@@ -5188,3 +5188,58 @@ Session memory (MEMORY.md 2026-05-07 entry) claimed "Vendor Questions Pack SENT 
 - Sunset criteria are explicit and observable
 
 **tags:** trust-restoration, restraint-posture, hq-specific, time-bounded
+
+---
+
+## 2026-05-10 Session Lessons (HQ — workspace stale-cleanup audit + closeout discipline)
+
+### pattern: proactive closeout disposition (CONFIRMED by Chris 2026-05-10)
+
+**context:** During workspace stale-cleanup audit, when archiving D'Angeles (disqualified) and TMC (canceled), I unprompted: (a) created structured destination paths under `_archive/clients/...-disqualified-YYYY-MM-DD/` and `_archive/projects/...-canceled-YYYY-MM-DD/`, (b) wrote disposition record .md files (DISQUALIFIED.md, CANCELED.md) at archive root explaining what/why/when, (c) propagated to INDEX.md + DOCUMENT-MAP.md + Supabase + stat blocks in the same beat. Chris explicit (verbatim): "I didn't tell you to create a Disqualified MD folder or Cancel MD folder based on the status of those and move them to archived, but that's exactly right... this is how the system should function: understanding what we're working with and what we're doing, and then being proactive and making those decisions that are aligned with what we're doing."
+
+**why:** Closeout is not a status flip — it's a propagation across 6+ surfaces (status field, file location, INDEX, DOCUMENT-MAP, stat blocks, related references). When only 1-2 surfaces get updated, stale-data drift accumulates. The disposition .md at the archive root makes WHY recoverable months later when "what was this?" arises.
+
+**apply-when:** ANY time a project / client / deliverable hits terminal state (canceled, disqualified, closed-lost, completed, withdrawn). Don't wait to be told. Execute full propagation. This is Tier 1 Proactive Autonomy work — act and report.
+
+**tags:** closeout-discipline, proactive-autonomy, archive-structure, disposition-records, workspace-hygiene
+
+---
+
+### Process Decision: document positive feedback when given (META-RULE)
+
+**context:** 2026-05-10 Chris noticed lessons-learned and voice captures had been silent for the session despite multiple confirmed-good patterns shipping. Quote (verbatim): "I can't just always correct you, but when we do something right, I need to tell you so you can document that as well." Identified the failure mode: positive feedback being read as conversational pleasantry rather than structural signal.
+
+**why:** Memory drifts toward avoiding past mistakes if only corrections are captured. Without affirmations being captured, the system gets less likely to reproduce confirmed-good patterns over time. Symmetry between correction-capture and affirmation-capture is required for the memory system to actually train forward, not just back.
+
+**apply-when:** User says any of: "this is exactly right", "perfect", "that's how it's supposed to work", "I like this process", or accepts an unusual choice without pushback. Three captures: (1) auto-memory feedback file, (2) lessons-learned entry, (3) voice capture if multi-paragraph approval (simple "perfect" gets caught by runtime UserPromptSubmit hook automatically).
+
+**tags:** memory-discipline, feedback-capture, voice-protocol, symmetric-learning
+
+---
+
+### Architecture Direction: Tier 2 frozen — can't ship a system that mirrors a broken one
+
+**context:** 2026-05-10 Chris paused AIOS + CLEO + AIOS Coordination Fix + AIOS Marketing Cascade (Tier 2 strategic moat work). Reasoning verbatim: "the AI OS is a mirror of our system and our system is broken, I can't trust it or ship an AI OS system that mirrors ours that is not even functioning yet. With that said, we're going to concentrate solely... we're going to work solely right now on the following two main things: Hibu marketing takeover [and] Bluebeam project."
+
+**why:** AIOS is the flagship product Sharkitect is selling. It mirrors the autonomous internal operating system. If the internal system has the gaps Chris named (skills/lessons/voice underused, stale-data drift accumulating, cleanup discipline inconsistent), shipping an AIOS that replicates those gaps to clients would be selling them a broken product. The fix sequence is: close the internal gaps → demonstrate reliability → THEN resume AIOS productization.
+
+**apply-when:** Architectural decisions on systems that are mirrors of internal systems. Apply: "If our internal version has gap X, the productized version will have gap X. Close X first." This is also a corollary of the architecture-decisions-in-unobservable-systems rule — don't ship what you can't trust.
+
+**resumption gate (from active-priorities.md):** Internal system functioning correctly (lessons-learned written when learned, skills invoked when relevant, agents dispatched when appropriate, closeout-sweep ran reliably, voice captured continuously) AND Tier 1 client work shipped or unblocked.
+
+**tags:** strategic-direction, productization-gate, internal-vs-external, aios, tier-2-freeze
+
+---
+
+### Error: project-paused → tasks-paused cascade violates tasks.status CHECK constraint
+
+**context:** 2026-05-10 attempted to set 4 AIOS projects to status=paused via direct PATCH AND via update-project-status.py. Both failed with 23514 CHECK violation. Root cause: project status `paused` triggers cascade to set non-final child tasks to status=paused, but `public.tasks.status_check` does NOT include `paused` in its allowed values (`pending|in_progress|completed|blocked|deferred|tabled|rejected|withdrawn`).
+
+**why:** universal-protocols.md Status Cascade rule says: "When a project's `status` transitions to `paused` → apply to non-final child tasks: `tasks.status = paused`." That rule contradicts the actual `tasks.status` CHECK constraint. The cascade trigger (or script-side equivalent) propagates a value the tasks table refuses, so the entire transaction rolls back — the project status update fails along with the cascade.
+
+**apply-when:** Anytime you need to "freeze indefinitely" a project that has live child tasks. Workaround: use status=`tabled` instead. Tabled is in BOTH project and task vocabulary, so the cascade succeeds. Semantically `tabled` ≈ "deferred indefinitely until conditions met" which is close to `paused` for the freeze-the-Tier-2-AIOS use case.
+
+**fix needed (filed to Sentinel):** Either (a) add `paused` to `public.tasks.status_check`, or (b) change the cascade rule to map project-paused → tasks-deferred (tasks.deferred IS valid). Filed as routed task to Sentinel 2026-05-10.
+
+**tags:** supabase, cascade-trigger, schema-mismatch, status-vocabulary, tasks-check-constraint
+

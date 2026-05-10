@@ -1440,6 +1440,81 @@ python ~/.claude/scripts/notify-human-action.py \
 
 Appends entry to the workspace's HUMAN-ACTION-REQUIRED.md (creating it with header if missing) and sends Telegram HQ bot notification. Telegram credentials loaded from `~/.claude/.env` (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`).
 
+## 100% Verification Before Any Action, Recommendation, or Judgment Call (NON-NEGOTIABLE)
+
+**Source:** wr-sentinel-2026-05-10-001 (filed by Sentinel after the 2026-05-10 HealthCheck miscall: paused operational heartbeat after assuming `health summary` = report; a 4-second verify against the actual schtasks `//v` output would have prevented it). The user explicitly escalated this rule to NON-NEGOTIABLE across ALL workspaces in the same session. Sentinel's local seed text: `feedback_100_percent_verify_before_anything.md`.
+
+This protocol **escalates** the existing Verify-Before-Acting and Verify-Before-Filing protocols by **extending coverage** to suggestions, recommendations, and judgment calls — i.e., to the WORDS spoken to the user BEFORE any action. Unverified judgments propagate into actions and erode trust; the existing protocols catch the action stage but not the recommendation stage.
+
+### The rule
+
+**Before any action, recommendation, suggestion, OR judgment call — every workspace MUST verify directly-related facts against source.** No inference from name, label, mental model, prior memory, or what "feels right." Verified means **direct read of source**: file content, Supabase row, schtasks `//v` output, log output, runtime evidence, executed test result.
+
+If verification is not possible right now (network down, file missing, tool unavailable), the workspace MUST:
+
+1. State that explicitly: *"I cannot verify X right now because Y."*
+2. Pause.
+3. Run verification when possible.
+4. Only then proceed with the action / recommendation / judgment.
+
+The workspace MUST NOT proceed with a recommendation or judgment based on assumed-but-unverified facts.
+
+### Applies to
+
+- HQ, Skill Hub, Sentinel, and ANY future workspace
+- Every action (running a script, filing a WR, modifying a file)
+- Every recommendation (suggesting an option to the user, ranking alternatives)
+- Every judgment call (concluding "X is the case" or "Y is the right path")
+- Every cross-workspace claim (saying another workspace "did X" or "needs Y")
+
+### Examples of what this catches
+
+| Pre-rule failure | What 100%-verify requires |
+|---|---|
+| AI says "the HealthCheck task is producing a stale report" without checking schtasks output | grep / schtasks the actual command + last run + output before claiming |
+| AI recommends "Sentinel should pause this scheduled task" without confirming the task exists | Confirm task name in schtasks `//v` output before recommending |
+| AI says "the WR was rejected because severity was wrong" without reading Supabase row | Query the row + see actual error before claiming the cause |
+| AI suggests "let's use Path A" based on memory of prior preference, without re-checking current context | Read current state + verify the preference still applies |
+| AI files a WR claiming "X doesn't sync Y" without grep-ing the sync source | Read the source code; confirm the absence before filing |
+
+### Definition of "verified" (NON-NEGOTIABLE)
+
+Verified means **at least one of the following has been done in the current session, with the result observed**:
+
+- File content read via Read tool / `cat` / equivalent
+- Supabase row fetched via SQL query or MCP tool
+- Command output captured (e.g., `schtasks //v`, `ls`, `git status`, `python -c '...'`)
+- Log file inspected
+- Runtime test executed and result observed
+- Direct API call result captured
+
+**NOT verified:**
+
+- "I remember from earlier in the session"
+- "The skill description says..."
+- "Based on the file name..."
+- "It's been working that way..."
+- "Memory says..."
+
+Memory is a starting point, not verification. Always re-confirm against source before action / recommendation / judgment.
+
+### Stacks with (does NOT replace)
+
+- **Verify Before Acting Protocol** (below) — covers running scripts/tools that may not exist
+- **Verify Before Filing Protocol** (below) — covers WR/RT premises before filing
+- **Supabase Ownership Protocol** — covers WHICH workspace writes to which records
+- **Anti-Drift Scope Discipline** — covers staying focused on the in-flight task vs. absorbing side concerns
+- **Pushback Protocol** — covers honest engagement with user direction
+
+100%-verify is the gate that runs FIRST. The others run on top of verified facts.
+
+### Enforcement
+
+- **Documentation (this rule):** Necessary but not sufficient — per the documented "Documentation without runtime detection eventually fails" lesson. Third recurrence of unverified-action class as of 2026-05-10.
+- **Runtime detection (planned):** A hook that detects "AI is about to make a recommendation / state a judgment about external state" and nudges verification. Pattern candidates: PreToolUse on certain user-facing-output paths, mid-response heuristic on phrases like "I think X", "It looks like Y", "X is currently Z" without an immediately preceding tool call that produced X/Y/Z. Filed as a follow-up in the post-hard-stop reassessment session agenda.
+- **Self-audit:** resource-auditor PROCESS check should flag missing verification calls before user-facing recommendations.
+- **Cross-workspace consistency:** Sentinel tracks repeat offenders via the cross_workspace_requests audit; the third recurrence of any class triggers a runtime-enforcement build, not another doc edit.
+
 ## Verify Before Acting Protocol (NON-NEGOTIABLE)
 
 Before running ANY script, tool, or command referenced in a skill, workflow, MEMORY.md, or doc:
