@@ -21,7 +21,7 @@ import json
 import os
 import subprocess
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -154,6 +154,152 @@ def check_routed_tasks_inbox():
         except (json.JSONDecodeError, OSError):
             items.append(f.name)
     return len(files), items
+
+
+def check_brain_dumps_and_har():
+    """Step 3.6: Scan brain-dump/ folder + HUMAN-ACTION-REQUIRED.md for visibility items.
+
+    Returns (open_dumps, stale_dumps, open_hars, overdue_hars, items_list) where:
+      - open_dumps   = brain-dump files with status: new OR status: follow-up
+      - stale_dumps  = subset of open_dumps where status=new AND age > 14 days
+      - open_hars    = HUMAN-ACTION-REQUIRED.md entries with Status: open
+      - overdue_hars = subset of open_hars where age > 24 hours
+      - items_list   = human-readable summary lines (top 10, truncated)
+
+    v1: file-only scan. v2 (planned, sequenced after Sentinel ships brain_dumps +
+    human_actions tables) extends to read Supabase mirrors for cross-workspace
+    visibility.
+
+    Source: rt-skillhub-2026-05-10-topic1-brain-dumps-har-supabase-mirrors-and-drift-class
+    Filed by: Skill Hub S36 (2026-05-10) per Topic 1.1 of Brain-dump + HAR Visibility Layer project.
+    """
+    today = datetime.now(timezone.utc).date()
+    now = datetime.now(timezone.utc)
+    items = []
+    open_dumps = 0
+    stale_dumps = 0
+    open_hars = 0
+    overdue_hars = 0
+
+    # --- brain-dump folder scan ---
+    bd_dir = Path.cwd() / "brain-dump"
+    if bd_dir.exists() and bd_dir.is_dir():
+        for f in sorted(bd_dir.glob("*.md")):
+            if f.name.lower() in ("readme.md",):
+                continue
+            try:
+                text = f.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            # Parse frontmatter (simple key: value lines between --- fences)
+            status_val = None
+            date_val = None
+            in_fm = False
+            fm_lines_seen = 0
+            for line in text.splitlines():
+                stripped = line.strip()
+                if stripped == "---":
+                    if in_fm:
+                        break
+                    in_fm = True
+                    continue
+                if not in_fm:
+                    # Allow HTML comment block before frontmatter (some dumps have it)
+                    if stripped.startswith("<!--") or stripped.startswith("-->"):
+                        continue
+                    if stripped == "":
+                        continue
+                    if stripped.startswith("#"):
+                        # Hit body before frontmatter -- no frontmatter, skip
+                        break
+                    continue
+                fm_lines_seen += 1
+                if fm_lines_seen > 50:
+                    break
+                if stripped.startswith("status:"):
+                    status_val = stripped.split(":", 1)[1].strip().strip('"').strip("'").lower()
+                elif stripped.startswith("date:"):
+                    date_val = stripped.split(":", 1)[1].strip().strip('"').strip("'")
+            if status_val in ("new", "follow-up"):
+                open_dumps += 1
+                # age computation
+                age_days = None
+                if date_val:
+                    try:
+                        d = datetime.strptime(date_val, "%Y-%m-%d").date()
+                        age_days = (today - d).days
+                    except ValueError:
+                        pass
+                if status_val == "new" and age_days is not None and age_days > 14:
+                    stale_dumps += 1
+                    items.append(f"[BD-STALE {age_days}d] {f.name[:60]}")
+                else:
+                    age_marker = f"{age_days}d" if age_days is not None else "?"
+                    items.append(f"[BD-{status_val} {age_marker}] {f.name[:60]}")
+
+    # --- HUMAN-ACTION-REQUIRED.md scan ---
+    har_path = Path.cwd() / "HUMAN-ACTION-REQUIRED.md"
+    if har_path.exists() and har_path.is_file():
+        try:
+            text = har_path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            text = ""
+        # Entries are demarked by "## YYYY-MM-DD -- ..." headers.
+        # Each entry has lines: "- **Status:** open" or "done", "- **Filed:** <iso>"
+        current_header = None
+        current_status = None
+        current_filed = None
+        def flush(header, status_str, filed_str):
+            nonlocal open_hars, overdue_hars, items
+            if header is None or status_str != "open":
+                return
+            open_hars += 1
+            hrs = None
+            if filed_str:
+                # Try ISO 8601 parse
+                try:
+                    s = filed_str.strip()
+                    # Replace trailing Z with +00:00 for fromisoformat
+                    if s.endswith("Z"):
+                        s = s[:-1] + "+00:00"
+                    dt = datetime.fromisoformat(s)
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=timezone.utc)
+                    hrs = int((now - dt).total_seconds() // 3600)
+                except (ValueError, TypeError):
+                    pass
+            if hrs is not None and hrs > 24:
+                overdue_hars += 1
+                items.append(f"[HAR-OVERDUE {hrs}h] {header[:55]}")
+            else:
+                hrs_marker = f"{hrs}h" if hrs is not None else "?"
+                items.append(f"[HAR-OPEN {hrs_marker}] {header[:55]}")
+        for line in text.splitlines():
+            if line.startswith("## "):
+                # New entry -- flush previous
+                flush(current_header, current_status, current_filed)
+                current_header = line[3:].strip()
+                current_status = None
+                current_filed = None
+            else:
+                stripped = line.strip().lower()
+                if stripped.startswith("- **status:**"):
+                    current_status = stripped.split("**status:**", 1)[1].strip()
+                elif stripped.startswith("- **filed:**"):
+                    current_filed = line.strip().split("**Filed:**", 1)[1].strip() if "**Filed:**" in line else line.strip().split("**filed:**", 1)[1].strip() if "**filed:**" in line.strip().lower() else None
+                    # Re-extract case-insensitively
+                    if not current_filed:
+                        idx = line.lower().find("**filed:**")
+                        if idx >= 0:
+                            current_filed = line[idx + len("**filed:**"):].strip()
+        # Flush last entry
+        flush(current_header, current_status, current_filed)
+
+    # Truncate items list to top 10 for output cleanliness
+    if len(items) > 10:
+        items = items[:10] + [f"... and {len(items) - 10} more"]
+
+    return open_dumps, stale_dumps, open_hars, overdue_hars, items
 
 
 def check_workspace_blockers(workspace):
@@ -506,6 +652,9 @@ def main():
     else:
         routed_count, routed_items = 0, []
 
+    # Step 3.6: Brain-dumps + HUMAN-ACTION-REQUIRED visibility (all workspaces)
+    bd_open, bd_stale, har_open, har_overdue, bd_har_items = check_brain_dumps_and_har()
+
     # Step 3.7: Blockers (all workspaces)
     blocker_cleared, blocker_waiting, blocker_lines = check_workspace_blockers(workspace)
 
@@ -607,6 +756,20 @@ def main():
             lines.append(f"  - {item}")
     else:
         lines.append("STEP 3.5 - Routed Tasks: CLEAR")
+
+    # -- Step 3.6: Brain-dumps + HAR --
+    if bd_open > 0 or har_open > 0:
+        bd_seg = f"{bd_open} OPEN BRAIN DUMP(S)"
+        if bd_stale > 0:
+            bd_seg += f" [{bd_stale} STALE >14d]"
+        har_seg = f"{har_open} OPEN HAR(S)"
+        if har_overdue > 0:
+            har_seg += f" [{har_overdue} OVERDUE >24h]"
+        lines.append(f"STEP 3.6 - Brain-dumps + HAR: {bd_seg} / {har_seg}")
+        for item in bd_har_items:
+            lines.append(f"  - {item}")
+    else:
+        lines.append("STEP 3.6 - Brain-dumps + HAR: CLEAR")
 
     # -- Step 3.7: Workspace Blockers --
     if blocker_cleared > 0:
@@ -829,6 +992,13 @@ def main():
     lines.append(f"  Step 2: Work Requests ...... {wr_display}")
     lines.append(f"  Step 3: Lifecycle Inbox .... {lc_display}")
     lines.append(f"  Step 3.5: Routed Tasks ..... {rt_display}")
+    bdhar_parts = []
+    if bd_open > 0:
+        bdhar_parts.append(f"{bd_open} BD" + (f" ({bd_stale} STALE)" if bd_stale > 0 else ""))
+    if har_open > 0:
+        bdhar_parts.append(f"{har_open} HAR" + (f" ({har_overdue} OVERDUE)" if har_overdue > 0 else ""))
+    bdhar_display = " / ".join(bdhar_parts) if bdhar_parts else "CLEAR"
+    lines.append(f"  Step 3.6: Brain-dumps+HAR .. {bdhar_display}")
     lines.append(f"  Step 3.7: Blockers ......... {blocker_display}")
     if mode == "FULL_STARTUP":
         recon_display = f"{recon_count} STALE" if recon_count > 0 else "CLEAN"
