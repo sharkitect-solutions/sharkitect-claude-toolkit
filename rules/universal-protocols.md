@@ -1169,6 +1169,96 @@ The user demonstrated the failure mode: while focused on one task, ideas come up
 
 - **2026-05-06 (Skill Hub S28):** User dropped 5 strategic topics + AIOS executive summary mid-session during dispatcher consolidation work. AI captured all 5 to `brain-dump/2026-05-06-aios-dogfood-and-brain-dump-workflow.md` with preliminary thoughts per topic, answered only the 2 tactical questions (end session yes; build hook now no), and did not derail. User confirmed: "this is perfect, exactly what it's meant to be... worked perfectly fine." Promoted to universal protocol the same session.
 
+### Cross-workspace brain-dump routing (NON-NEGOTIABLE — added 2026-05-10, S36)
+
+When a brain dump fires in workspace X and one or more topics scope to a DIFFERENT workspace, the AI MUST classify each topic by scope at capture time and route copies to the relevant workspace(s) so they see the dump at THEIR next session start. A single dump can have mixed-scope topics — classify per topic, not whole-dump.
+
+User direction (verbatim, 2026-05-09): *"Within the protocol of making sure that we're writing everything where we have that, and it's working great, I've already tested the brain dump protocol, and it's working in every workspace. Maybe make it so that if the brain dump is followed within the parameters or scale code within the workspace, instead of writing it in your own brain dump, you would create a request to that corresponding workspace with the full brain dump so that it can write it in its own workspace."*
+
+#### Per-topic classification (at capture time)
+
+| Topic scope | Capture behavior |
+|---|---|
+| **Current-workspace topic** (only affects the workspace where the dump fired) | Stay in local `brain-dump/` file (default behavior — no routing) |
+| **Single-other-workspace topic** (clearly scoped to one different workspace's domain) | Route to that workspace's `.routed-tasks/inbox/` as a `kind: brain_dump_route` task. Receiving workspace creates the brain-dump file at next session start. |
+| **Global protocol topic** (touches `~/.claude/rules/universal-protocols.md`, global hooks, Sentinel schema, or other globally-shared infrastructure) | Local copy + routed copy to the workspace that owns the protocol artifact: Skill Hub for universal-protocols.md / global hooks / global scripts; Sentinel for schema / audit / drift-class changes. |
+| **Multi-workspace topic** (genuinely affects 2+ workspaces) | Local copy + routed copies to each affected workspace |
+
+#### Routing JSON schema (`kind: brain_dump_route`)
+
+```json
+{
+  "id": "rt-<source_workspace_short>-YYYY-MM-DD-bd-<slug>",
+  "id_format_version": 2,
+  "source_workspace": "<canonical name>",
+  "routed_to": "<target canonical name>",
+  "routed_date": "YYYY-MM-DD",
+  "priority": "<low|medium|high>",
+  "status": "pending",
+  "kind": "brain_dump_route",
+  "task_summary": "Brain dump topic routed from <source> for parking in your local brain-dump/ folder",
+  "context": "<one-line description of the topic + why it's scoped to this workspace>",
+  "fix_instructions": "Create brain-dump/YYYY-MM-DD-<slug>.md with the body included below (verbatim user text + AI preliminary thoughts), then close this routed-task with --status processed.",
+  "verbatim_user_text": "<the exact words the user said about this topic>",
+  "ai_preliminary_thoughts": "<frozen-at-dump-time AI thoughts for this topic>",
+  "frontmatter_template": {
+    "date": "YYYY-MM-DD",
+    "session_context": "Routed from <source workspace> S<N>",
+    "status": "new",
+    "relates_to": "<relevant projects/concerns>",
+    "priority": "<priority>",
+    "ai_preliminary_thoughts": "<copy from above>"
+  },
+  "notify_on_completion": true,
+  "notify_inbox_path": "<source workspace's routed-tasks or work-requests inbox path>",
+  "notification_filename_hint": "rt-<target_short>-YYYY-MM-DD-bd-<slug>-completed.json"
+}
+```
+
+The receiving workspace creates the brain-dump file at session start using `frontmatter_template` + `verbatim_user_text` + `ai_preliminary_thoughts`. The brain-dump file in the receiving workspace gains identical fidelity to the original.
+
+#### Local file annotation (misroute mitigation)
+
+When the AI routes a topic, the local brain-dump file in the SOURCE workspace gets a `routed_to:` array in its frontmatter showing the routing decision:
+
+```yaml
+---
+date: 2026-05-10
+status: new
+routed_to: ["sentinel", "workforce-hq"]   # NEW: routing audit trail
+relates_to: ...
+---
+```
+
+If the user thinks a routing decision is wrong, they can correct the local file and the receiving workspace can reject-and-bounce-back via routed-task close with `--status rejected --resolved-by <target> --what-was-done "misrouted - this topic actually scopes to <X>, not <target>"`. Source workspace then re-routes correctly.
+
+#### Auto-classification (default behavior)
+
+AI classifies each topic at capture time using these heuristics (in order):
+
+1. **Topic mentions specific workspace name or owned artifact** (e.g., "Sentinel schema", "HQ proposal flow", "Skill Hub hooks") → route to that workspace
+2. **Topic mentions universal-protocols.md, global hooks/scripts/rules, or workspace-wide standards** → global protocol topic; route to Skill Hub
+3. **Topic mentions Supabase schema, audit, drift, or oversight** → route to Sentinel
+4. **Topic mentions client work, revenue, business operations, proposals, or CRM** → route to HQ
+5. **Topic mentions skills, agents, plugins, MCPs, or capability infrastructure** → route to Skill Hub
+6. **Topic doesn't clearly scope outside current workspace** → stay local (no routing)
+
+Auto-classification IS the default — no human-in-loop confirmation required. The `routed_to:` field in the local file is the audit trail; bouncing-back is the correction path. Friction-light over zero-error.
+
+#### Anti-Drift Discipline interaction
+
+This routing rule does NOT override Anti-Drift Scope Discipline. The brain-dump capture itself is still park-and-continue — routing copies happens at capture time, the AI does NOT pivot the current task to address the routed topics. The receiving workspace handles them at THEIR next session start.
+
+#### Rollout sequencing
+
+1. **v0 (now, AI-side discipline):** AI follows this protocol manually starting immediately. No tooling change required.
+2. **v1 (next build):** session-startup-guard.py Step 3.6 already surfaces local brain dumps. Extend to also surface `kind: brain_dump_route` routed-tasks under the same Step (or as Step 3.5 PENDING if they're processed via routed-tasks pipeline). Receiving workspace gets explicit visibility at startup.
+3. **v2 (future):** brain_dumps Supabase table (already shipped Topic 1) gains a `routed_from_workspace` column to track cross-workspace routing in the database mirror. Filed as a follow-up enhancement, not in current scope.
+
+#### Source
+
+Captured 2026-05-09 brain dump (`brain-dump/2026-05-09-startup-coverage-cross-workspace-audit-and-brain-dump-routing.md` Topic 3). User confirmed Topic 3 ship in S36 (2026-05-10): *"let's go ahead and execute this as you suggested. Let's go ahead and do exactly whatever you suggest, and let's execute them all."*
+
 ## Human Action Required Protocol (NON-NEGOTIABLE)
 
 When any workspace closes work that requires a user-facing action before dependent work can proceed, it MUST surface that ask actively. Silent drift is prohibited.
