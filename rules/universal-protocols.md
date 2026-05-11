@@ -1567,6 +1567,283 @@ The cheapest, highest-prior cause is "wrong input." Provider-side regressions ar
 
 Past incident (2026-04-17): Sentinel session ran 10+ turns of unstructured provider speculation when Supabase MCP rejected calls. Real cause: wrong project_id (passed wkbpstfbilfhhcabqfdj, actual was dgnjfamhwfyogmgcpedb). User had to interrupt with "are you confused?" The mcp-auth-error-guard.py hook now enforces this.
 
+## Platform Grounding Before Building (NON-NEGOTIABLE)
+
+Before planning, designing, or building on ANY new platform, tool, framework, or service we haven't deeply used before, we MUST first ground ourselves in that platform's official documentation, understand its capabilities and limits, and produce a research document that distills what's relevant to our intended use. Everything we build has to be built WITH the system's capability and WITH the system in mind, so it's not fighting against it — it's working with it.
+
+**Source:** User direction 2026-05-11 (S37, plan-restructure conversation): *"anytime we're going to build in a new platform, a new tool, or use anything that we need to first make sure, before we even start planning, is reading the documents for that platform, understanding that platform, and creating our research document of that platform and extracting key elements that are specific to what we're going to be using it for. So that we can build with the system... everything we build has to be built with the system's capability and with the system in mind, so it's not fighting against it but it's working with it."*
+
+### The rule
+
+Before any new build, we MUST in this order:
+
+1. **Read the platform's official documentation** — every relevant area for our intended use. Not summaries. Not training-data assumptions. The actual docs as currently published.
+2. **Research industry authority discussion** of the platform — what well-known practitioners are saying about best practices, anti-patterns, scalability, and emerging architectures on this platform.
+3. **Research roadmap signals** where they exist — official blog posts, changelogs, job postings, public leaks, conference talks — that suggest where the platform is going. Purpose: build WITH future in mind, not BET on unconfirmed signals.
+4. **Produce a research document** under `docs/platform-research/<platform-slug>/` that distills (1) + (2) + (3) into:
+   - Capability map (what the platform natively supports + how it maps to our intended use)
+   - Misalignment audit (where our current patterns fight the platform — if any prior use exists)
+   - Future-proofing considerations (which roadmap signals to design for compatibility with)
+   - Top 5–10 findings summary for the planning step that follows
+5. **THEN start planning** — and the plan grounds every component choice against the research document.
+
+### Triggers
+
+- About to adopt a new tool / framework / SaaS / platform / API
+- About to build deeply on a platform we have only shallow experience with
+- About to restructure something we already built on a platform whose docs we never read deeply
+- About to design an integration with a service whose docs we last read > 12 months ago
+- About to produce a strategic plan that depends on platform capabilities
+
+### What this protocol PREVENTS
+
+- Patterns that fight the platform (because we assumed instead of verified)
+- Workarounds for problems the platform already solves natively
+- Designs that get obsoleted by upcoming features we didn't know about
+- Wasted build effort on assumptions that turn out wrong at deployment
+
+### What does NOT trigger this protocol
+
+- Bug fixes on existing well-understood code
+- Minor configuration changes
+- Working on a platform we've deeply used for 6+ months AND whose docs are stable AND whose changelog we already track
+- Throwaway exploratory scripts (where the cost of getting it wrong is small)
+
+### Depth standard (NON-NEGOTIABLE within Platform Grounding)
+
+**Source:** User direction 2026-05-11 (S37): *"I want us to understand Claude Code, its functionalities, and everything around Anthropic so well that you would think that we were the development team. We were the CEO... Is it called only once at the initial, or is it called before any action is taken? All these things that are going to help us deeply understand."*
+
+Surface-level "what does this feature do" is NOT enough. Research must reach development-team level understanding — the kind you'd need to design the platform yourself, not just use it. Concretely, EVERY platform research document MUST include:
+
+1. **Foundational mental model — how the platform actually works.** Not the feature list. The execution model: what's the trust boundary, what runs where, what's a process vs a tool call vs a hook fire, what state is persistent vs ephemeral, what gets garbage-collected when. If we cannot draw the architecture from memory after the research, we haven't gone deep enough.
+
+2. **Lifecycle and cascade — when things fire, in what order, what's loaded when.** For Claude Code specifically: when is CLAUDE.md loaded? Once at session start, or before every action? What about SessionStart hooks vs UserPromptSubmit hooks vs PreToolUse? What context is available to each hook? When does a skill auto-invocation actually happen — is it pre-prompt, mid-response, post-tool-call? Every "when" must have a verified answer, not an assumption.
+
+3. **Load-bearing components and optimization patterns.** Which docs / configs / files are load-bearing — meaning changes to them propagate through every session vs only affect specific sessions? For Claude Code: is CLAUDE.md the most load-bearing? Should we use it differently than we currently do? What gets loaded into context every turn, what gets loaded on-demand, what never gets loaded automatically? Where is context space wasted vs well-spent?
+
+4. **Decision-level expertise — when/why/how, not just what.** For every capability, capture: when to use it, when NOT to use it, what's the failure mode if used wrong, what's the alternative if it doesn't fit. "Skill auto-invocation exists" is feature-level. "Skill auto-invocation fires based on heuristic X with failure mode Y, alternative pattern Z if it doesn't fit" is decision-level.
+
+5. **Mental model verification.** After writing each section, run the test: could a development team member of that platform read this section and say "yes, that's correctly how it works"? If we're not confident in that verdict, we have not gone deep enough yet — return to source documentation.
+
+### Research document standards
+
+Each research doc lives under `docs/platform-research/<platform-slug>/` and contains at minimum:
+
+1. **Header:** platform name, version / cutoff date, who authored, why we're researching it now
+2. **Foundational mental model (per Depth standard above):** the architectural diagram + execution model
+3. **Lifecycle and cascade (per Depth standard above):** when things fire, what's loaded when, in what order
+4. **Capability map:** structured table — what the platform supports natively, where it fits our use case, gaps
+5. **Load-bearing components map:** which files / configs propagate broadly, which don't, optimization patterns
+6. **Decision-level expertise summary:** per capability — when to use, when not to, failure mode, alternative
+7. **Industry authority synthesis:** what 3–5 credible authorities say, with citation + date
+8. **Roadmap signals:** structured table — signal source, confidence (SPECULATIVE | PROBABLE | CONFIRMED), Sharkitect implication, build-with-in-mind action
+9. **Top findings summary:** 5–10 highest-leverage takeaways for the planning step that follows
+10. **Self-verification log:** for each major section, explicit confirmation that the section passes the development-team test (or honest acknowledgment that it does not, with what's still missing)
+
+### Enforcement
+
+- **Documentation (this rule):** lives in universal-protocols.md
+- **Runtime hook (planned):** detect new platform integration / new tool adoption / new project creation without a paired `docs/platform-research/` entry, nudge research-first. Filed as follow-up.
+- **Self-audit:** resource-auditor PROCESS check flags `planning_without_platform_research` as a gap class when planned work touches an unfamiliar platform.
+
+### Why this matters
+
+Building against a system you don't fully understand is the recurring failure mode behind: hooks that fight the platform, skills that don't auto-invoke because we assumed wrong about discovery, MCPs that bloat context because we didn't know about CLI alternatives, multi-workspace coordination patterns that may not match Claude Code's native model. Every one of those was assumption-without-verification. The cure is grounding-before-planning. Non-negotiable.
+
+---
+
+## Contradiction Check Before Rule / Doc Updates (NON-NEGOTIABLE)
+
+Before adding ANY new entry to a rule document, protocol document, lessons-learned file, settings.json, or workspace CLAUDE.md, we MUST first scan the existing content for related entries. If a related entry exists, we MUST decide explicitly: this is new (add), this overrides existing (edit + mark superseded), or this contradicts existing (flag for resolution — do not leave both standing).
+
+**Source:** User direction 2026-05-11 (S37, plan-restructure conversation): *"whenever we are doing our audit phase... we need to make sure that we are also evaluating the Claude.md files from each workspace. I mean, everything! Our Global Documentations! Our Lessons Learned! Our Universal Protocols! Our JSON Settings Files!... if something is updated, and let's say 'Lessons Learned' or 'Universal Protocol,' we need to verify first that there's nothing in there that was previously thought and now we're changing it that's going to contradict... we don't have two different contradicting items in there."*
+
+### The rule — per-edit check
+
+Before writing any new addition to:
+
+- `~/.claude/rules/universal-protocols.md`
+- `~/.claude/lessons-learned.md`
+- Any workspace `CLAUDE.md`
+- Any workspace `MEMORY.md` or memory topic file
+- `~/.claude/settings.json` permission rules
+- Any workspace `.claude/settings*.json`
+- Any global rule under `~/.claude/rules/`
+
+We MUST:
+
+1. **Search the target file** for keywords related to the new entry's topic
+2. **Read every match in context** — do not rely on snippet match alone
+3. **Classify the relationship** for each existing match:
+   - **No conflict** — new entry is additive, distinct scope → add new entry
+   - **Subsumed** — new entry contains all of the existing entry's intent → edit existing in-place, expand, do NOT add a duplicate
+   - **Supersedes** — new entry replaces existing entry's intent → edit existing to mark superseded (with date + reason) AND add the new entry, OR replace the existing entry entirely with reason captured in commit message
+   - **Contradicts** — new entry directly contradicts existing entry, both cannot be true → STOP. Surface to user. Do not write the new entry unilaterally. User decides which to keep.
+4. **Only then write the new entry** with the relationship documented in the entry itself OR in the commit message
+
+### Specific scan procedure
+
+```bash
+# Topic-keyword search across the target file
+grep -i -n "<topic-keyword-1>\|<topic-keyword-2>\|<topic-keyword-3>" <target-file>
+
+# For multi-file scope (cross-workspace CLAUDE.md drift):
+for ws in "1.- SHARKITECT DIGITAL WORKFORCE HQ" "3.- Skill Management Hub" "4.- Sentinel"; do
+  echo "== $ws =="; grep -i -n "<topic-keyword>" "$ws/CLAUDE.md"
+done
+```
+
+If grep produces hits: read each hit in context (10+ lines around). Classify before writing.
+
+### Periodic audit (separate from per-edit check)
+
+Beyond per-edit verification, scheduled monthly audits (Sentinel-owned) scan the entire rule / lessons / CLAUDE.md / settings.json surface for:
+
+- **Drift class A — Contradictions:** pairs of entries on the same topic that disagree
+- **Drift class B — Duplication:** same rule restated in 2+ places without cross-reference
+- **Drift class C — Staleness:** rules referencing tools / files / protocols that no longer exist
+- **Drift class D — Coverage gaps:** topics referenced in lessons-learned that have no corresponding rule, OR vice versa
+
+Audit output: a contradictions ledger ranked by severity, surfaced to user, resolved with explicit decisions.
+
+### What this protocol PREVENTS
+
+- Two contradicting rules in the same protocol doc, with sessions silently following whichever one they hit first
+- Lessons-learned entries that say "do X" alongside older entries that say "do not do X" — same file, different sessions, different conclusions
+- CLAUDE.md instructions accreting over time until they self-conflict and the AI picks arbitrarily
+- The slow drift class where the system contradicts itself, sessions feel confused, no one knows which rule wins
+
+### What does NOT trigger this protocol
+
+- Typo fixes
+- Formatting / restructuring without intent change
+- Pure additions on topics not previously addressed in the doc
+
+### Enforcement
+
+- **Documentation (this rule):** lives in universal-protocols.md
+- **Runtime hook (planned):** detect Edit / Write on rule / lesson / CLAUDE.md / settings.json files without a preceding grep-based scan, nudge contradiction-check. Filed as follow-up.
+- **Audit (planned):** scheduled monthly contradiction-audit run by Sentinel across all rule / lesson / CLAUDE.md / settings.json files. Filed as follow-up.
+- **Self-audit:** resource-auditor PROCESS check flags `rule_update_without_contradiction_scan` as a gap class.
+
+### Why this matters
+
+We are now a multi-session, multi-workspace AI operating system. Rules govern AI behavior across all sessions. Two contradicting rules don't just confuse one session — they corrupt every future session that hits the contradiction. The cost compounds. The cure is verify-before-add, audit-periodically. Non-negotiable.
+
+---
+
+## Post-Action Self-Audit on Rule-Class Files (NON-NEGOTIABLE)
+
+For every Edit / Write on a rule-class file, a runtime PostToolUse gate fires immediately after the change is written. The gate injects an honest self-audit prompt asking whether the prerequisite checks were run BEFORE the change. The AI must answer honestly. If "no" — the AI must remediate (run the missed checks, fix any contradictions found, revise the edit if needed) BEFORE proceeding with any other work. Documentation is not enough — past sessions have demonstrated that even just-added rules get skipped within the same session.
+
+**Source:** User direction 2026-05-11 (S37): *"that whenever we need to making changes, updates, or modifications that we actually have to have something that questions whether you did what you were meant to do... in-session it's already too late... we made the change, as soon as you get done writing it or deleting something, it would pop up and say 'Did you do this?' Make you honestly, 'No, I didn't.' So then you would go back, reapply it like you just did now... Like a hook or something."*
+
+**Source incident (same session):** AI added the Contradiction Check Before Rule / Doc Updates protocol to universal-protocols.md WITHOUT first running the grep-based contradiction scan that the protocol itself requires. The PROCESS gap was caught retroactively only because the resource-auditor reminder fired post-task. This proves documentation alone fails — and the resource-auditor reminder fires too late.
+
+### Rule-class files this gate applies to
+
+The PostToolUse gate fires on Edit / Write to:
+
+- `~/.claude/rules/**` (all global rules)
+- `~/.claude/lessons-learned.md`
+- `~/.claude/CLAUDE.md` (if present globally)
+- Any workspace `CLAUDE.md`
+- Any workspace `MEMORY.md` or memory topic file under `memory/`
+- `~/.claude/settings.json`
+- Any workspace `.claude/settings*.json`
+- Any workspace `.claude/rules/*.md` if scoped
+- `~/.claude/docs/plans-registry.md`
+
+### Per-file-class checklists
+
+Each rule-class file has a defined pre-edit checklist that the post-edit gate audits. Initial set:
+
+| File class | Pre-edit checklist (what the post-edit gate audits) |
+|---|---|
+| `universal-protocols.md` | Did you grep for related rule names + topic keywords? Did you classify the relationship (new / subsumed / supersedes / contradicts)? If contradicts → did you stop and surface to user? |
+| `lessons-learned.md` | Did you grep for related categories? Did you check whether the lesson contradicts an existing entry on the same topic? |
+| Workspace `CLAUDE.md` | Did you check the same content isn't already in universal-protocols.md (i.e., should reference, not duplicate)? Did you check sibling workspaces' CLAUDE.md for cross-workspace consistency? |
+| Workspace `MEMORY.md` / topic files | Did you check the 200-line cap on MEMORY.md? Did you check sibling topic files for overlap? |
+| `settings.json` files | Did you verify allow ∩ deny == 0? Did you backup before write? Did you justify each new entry? Did you check for orphan deny rules? |
+| `plans-registry.md` | Did you classify the entry (Active / Completed / Tabled)? Did you check for duplicate plan entries? |
+
+The checklist set grows over time as new file classes are added.
+
+### Behavior of the gate
+
+When Edit / Write fires on a matching file path, the PostToolUse hook injects an additionalContext message containing:
+
+1. The file class detected
+2. The pre-edit checklist for that file class
+3. An honest-answer prompt: "Did you complete each item BEFORE this edit?"
+4. Instruction: if "no" to any item — remediate now before proceeding
+
+The AI MUST respond honestly. If answer is "no" the AI MUST: (a) run the missed checks, (b) report findings, (c) fix the current edit if findings warrant, (d) only then continue other work.
+
+### What this gate does NOT do
+
+- Does NOT hard-block the edit. The edit already happened (PostToolUse fires after Write succeeds). The gate is corrective, not preventive — but corrective AT MOMENT OF FAILURE rather than at session-end summary.
+- Does NOT replace the resource-auditor end-of-task PROCESS check — both run, the PostToolUse gate catches per-edit, the resource-auditor catches session-level patterns.
+- Does NOT proliferate per-rule bypass keywords — see Strict Bypass Vocabulary below.
+
+### Enforcement
+
+- **Documentation (this rule):** lives in universal-protocols.md
+- **Runtime hook:** `~/.claude/hooks/rule-file-self-audit-gate.py` (PostToolUse on Edit | Write, path-matched) — TO BE BUILT in Phase 2 of the Post-Hard-Stop System Reassessment plan (`docs/superpowers/plans/2026-05-11-post-hard-stop-system-reassessment.md`)
+- **Phase 1 dependency:** the hook design awaits Phase 1 platform grounding (official docs read) so the hook is built per Claude Code's recommended PostToolUse pattern, not assumption.
+
+---
+
+## Strict Bypass Vocabulary for Runtime Audits (NON-NEGOTIABLE)
+
+Every runtime gate that supports a bypass MUST follow this discipline. Loose excuses dilute the gates. Strict vocabulary keeps the gates load-bearing.
+
+**Source:** User direction 2026-05-11 (S37): *"I know sometimes they excuse my bypass and say 'we skipped because of this reason' or something like that. So needs to be more structured, more strict on that as to approved reasons why that could be skipped and justified."*
+
+### The rule
+
+A runtime gate's bypass is VALID only if ALL of:
+
+1. **Explicit phrase match.** The bypass phrase is exactly the gate-specific keyword (e.g., `skip verify-before-filing`, `skip severity-gate`). Paraphrases do NOT count. "Just this once" / "we already did this" / "this isn't the right time" / "the user implied" — all INVALID.
+2. **Source-of-authority match.** The bypass phrase appears in:
+   - The current session's user message text (direct user instruction), OR
+   - The tool input content being written (e.g., the file being edited explicitly contains the marker as part of legitimate emergency-repair work), OR
+   - A previously-approved standing directive captured in `~/.claude/rules/` or workspace CLAUDE.md
+   The AI CANNOT self-justify a bypass. AI-decided "this case doesn't need the check" is INVALID.
+3. **Approved reason category.** The bypass justification fits one of the defined categories:
+   - **A — Explicit user direction:** "skip X" or equivalent in current session
+   - **B — Emergency manual repair:** brain row missing / drift correction / production-down fix where the gate would block a fix-in-progress
+   - **C — Self-referential meta-edit:** the edit IS to the gate's own infrastructure (e.g., editing the gate's source code requires bypassing the gate)
+   - **D — Standing exemption:** documented in the gate's own definition (e.g., completion-notification routed-tasks are exempt from notify-on-completion to prevent infinite ping-pong)
+4. **Logged.** Every bypass is logged to `<tempdir>/claude_bypass_log.jsonl` with: timestamp, gate name, bypass category (A/B/C/D), justification text, file path / tool input, session id.
+
+### Invalid bypass patterns (NOT permitted)
+
+| Pattern | Why invalid |
+|---|---|
+| "I already verified this in my head" | AI self-justification — Category A requires user instruction or already-written rule |
+| "This is a small edit, doesn't need the check" | AI deciding what's "small" — same self-justification failure |
+| "We already ran this scan earlier in the session" | If true, the AI can REPEAT the scan cheaply; refusing because "we did it earlier" is excuse |
+| "The user implied we should skip" | "Implied" ≠ explicit. If unclear, ASK; don't assume |
+| "Just this once" | Categorically invalid; every bypass either fits A/B/C/D or it doesn't |
+
+### Periodic audit
+
+`<tempdir>/claude_bypass_log.jsonl` is read by Sentinel's monthly audit. Surfaces:
+- Bypass frequency per gate (high frequency = false-positive heuristic, candidate for gate redesign)
+- Bypass category distribution (high Category A might mean the gate triggers too often during legitimate user-directed work — adjust trigger heuristic)
+- Bypass without any category match (= AI self-justification slipped through — surface for review)
+
+### Why this matters
+
+Without strict vocabulary, every gate accumulates loose excuses ("we already did", "this case is different"). Within months the gates produce zero meaningful enforcement because everything finds a justification to skip. Strict vocabulary + logged justifications + periodic audit keeps the gates load-bearing across time.
+
+### Hook Introduction Rule consistency
+
+Per the existing Hook Introduction Rule's "Block first, allow exceptions later" anti-pattern: this protocol does NOT proliferate per-gate bypass keywords beyond what's necessary. New gates added in Phase 2 of the Post-Hard-Stop System Reassessment plan will share a CONSOLIDATED bypass surface where appropriate (e.g., a single `skip rule-self-audit` covers the PostToolUse rule-file gate, rather than per-file-class keywords).
+
+---
+
 ## Verification-Before-Building Protocol (NON-NEGOTIABLE)
 
 Before planning, suggesting, or building ANY new automation, hook, script, report, workflow, Supabase table, or plugin -- you MUST query the Operational Asset Registry first. Transparency about what exists is the whole point of the registry; building without checking defeats its purpose.
