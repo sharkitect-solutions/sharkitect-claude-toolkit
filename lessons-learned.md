@@ -1,5 +1,45 @@
 # Global Lessons Learned
 
+## 2026-05-11 Session Lessons (Skill Hub S39 — claude.exe leaks on session-end)
+
+### direction: claude.exe is NOT reaped natively on Claude Code session-end
+
+**Context:** Sentinel WR-2026-05-10-005 documented unauthorized autonomous git commits from a "ghost" claude.exe. S38 set up empirical test (PID 12440); S39 verified — PID 12440 alive 3.1h after normal wrap. SessionEnd hook fires natively (aios-core proves it), but does NOT terminate claude.exe.
+
+**Why:** Every wrap leaks ~322MB of claude.exe holding live CronCreate state. Within the 4h orphan-cleanup threshold window, the leaked claude.exe can fire CronCreates autonomously (Sentinel WR-005 root cause).
+
+**Apply when:** Designing any system that relies on claude.exe lifecycle. Do NOT assume Claude Code reaps its own process. Build application-layer cleanup via SessionEnd hook + detached subprocess kill.
+
+**Design principles:**
+- SessionEnd hook self-kill is the right surface (covers normal wrap, logout, exit, tab-close — broader than /clear)
+- Filter on `reason`: skip `clear`/`resume`/`bypass_permissions_disabled` (session continues); kill `logout`/`prompt_input_exit`/`other`
+- Use `CREATE_NO_WINDOW | DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP` so the kill survives parent death AND doesn't flash a console (Silent Execution Protocol)
+- Best-effort fire-and-forget; do not wait for taskkill
+
+**Tags:** architecture, claude-code-platform, session-lifecycle, orphan-prevention, silent-execution
+
+**Related (complementary, not contradictory):** 2026-04-22 lesson "Verify tool detection is safe for user's actual workflow" (kill-orphan-claude-processes.py risks killing legitimate siblings on 4h-age heuristic). Today's SessionEnd self-kill design AVOIDS the sibling problem by construction: each session only targets its own parent claude.exe PID via the walk in `find_parent_claude_pid()`. Self-kill = no cross-workspace blast radius.
+
+### process: extend existing hook rather than create new one — Hook Introduction Rule in practice
+
+**Context:** Fix landed via extension to `session-end-cleanup.py` (existing aios-core SessionEnd hook), not a new file. Same matcher, same hook event, just new functions.
+
+**Why it worked:** Reused `find_parent_claude_pid()` already in the hook. Reused existing log infrastructure. Net file count change: 0. Hook budget per Hook Introduction Rule: unchanged.
+
+**Apply when:** New behavior matches an existing hook's matcher and event. Extend the existing file. Verify by preflight + reading the existing hook before deciding.
+
+**Tags:** hook-architecture, process, hook-introduction-rule
+
+### process: empirical kill of real leaked process before declaring fix works
+
+**Context:** After 17/17 TDD tests passed, called `schedule_self_kill(12440)` (real leaked S38 process) and verified PID 12440 was gone within 3s. Did NOT rely on unit tests alone.
+
+**Why:** TDD tests mock `subprocess.Popen`. They prove the call args are right. They do NOT prove a real claude.exe actually dies on detached taskkill. The 3-second empirical kill of a real 322MB claude.exe with no side effects is the actual proof.
+
+**Apply when:** Any fix that depends on OS-level behavior (process kill, signal, file system race). Unit-test-pass ≠ real-world-pass. Run at least one production-shape empirical test.
+
+**Tags:** verification-discipline, tdd, process
+
 ## 2026-05-08 Session Lessons (Sentinel — AIOS Coordination Fix Strategic Build)
 
 ### direction: build observability + coordination BEFORE making architectural decisions
