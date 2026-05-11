@@ -16,10 +16,22 @@ What it does:
   3. Does NOT call CronDelete (Claude Code already kills in-session crons
      on session end; only orphans -- crons in dead processes -- survive).
   4. Schedules a detached taskkill against the parent claude.exe PID when
-     reason indicates true termination (logout / prompt_input_exit / other).
-     Skips for `clear` (context wipe, session continues), `resume`, and
-     `bypass_permissions_disabled`. Source: SessionEnd reason taxonomy at
-     https://code.claude.com/docs/en/hooks.
+     reason indicates true termination (clear / logout / prompt_input_exit / other).
+     Skips for `resume` and `bypass_permissions_disabled`.
+
+     ANTIGRAVITY-SPECIFIC NOTE on `clear` (added 2026-05-11, S40):
+     Per Anthropic's generic CLI docs (https://code.claude.com/docs/en/hooks),
+     `reason=clear` means "context wipe, session continues" — and on the bare
+     CLI killing on `clear` would terminate the user's live window. However in
+     antigravity (Google's Claude Code wrapper used here), "clear conversation"
+     is a process-replacement UI action: antigravity terminates the old
+     claude.exe and spawns a fresh one for the new chat. The OLD process gets
+     SessionEnd with reason=clear, the new process is already serving the user.
+     Empirical proof (S40, 2026-05-11): Antigravity.exe PID 13500 spawned both
+     claude.exe PID 17772 (S39, orphan after wrap) AND PID 16064 (S40, current
+     session). Same antigravity parent, different claude.exe children. The skip
+     that was correct for bare CLI leaks the process under antigravity. Do NOT
+     "fix" this back without re-confirming antigravity lifecycle.
 
 Fire-and-forget. Never blocks. Best-effort cleanup.
 
@@ -43,10 +55,12 @@ KILL_LOG_FILE = Path.home() / ".claude" / ".tmp" / "session-end-kill-log.jsonl"
 
 # SessionEnd reason values that indicate the session continues — DO NOT kill.
 # Source: https://code.claude.com/docs/en/hooks
-REASONS_SKIP_KILL = frozenset({"clear", "resume", "bypass_permissions_disabled"})
+# NOTE: `clear` was moved to DO_KILL on 2026-05-11 (S40) — antigravity-specific
+# behavior, see module docstring above. Re-evaluate if running on bare CLI.
+REASONS_SKIP_KILL = frozenset({"resume", "bypass_permissions_disabled"})
 
 # Reasons that indicate true termination — DO kill if found.
-REASONS_DO_KILL = frozenset({"logout", "prompt_input_exit", "other"})
+REASONS_DO_KILL = frozenset({"clear", "logout", "prompt_input_exit", "other"})
 
 # Windows subprocess creation flags (defined locally for cross-platform safety).
 CREATE_NO_WINDOW = 0x08000000

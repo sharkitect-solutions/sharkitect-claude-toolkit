@@ -4,7 +4,10 @@ Plan: 3.- Skill Management Hub/docs/superpowers/plans/2026-05-11-post-hard-stop-
      (Task 1.6 stopgap — claude.exe leaks on session-end empirically confirmed S38->S39).
 
 Source: SessionEnd reason taxonomy from https://code.claude.com/docs/en/hooks
-  - clear: /clear context wipe (session continues — DO NOT kill)
+  - clear: ANTIGRAVITY-SPECIFIC — process-replacement (KILL).
+           See module docstring of session-end-cleanup.py. On bare CLI this
+           would be wrong; on antigravity (the env Sharkitect runs in)
+           "clear conversation" spawns a new claude.exe, the old one leaks.
   - resume: --resume / --continue (session continues — DO NOT kill)
   - bypass_permissions_disabled: mode change (defensive skip)
   - logout: user logged out (KILL)
@@ -34,10 +37,12 @@ def _load_hook():
 # should_kill_for_reason — pure decision function
 # ----------------------------------------------------------------------------
 
-def test_skip_kill_on_clear():
-    """`/clear` wipes context but keeps session alive — never kill."""
+def test_kill_on_clear():
+    """ANTIGRAVITY-SPECIFIC: `clear` reason fires when antigravity spawns
+    a replacement claude.exe for the new chat. Old process must die.
+    Empirical proof at S40, 2026-05-11. See module docstring."""
     hook = _load_hook()
-    assert hook.should_kill_for_reason("clear") is False
+    assert hook.should_kill_for_reason("clear") is True
 
 
 def test_skip_kill_on_resume():
@@ -176,17 +181,19 @@ def test_main_calls_schedule_kill_on_other_reason(tmp_path, monkeypatch):
     mock_kill.assert_called_once_with(12440)
 
 
-def test_main_skips_kill_on_clear_reason(tmp_path, monkeypatch):
-    """End-to-end: reason='clear' MUST NOT trigger kill (would kill mid-session)."""
+def test_main_kills_on_clear_reason(tmp_path, monkeypatch):
+    """End-to-end: reason='clear' triggers kill under antigravity (S40 fix).
+    On bare CLI this would be wrong; under antigravity the old process is
+    already being replaced. See module docstring."""
     hook = _load_hook()
     monkeypatch.setattr(hook, "LOG_FILE", tmp_path / "session-end-log.jsonl")
     monkeypatch.setattr(hook, "KILL_LOG_FILE", tmp_path / "session-end-kill-log.jsonl")
     monkeypatch.setattr(hook, "CRON_MARKER_DIR", tmp_path / "cron-fires")
-    with patch.object(hook, "schedule_self_kill") as mock_kill, \
+    with patch.object(hook, "schedule_self_kill", return_value=True) as mock_kill, \
          patch.object(hook, "find_parent_claude_pid", return_value=12440), \
          patch("json.load", return_value={"reason": "clear", "hook_event_name": "SessionEnd"}):
         hook.main()
-    mock_kill.assert_not_called()
+    mock_kill.assert_called_once_with(12440)
 
 
 def test_main_skips_kill_when_no_pid_found(tmp_path, monkeypatch):
