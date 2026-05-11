@@ -1789,8 +1789,8 @@ The AI MUST respond honestly. If answer is "no" the AI MUST: (a) run the missed 
 ### Enforcement
 
 - **Documentation (this rule):** lives in universal-protocols.md
-- **Runtime hook:** `~/.claude/hooks/rule-file-self-audit-gate.py` (PostToolUse on Edit | Write, path-matched) — TO BE BUILT in Phase 2 of the Post-Hard-Stop System Reassessment plan (`docs/superpowers/plans/2026-05-11-post-hard-stop-system-reassessment.md`)
-- **Phase 1 dependency:** the hook design awaits Phase 1 platform grounding (official docs read) so the hook is built per Claude Code's recommended PostToolUse pattern, not assumption.
+- **Runtime hook:** `~/.claude/hooks/rule-file-self-audit-gate.py` (PostToolUse on Edit | Write, path-matched) — **LIVE since 2026-05-11** (Task 0.5 of `docs/superpowers/plans/2026-05-11-post-hard-stop-system-reassessment.md`). Asset registered as `hook/rule-file-self-audit-gate` (workspace: skill-management-hub). Companion config at `~/.claude/config/rule-file-checklists.json`. Tests at `~/.claude/tests/test_rule_file_self_audit_gate.py` (27 cases, all green). Bypass keyword: `skip rule-self-audit` (single consolidated phrase per Strict Bypass Vocabulary).
+- **Pre-Phase-1 build rationale (supersedes earlier "Phase 1 dependency" note):** The hook reuses three PROVEN patterns already shipped — methodology-nudge.py + inbox-severity-gate.py + inbox-json-validate.py. The Platform Grounding rule fires for UNFAMILIAR platforms; reusing familiar patterns within the same platform requires no grounding. This exception is explicit in the plan (Task 0.5 scope section).
 
 ---
 

@@ -1,0 +1,134 @@
+{
+  "_source": "~/.claude/rules/universal-protocols.md 'Post-Action Self-Audit on Rule-Class Files' section",
+  "_created": "2026-05-11",
+  "_built_by": "Task 0.5 (Pre-Phase-1 Foundational Hook Build)",
+  "_purpose": "Per-file-class pre-edit checklists, surfaced by rule-file-self-audit-gate.py PostToolUse hook after each Edit/Write on rule-class files.",
+  "_order_note": "More specific patterns MUST come before more generic ones; the hook walks this list top-to-bottom and uses the first match.",
+  "classes": [
+    {
+      "file_class_name": "universal-protocols.md",
+      "globs": [
+        "**/.claude/rules/universal-protocols.md"
+      ],
+      "checklist": [
+        "Did you grep universal-protocols.md for related rule names + topic keywords BEFORE this edit?",
+        "Did you classify the relationship of the new content (new / subsumed / supersedes / contradicts) against every existing match?",
+        "If contradicts: did you STOP and surface to the user rather than write the new entry unilaterally?",
+        "If supersedes: did you mark the existing entry superseded with date + reason in the same change?",
+        "Did you record the relationship classification in the entry itself OR in the commit message?"
+      ]
+    },
+    {
+      "file_class_name": "lessons-learned.md",
+      "globs": [
+        "**/.claude/lessons-learned.md"
+      ],
+      "checklist": [
+        "Did you grep lessons-learned.md for related categories (Preferences, Process Decisions, Architecture Direction, Errors, etc.) BEFORE this edit?",
+        "Did you check whether this lesson contradicts an existing entry on the same topic?",
+        "If contradicts: did you decide explicitly which entry stays (and mark the other superseded)?",
+        "Did you pick the correct category (the 7 documented categories), not invent a new one?"
+      ]
+    },
+    {
+      "file_class_name": "settings.json",
+      "globs": [
+        "**/.claude/settings.json",
+        "**/.claude/settings.local.json",
+        "**/.claude/settings.*.json"
+      ],
+      "checklist": [
+        "Did you backup the file to a timestamped .bak BEFORE the write?",
+        "Did you verify allow ∩ deny == 0 after the edit (no path appears in BOTH lists)?",
+        "Did you justify each new allow/deny entry with a documented reason?",
+        "Did you check for orphan deny rules that no current protocol justifies?",
+        "Did you use Bash + Python open() per universal-protocols.md 'Modifying ~/.claude/settings.json' (NOT Edit / Write / sed / cmd)?",
+        "Did you empirically test ONE path the change was supposed to enable / block?"
+      ]
+    },
+    {
+      "file_class_name": "plans-registry.md",
+      "globs": [
+        "**/.claude/docs/plans-registry.md"
+      ],
+      "checklist": [
+        "Did you classify the entry (Active / Completed / Tabled / Abandoned)?",
+        "Did you check for duplicate plan entries (same plan listed twice, or two plans for the same work)?",
+        "Did you cross-reference the plan file's status header against this registry row?",
+        "If completing/abandoning: did you move the row from Active to Completed AND archive the plan file?"
+      ]
+    },
+    {
+      "file_class_name": "Workspace MEMORY.md",
+      "globs": [
+        "**/memory/MEMORY.md"
+      ],
+      "checklist": [
+        "Did you check the 200-line cap on MEMORY.md (content beyond line 200 is silently truncated and invisible)?",
+        "Did you check sibling topic files in the same memory directory for content overlap?",
+        "Is detailed content in the FIRST 150 lines (most-important-first discipline)?",
+        "Does each Resume Instruction reference a topic file rather than holding the detail inline?"
+      ]
+    },
+    {
+      "file_class_name": "Memory topic file",
+      "globs": [
+        "**/memory/feedback_*.md",
+        "**/memory/decision_*.md",
+        "**/memory/project_*.md",
+        "**/memory/reference_*.md",
+        "**/memory/session_*.md"
+      ],
+      "checklist": [
+        "Did you check sibling topic files in the same directory for overlap or contradiction?",
+        "Did you use the right type prefix (feedback_ / decision_ / project_ / reference_ / session_)?",
+        "Is the topic narrow enough that it belongs in a separate file (instead of inline in MEMORY.md)?",
+        "Did you update MEMORY.md to reference this topic file (or confirm it already does)?"
+      ]
+    },
+    {
+      "file_class_name": "Workspace CLAUDE.md",
+      "globs": [
+        "**/Claude Code Workspaces/**/CLAUDE.md",
+        "**/.claude/CLAUDE.md"
+      ],
+      "checklist": [
+        "Did you check that the same content isn't already in universal-protocols.md (workspace CLAUDE.md should REFERENCE universal protocols, not DUPLICATE them)?",
+        "Did you check sibling workspaces' CLAUDE.md for cross-workspace consistency (HQ / Skill Hub / Sentinel)?",
+        "If this content is a universal rule rather than workspace-specific: should it move to universal-protocols.md instead?",
+        "Did you verify the workspace-specific addition does not contradict universal-protocols.md (local override is allowed but must be explicit)?"
+      ]
+    },
+    {
+      "file_class_name": "Global rules directory (~/.claude/rules/**)",
+      "globs": [
+        "**/.claude/rules/*.md",
+        "**/.claude/rules/**/*.md"
+      ],
+      "checklist": [
+        "Did you grep this rule file for related topic keywords BEFORE the edit?",
+        "Did you check the relationship against universal-protocols.md (is this rule already covered there?)?",
+        "Did you classify (new / subsumed / supersedes / contradicts) any existing material on the same topic?",
+        "If the rule is universal across workspaces: should it live in universal-protocols.md instead of a separate rule file?"
+      ]
+    }
+  ],
+  "bypass_vocabulary": {
+    "skip_keyword": "skip rule-self-audit",
+    "categories": {
+      "A": "Explicit user direction — 'skip X' or equivalent literal phrase in CURRENT session's user message",
+      "B": "Emergency manual repair — brain row missing / drift correction / production-down fix where the gate would block a fix-in-progress",
+      "C": "Self-referential meta-edit — the edit IS to the gate's own infrastructure (e.g., editing rule-file-self-audit-gate.py itself or this checklist config)",
+      "D": "Standing exemption — documented in this gate's own definition or in universal-protocols.md (must cite the source)"
+    },
+    "rejected_excuses": [
+      "I already verified this earlier",
+      "Just this once",
+      "This is a small edit",
+      "We already ran this scan earlier in the session",
+      "The user implied",
+      "It would be faster to do it from here",
+      "This case is different"
+    ]
+  }
+}
