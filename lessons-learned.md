@@ -12,11 +12,11 @@
 
 **Design principles:**
 - SessionEnd hook self-kill is the right surface (covers normal wrap, logout, exit, tab-close — broader than /clear)
-- Filter on `reason`: skip `clear`/`resume`/`bypass_permissions_disabled` (session continues); kill `logout`/`prompt_input_exit`/`other`
+- ~~Filter on `reason`: skip `clear`/`resume`/`bypass_permissions_disabled` (session continues); kill `logout`/`prompt_input_exit`/`other`~~ **SUPERSEDED 2026-05-11 (S40) — see Architecture Direction entry dated 2026-05-11. Correct rule for antigravity environment:** kill `clear`/`logout`/`prompt_input_exit`/`other`; skip only `resume`/`bypass_permissions_disabled`. The original S39 rule assumed Anthropic's generic-CLI semantics where `clear` keeps the session alive. Empirical S40 proof showed antigravity does process-replacement on "clear conversation" (new claude.exe spawned, old terminates) — so killing on `clear` is correct for this environment.
 - Use `CREATE_NO_WINDOW | DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP` so the kill survives parent death AND doesn't flash a console (Silent Execution Protocol)
 - Best-effort fire-and-forget; do not wait for taskkill
 
-**Tags:** architecture, claude-code-platform, session-lifecycle, orphan-prevention, silent-execution
+**Tags:** architecture, claude-code-platform, session-lifecycle, orphan-prevention, silent-execution, partially-superseded-by-2026-05-11-s40
 
 **Related (complementary, not contradictory):** 2026-04-22 lesson "Verify tool detection is safe for user's actual workflow" (kill-orphan-claude-processes.py risks killing legitimate siblings on 4h-age heuristic). Today's SessionEnd self-kill design AVOIDS the sibling problem by construction: each session only targets its own parent claude.exe PID via the walk in `find_parent_claude_pid()`. Self-kill = no cross-workspace blast radius.
 
@@ -2170,6 +2170,8 @@ No exceptions. If you're creating a new folder for cross-workspace communication
 **Tags:** supabase, schema, table-creation, sentinel, governance, non-negotiable
 
 ## Architecture Direction
+
+2026-05-11  direction: Anthropic's documented SessionEnd reason taxonomy describes the BARE Claude Code CLI lifecycle; it does NOT necessarily describe IDE wrappers (antigravity, future hosts). Empirical S40 proof: `reason=clear` on antigravity means "host spawned a replacement claude.exe and the old one is genuinely terminating" — NOT "context wipe in place." A SessionEnd hook built against Anthropic's generic semantics (skip kill on `clear`) LEAKED the process in antigravity. Fix required environment-specific override (move `clear` to DO_KILL). **Apply when:** writing or auditing any SessionEnd / lifecycle / process-management code that relies on Anthropic reason-string semantics, especially in IDE-wrapper environments. **Verify before trusting:** for each documented reason value, prove empirically what the host actually does (process-tree walk via wmic to find parent claude.exe lineage; check whether host respawns or reuses). Source: Chris caught the docs-vs-environment drift via process-tree evidence after S39 stopgap failed to reap PID 17772. Tags: claude-code-lifecycle, antigravity, sessionend, platform-grounding.
 
 2026-05-05  direction: When extending a system based on an external spec, treat the spec as a CONCEPTUAL reference, not a literal blueprint. Extract the principle/purpose/reasoning of each pattern, then ADAPT to the receiving domain. Translating spec wording verbatim across domains causes drift -- e.g., AIOS spec asks 'is the gap real?' (about agent-filed work requests); autofix should ask 'is the proposed fix actually the solution?' (about agent-proposed fixes). Same loop type, different question. **Apply when:** any time a spec written for system A is being extended to system B; when adapting cross-system patterns; when a hook fires that suggests another system's process. Source: Chris on autofix v2 feedback loop framework, 2026-05-05 -- AIOS_FEEDBACK_LOOP_SPEC.md is conceptual reference for autofix v2 specs, not literal implementation. Tags: spec-adaptation, cross-system-patterns, autofix-v2.
 
