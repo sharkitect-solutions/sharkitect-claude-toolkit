@@ -1,14 +1,22 @@
 """
-session-checkpoint-enforcer.py - PreToolUse BLOCKING hook for formal
-invocation of the end-session skill when the user triggers an
-end-session signal.
+end-session-enforcer.py - PreToolUse BLOCKING hook for formal invocation
+of the end-session skill when the user triggers an end-session signal.
+
+RENAMED 2026-05-12 (S45) from session-checkpoint-enforcer.py. The previous
+filename was a legacy artifact from before the skill split: what is now
+called `end-session` was originally called `session-checkpoint`. After the
+rename, this hook (which enforces end-session) carried the old filename,
+producing chronic confusion in deny messages and bypass vocabulary. The
+rename + bypass cleanup happened in S45 mid-session per user direction:
+"the simple session checkpoint should not have 'mid' afterward... there
+is still confusion about that, so we need to make sure it is cleaned up."
 
 Source: wr-2026-04-23-006 (skill-management-hub). User flagged twice in a
 24h window (2026-04-22 evening, 2026-04-23 morning) that the AI ran the
 9-step checkpoint protocol INLINE (sequence of Bash + Write calls) instead
-of invoking the end-session skill via the Skill tool. Inline
-execution bypasses the formal audit gate, provides no visible confirmation
-to the user, and breaks pattern consistency across sessions. User quote
+of invoking the end-session skill via the Skill tool. Inline execution
+bypasses the formal audit gate, provides no visible confirmation to the
+user, and breaks pattern consistency across sessions. User quote
 2026-04-23: "This is a big gap that's been happening. It's very
 inconsistent. It was working perfectly fine, and now, all of a sudden,
 you guys have gotten slack on it."
@@ -24,16 +32,19 @@ DETECTION
         "end session", "end the session", "wrap up",
         "stop for the day", "that's it for today" / "thats it for today",
         "close out" / "close the session",
-        bare word "checkpoint", "/session-checkpoint",
-        "save session", "wrapping up", "done for today"
+        "save session", "wrapping up", "done for today",
+        "/end-session"
   - AND NO end-session skill invocation has been logged with a
-    timestamp greater than that signal's transcript timestamp
+    timestamp greater than that signal's transcript timestamp.
+
+  Note: bare "checkpoint" and "/session-checkpoint" no longer trigger
+  (they belong to the mid-session quick-save skill now).
 
 BLOCKS (on PreToolUse)
   Bash, Write, Edit, TodoWrite. These are the tools the AI typically
   uses to execute the 9 checkpoint steps inline (git commit, file
   writes, progress tracking). Skill tool is deliberately NOT blocked
-  so the AI can invoke session-checkpoint. Read/Grep/Glob not blocked
+  so the AI can invoke end-session. Read/Grep/Glob not blocked
   (information-gathering is safe and needed to investigate state).
 
 DOES NOT TRIGGER ON
@@ -47,18 +58,29 @@ DOES NOT TRIGGER ON
 
 BYPASS (any of these allows the operation)
   1. end-session skill invoked AFTER the most-recent end-session
-     signal's timestamp (normal happy path)
-  2. Fallback when timestamps are unparseable: ANY session-checkpoint
-     invocation logged for today (graceful degradation, not strict)
-  3. Recent user message contains one of: "skip session-checkpoint",
-     "skip checkpoint", "no session-checkpoint", "no checkpoint",
-     "--mid", "save progress quickly" (quick-mode skip for
-     pre-modification mid-session saves where the formal gate is
-     overkill; matches the end-session skill's own --mid mode)
+     signal's timestamp (normal happy path).
+  2. Fallback when timestamps are unparseable: ANY end-session
+     invocation logged for today (graceful degradation, not strict).
+  3. Recent user message contains one of:
+        "skip end-session", "skip end session", "no end-session",
+        "save progress quickly"
+     The first three are the explicit standdown phrases for this
+     gate. "save progress quickly" signals the user wants the
+     mid-session session-checkpoint skill instead, NOT the full
+     end-session ceremony, so this gate stands down.
   4. Current Write/Edit/TodoWrite content contains one of the same
      bypass phrases (for filing gap reports and documentation about
      this enforcer without deadlock -- mirrors the same pattern in
-     brainstorming-enforcer and hook-development-enforcer)
+     brainstorming-enforcer and hook-development-enforcer).
+
+  CLEANED 2026-05-12 (S45): removed legacy bypass phrases that referenced
+  the old (now-renamed) skill name and confused the deny-message:
+    - "skip session-checkpoint" (referenced the OTHER skill's name)
+    - "skip checkpoint"          (ambiguous after rename)
+    - "no session-checkpoint"    (same)
+    - "no checkpoint"            (same)
+    - "--mid"                    (legacy `session-checkpoint --mid` mode
+                                  no longer exists post-rename)
 
 GRACEFUL DEGRADATION
   - Missing skill log file -> ALLOW (no deadlock on missing tracker)
@@ -73,9 +95,11 @@ DESIGN TRADE-OFF (intentional false-negative bias)
   police all checkpoint-adjacent activity. False positives deadlock the
   agent; false negatives just skip a single nudge. When in doubt, allow.
 
-Tests: tests/test_session_checkpoint_enforcer.py in Skill Management Hub.
+Tests: tests/test_end_session_enforcer.py in Skill Management Hub.
 
 Pure stdlib. ASCII-only. Input/output: JSON via stdin/stdout.
+
+# skip end-session -- self-modifying hook file, structural exemption.
 """
 
 from __future__ import annotations
@@ -97,13 +121,8 @@ SKILL_NAME = "end-session"
 BYPASS_PHRASES = (
     "skip end-session",
     "skip end session",
-    "skip session-checkpoint",
-    "skip checkpoint",
     "no end-session",
-    "no session-checkpoint",
-    "no checkpoint",
     "save progress quickly",
-    "--mid",
 )
 
 # End-session signal patterns. Post-rename: bare "checkpoint" and
@@ -210,7 +229,7 @@ def checkpoint_invoked_after(signal_ts):
     """True if end-session skill was invoked after signal_ts.
 
     If signal_ts is None (signal detected but no parseable timestamp),
-    fall back to "any invocation of session-checkpoint today" -- this
+    fall back to "any invocation of end-session today" -- this
     biases toward allow (graceful degradation) rather than deadlock.
     """
     records = load_skill_log_records()
@@ -218,7 +237,7 @@ def checkpoint_invoked_after(signal_ts):
         return False
     for rec in records:
         skill = str(rec.get("skill", "")).lower()
-        # Accept exact match OR namespaced (plugin:session-checkpoint)
+        # Accept exact match OR namespaced (plugin:end-session)
         bare = skill.split(":")[-1] if ":" in skill else skill
         if bare != SKILL_NAME:
             continue
@@ -298,7 +317,7 @@ def recent_user_messages_contain_bypass(transcript_path):
     """True if any of the most-recent user messages contains a bypass
     phrase. Separate pass from signal detection because bypass may
     appear in the SAME user message as the end-session signal (user
-    says 'wrap up quickly --mid').
+    says 'wrap up' -- 'save progress quickly').
     """
     if not transcript_path:
         return False
@@ -443,8 +462,9 @@ def main():
         "pattern consistency across sessions. "
         "Run: `Skill end-session` (or use /end-session). "
         "Bypass phrases (include in your next response or tool content): "
-        "'skip end-session', 'skip session-checkpoint', 'skip checkpoint', '--mid', "
-        "'save progress quickly' (for quick mid-session saves via the session-checkpoint skill). "
+        "'skip end-session', 'skip end session', 'no end-session', "
+        "'save progress quickly' (the last signals you want the "
+        "mid-session session-checkpoint skill instead, not full end-session). "
         "Meta paths under /.work-requests/ /.lifecycle-reviews/ "
         "/.routed-tasks/ /.claude/projects/*/memory/ are structurally "
         "exempt. Source: wr-2026-04-23-006."

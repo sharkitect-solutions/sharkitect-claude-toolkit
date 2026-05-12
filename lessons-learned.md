@@ -5625,3 +5625,81 @@ Sharkitect's pricing-structure.md was acknowledged by Chris as "wrong/off" — n
 **How to apply:** When the in-flight task involves Supabase schema (DDL, CHECK constraints, triggers, RLS, indexes), invoke `supabase-postgres-best-practices` BEFORE writing the decision package or migration SQL, not after. If the schema change is mechanical (e.g., widening an enum CHECK by one value with prior precedent in the same DB), the skill invocation is still cheap and surfaces drift risks the AI might miss.
 
 **Tags:** schema, supabase, skill-invocation, workspace-feedback-rules
+
+
+### 2026-05-12 — direction: validate-before-mass-apply on client-facing assets
+
+**Context:** Card system rollout (Chris card pattern → FF cards + per-client template). Chris explicitly directed: validate Chris's card pattern in field before forking to client cards. Pre-work (icon assets, generators, scope notes) was OK to ship; mass-update of client-facing cards waits until pattern proves out + Chris's explicit go.
+
+**Why:** Client-facing assets are higher stakes than internal config. A 30-second mistake at 2am while user sleeps becomes embarrassing client-facing breakage by morning.
+
+**Apply when:** Any rollout touching client-facing assets (cards, proposals, contracts, public web, social). Pre-work autonomously OK; mass-application waits for validation + explicit go.
+
+**Tags:** rollout, client-facing, autonomy-boundary, anti-drift
+
+---
+
+### 2026-05-12 — process: Fastly CDN cache TTL on GitHub Pages affects deploy verification
+
+**Context:** During chris.vcf deploy, Fastly CDN cached the OLD index.html (with Save Contact button) for 10+ minutes after the new commit pushed. Monitor polling for the new content kept hitting cached 31KB version. Same class of issue as the wrong-URL incident yesterday.
+
+**Why:** GitHub Pages serves through Fastly with  (10 min) on HTML responses. Deploy completes within ~60 sec, but Fastly serves cached responses until TTL expires. Direct curl with cachebust query param does NOT bypass Fastly.
+
+**Apply when:** Any deploy verification on GitHub Pages — wait at least 10 min OR check ETag/Age headers to confirm fresh response, not just HTTP status code.
+
+**Tags:** deployment, github-pages, fastly, cdn, verification
+
+---
+
+### 2026-05-12 -- process: structural-equivalence verification as a substitute for live fire-test when retrofitting to a proven pattern
+
+**Category:** Process Decisions
+**Context:** Sentinel S38 silent-execution sweep retrofitted `\Sentinel\MorningReport` to use a VBS wrapper. Pattern was structurally identical to `run-evening-report.vbs` (which has been silent in production since 2026-05-10).
+**Why:** When a working silent pattern already exists in the same workspace AND the new file's diff against it is just comment-label + path differences, firing the actual task to verify silence is wasted effort AND produces side-effects (the bat would generate a real report). Structural equivalence to a verified-working pattern is sufficient evidence per Verify-Before-Acting Protocol.
+**Apply when:** Retrofitting any tool (VBS wrapper, hook, script template, settings.json rule) to match an existing proven pattern. Run `diff` against the proven version; if only paths/labels differ, equivalence is sufficient. Only do full live fire-test when (a) the pattern itself isn't yet verified, OR (b) the new file diverges from the proven version in non-trivial ways.
+**Tags:** verification, silent-execution-protocol, retrofit, fire-test-substitute
+
+
+### 2026-05-12 -- Architecture Direction: bundling protocol for massive projects (Skill Hub S45)
+
+direction: divide massive projects (5+ sub-areas, research-heavy synthesis, or work that exceeds ~30-50% of a fresh context window per coherent sub-unit) into THEMED sub-sessions. Each session covers a coherent area bundle (e.g., "Extension primitives" = Hooks+Skills+Agents); end-of-session locks artifacts in canonical docs + Phase-5-input brain-dump; fresh session opens for next bundle. Bundles are NOT arbitrary chunking — they share an architectural axis (cross-cutting findings between members are HIGH value).
+
+context: Sharkitect AIOS Phase 1 Platform Grounding (Post-Hard-Stop System Reassessment plan) had 10 areas to research. Inline-execution would have burned context, blurred cross-bundle insights, and produced one giant unscannable findings pile. AI proposed bundling unprompted; user confirmed it as established Sharkitect protocol — "our protocol when working on massive projects like this is to divide it into bundles, as you mentioned here. For the same reasons you mentioned."
+
+apply-when: any task or plan where INLINE execution would (a) exceed ~30-50% of a fresh context window per coherent sub-unit, OR (b) require 5+ hours of focused work, OR (c) involve 5+ distinct sub-areas/categories that would otherwise blur, OR (d) be research-heavy synthesis where each area produces dense findings that compound poorly when piled into one session.
+
+design principles: theme-named bundles • coherent area grouping (architectural axis) • discrete deliverables per bundle (canonical docs + brain-dump) • independent-but-sequential (next bundle reads prior bundle's artifacts) • clean handoff note for next session • per-session protocol = read prior + execute + save to TWO destinations (canonical docs incrementally + Phase-X-scoped brain-dump as action queue) + surface findings + end-session ceremony
+
+tags: protocol, planning, plan-execution, anti-context-burn, anti-drift
+
+codification destination: ~/.claude/rules/universal-protocols.md (Phase 6 lift). Provisional location: between "Anti-Drift Scope Discipline" and "Pushback Protocol" (sister planning-discipline rule), OR as sub-section under "Plan Lifecycle Protocol." Decision deferred. Captured at `3.- Skill Management Hub/brain-dump/2026-05-12-bundling-protocol-for-massive-projects-codification.md`.
+
+
+### 2026-05-12 -- Process Decision: enforcement-hook bypass vocabulary must be tightly scoped (Skill Hub S45)
+
+process: when an enforcement hook accumulates bypass phrases that reference renamed/legacy entities (e.g., the OLD name of a renamed skill), the deny-message becomes confusing and the gate erodes trust. Discipline: every bypass phrase must be explicitly tied to the gate's CURRENT intent. Legacy phrases get REMOVED in the same change as the rename, not preserved as backward-compat alias.
+
+context: end-session-enforcer.py (renamed from session-checkpoint-enforcer.py in S45) had accumulated 9 bypass phrases — 4 referenced the OLD skill name ("skip session-checkpoint", "skip checkpoint", "no session-checkpoint", "no checkpoint") plus "--mid" (legacy artifact from `session-checkpoint --mid` mode that no longer exists post-rename). User noticed: "there is still confusion about that, so we need to make sure it is cleaned up." User caught this from the AI's own bypass message that conflated both skill names mid-session.
+
+why: bypass vocabulary IS user-facing documentation. Every deny-message lists the bypass phrases. Confused vocabulary trains both AI and user toward bad patterns ("if I say 'skip checkpoint' it works, so I'll keep using that") and obscures what the gate actually enforces. Clean vocabulary keeps the gate load-bearing.
+
+apply-when: ANY rename or refactor of an enforcement hook. Audit BYPASS_PHRASES list + deny-message text in the same change as the file rename. Remove any phrase that references the old/renamed entity. Document the cleanup in the hook's docstring with a "CLEANED YYYY-MM-DD" header so future sessions see the rationale.
+
+tags: hooks, enforcement, naming-discipline, anti-confusion, refactor-discipline
+
+cross-reference: relates to "Naming Conventions" protocol in universal-protocols.md (5-second test) — same principle applied to bypass phrases inside hooks.
+
+
+### 2026-05-12 -- Preference: filename should match what the artifact actually does (Skill Hub S45)
+
+preference: filenames must reflect current purpose, not legacy history. When an entity is renamed (skill, hook, doc, table), every artifact carrying its old name must be renamed in the same change. Carrying the legacy name through a rename creates persistent confusion and erodes trust in naming.
+
+context: 2026-05-11 S41 the `session-checkpoint` skill was renamed to `end-session` (the original "checkpoint" was actually a full session-end ceremony). The PreToolUse hook that enforces end-session invocation was named `session-checkpoint-enforcer.py` BEFORE the rename and CARRIED THE LEGACY NAME forward. User caught it during S45: "When you mentioned 'not at session end yet,' it tells me there is still something in the documents that references the session end as the session midpoint, which I thought we had cleared up." 
+
+apply-when: ANY rename of a skill, hook, agent, doc, table, or other named entity. Audit ALL artifacts that reference the old name (filename, internal constants, docstrings, deny messages, settings.json paths, test files, asset registry entries, doc references, plan changelogs). Update them in the same change as the primary rename. Use grep to find references; don't rely on memory.
+
+discipline: naming follows function. If you can't tell what an artifact does from its filename, the filename is wrong. Cosmetic renames matter — they're how the next session understands the system without re-investigation.
+
+tags: naming, refactor-discipline, no-legacy-baggage, anti-debt
+
+cross-reference: extends "Naming Conventions" protocol in universal-protocols.md (5-second test). Adds the rule: "renames must propagate completely; legacy names are debt."

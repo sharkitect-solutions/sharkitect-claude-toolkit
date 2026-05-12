@@ -60,7 +60,7 @@ Fast, minimal, non-disruptive mid-session save. Commits and pushes current work 
 
 If the user means end-of-session, route to `end-session` instead. Symptoms that indicate end-of-session (not mid):
 - "wrap up", "done for today", "stop for the day", "close out", "save session", "end session"
-- The session-checkpoint-enforcer hook will block other tools until `end-session` is invoked when these phrases are detected
+- The end-session-enforcer hook will block other tools until `end-session` is invoked when these phrases are detected
 
 ## Failure Modes
 
