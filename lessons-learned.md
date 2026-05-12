@@ -1,5 +1,34 @@
 # Global Lessons Learned
 
+## 2026-05-11 Session Lessons (Skill Hub S42 — end-session-finalize kill scope)
+
+### process: Function name is a contract; verify the predicate matches the name
+
+**Date:** 2026-05-11
+**Workspace:** skill-management-hub
+**Context:** S41 introduced `end-session-finalize.kill_orphans()` that iterated every claude.exe on the system and killed every PID != self with NO age threshold. Function NAME said "orphans" but the predicate was literally "any claude.exe that isn't me." With multiple workspaces open concurrently, every active session has its own PID and looks identical to a leaked orphan via `tasklist`. S42's /end-session killed 4 active workspace sessions (HQ + Sentinel + others, mem footprints 242–688MB).
+**Why:** A function whose name suggests a classification (orphans, expired, inactive) MUST use a predicate that performs that classification. "Not self" is not a synonym for "orphan." Orphan classification requires age threshold, parent-process liveness, or heartbeat cross-reference — NOT just "not me."
+**Apply when:** Naming or reviewing any function whose name describes a SUBSET of the population it operates on. Read the predicate aloud against the name. If the predicate would catch members the name's category doesn't include, the name lies.
+**Tags:** #process #naming-as-contract #safety-critical #defense-in-depth
+
+### process: Reuse safeguarded existing tools; don't roll new bare ones
+
+**Date:** 2026-05-11
+**Workspace:** skill-management-hub
+**Context:** `kill-orphan-claude-processes.py` already existed with proper safeguards: 4h age threshold, dry-run default, --execute required, double-PID check, log every kill. S41's `end-session-finalize.py` reimplemented the surface-level intent ("kill orphans") but stripped ALL the safety logic and ran with bare `taskkill` + zero classification. The fix was REMOVAL, not patching — delete the new bare path, defer to the existing safeguarded tool (which runs hourly via Claude-Orphan-Cleanup-Hourly Task Scheduler anyway).
+**Why:** When a safeguarded tool exists for a concern, building a parallel implementation without those safeguards re-introduces the very bugs the original was designed against. Even if the new one feels "lighter" or "more contextual," it inherits NONE of the safety properties. The preflight-check protocol exists exactly to surface this before building.
+**Apply when:** About to write any code that performs a destructive operation (kill, delete, drop, force-overwrite) where similar tooling already exists in the codebase. Run preflight-check.py FIRST. If a safeguarded tool exists, route to it instead of rolling a new bare version.
+**RELATED (don't read this as "the safeguarded tool is bulletproof"):** See 2026-04-22 entry "process: Verify tool detection is safe for user's actual workflow BEFORE executing destructive commands" (line ~596). The safeguarded `kill-orphan-claude-processes.py` ITSELF killed 4 active workspace sessions when user left them open overnight (>4h age threshold trigger). The principle here is "don't roll bare versions of safety-critical operations" — NOT "the safeguarded version handles all cases." The hourly cleanup tool still has the multi-workspace overnight weakness (filed as wr-2026-04-22-012, not yet fixed). S42's fix prevents the IMMEDIATE-kill class (active sessions killed during /end-session NOW); the LONG-TERM-kill class (active sessions killed by hourly cleanup after >4h) remains open.
+**Tags:** #process #verification-before-building #defense-in-depth #safety-critical #known-incomplete-fix
+
+### preference: Multi-workspace concurrent sessions are first-class — kill scoping must respect this
+
+**Date:** 2026-05-11
+**Workspace:** skill-management-hub
+**Context:** User runs HQ + Skill Hub + Sentinel + sometimes additional workspace sessions concurrently. Any infrastructure that operates on "claude.exe processes" cannot assume "current process is the only one that matters" — that assumption silently destroys other workspaces' work-in-flight.
+**Apply when:** Designing or reviewing any tool, hook, or script whose scope includes process-level operations (taskkill, signal, monitoring, resource tracking). Default scope is current PID only; broader scope requires explicit signals (age threshold, heartbeat cross-reference, user authorization) to distinguish active-but-other from leaked-orphan.
+**Tags:** #preference #multi-workspace-concurrency #process-scope-discipline
+
 ## 2026-05-11 Session Lessons (Skill Hub S39 — claude.exe leaks on session-end)
 
 ### direction: claude.exe is NOT reaped natively on Claude Code session-end
