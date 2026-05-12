@@ -5703,3 +5703,66 @@ discipline: naming follows function. If you can't tell what an artifact does fro
 tags: naming, refactor-discipline, no-legacy-baggage, anti-debt
 
 cross-reference: extends "Naming Conventions" protocol in universal-protocols.md (5-second test). Adds the rule: "renames must propagate completely; legacy names are debt."
+
+
+### 2026-05-12 -- Architecture Direction: 200-line MEMORY.md rule is the documented native platform invariant (Skill Hub S47 Bundle C)
+
+direction: The 200-line / 25KB MEMORY.md cap is NOT a Sharkitect convention. It is the documented Claude Code platform invariant. Auto memory at `~/.claude/projects/\<dir-slug\>/memory/MEMORY.md` is auto-loaded at session start with the first 200 lines OR 25KB (whichever comes first). Auto-compaction PRESERVES root-level CLAUDE.md + MEMORY.md + auto memory by re-injecting them from disk; nested CLAUDE.md and path-scoped rules ARE summarized away and only reload when the matching file is accessed again. Source: `/websites/code_claude` docs (Memory + Auto memory + Auto-compaction pages, accessed 2026-05-12 via context7 during Bundle C research).
+
+context: For years we have treated the 200-line discipline as our own rule-of-thumb. Bundle C research (S47) traced it to the verbatim platform documentation. Our index-plus-topic-files pattern (MEMORY.md as index, separate topic files loaded on demand) is ALSO the documented native pattern — not a convention.
+
+why: This validates the discipline. Future sessions should treat the cap not as arbitrary advice but as a hard platform invariant — content past line 200 / 25KB is silently truncated and INVISIBLE to the AI. The discipline is load-bearing for every session's awareness budget. Universal-protocols.md Memory Protocol should cite the platform source when Phase 1 lifts allow rule-file edits (currently strict-no-rule-file-edits applies until Phase 1 approval gate at S49+).
+
+apply-when: Reviewing MEMORY.md cap warnings, designing memory file architecture for new workspaces, evaluating cross-machine sync architecture (Supabase brain) against native auto-memory (which is machine-local by platform design — confirmed in same Bundle C). Use the platform invariant as the floor; Supabase brain provides cross-machine sync layer above native.
+
+tags: memory-discipline, platform-grounding, architecture-validation, phase-1-finding, bundle-c
+
+cross-reference: Universal-protocols.md Memory Protocol (currently does not cite platform source — lift in Phase 6 implementation pass). Capability-map.md Area 7 row "200 lines OR 25KB" + "Index + topic files pattern" both documented native. Brain-dump 2026-05-12-bundle-c-memory-slash-session-findings-for-phase-5.md C-16 + C-18 (pattern validation findings). Pre-existing lessons-learned entries (lines 2420, 4498) confirmed — this entry adds the platform-grounding citation that was missing.
+
+## 2026-05-12 Process Decisions + Preferences (HQ Sub-project A Phase 1 + initiative-hierarchy proposal session)
+
+### preference: revenue path always wins over infrastructure work in sequencing
+
+**Date:** 2026-05-12
+**Workspace:** workforce-hq
+**Context:** During Sub-project A Phase 1 gate, user surfaced two side concerns (HubSpot orientation/setup + invoice send confirmation). When sequencing the comprehensive HubSpot audit work, AI initially proposed three options (A: before Phase 2, B: parallel to Phase 2, C: after Phase 2). User pushed back on Option C — too cautious. Sub-project A is the revenue path (FF deal + $3,500 MRR goal 2026-05-31). Audit is for optimization, not feasibility. Letting a "nice to know everything" audit delay revenue work was the wrong framing.
+**Apply when:** Sequencing any infrastructure / audit / optimization / cleanup work that touches the same domain as revenue-critical work. Default ranking: revenue-critical work first; infrastructure work after. Even when "comprehensive understanding informs better decisions" — that's only true when there's no concrete revenue cost to waiting. Hard deadlines tilt the math toward shipping.
+**Apply also when:** User has a clear revenue deadline. Articulate the deadline explicitly in sequencing decisions: "X is due Y; Z can run after that." Don't bury the deadline in qualitative reasoning.
+**Tags:** #preference #sequencing #revenue-priority #strategic-realignment-initiative
+
+### process: precision required in cross-project sequencing language
+
+**Date:** 2026-05-12
+**Workspace:** workforce-hq
+**Context:** AI conflated "Sub-project A Phase 2" with "Strategic Realignment Initiative complete" when sequencing the HubSpot capability audit. User caught the imprecision: "is this audit necessary for completing the Strategic Realignment Initiative? Because if not, we can attack it after we're done with this." The two scopes differ: Sub-project A is one of 4 sub-projects (A/B/C/D) under Strategic Realignment. The audit's relevance threshold isn't "Phase 2 of A is done" but "all of A + B + C + D is done." AI corrected to "AFTER full Strategic Realignment Initiative completion (Sub-projects A + B + C + D)" and propagated the correction to 4 surfaces (brain dump, Supabase project notes, audit task description, Phase 1 gate decision doc).
+**Why:** Imprecise sequencing language compounds across sessions. "After Phase 2" gets read by next-session AI as a green light to start the audit; in reality the audit should wait through Phases 2/3/4 + B + C + D. Multi-week sequencing error from a 3-word imprecision.
+**Apply when:** Sequencing any work against another initiative's completion. Always name the EXACT gating event ("after Sub-project A Phase 2" vs "after full Strategic Realignment Initiative completes"). Use the formal name of the gating scope, not a proxy for it. If unclear, ask the user "what specifically gates this?" before committing language to docs/Supabase.
+**Tags:** #process #precision-language #sequencing #strategic-realignment-initiative #cross-project-coordination
+
+### process: discovery+proposal as separate phase from implementation (cross-workspace schema changes)
+
+**Date:** 2026-05-12
+**Workspace:** workforce-hq + sentinel
+**Context:** User raised initiative-hierarchy schema question (Strategic Realignment Initiative showing 0/0 tasks despite Sub-project A being 1/4 done). AI initially proposed `initiative_id` FK column with rollup trigger extension. User asked "how does this affect other projects + are there better approaches?" — pushed for full audit before committing. Routed task split into discovery+proposal phase (Sentinel evaluates 7 approaches + 8 edge cases + recommends) and implementation phase (HQ approves + Sentinel ships). Sentinel returned proposal pushing back on `initiative_id` naming in favor of `parent_project_id` + `project_type` enum + `rollup_descendants` flag — argument: `initiative_id` forces typology decision and breaks at 3-level depth (Foundation Reset). HQ accepted the pushback because the semantic preference (Initiative = a type) is preserved via the enum.
+**Why:** When a schema change crosses multiple workspaces (each with their own ownership) and has architectural-direction implications, unilateral design choice by one workspace is wrong. The discovery+proposal phase produces a written artifact the user can review with full context. The implementation phase happens after explicit approval. Total time cost: ~1 hour for the discovery+proposal round-trip. Total bug cost avoided: locking in a 2-level FK design that would have broken at 3-level depth in 6 months.
+**Apply when:** Any cross-workspace schema change. Any naming decision that carries semantic implications. Any architectural choice where multiple valid patterns exist. Pattern: HQ files discovery+proposal task → Sentinel/Skill Hub returns proposal doc → user reviews → HQ files implementation task with answers to open questions. Avoid: HQ files implementation request directly without proposal phase when uncertainty exists about the right shape.
+**Tags:** #process #cross-workspace-schema #discovery-vs-implementation #design-pushback #initiative-hierarchy
+
+### preference: brain-dump capture protocol works exactly as designed
+
+**Date:** 2026-05-12
+**Workspace:** workforce-hq
+**Context:** During Sub-project A Phase 1 gate review, user dropped two side concerns mid-task (HubSpot orientation + guided setup; HubSpot invoice send confirmation issue). AI captured both as brain dumps in `<workspace>/brain-dump/YYYY-MM-DD-<slug>.md` per the Brain Dump Capture Protocol, answered only the tactical questions (sign off Phase 1 HOLDS), and continued the in-flight task. User did not push back on this handling — implicit validation. Later session: brain dump #1 (HubSpot orientation) was absorbed into HubSpot Optimization project as Supabase task `b213b9f9` with FK references. User authorized this resolution path explicitly.
+**Why:** This is the 2nd documented case of the protocol working as designed (1st was Skill Hub S28, 2026-05-06). Two-for-two on different workspaces with different topic shapes (capability research vs platform orientation) suggests the pattern is robust. Continue using it without asking.
+**Apply when:** User drops 2+ topics mid-task while a focused task is in progress. Capture all topics as brain dumps with AI preliminary thoughts frozen at dump time. Answer only what's tactically blocking. Continue the in-flight task. Surface brain dumps at session-end or next-session-start triage.
+**Tags:** #preference #brain-dump-protocol #anti-drift #scope-discipline
+
+
+### direction: AIOS distribution is invocation-surface choice, not engine build
+
+**Date:** 2026-05-12
+**Workspace:** skill-management-hub
+**Context:** Phase 1 Task 1.1 Step 2 Bundle D (Harness vs SDK boundary research, S48) surfaced explicit documentation that the Claude Code CLI and the Agent SDK are the SAME engine: same agent loop, same tools, same context manager. Per official docs: "The CLI was previously known as 'headless mode.'" The Agent SDK ships as CLI for scripts/CI/CD OR as Python/TypeScript packages. All four invocation surfaces (interactive CLI, `claude -p` CLI, Python SDK, TS SDK) share the same underlying engine. Further: `ClaudeAgentOptions(setting_sources=["user","project"], skills="all")` is two parameters that load filesystem skills/agents exactly as the interactive CLI does.
+**Why:** This collapses a major open architectural question. Previous mental model: "AIOS distribution requires us to build/package an engine for clients." Corrected model: "AIOS distribution = ship the SKILLS + AGENTS + RULES + HOOKS we built, with one of four standard invocation surfaces chosen per use case." There is no separate engine to build. The Python SDK + the two-parameter import pattern IS the distribution mechanism. Today's outcome: 38 capability-map rows + 9 findings (D-1..D-9) populate the "harness vs SDK boundary" area; Step 2 of Phase 1 closes (10/10 areas).
+**Apply when:** Designing any AIOS distribution mechanism. Designing any CI/CD or scheduled-automation integration of Sharkitect skills/agents. Choosing between "build custom engine" vs "use SDK with our skill library mounted." DEFAULT to the SDK + mount pattern. Justify any "build custom engine" decision against this default — the burden is on the builder.
+**Tags:** #architecture-direction #aios-distribution #agent-sdk #invocation-surface #platform-grounding #phase-1-bundle-d

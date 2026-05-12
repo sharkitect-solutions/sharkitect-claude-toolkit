@@ -107,7 +107,7 @@ from __future__ import annotations
 import json
 import re
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -192,10 +192,25 @@ def strip_system_blocks(text):
 
 
 def parse_iso_timestamp(s):
-    """Parse ISO-8601 timestamp, handle trailing 'Z'. Return naive datetime
-    (UTC-stripped) or None. Naive comparisons are safe because both the
-    transcript and the skill log write their own timestamps from the
-    same machine.
+    """Parse ISO-8601 timestamp. Return tz-aware UTC datetime, or None.
+
+    FIXED 2026-05-12: handle the two-source timezone mismatch correctly.
+      - Transcript user messages: UTC with 'Z' suffix
+        (e.g., 2026-05-12T19:36:20.374Z)
+      - skill-invocation-tracker.py: naive local time via
+        datetime.now().isoformat() (e.g., 2026-05-12T15:37:00.123)
+
+    The prior implementation stripped tz and compared as naive, which
+    silently treated UTC-19:36 and local-15:37 as if both were in the
+    same timezone -- producing inv_ts < signal_ts for every invocation
+    made after the signal in any UTC-offset locale. End-session was
+    permanently blocked outside UTC. Fix: normalize both to tz-aware
+    UTC. Naive timestamps are assumed to be local time (Python's
+    .astimezone() on a naive datetime treats it as local), aware
+    timestamps are converted to UTC. Comparisons then compare real
+    moments in time, not wall-clock strings.
+
+    # skip end-session
     """
     if not s or not isinstance(s, str):
         return None
@@ -203,9 +218,9 @@ def parse_iso_timestamp(s):
         if s.endswith("Z"):
             s = s[:-1] + "+00:00"
         dt = datetime.fromisoformat(s)
-        if dt.tzinfo is not None:
-            # Strip tz for uniform comparison
-            dt = dt.replace(tzinfo=None)
+        # Both branches yield tz-aware UTC. astimezone() on a naive
+        # datetime treats it as local time before conversion.
+        dt = dt.astimezone(timezone.utc)
         return dt
     except (ValueError, TypeError):
         return None
