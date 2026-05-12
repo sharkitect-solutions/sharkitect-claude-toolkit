@@ -148,6 +148,24 @@ META_PATH_MARKERS = (
     "/memory/feedback_",
 )
 
+# Skill content injection prefix. When the AI invokes `Skill end-session`,
+# the harness loads the skill's SKILL.md content and injects it as a
+# user-type text message starting with "Base directory for this skill:".
+# That injection contains "End Session" (the skill heading) and
+# "end-session" (the skill folder name), so the unfiltered signal scan
+# would treat the injection itself as a fresh user signal -- landing
+# milliseconds AFTER the invocation timestamp and creating an
+# unbreakable feedback loop where each Skill invocation generates a
+# fresh signal that the invocation cannot satisfy.
+#
+# Fixed 2026-05-12 (paired with the parse_iso_timestamp UTC normalization
+# in the same session). Discovered when HQ refiled wr-hq-2026-05-12-003
+# after the timezone fix shipped: the timezone math worked, but the
+# signal-loop bug surfaced once the math stopped masking it.
+#
+# skip end-session
+SKILL_INJECTION_PREFIX = "Base directory for this skill:"
+
 # System-injected blocks stripped BEFORE signal matching, to avoid
 # false positives where hook-injected reminders or system prompts
 # contain "checkpoint" or "end session" as incidental keywords.
@@ -269,14 +287,28 @@ def checkpoint_invoked_after(signal_ts):
 def extract_text_from_content(content):
     """Extract plain text from a transcript user message's content field.
     content may be a string or a list of content blocks.
+
+    Skill-content-injection text blocks are EXCLUDED. When the AI invokes
+    a Skill, the harness loads the skill's SKILL.md and injects it as a
+    user-type text block beginning with "Base directory for this skill:".
+    Without exclusion, invoking `Skill end-session` would itself create a
+    fresh "end session" signal in the transcript (because the skill name
+    appears in the injected markdown header), which arrives milliseconds
+    after the invocation timestamp -- producing an unbreakable feedback
+    loop. # skip end-session
     """
     if isinstance(content, str):
+        if content.lstrip().startswith(SKILL_INJECTION_PREFIX):
+            return ""
         return content
     if isinstance(content, list):
         parts = []
         for blk in content:
             if isinstance(blk, dict) and blk.get("type") == "text":
-                parts.append(str(blk.get("text", "")))
+                text = str(blk.get("text", ""))
+                if text.lstrip().startswith(SKILL_INJECTION_PREFIX):
+                    continue
+                parts.append(text)
         return "\n".join(parts)
     return ""
 

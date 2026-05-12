@@ -5766,3 +5766,32 @@ cross-reference: Universal-protocols.md Memory Protocol (currently does not cite
 **Why:** This collapses a major open architectural question. Previous mental model: "AIOS distribution requires us to build/package an engine for clients." Corrected model: "AIOS distribution = ship the SKILLS + AGENTS + RULES + HOOKS we built, with one of four standard invocation surfaces chosen per use case." There is no separate engine to build. The Python SDK + the two-parameter import pattern IS the distribution mechanism. Today's outcome: 38 capability-map rows + 9 findings (D-1..D-9) populate the "harness vs SDK boundary" area; Step 2 of Phase 1 closes (10/10 areas).
 **Apply when:** Designing any AIOS distribution mechanism. Designing any CI/CD or scheduled-automation integration of Sharkitect skills/agents. Choosing between "build custom engine" vs "use SDK with our skill library mounted." DEFAULT to the SDK + mount pattern. Justify any "build custom engine" decision against this default — the burden is on the builder.
 **Tags:** #architecture-direction #aios-distribution #agent-sdk #invocation-surface #platform-grounding #phase-1-bundle-d
+
+## 2026-05-12 — recompute_project_task_counts trigger does NOT fire on project parent_project_id changes
+Category: tool-usage / Postgres triggers
+Context: During cross-workspace hierarchy backfill, reparented several projects (Social Media Opt → CLEO, HubSpot Opt → Marketing). Their tasks didn't move, just their parent. Marketing umbrella's rollup_descendants=true should have aggregated their tasks recursively.
+Attempted: Set parent_project_id on the child projects, expecting trigger to recompute ancestor rollup.
+Error: Marketing's total_tasks stayed at 0 even though descendant tasks existed. Rollup function only fires on task INSERT/UPDATE/DELETE — project-row changes don't trigger it.
+Solution: After reparenting, no-op-touch one task in each newly-linked subtree (`UPDATE tasks SET last_updated_by = last_updated_by WHERE id IN (...)`) to force the trigger to fire and walk up the new parent chain.
+Future fix: Add a separate AFTER UPDATE OF parent_project_id trigger on projects that fires the recompute walk for the new parent. Filed mention in HQ notification rt-sentinel-2026-05-12-hierarchy-backfill-completed-under-exception under "minor_known_issue_for_future_followup".
+Tags: supabase, postgres, triggers, rollup, hierarchy, projects, recompute_project_task_counts
+
+## Preferences
+2026-05-12 — preference: Substantial design work goes step-by-step, ONE thing at a time, alignment-first
+Context: During initiative-hierarchy proposal work, AI dumped schemas + options + columns + brain-dump + decisions across one response. User explicitly redirected: "this is very confusing... I want to go slowly, one at a time, to figure out first what our actual objective is and what our goal is."
+Apply-when: ANY substantial design conversation, multi-decision proposals, or architecture work that has more than one open question. Default to "state the objective, get alignment, then drill in." NOT for tactical one-step tasks.
+Tags: communication, design-process, pace, alignment, slow-and-step
+
+## Process Decisions
+2026-05-12 — process: Invoke superpowers:brainstorming AT THE START of substantial design proposals
+Context: Sentinel skipped brainstorming when responding to HQ rt-hq-2026-05-12-initiative-hierarchy-discovery. Evaluated 7 schema approaches inline (which IS brainstorming-style work) but without the skill's structure for divergent thinking + alignment-first framing. User had to manually redirect mid-session. Filed as wr-sentinel-2026-05-12-004 (PROCESS gap, warning severity).
+Why: The brainstorming skill provides upfront structure for divergent thinking + early objective-alignment that the AI doesn't generate organically when the work "feels obvious." Documentation alone has proven insufficient — runtime nudge would be the right enforcement layer.
+Tags: methodology, brainstorming, design-proposals, process-discipline
+
+## Architecture Direction
+2026-05-12 — direction: Project hierarchy uses self-referential parent_project_id + project_type enum + opt-in rollup_descendants
+Context: Chris approved schema approach (g) from initiative-hierarchy proposal. 3 locked revisions diverging from original proposal: (1) positional naming PREFIX STAYS (Sub-project A:, B:, B.1:, B.2: pattern), (2) Marketing umbrella is 3-level with CLEO as intermediate parent for Lead Gen Pipeline (B.1) + Social Media Opt (B.2), (3) HubSpot is ONE project with both marketing + ops tasks differentiated via assigned_workspace + strategic_goal.
+Apply-when: All new sub-projects use hierarchical numbering in name (A, B, B.1, B.2, B.1.1). project_type values: initiative (top-level), project (standalone), phase_subproject (child). rollup_descendants=true on initiatives that want recursive task aggregation. Visual "Working on this now" indicator computed from task in_progress rolling up the tree — NO new status enum value.
+Design principles: positional prefix + functional name preserves both order and meaning; tasks differentiate work types within a single project rather than splitting projects by tool surface; status enum stays unchanged; rollup is opt-in to avoid forcing aggregation on every parent.
+Tags: schema, hierarchy, projects, rollup, naming-convention, initiative
+
