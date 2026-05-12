@@ -1,11 +1,11 @@
 ---
 name: end-session
-description: "Use when user says 'end session', 'wrap up', 'stop for the day', 'done for today', 'close out', 'save session', 'wrapping up', or invokes /end-session. Runs the full 9-step end-of-session protocol: resource audit, MEMORY.md update, lessons capture, plan status, pending items, workspace checklist, .tmp/ audit, git commit+push, Supabase brain sync, session brief, summary. Final step kills any orphan claude.exe processes from prior sessions AND schedules a detached self-kill of the current session (3s delay) so the window closes cleanly. Do NOT use for: mid-session quick saves (use session-checkpoint), skill syncing (use sync-skills.py), brain memory queries (use supabase-sync.py pull), document freshness reviews (use document-lifecycle), resource gap detection (use resource-auditor)."
+description: "Use when user says 'end session', 'wrap up', 'stop for the day', 'done for today', 'close out', 'save session', 'wrapping up', or invokes /end-session. Runs the full 9-step end-of-session protocol: resource audit, MEMORY.md update, lessons capture, plan status, pending items, workspace checklist, .tmp/ audit, git commit+push, Supabase brain sync, session brief, summary. Final step schedules a detached self-kill of the current session ONLY (3s delay) so the window closes cleanly. Other claude.exe processes (active workspaces) are NOT touched -- orphan cleanup is handled separately by Claude-Orphan-Cleanup-Hourly with proper age safeguards. Do NOT use for: mid-session quick saves (use session-checkpoint), skill syncing (use sync-skills.py), brain memory queries (use supabase-sync.py pull), document freshness reviews (use document-lifecycle), resource gap detection (use resource-auditor)."
 ---
 
 # End Session
 
-Final-step end-of-session protocol. Captures lessons, updates memory, creates backups, syncs state across computers, kills orphan processes, then detaches a self-kill so the session ends cleanly with no leaked claude.exe.
+Final-step end-of-session protocol. Captures lessons, updates memory, creates backups, syncs state across computers, then detaches a self-kill of the CURRENT session only so the session ends cleanly with no leaked claude.exe. Other workspace sessions are NOT touched -- orphan cleanup is owned by `kill-orphan-claude-processes.py` (4h age threshold + double-PID safety check) running hourly via Claude-Orphan-Cleanup-Hourly Task Scheduler.
 
 **Renamed from `session-checkpoint` on 2026-05-11.** The mid-session quick-save logic moved to a separate `session-checkpoint` skill. This skill is end-of-session only — when it runs, the session is wrapping up for good.
 
@@ -57,9 +57,9 @@ Load `references/full-checkout-protocol.md` for detailed commands, verification,
 | 8 | Supabase sync | Brain state pushed? | `python tools/supabase-sync.py push` |
 | 8.5 | Session brief | Summary written to Supabase + git? | Generate and push (see below) |
 | 9 | Summary | Pass/fail per step | Report what failed and why |
-| 10 | **Finalize** | Run orphan kill + schedule detached self-kill | `python ~/.claude/scripts/end-session-finalize.py` |
+| 10 | **Finalize** | Schedule detached self-kill of CURRENT session only | `python ~/.claude/scripts/end-session-finalize.py` |
 
-## Step 10: Finalize (orphan kill + self-kill)
+## Step 10: Finalize (self-kill only)
 
 After Step 9 prints the summary, run the finalize script as the absolute final action:
 
@@ -69,16 +69,20 @@ python ~/.claude/scripts/end-session-finalize.py
 
 What it does:
 1. Detects the current session's claude.exe PID via process-tree walk
-2. Kills any OTHER claude.exe processes (orphans from prior sessions that leaked)
+2. Reports the count of OTHER claude.exe processes (informational only — does NOT touch them)
 3. Schedules a DETACHED self-kill of the current claude.exe with a 3-second delay
 4. Writes one JSONL entry per action to `~/.claude/.tmp/session-end-kill-log.jsonl`
 5. Returns control immediately -- the AI prints "Session ending in 3s..." and exits
 
-The detached killer outlives the current claude.exe. When it fires (~3s later), this session terminates cleanly. The next session opens with no stale processes. **You do NOT need to `/clear` afterward** -- the kill closes the window.
+The detached killer outlives the current claude.exe. When it fires (~3s later), THIS session terminates cleanly. **Other claude.exe processes (active workspaces) are left alone.** Orphan cleanup is owned by `kill-orphan-claude-processes.py` running hourly via Claude-Orphan-Cleanup-Hourly Task Scheduler — it has the proper safeguards (4h age threshold + double-PID check + dry-run default) that distinguish leaked orphans from active workspace sessions.
+
+**Why not orphan-kill here:** With multiple workspaces open concurrently (HQ + Sentinel + another Skill Hub), every active session has its own claude.exe PID and looks identical to a leaked orphan via tasklist. End-session has no signal to tell them apart. The 4h-age threshold in the dedicated orphan-cleanup tool is the correct boundary. (Source: bug fix 2026-05-11 post-S40 — earlier version killed all 4 active workspace sessions during /end-session.)
+
+You do NOT need to `/clear` afterward — the kill closes the window.
 
 Flags:
 - `--delay 10`: longer grace window (useful if you want time to read the summary)
-- `--no-self-kill`: kill orphans but keep the current session alive (for testing the script itself)
+- `--no-self-kill`: report state only, do not kill (testing the script itself)
 - `--dry-run`: report what would happen, don't kill anything
 
 If the finalize script fails or doesn't find a self PID, the session stays open and the user can close manually. No data loss -- all 9 prior steps already committed + pushed durably.

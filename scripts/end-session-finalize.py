@@ -3,29 +3,35 @@ end-session-finalize.py - Final cleanup step of the `end-session` skill.
 
 Runs ONCE at the very end of the 9-step end-session protocol:
 
-  1. Kills orphan claude.exe processes from prior sessions (siblings/parents that leaked)
-  2. Writes a kill-log entry for verifiability across sessions
-  3. Schedules a DETACHED self-kill with a configurable delay (default 3s)
+  1. Reports the count of running claude.exe processes (diagnostic only)
+  2. Schedules a DETACHED self-kill with a configurable delay (default 3s)
      so the terminal renders the final confirmation message BEFORE the kill fires
+  3. Writes a kill-log entry for verifiability across sessions
 
 The detached killer outlives the current claude.exe. When it fires, this session
-terminates cleanly with no leaked process. The next session you open is a fresh
-state with no stale claude.exe hanging around.
+terminates cleanly. Other claude.exe processes are LEFT ALONE — orphan cleanup
+is the responsibility of `kill-orphan-claude-processes.py` (4h age threshold +
+double-PID safety check) which runs hourly via Claude-Orphan-Cleanup-Hourly.
 
-Source: 2026-05-11 (S41+) rename of session-checkpoint -> end-session. Replaces
+Source: 2026-05-11 (S41) rename of session-checkpoint -> end-session. Replaces
 the broken SessionEnd-hook approach (S39/S40) where `/clear` in antigravity
 process-replaces before hooks fire. Invoking THIS script from the skill the
 USER explicitly runs (/end-session) removes that timing dependency.
 
+Bug fix 2026-05-11 (post-S40): originally also killed every non-self claude.exe
+under the assumption they were orphans. With multiple workspaces open
+concurrently, this destroyed the user's active sessions. Orphan-kill removed
+entirely; self-kill ONLY. See test_end_session_finalize_self_only.py.
+
 Pure stdlib. Windows-targeted (uses taskkill + DETACHED_PROCESS). On non-Windows
-the orphan-kill path is best-effort and the self-kill is a no-op with a warning
-(other platforms don't have the same leak pattern in antigravity).
+the self-kill is a no-op with a warning (other platforms don't have the same
+leak pattern in antigravity).
 
 USAGE:
   python ~/.claude/scripts/end-session-finalize.py             # default 3s self-kill delay
   python ~/.claude/scripts/end-session-finalize.py --delay 10  # 10s grace period
-  python ~/.claude/scripts/end-session-finalize.py --no-self-kill  # just kill orphans, keep current alive
-  python ~/.claude/scripts/end-session-finalize.py --dry-run   # report what would happen, don't kill anything
+  python ~/.claude/scripts/end-session-finalize.py --no-self-kill  # report state only, do not kill
+  python ~/.claude/scripts/end-session-finalize.py --dry-run   # report what would happen, do not kill
 """
 from __future__ import annotations
 
@@ -121,37 +127,6 @@ def write_log(entry):
         print(f"WARN: could not write kill log: {e}", file=sys.stderr)
 
 
-def kill_orphans(self_pid, dry_run=False):
-    """Kill all claude.exe processes EXCEPT self_pid. Returns list of killed PIDs."""
-    killed = []
-    for pid, mem in list_claude_processes():
-        if pid == self_pid:
-            continue
-        if dry_run:
-            print(f"  [dry-run] would kill orphan claude.exe PID {pid} (mem {mem} KB)")
-            killed.append(pid)
-            continue
-        try:
-            subprocess.run(
-                ["taskkill", "/F", "/PID", str(pid)],
-                capture_output=True, timeout=5,
-                creationflags=CREATE_NO_WINDOW,
-            )
-            killed.append(pid)
-            print(f"  killed orphan claude.exe PID {pid} (mem {mem} KB)")
-            write_log({
-                "timestamp": datetime.now().isoformat(),
-                "session_pid": self_pid,
-                "action": "orphan_killed",
-                "killed_pid": pid,
-                "mem_kb": mem,
-                "reason": "end-session-finalize",
-            })
-        except (subprocess.TimeoutExpired, OSError) as e:
-            print(f"  WARN: failed to kill orphan PID {pid}: {e}", file=sys.stderr)
-    return killed
-
-
 def schedule_self_kill(self_pid, delay, dry_run=False):
     """Spawn detached taskkill with delay. Returns subprocess.Popen or None."""
     if self_pid is None:
@@ -216,9 +191,10 @@ def main():
 
     procs = list_claude_processes()
     print(f"  total claude.exe processes running: {len(procs)}")
-
-    killed = kill_orphans(self_pid, dry_run=args.dry_run)
-    print(f"  orphans killed: {len(killed)}")
+    if len(procs) > 1:
+        print(f"  NOTE: {len(procs) - 1} other claude.exe process(es) detected.")
+        print(f"        These are NOT killed by end-session. Orphan cleanup is")
+        print(f"        owned by Claude-Orphan-Cleanup-Hourly (4h age threshold).")
 
     if args.no_self_kill:
         print("  self-kill SKIPPED (--no-self-kill)")
