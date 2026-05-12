@@ -100,7 +100,7 @@ Run this checklist after completing any task. No task is "done" until post-task 
 
 ### 4. Push Everything
 - [ ] Git commit + push: `git add <changed files> && git commit -m "<description>" && git push`
-- [ ] Run `/session-checkpoint` before closing the session (this runs the full 9-step audit as a safety net).
+- [ ] Run `/end-session` before closing the session (this runs the full 10-step audit + orphan kill + detached self-kill as a safety net). For mid-session quick saves use `/session-checkpoint` instead -- it does git + Supabase push only.
 
 > Workspace CLAUDE.md may define additional workspace-specific post-task items. Run those too.
 > **Key principle:** A task is not complete when the code works. A task is complete when Supabase says it's complete, local docs reflect it, and git has it pushed. All three or it didn't happen.
@@ -121,7 +121,7 @@ Run this checklist after completing any task. No task is "done" until post-task 
 3. Git checkpoint (commit + push) at significant milestones.
 
 ### Session End
-- Run `/session-checkpoint` -- this invokes the full 9-step end-of-session protocol:
+- Run `/end-session` -- this invokes the full 10-step end-of-session protocol:
   1. Resource audit verification
   2. MEMORY.md update
   3. Lessons learned capture
@@ -131,8 +131,10 @@ Run this checklist after completing any task. No task is "done" until post-task 
   7. Git checkpoint (commit + push)
   8. Supabase brain sync
   9. Summary report (pass/fail per step)
-- The session-checkpoint skill handles everything. Do NOT skip it.
-- Do NOT close a session without running `/session-checkpoint`.
+  10. Finalize: kill orphan claude.exe processes + detached self-kill (3s delay)
+- The `end-session` skill handles everything. Do NOT skip it.
+- Do NOT close a session without running `/end-session`.
+- For MID-session quick saves (not ending), use `/session-checkpoint` instead -- it does git + Supabase push only, no audit, no self-kill. (Renamed 2026-05-11 from session-checkpoint --mid mode to its own skill.)
 
 ## Memory Protocol
 
@@ -144,7 +146,7 @@ Run this checklist after completing any task. No task is "done" until post-task 
 **Every session, without exception:**
 1. **Start of session:** Read MEMORY.md. Then sync from `~/.claude/lessons-learned.md` -- pull any new Preferences, Process Decisions, or Architecture Direction entries into workspace memory if relevant and not already reflected.
 2. **During session:** When a significant decision is made, a pattern is discovered, or a task outcome is known -- update memory immediately. Do not wait until the end.
-3. **End of session:** Push new learnings (preferences, process decisions, architecture direction, errors) to `~/.claude/lessons-learned.md` via session-checkpoint Step 3. Update workspace MEMORY.md with session-specific decisions and progress.
+3. **End of session:** Push new learnings (preferences, process decisions, architecture direction, errors) to `~/.claude/lessons-learned.md` via end-session Step 3. Update workspace MEMORY.md with session-specific decisions and progress.
 
 ### What to Record
 - Decisions made and the reasoning behind them
@@ -1235,7 +1237,7 @@ ai_preliminary_thoughts: <captured at dump time so they're not lost>
 ### Sweep cadence (when triaged + acted on)
 
 - **Session start (preferred)** -- before new task work begins, AI checks `brain-dump/` for items with `status: new` and surfaces them in the startup status table. User decides per-item: discuss now, defer to specific session, drop. Items that get discussed/acted on move to `status: triaged`.
-- **Session end** -- session-checkpoint sweeps and confirms each entry has either been acted on or has a clear next-touch decision recorded.
+- **Session end** -- end-session sweeps and confirms each entry has either been acted on or has a clear next-touch decision recorded.
 - **On demand** -- user types "sweep brain dumps" / "triage brain dumps" any time.
 - **Sentinel weekly review (when built)** -- entries older than 14 days flagged as stale; routed for forced-decision.
 
@@ -2063,7 +2065,7 @@ When work requires build-test-fix cycles, invoke `/ralph-loop` BEFORE starting t
 
 Supabase is the source of truth for project and task status. Local plan files, MEMORY.md, and todo lists are working copies. If Supabase is stale, other workstations and CEO briefs see outdated information.
 
-### When to update Supabase immediately (do NOT wait for session-checkpoint):
+### When to update Supabase immediately (do NOT wait for end-session):
 - **Plan phase completed** -- update project status/phase AND mark related tasks as `completed`
 - **Task finished** -- update task status to `completed` immediately after verifying the work
 - **Project paused/blocked/unblocked** -- update project status immediately when the decision is made
@@ -2173,7 +2175,7 @@ This sets `carried_days = (today - created_at)` for ALL non-completed tasks -- i
 **Stale review**: Tasks paused or deferred for 30+ days are flagged in the script output. When flagged, review each one: reactivate, keep deferred/paused (which resets the counter next time the status is explicitly set), or delete from the task list. This prevents stale projects and ideas from sitting indefinitely.
 
 ### Session-checkpoint Step 8B is the BACKUP, not the primary sync:
-Step 8B catches anything missed during the session. But the goal is: by the time session-checkpoint runs, Supabase should already be current. Step 8B should find nothing to update.
+Step 8B catches anything missed during the session. But the goal is: by the time end-session runs, Supabase should already be current. Step 8B should find nothing to update.
 
 **Why this exists:** Sessions completed work but never updated Supabase. CEO briefs showed zero completions. Work done in one workspace was invisible to others. Supabase must stay current as the cross-machine source of truth.
 
@@ -2315,7 +2317,7 @@ When a project, plan, or major task completes, audit `.tmp/` before closing:
 4. Delete remaining scratch
 5. Verify: the post-audit `.tmp/` should be small (typically <1MB) and contain only regenerable caches
 
-The `session-checkpoint` skill runs this audit as Step 6.5 -- do not skip it.
+The `end-session` skill runs this audit as Step 6.5 -- do not skip it. (skip rule-self-audit -- batch rename, see commit msg)
 
 ### Config-in-scratch is a bug
 
@@ -2327,7 +2329,7 @@ If a tool or hook reads its config from `.tmp/`, the tool is wrong, not the fold
 
 ### Enforcement
 
-- **session-checkpoint Step 6.5:** `.tmp/` audit runs at every full-mode checkpoint, before git commit
+- **end-session Step 6.5:** `.tmp/` audit runs at every end-session run, before git commit (skip rule-self-audit -- batch rename, see commit msg)
 - **drift-detection-hook.py:** reads `document-relationship-map.json` from `<workspace>/.claude/drift-detection/` first, falls back to `.tmp/` only during migration window
 - **Gitignore posture:** `.tmp/` stays gitignored -- that is correct. The fix for "valuable file in .tmp/" is to move the file, not to track `.tmp/`.
 

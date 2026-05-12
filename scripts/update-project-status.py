@@ -1,7 +1,7 @@
 """
 update-project-status.py -- Update Supabase project/task status
 
-Called during session-checkpoint and during active work to sync project and
+Called during end-session and during active work to sync project and
 task statuses with Supabase. The AI provides what changed; this script pushes.
 
 Usage:

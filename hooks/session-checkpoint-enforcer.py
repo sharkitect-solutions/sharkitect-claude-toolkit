@@ -1,12 +1,12 @@
 """
 session-checkpoint-enforcer.py - PreToolUse BLOCKING hook for formal
-invocation of the session-checkpoint skill when the user triggers an
+invocation of the end-session skill when the user triggers an
 end-session signal.
 
 Source: wr-2026-04-23-006 (skill-management-hub). User flagged twice in a
 24h window (2026-04-22 evening, 2026-04-23 morning) that the AI ran the
 9-step checkpoint protocol INLINE (sequence of Bash + Write calls) instead
-of invoking the session-checkpoint skill via the Skill tool. Inline
+of invoking the end-session skill via the Skill tool. Inline
 execution bypasses the formal audit gate, provides no visible confirmation
 to the user, and breaks pattern consistency across sessions. User quote
 2026-04-23: "This is a big gap that's been happening. It's very
@@ -26,7 +26,7 @@ DETECTION
         "close out" / "close the session",
         bare word "checkpoint", "/session-checkpoint",
         "save session", "wrapping up", "done for today"
-  - AND NO session-checkpoint skill invocation has been logged with a
+  - AND NO end-session skill invocation has been logged with a
     timestamp greater than that signal's transcript timestamp
 
 BLOCKS (on PreToolUse)
@@ -46,7 +46,7 @@ DOES NOT TRIGGER ON
     expected to invoke the skill and let the skill drive the steps
 
 BYPASS (any of these allows the operation)
-  1. session-checkpoint skill invoked AFTER the most-recent end-session
+  1. end-session skill invoked AFTER the most-recent end-session
      signal's timestamp (normal happy path)
   2. Fallback when timestamps are unparseable: ANY session-checkpoint
      invocation logged for today (graceful degradation, not strict)
@@ -54,7 +54,7 @@ BYPASS (any of these allows the operation)
      "skip checkpoint", "no session-checkpoint", "no checkpoint",
      "--mid", "save progress quickly" (quick-mode skip for
      pre-modification mid-session saves where the formal gate is
-     overkill; matches the session-checkpoint skill's own --mid mode)
+     overkill; matches the end-session skill's own --mid mode)
   4. Current Write/Edit/TodoWrite content contains one of the same
      bypass phrases (for filing gap reports and documentation about
      this enforcer without deadlock -- mirrors the same pattern in
@@ -88,21 +88,27 @@ from pathlib import Path
 
 
 TMP_DIR = Path.home() / ".claude" / ".tmp"
-SKILL_NAME = "session-checkpoint"
+# Post-rename 2026-05-11: `end-session` is the full 9-step end-of-session
+# skill (renamed from session-checkpoint). `session-checkpoint` is now the
+# mid-session quick-save skill (git + Supabase only). Invoking the
+# mid-session skill does NOT satisfy this end-session gate.
+SKILL_NAME = "end-session"
 
 BYPASS_PHRASES = (
+    "skip end-session",
+    "skip end session",
     "skip session-checkpoint",
     "skip checkpoint",
+    "no end-session",
     "no session-checkpoint",
     "no checkpoint",
     "save progress quickly",
     "--mid",
 )
 
-# End-session signal patterns. Word-boundary where appropriate to avoid
-# false positives on filenames or tool paths that happen to contain
-# "checkpoint" as a substring (e.g., checkpoint-reminder.py). The bare
-# "checkpoint" pattern is kept narrow via \b boundaries.
+# End-session signal patterns. Post-rename: bare "checkpoint" and
+# "/session-checkpoint" no longer trigger (they belong to the mid-session
+# skill now). "/end-session" added as the explicit invocation trigger.
 END_SESSION_PATTERNS = [
     re.compile(r"\bend\s+(?:the\s+)?session\b", re.I),
     re.compile(r"\bwrap(?:ping)?\s+up\b", re.I),
@@ -111,8 +117,7 @@ END_SESSION_PATTERNS = [
     re.compile(r"\bdone\s+for\s+(?:today|the\s+day)\b", re.I),
     re.compile(r"\bclose\s+(?:out|the\s+session)\b", re.I),
     re.compile(r"\bsave\s+session\b", re.I),
-    re.compile(r"\bcheckpoint\b", re.I),
-    re.compile(r"/session-checkpoint\b", re.I),
+    re.compile(r"/end-session\b", re.I),
 ]
 
 # Meta paths: structurally exempt for Write/Edit (gap reports + memory).
@@ -202,7 +207,7 @@ def load_skill_log_records():
 
 
 def checkpoint_invoked_after(signal_ts):
-    """True if session-checkpoint skill was invoked after signal_ts.
+    """True if end-session skill was invoked after signal_ts.
 
     If signal_ts is None (signal detected but no parseable timestamp),
     fall back to "any invocation of session-checkpoint today" -- this
@@ -430,16 +435,16 @@ def main():
     # ---- Block -----------------------------------------------------------
     deny(
         "BLOCKING: End-session signal detected in recent user messages "
-        "but the session-checkpoint skill has not been formally invoked "
+        "but the end-session skill has not been formally invoked "
         "via the Skill tool. Inline execution of the 9 checkpoint steps "
         "(git commit, supabase-sync, file writes, etc.) is NOT an "
         "acceptable substitute: it bypasses the formal audit gate, "
         "provides no visible confirmation to the user, and breaks "
         "pattern consistency across sessions. "
-        "Run: `Skill session-checkpoint` (or use /session-checkpoint). "
+        "Run: `Skill end-session` (or use /end-session). "
         "Bypass phrases (include in your next response or tool content): "
-        "'skip session-checkpoint', 'skip checkpoint', '--mid', "
-        "'save progress quickly' (for quick mid-session saves). "
+        "'skip end-session', 'skip session-checkpoint', 'skip checkpoint', '--mid', "
+        "'save progress quickly' (for quick mid-session saves via the session-checkpoint skill). "
         "Meta paths under /.work-requests/ /.lifecycle-reviews/ "
         "/.routed-tasks/ /.claude/projects/*/memory/ are structurally "
         "exempt. Source: wr-2026-04-23-006."

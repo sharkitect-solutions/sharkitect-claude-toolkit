@@ -9,7 +9,7 @@ Non-blocking: injects additional context, does not deny the operation.
 Works in ALL workspaces -- quality gates are universal.
 
 Also persists every nudge to ~/.claude/.tmp/skill-judge-nudges-YYYY-MM-DD.json
-so session-checkpoint Step 1 can FAIL if a nudged skill/agent has no matching
+so end-session Step 1 can FAIL if a nudged skill/agent has no matching
 judge invocation in ~/.claude/.tmp/skill-invocations-YYYY-MM-DD.json. This is
 the Option B hardening from wr-2026-04-22-015 (advisory stays in-session;
 enforcement moves to session close).
@@ -51,7 +51,7 @@ def is_skill_companion(file_path):
 
 
 def persist_nudge(kind, target_name, file_path):
-    """Append a nudge record to the per-day tracker so session-checkpoint Step 1
+    """Append a nudge record to the per-day tracker so end-session Step 1
     can detect nudged-but-not-invoked judge gaps at session close.
 
     kind: 'skill' | 'agent' | 'skill-companion'
@@ -114,7 +114,7 @@ def main():
             "Quality gate: B (96/120) minimum. "
             "If score < 96: optimize and re-judge until it passes. "
             "This is the annealing loop -- build, judge, optimize, re-judge. "
-            "(Nudge recorded -- session-checkpoint Step 1 will FAIL at close if "
+            "(Nudge recorded -- end-session Step 1 will FAIL at close if "
             "skill-judge is not invoked for this skill.)"
             % (skill_name, file_path.rsplit("/SKILL.md", 1)[0].rsplit("\\SKILL.md", 1)[0])
         )
@@ -126,7 +126,7 @@ def main():
             "MANDATORY: Run agent-judge on this agent before considering it complete. "
             "Quality gate: B (96/120) minimum. "
             "If score < 96: optimize and re-judge until it passes. "
-            "(Nudge recorded -- session-checkpoint Step 1 will FAIL at close if "
+            "(Nudge recorded -- end-session Step 1 will FAIL at close if "
             "agent-judge is not invoked for this agent.)"
             % agent_name
         )
@@ -140,7 +140,7 @@ def main():
             "SKILL COMPANION MODIFIED for skill: %s. "
             "If this is a significant content change, re-run skill-judge "
             "to verify the skill still passes quality gate (B / 96+). "
-            "(Nudge recorded -- session-checkpoint Step 1 will FAIL at close if "
+            "(Nudge recorded -- end-session Step 1 will FAIL at close if "
             "skill-judge is not invoked for this skill.)"
             % skill_name
         )

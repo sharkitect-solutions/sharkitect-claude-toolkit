@@ -348,7 +348,7 @@ def main():
                                     "ERROR RESOLVED after %d retries: '%s'. "
                                     "This fix should be recorded as a lesson in "
                                     "~/.claude/lessons-learned.md so all workspaces "
-                                    "benefit. Capture it at session-checkpoint."
+                                    "benefit. Capture it at end-session."
                                     % (
                                         entry["retry_count"],
                                         entry["error_summary"][:80],
