@@ -107,6 +107,15 @@ subprocess.check_output([...], creationflags=CREATE_NO_WINDOW)
 **Apply when:** Any AIOS protocol that depends on creation-time correctness (silent execution, secrets handling, schema migrations, plugin registration, etc.). Documentation gets the protocol on paper. Runtime detection makes it real. Plan both, ship both, OR file the runtime detection follow-up the same session the documentation lands.
 **Tags:** #architecture-direction #aios-carryover #protocol-enforcement #runtime-detection #documentation-alone-fails
 
+### process: Latent bugs unmask each other — when fix-and-recur happens, hypothesize a second bug, not a failed deploy
+
+**Date:** 2026-05-12 (Skill Hub S49 — end-session-enforcer two-layer fix loop) <!-- skip end-session -->
+**Workspace:** skill-management-hub
+**Context:** end-session-enforcer.py shipped a timezone fix (Layer 1 — UTC normalization). HQ retried within minutes and reported the hook still denied. Default-but-WRONG hypothesis: "the fix didn't deploy / something cached." Correct hypothesis: "the fix worked, but it unmasked a SECOND bug whose effect was previously hidden." Layer 1 (TZ math always failed pre-fix) had been masking Layer 2 (skill-content injection counted as a fresh signal). Layer 2 only became visible once Layer 1's failure stopped happening first. A Layer 3 issue (overly-liberal phrase matching — status reports like "HQ was able to close out of session" match imperative patterns) surfaced in the same session. The specific mechanism for Layer 2 (skill-injection-trap on PreToolUse hooks) is documented separately in the entry titled "PreToolUse hooks scanning transcripts must strip harness-injected skill content" further down this file (search: SKILL_INJECTION_PREFIX) — read both together.
+**Why it matters:** The reflex move when a fix-and-recur happens is to suspect deploy/cache/registration. Going straight to that hypothesis without verifying the fix worked IN ISOLATION wastes the loop iteration. The cheap verification (does Layer 1 math work on the production box? — 30 seconds to test in a REPL) immediately tells you whether to look at deployment OR look for Layer 2. Two-layer bugs are common in any system where multiple fail-fast conditions stack; ralph-loops between workspaces are particularly good at exposing them because retry latency is minutes, not days.
+**Apply when:** Any production fix where the symptom recurs after deployment despite the fix being verified on disk. Step 1: verify the FIX works on its own terms in isolation (call the fixed function with real inputs on the production box). Step 2: if Step 1 confirms the fix works, trace the FULL failure path again FROM the user-visible symptom — do not stop at the first plausible cause. Step 3: when you find Layer 2, write a test that exercises the REAL harness pattern, not crafted inputs. The 44-test suite missed Layer 2 because no test injected skill content the way the harness actually does — tests with realistic transcripts would have caught it pre-deploy. Memory cross-ref: `feedback_fix_dont_workaround.md` (fix root cause, not bypass) and the `Verify Before Acting` + `Verify Before Filing` protocols (verify-in-isolation discipline).
+**Tags:** #process #debugging-pattern #latent-bugs #ralph-loop #two-layer-fix #trace-the-real-transcript #aios-carryover
+
 ---
 
 ## 2026-05-11 Session Lessons (Skill Hub S42 — end-session-finalize kill scope)
@@ -5795,3 +5804,23 @@ Apply-when: All new sub-projects use hierarchical numbering in name (A, B, B.1, 
 Design principles: positional prefix + functional name preserves both order and meaning; tasks differentiate work types within a single project rather than splitting projects by tool surface; status enum stays unchanged; rollup is opt-in to avoid forcing aggregation on every parent.
 Tags: schema, hierarchy, projects, rollup, naming-convention, initiative
 
+
+### direction: PreToolUse signal-scanning hooks must exclude harness-injected text blocks from "user signal" matching
+
+**Date:** 2026-05-12
+**Workspace:** workforce-hq (filer) / skill-management-hub (fixer of wr-hq-2026-05-12-003)
+**Context:** end-session-enforcer.py scans the last 10 user-type transcript messages for end-session signal phrases. When AI invokes a Skill via the Skill tool, the harness injects the skill's content as a user-type text block starting with "Base directory for this skill:" + "# <Skill Title>" heading + folder path. The signal-scan matched this injected text as a fresh user signal — and since the injection timestamp lands milliseconds AFTER the corresponding Skill invocation log entry, the bypass condition `inv_ts > signal_ts` was always False → permanent block. A 2026-05-12 timezone fix unmasked this latent bug (pre-fix the TZ math always failed first; post-fix the skill-injection text matched). Fixed by excluding text blocks beginning with `Base directory for this skill:` (SKILL_INJECTION_PREFIX) from signal-scan.
+**Why it matters for AIOS:** Any AIOS hook that scans transcript user messages to gate behavior MUST distinguish real user input from harness-injected skill content. Same pattern likely affects brainstorming-enforcer, hook-development-enforcer, methodology-nudge, and any future signal-detection hook. Otherwise: every Skill invocation immediately becomes a self-canceling signal landing milliseconds after the gate's reset point.
+**Apply when:** Designing or reviewing any PreToolUse hook that pattern-matches recent transcript user messages for behavioral triggers. Mandatory: strip harness-injected blocks BEFORE pattern matching. Known injection markers: skill content starts with `Base directory for this skill:`; system reminders wrapped in `<system-reminder>...</system-reminder>` (already handled by strip_system_blocks). Future injection patterns should be added to a shared list at the hook layer.
+**Tags:** #architecture-direction #aios-carryover #platform-mechanics #pretooluse-hook #signal-detection #harness-injection-trap
+
+## Process Decisions
+
+### process: Ralph-loop pattern (file WR + meta-path-exempt state + ScheduleWakeup) is the working escape when blocked by an infrastructure bug
+
+**Date:** 2026-05-12
+**Workspace:** workforce-hq (loop driver) / skill-management-hub (fixer)
+**Context:** end-session-enforcer hook bug blocked the canonical 10-step end-session protocol across 2 claude.exe sessions on 2026-05-12 PM. User explicitly rejected the bypass-phrase escape ("no workarounds") and asked for actual root-cause fix. The working pattern: (1) file a follow-up WR to Skill Hub via meta-path-exempt `.work-requests/inbox/` (the enforcer hook exempts this path), (2) preserve in-flight session state as `memory/feedback_*.md` (the enforcer exempts `/memory/feedback_` filenames), (3) use `ScheduleWakeup` with `<<autonomous-loop-dynamic>>` sentinel for autonomous loop iteration (30-min wake intervals matched Skill Hub's actual turnaround), (4) on wakeup, read inbox for completion notification, retry the blocked operation; refile if still blocked.
+**Why it worked:** Meta-path exemptions are documented in the hook's own source so they're a reliable escape route for cross-workspace coordination + memory preservation. ScheduleWakeup gave autonomous progression without burning context on busy-polling. Skill Hub turned around the fix in <30 min (WR filed at 16:38 local, completion notification landed before 17:18 wakeup, retry succeeded on first attempt).
+**Apply when:** Any infrastructure-layer blocker (hook bug, plugin shadow, settings.json conflict) prevents the canonical end-session / session-checkpoint / git-push flow. DO NOT bypass-phrase-escape — that hides the real bug. DO file WR + preserve state via exempt paths + schedule autonomous retry. Pattern preserves audit-gate integrity AND keeps work flowing across the fix cycle.
+**Tags:** #process-decision #ralph-loop #infrastructure-blocker #meta-path-exemption #autonomous-loop #cross-workspace-coordination
