@@ -19,7 +19,10 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import platform
+import subprocess
 import sys
+import time
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
@@ -127,3 +130,60 @@ def test_no_self_kill_flag_still_skips():
         mod.main()
 
     mock_self_kill.assert_not_called()
+
+
+# ----------------------------------------------------------------------------
+# Empirical: schedule_self_kill must ACTUALLY terminate the target PID
+# ----------------------------------------------------------------------------
+
+def test_schedule_self_kill_actually_terminates_victim_pid():
+    """REGRESSION: the detached killer spawned by schedule_self_kill must
+    actually terminate the target PID. The previous tests only check that
+    schedule_self_kill is CALLED (mocked); they do not exercise the spawn
+    mechanism, which is where the production bug lives.
+
+    Bug source: 2026-05-11 (S43). Production observed twice — PIDs 26156
+    (22:07:04) and 8348 (22:14:14) both had `detached_taskkill_scheduled`
+    log entries written, but the PIDs stayed alive indefinitely. Empirical
+    reproducer confirmed: detached `cmd /c "timeout /t N /nobreak >nul && ..."`
+    silently fails because Windows `timeout` requires a console handle, and
+    the DETACHED_PROCESS | CREATE_NO_WINDOW | stdin=DEVNULL combination strips
+    it. `timeout` exits non-zero, `&&` short-circuits, taskkill never runs,
+    but the log entry — written BEFORE the spawn returns — already says
+    "scheduled" so we never noticed.
+
+    Test strategy: spawn a real victim Python sleeper, fire schedule_self_kill
+    against its PID with a short delay, wait long enough for the killer to
+    execute, then assert the victim is dead.
+    """
+    if platform.system() != "Windows":
+        pytest.skip("Windows-only behavior")
+
+    mod = _load_script()
+
+    # Spawn a 30-second sleeper as the victim
+    victim = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(30)"],
+        creationflags=mod.CREATE_NO_WINDOW,
+    )
+    try:
+        time.sleep(0.3)  # let victim register
+        assert victim.poll() is None, "victim died on spawn — test invalid"
+
+        # Fire the actual schedule_self_kill — NOT mocked, real spawn
+        proc = mod.schedule_self_kill(victim.pid, delay=2)
+        assert proc is not None, "schedule_self_kill returned None — failed to spawn killer"
+
+        # Wait long enough for delay (2s) + kill execution (slack)
+        time.sleep(5)
+
+        rc = victim.poll()
+        assert rc is not None, (
+            f"schedule_self_kill spawned killer PID {proc.pid} but victim "
+            f"PID {victim.pid} is still alive 5s after a 2s scheduled delay. "
+            f"The detached killer logged success but the kill never fired. "
+            f"This is the production bug observed on PIDs 26156 and 8348."
+        )
+    finally:
+        if victim.poll() is None:
+            victim.kill()

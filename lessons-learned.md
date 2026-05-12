@@ -5504,3 +5504,15 @@ Sharkitect's pricing-structure.md was acknowledged by Chris as "wrong/off" — n
 **apply-when:** any future coordinated rename or refactor that crosses workspace boundaries. Default is still routing first; this is the exception path when user explicitly authorizes a single-shot batch.
 **tags:** cross-workspace, supabase-ownership, batch-rename, bash-sed, routed-tasks, fyi
 
+
+## 2026-05-11 — Process: invoke supabase-postgres-best-practices at schema-eval START, not after
+
+**Category:** process
+**Workspace:** sentinel
+**Context:** Cascade-paused schema reconciliation session. Evaluated the bug, picked Option A (widen tasks_status_check to add 'paused'), wrote the decision package, and shipped the migration — all before invoking the workspace's documented `supabase-postgres-best-practices` skill at the start of schema evaluation. The decision happened to align with the skill's principles, but the rule is "invoke at START," not "post-hoc sanity check." This is the recurring failure mode where workspace feedback rules get treated as advisory rather than gating.
+
+**Why:** Schema decisions made before skill invocation rely on the AI's training-data defaults instead of the skill's curated, up-to-date Postgres + Supabase patterns. The whole point of a workspace-specific skill is that it reflects what works on THIS DB. Skipping it means rediscovering pitfalls the skill already documents.
+
+**How to apply:** When the in-flight task involves Supabase schema (DDL, CHECK constraints, triggers, RLS, indexes), invoke `supabase-postgres-best-practices` BEFORE writing the decision package or migration SQL, not after. If the schema change is mechanical (e.g., widening an enum CHECK by one value with prior precedent in the same DB), the skill invocation is still cheap and surfaces drift risks the AI might miss.
+
+**Tags:** schema, supabase, skill-invocation, workspace-feedback-rules

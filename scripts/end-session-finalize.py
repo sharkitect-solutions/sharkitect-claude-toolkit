@@ -23,6 +23,16 @@ under the assumption they were orphans. With multiple workspaces open
 concurrently, this destroyed the user's active sessions. Orphan-kill removed
 entirely; self-kill ONLY. See test_end_session_finalize_self_only.py.
 
+Bug fix 2026-05-11 (S43): the detached killer used `cmd /c "timeout /t N
+/nobreak >nul && taskkill /F /PID <pid>"`. Windows `timeout` requires a
+console handle; with DETACHED_PROCESS | CREATE_NO_WINDOW | stdin=DEVNULL
+there is no console, so `timeout` exits non-zero immediately, `&&`
+short-circuits, and `taskkill` never runs. The log entry — written before
+the spawn returns — falsely reads "scheduled". Production observed twice
+(PIDs 26156 + 8348). Fix: replaced cmd-string with a pure-Python detached
+killer (`time.sleep` + `subprocess.run(['taskkill', ...])`). Empirically
+verified via test_schedule_self_kill_actually_terminates_victim_pid.
+
 Pure stdlib. Windows-targeted (uses taskkill + DETACHED_PROCESS). On non-Windows
 the self-kill is a no-op with a warning (other platforms don't have the same
 leak pattern in antigravity).
@@ -149,11 +159,21 @@ def schedule_self_kill(self_pid, delay, dry_run=False):
         print("WARN: self-kill only implemented on Windows; skipping", file=sys.stderr)
         return None
 
-    # Detached cmd that sleeps then kills the claude.exe PID
-    cmd = f'timeout /t {delay} /nobreak >nul && taskkill /F /PID {self_pid}'
+    # Detached pure-Python killer that sleeps then taskkills the claude.exe PID.
+    # Why not `cmd /c "timeout /t N /nobreak >nul && taskkill ..."` —
+    #   Windows `timeout` requires a console handle. With DETACHED_PROCESS |
+    #   CREATE_NO_WINDOW | stdin=DEVNULL there is no console, so `timeout`
+    #   exits non-zero immediately, `&&` short-circuits, taskkill never runs.
+    #   `time.sleep` + `subprocess.run` have no console dependency. See S43
+    #   bug-fix block in module docstring.
+    killer_code = (
+        f"import time, subprocess; "
+        f"time.sleep({delay}); "
+        f"subprocess.run(['taskkill', '/F', '/PID', '{self_pid}'])"
+    )
     try:
         proc = subprocess.Popen(
-            ["cmd", "/c", cmd],
+            [sys.executable, "-c", killer_code],
             creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW,
             close_fds=True,
             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
