@@ -353,7 +353,8 @@ Three distinct status vocabularies exist, one per layer. Mixing them produces CH
 | **close-inbox-item.py output** | Close-only: `completed | rejected | superseded | duplicate | withdrawn`. Legacy `processed | resolved` accepted but auto-converted to `completed` with deprecation warning. Rejects all open-state values at close. | All workspaces closing inbox items |
 | **Supabase `cross_workspace_requests.inbox_items_status_check`** | `pending | in_progress | deferred | blocked | completed | superseded | duplicate | rejected | withdrawn`. (Does NOT accept `new` or `processed`. `withdrawn` requires Sentinel migration -- routed task filed in plan Phase G.) | Supabase inserts/updates from any workspace |
 | **Supabase `projects.status` CHECK** | `active | pending | paused | blocked | tabled | complete | rejected | withdrawn`. (Sentinel migration 2026-05-04 widened the CHECK to add `rejected` + `withdrawn` per wr-sentinel-2026-05-04-002. Schema also gained `closure_reason text` column for audit on the new states.) | `update-project-status.py project <name> <status>` and direct Supabase writes |
-| **Supabase `tasks.status` CHECK** | `pending | in_progress | completed | blocked | deferred | tabled | rejected | withdrawn`. (Same migration. Note: rejected + withdrawn tasks DROP OFF the project's `total_tasks` rollup -- see Status Cascade and Rollup section below.) | `update-project-status.py task <text> <status>` and direct Supabase writes |
+| **Supabase `tasks.status` CHECK** | `pending | in_progress | completed | blocked | deferred | tabled | paused | rejected | withdrawn`. (Same 2026-05-04 migration shipped most values; `paused` added 2026-05-11 via migration `add_paused_to_tasks_status_check_2026_05_11` to mirror the projects-side `paused` semantics for tasks under a paused parent. Note: rejected + withdrawn tasks DROP OFF the project's `total_tasks` rollup -- see Status Cascade and Rollup section below.) | `update-project-status.py task <text> <status>` and direct Supabase writes |
+<!-- skip end-session: status-vocab table edit, not session lifecycle -->
 | **Supabase `goals.status` CHECK** | `active | at-risk | paused | achieved | missed | superseded | withdrawn`. Goals track outcomes (target_value + deadline) not work streams; progress is rolled up via `current_value` snapshots, not task counts. Source: wr-sentinel-2026-05-04-008; goals shipped 2026-05-04. | HQ rollup script + direct Supabase writes from any workspace that owns goals |
 
 **close-inbox-item.py normalization (line ~116):**
@@ -2127,10 +2128,12 @@ The trigger `trg_recompute_project_task_counts` fires AFTER INSERT/UPDATE/DELETE
 
 #### Forward cascade trigger deployment status
 
-The forward cascade rule above is documented but the matching DB trigger `projects_status_cascade_to_tasks` is **DOCUMENTED BUT NOT YET DEPLOYED** in the database (verified 2026-05-04 by Sentinel). It will land in Luminous Foundation Bridge Phase 6 (Vocabulary harmonization + cascade rules + pause_reason fields). Until then:
-- Manual cascade applies: when an agent updates a project status to `paused | tabled | blocked | complete`, it must explicitly invoke `update-project-status.py project ...`, which performs script-side cascade.
-- Direct Supabase writes that change `projects.status` will NOT trigger child-task cascade until Phase 6 ships.
-- `rejected` and `withdrawn` are explicitly NOT cascaded by either the future trigger or current script; their semantics are "drops off the plan," not "applied to children." Source: wr-sentinel-2026-05-04-002.
+The forward cascade rule above and its matching DB trigger `projects_status_cascade_to_tasks` are BOTH LIVE in the database (verified 2026-05-12 by direct `pg_trigger` query: trigger exists, `tgenabled='O'` = enabled). Trigger deployed by Sentinel under Luminous Foundation Bridge Phase 6 (Vocabulary harmonization + cascade rules + pause_reason fields). With the trigger live:
+- Cascade fires automatically on direct Supabase writes that change `projects.status` to `paused | tabled | blocked | complete`. No manual orchestration required.
+- `update-project-status.py project ...` still performs script-side cascade as defense-in-depth (matches the same logic). Both paths yield identical child-task state.
+- `rejected` and `withdrawn` are explicitly NOT cascaded by either trigger or script; their semantics are "drops off the plan," not "applied to children." Source: wr-sentinel-2026-05-04-002.
+<!-- skip end-session: doc freshness update, not session lifecycle. Source: wr-sentinel-add-paused-tasks-status, doc-update part 2. -->
+PRIOR STATUS (now stale, kept here briefly for audit trail of when the deployment landed): the 2026-05-04 version of this section claimed the trigger was "DOCUMENTED BUT NOT YET DEPLOYED." Sentinel deployed it under Phase 6 and filed the doc-freshness routed-task that surfaced this update in 2026-05-12.
 
 #### Why both halves exist
 
@@ -2153,6 +2156,18 @@ WHERE tgname IN ('trg_recompute_project_task_counts','projects_status_cascade_to
 ```
 
 If either is missing, file a routed task to Sentinel (schema owner) -- do NOT bypass with manual workarounds.
+
+#### Project hierarchy fields (LIVE 2026-05-12)
+
+The `projects` table also carries hierarchy fields that interact with this rollup machinery:
+
+- `parent_project_id` (FK to `projects.id`) — NULL for top-level rows
+- `project_type` enum: `initiative | project | phase_subproject`
+- `phase_number` integer (position within parent)
+- `rollup_descendants` boolean — when true, the recompute trigger walks the descendant tree when computing `total_tasks` / `completed_tasks` for the parent
+
+Cycle prevention is enforced by trigger at insert/update time. Naming convention: sub-projects KEEP their positional prefix (`Sub-project A:`, `B:`, `B.1:`) even after the FK is in place — the prefix is human shorthand, the FK is the authoritative link. Full schema + naming detail in `~/.claude/docs/documentation-standards.md` section 1.1.1. Source: `wr-sentinel-2026-05-12-003`.
+<!-- skip end-session: hierarchy addendum, not session lifecycle -->
 
 ### Cross-Workspace Task Tracking (NON-NEGOTIABLE)
 
