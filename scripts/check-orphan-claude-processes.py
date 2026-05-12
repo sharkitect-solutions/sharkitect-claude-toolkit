@@ -86,6 +86,12 @@ VSCODE_ANCESTOR_MAX_HOPS = 8
 # Active-sessions registry path
 REGISTRY_PATH = Path.home() / ".claude" / ".tmp" / "active-sessions.json"
 
+# Suppress console window when spawned from pythonw.exe (GUI subsystem).
+# Without this flag, every wmic child allocates a new console window = flash.
+# Cross-platform safe (no-op on non-Windows).
+# Source: wr-sentinel-2026-05-11-002 (CREATE_NO_WINDOW regression fix).
+CREATE_NO_WINDOW = subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0
+
 
 def get_claude_processes():
     """
@@ -97,6 +103,7 @@ def get_claude_processes():
             ["wmic", "process", "where", "name='claude.exe'",
              "get", "ProcessId,CreationDate,WorkingSetSize", "/format:csv"],
             stderr=subprocess.DEVNULL, text=True, timeout=10,
+            creationflags=CREATE_NO_WINDOW,
         )
     except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
         return []
@@ -145,6 +152,7 @@ def _wmic_get_name_and_ppid(pid):
             ["wmic", "process", "where", f"ProcessId={pid}",
              "get", "Name,ParentProcessId", "/format:csv"],
             stderr=subprocess.DEVNULL, text=True, timeout=5,
+            creationflags=CREATE_NO_WINDOW,
         )
     except (subprocess.CalledProcessError, FileNotFoundError,
             subprocess.TimeoutExpired, OSError):
@@ -303,6 +311,7 @@ def find_session_pid():
             ["wmic", "process", "where", f"ProcessId={os.getpid()}",
              "get", "ParentProcessId", "/format:csv"],
             stderr=subprocess.DEVNULL, text=True, timeout=5,
+            creationflags=CREATE_NO_WINDOW,
         )
     except Exception:
         return None
@@ -327,6 +336,7 @@ def find_session_pid():
                 ["wmic", "process", "where", f"ProcessId={pid}",
                  "get", "Name,ParentProcessId", "/format:csv"],
                 stderr=subprocess.DEVNULL, text=True, timeout=5,
+                creationflags=CREATE_NO_WINDOW,
             )
         except Exception:
             return None

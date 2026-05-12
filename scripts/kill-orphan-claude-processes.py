@@ -40,6 +40,12 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).parent
 LOG_FILE = Path.home() / ".claude" / ".tmp" / "orphan-kill-log.jsonl"
 
+# Suppress console window when spawned from pythonw.exe (GUI subsystem).
+# Without this flag, every child process (wmic, taskkill) allocates a new
+# console window = visible flash. Cross-platform safe (no-op on non-Windows).
+# Source: wr-sentinel-2026-05-11-002 (CREATE_NO_WINDOW regression fix).
+CREATE_NO_WINDOW = subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0
+
 
 def load_check_module():
     """Import check-orphan-claude-processes.py as a module."""
@@ -60,6 +66,7 @@ def kill_pid(pid: int) -> tuple[bool, str]:
         result = subprocess.run(
             ["taskkill", "/PID", str(pid), "/F"],
             capture_output=True, text=True, timeout=10,
+            creationflags=CREATE_NO_WINDOW,
         )
         if result.returncode == 0:
             return True, result.stdout.strip()

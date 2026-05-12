@@ -1,5 +1,114 @@
 # Global Lessons Learned
 
+## 2026-05-12 Architecture Direction (AIOS LOAD-BEARING — Windows + Antigravity + Claude Code platform mechanics)
+
+> **AIOS-carryover: TRUE.** These four findings are platform-mechanics knowledge that every Sharkitect AIOS deployment on Windows + Antigravity will hit. HQ should pull these into the AIOS K1 knowledge base (`knowledge-base/aios/platform-mechanics/`). Skill Hub is routing a follow-up task to HQ to draft the K1 entry.
+>
+> **Discovered:** Sessions S39–S43 (2026-05-10 through 2026-05-12) while diagnosing claude.exe process leaks and console-window flash regressions.
+>
+> **Terminology note (NON-NEGOTIABLE for AIOS docs):** The word "clear" is ambiguous and MUST be disambiguated everywhere in protocols, code comments, and AIOS K1 docs:
+> - **"clear conversation"** / **`/clear`** slash command / Antigravity's "Clear Conversation" UI action = **STARTS A NEW SESSION via process replacement** (old claude.exe terminates, new one spawns). This is what the SessionEnd hook's `reason=clear` flag means. NOT a content wipe.
+> - **"clear content"** / **"clear chat"** / **"wipe what's written"** = an in-place UI operation that removes displayed messages WITHOUT terminating the process. Has nothing to do with `reason=clear`.
+> When writing docs or comments, always say "clear conversation" or "clear content" — never bare "clear." When discussing the SessionEnd hook, say "the `clear` reason value" (in backticks) so it's parsed as a flag, not English.
+
+### direction: Antigravity's "Clear Conversation" is process replacement, not in-place reset
+
+**Date:** 2026-05-12 (root finding 2026-05-11 S39+S40)
+**Workspace:** skill-management-hub
+**Context:** Anthropic's generic Claude Code CLI documentation states that the `/clear` slash command keeps the session process alive (in-place context wipe). On the basis of that doc, S39 designed the SessionEnd hook to SKIP killing on `reason=clear`. S40 empirical test contradicted the docs for the Antigravity environment: process-tree proof showed Antigravity.exe (PID 13500) spawning NEW claude.exe children on "Clear Conversation" while the prior claude.exe orphaned. PIDs 17772 (S39 leftover) AND 16064 (S40 current) BOTH traced back to the same Antigravity parent — meaning every "clear conversation" leaks a claude.exe unless explicitly killed.
+**Why it matters for AIOS:** Antigravity (and likely other future IDE hosts) implements "clear conversation" semantically as a new-session spawn, not an in-place context wipe. Any cleanup or lifecycle logic that follows the generic-CLI docs blindly will leak processes on every clear. Application-layer cleanup must override the doc-defined behavior when running inside Antigravity.
+**Apply when:** Designing any AIOS deployment that runs Claude Code inside Antigravity (or any IDE host that may use process-replacement semantics). Always empirically verify the lifecycle behavior of `clear`, `resume`, `logout`, `prompt_input_exit` reasons in the target environment BEFORE finalizing kill rules. Antigravity-specific rule: KILL on `clear` | `logout` | `prompt_input_exit` | `other`; SKIP on `resume` | `bypass_permissions_disabled`.
+**Tags:** #architecture-direction #aios-carryover #platform-mechanics #antigravity #session-lifecycle #empirical-verification-required
+
+### direction: Windows `timeout.exe` requires a console handle — DETACHED_PROCESS strips it silently
+
+**Date:** 2026-05-12 (root finding 2026-05-11 S43)
+**Workspace:** skill-management-hub
+**Context:** S39's detached-self-kill used `cmd /c "timeout /T 2 && taskkill /PID <pid> /F"` with `creationflags = DETACHED_PROCESS | CREATE_NO_WINDOW` and stdin/stdout/stderr=DEVNULL. The intent: delay the kill 2s so the parent process exits cleanly first. The reality: Windows `timeout.exe` requires a real console handle to count down. DETACHED_PROCESS + CREATE_NO_WINDOW + DEVNULL strip the console entirely, so `timeout` exited IMMEDIATELY (or failed silently), the subsequent `taskkill` ran too fast / never ran at all, and the kill never landed. The log falsely reported `"action": "detached_taskkill_scheduled"` because the Popen call itself succeeded. Production confirmed: PIDs 26156 and 8348 stayed alive long after wrap.
+**Why it matters for AIOS:** Any AIOS automation that needs to schedule a delayed action via `cmd /c "timeout && X"` from a detached / windowless / pythonw context will silently fail. Equivalent on Linux/macOS works (POSIX `sleep` has no terminal dependency), so this is a Windows-specific trap.
+**Apply when:** Scheduling any delayed kill / delayed action on Windows from a detached or GUI-subsystem context. Use pure-Python `time.sleep()` in a spawned Python child instead of `cmd /c timeout`. Pattern:
+```python
+killer_code = f"import time, subprocess; time.sleep({delay}); subprocess.run(['taskkill', '/PID', '{pid}', '/F'], capture_output=True)"
+subprocess.Popen(['python', '-c', killer_code], creationflags=DETACHED_PROCESS | CREATE_NO_WINDOW, stdin=DEVNULL, stdout=DEVNULL, stderr=DEVNULL)
+```
+S43 fix used exactly this pattern. 5/5 TDD tests green, empirical kill verified.
+**Tags:** #architecture-direction #aios-carryover #platform-mechanics #windows-only #detached-subprocess #silent-failure-trap
+
+### direction: pythonw.exe + console-mode children = one console window per subprocess call
+
+**Date:** 2026-05-12 (root finding 2026-05-11 Sentinel WR-002)
+**Workspace:** skill-management-hub
+**Context:** 2026-05-09 retrofit changed `run-orphan-cleanup.bat` from `python.exe` → `pythonw.exe` intending to silence the console flash. Regression: `pythonw.exe` is GUI subsystem (no console). When it spawns console-mode children (`wmic`, `taskkill`, etc.) WITHOUT `creationflags=CREATE_NO_WINDOW`, Windows allocates a NEW console window PER child = visible flash per subprocess call. Net result: retrofit went from ~1 flash to 7-8 flashes per run (5 subprocess children + .bat host + retry-loop iterations). User reports accidental keystroke errors from popup distraction (recurring class — see wr-sentinel-2026-04-30-003 source incident).
+**Why it matters for AIOS:** Silent Execution is a Sharkitect core principle (universal-protocols.md NON-NEGOTIABLE). Any AIOS automation running Python on Windows that uses `pythonw.exe` MUST also pass `creationflags=CREATE_NO_WINDOW` to every internal `subprocess.run / check_output / check_call / Popen` call. Otherwise the subprocess CHILDREN flash even though the parent doesn't. The flag is cross-platform safe (hasattr-guarded no-op on non-Windows). Pattern:
+```python
+import subprocess
+CREATE_NO_WINDOW = subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0
+# Use on every subprocess.* call:
+subprocess.run([...], creationflags=CREATE_NO_WINDOW)
+subprocess.check_output([...], creationflags=CREATE_NO_WINDOW)
+```
+**Apply when:** Auditing any Python script invoked from pythonw.exe context. Run `grep -rn 'subprocess\.(run|check_output|check_call|Popen)' ~/.claude/scripts/ | grep -v CREATE_NO_WINDOW` and patch every match. Verified live with user 2026-05-12: post-fix `schtasks //run` produced ZERO console flashes (down from 7-8).
+**Tags:** #architecture-direction #aios-carryover #platform-mechanics #windows-only #silent-execution #pythonw-subprocess
+
+### direction: Process-level safety nets must default to current-PID scope only
+
+**Date:** 2026-05-12 (root finding 2026-05-11 S42)
+**Workspace:** skill-management-hub
+**Context:** Already documented in detail at "2026-05-11 Session Lessons (Skill Hub S42)" below — `kill_orphans()` in end-session-finalize.py killed every claude.exe except self, destroying 4 active workspace sessions (HQ + Sentinel + others, 242-688MB each). Reframed here as an AIOS-load-bearing principle so it carries into AIOS deployment knowledge.
+**Why it matters for AIOS:** Every Sharkitect AIOS deployment will likely run multiple workspaces concurrently (revenue work in one, monitoring in another, support in a third). Any AIOS process-cleanup mechanism that defaults to "operate on all processes with name X" will destroy concurrent legitimate work. The default scope must be current PID only; broader scope requires explicit classification signals (age threshold + parent liveness + heartbeat cross-reference).
+**Apply when:** Designing any AIOS infrastructure that touches process lifecycle (kill, signal, monitor, resource cap). Default scope = current PID. Multi-PID scope = REQUIRES explicit classifier with at least 2 independent signals (age + parent + heartbeat, not just age alone).
+**Tags:** #architecture-direction #aios-carryover #safety-critical #multi-workspace-concurrency #process-scope-discipline
+
+<!-- skip session-checkpoint -- workflow build authorization, not end-session execution -->
+### direction: AIOS default operating mode = silent execution; visible = explicit exception with justification
+
+**Date:** 2026-05-12
+**Workspace:** skill-management-hub
+**Context:** User direction (verbatim, 2026-05-12): *"when we also build the AIOS that the silent window feature is also the default way we work to avoid operator seeing the windows and causing mid-work distraction, confusion. It also looks cleaner and more professional that all scheduled tasks/audits/reports/crons/etc run silently in the background with the only exception if there are any that MUST run visually (which would be very rare)."* Codifies that EVERY background automation in Sharkitect AIOS deployments defaults to silent — not just internal workspaces.
+**Why it matters for AIOS:** Operator UX is a load-bearing differentiator. Cluttered desktops with console flashes (a) cause accidental keystroke errors and lost focus, (b) look unprofessional to clients evaluating the AIOS, (c) create "is something broken?" anxiety in non-technical operators. Silent-as-default removes the UX cost entirely. Visible-when-required (rare) becomes a deliberate, justified exception rather than an accidental side effect.
+**Apply when:** Building, registering, or auditing ANY AIOS automation: scheduled tasks, cron jobs, audit runners, report generators, hooks, watchers, sync scripts, kill-loops. Required surface points:
+- `register-asset.py register automation` REQUIRES `--silent <mechanism>` (already shipped; rejects un-flagged registrations)
+- `audit-autonomous-systems.py` drift class `visible_window_automation` surfaces violations in morning report
+- `workflows/silent-automation-build.md` is the canonical SOP — every new automation follows it
+- AIOS client onboarding template includes the silent-execution baseline so clients inherit the discipline at deployment time
+**Visible exceptions (rare, justified):** Operator-interactive flows where the operator MUST see the window (e.g., a setup wizard, a one-time consent prompt). Document the justification in `register-asset.py --purpose` and use `--silent other` with an explicit reason. Default answer for everything else: SILENT.
+**Tags:** #architecture-direction #aios-carryover #aios-default-mode #operator-ux #silent-execution
+
+### direction: Multi-step orchestration command pattern (end-session as canonical template)
+
+**Date:** 2026-05-12
+**Workspace:** skill-management-hub
+**Context:** User direction (verbatim, 2026-05-12): documented the need for a reusable template for any future command that runs a defined sequence of steps + calls sub-functions. The skill-orchestrated 10-step protocol (skill → step table → helper scripts → graceful degradation → structured summary → optional finalize) is the proven canonical pattern.
+**Why it matters for AIOS:** Multi-step orchestration commands are the load-bearing UX surface of any AIOS — they're how operators invoke composite workflows ("run the morning briefing", "execute the close-of-day", "process the inbox batch"). Without a canonical template, each new command reinvents the structure, drifts from prior patterns, and accumulates inconsistencies that erode operator trust. The 10-step protocol is the proven template; future commands inherit its shape.
+**Apply when:** Designing any AIOS command that needs: (a) a defined sequence of steps, (b) verification at each step (pass/fail), (c) graceful degradation when components are missing, (d) sub-function invocation (other scripts, hooks, MCPs), (e) terminal action (kill, push, deploy, archive). The canonical template lives in `workflows/end-session-command-pattern.md` and codifies:
+- Skill structure (SKILL.md frontmatter + File Index + Scope Boundary + Step Overview)
+- Step table (#, name, check, fallback if missing)
+- Graceful degradation table (missing component → behavior)
+- Sub-function invocation pattern (scripts called from steps)
+- Detached final action pattern (when the command's last step must outlive the command itself — e.g., detached self-kill via pure-Python time.sleep, NOT `cmd /c timeout` which silently fails when detached on Windows per S43)
+- Summary output format ([PASS]/[FAIL]/[WARN]/[SKIP] per step + total)
+**Template skeleton for future commands:**
+```
+1. Trigger (slash command or skill invocation)
+2. Pre-check (any blocking preconditions?)
+3. Step 1..N (each with check + fallback)
+4. Sub-function calls (helper scripts invoked as needed)
+5. Summary output (machine-parseable pass/fail per step)
+6. Finalize action (if applicable — git push, kill, deploy, etc.)
+```
+**Tags:** #architecture-direction #aios-carryover #orchestration-template #multi-step-command #skill-architecture #operator-ux
+
+### direction: Documentation states intent; runtime detection enforces it (Silent Execution Protocol case)
+
+**Date:** 2026-05-12
+**Workspace:** skill-management-hub
+**Context:** The Silent Execution Protocol was documented in universal-protocols.md as NON-NEGOTIABLE on 2026-04-29 (wr-sentinel-2026-04-30-003 source incident). Despite that, THREE recurrences happened between 2026-04-30 and 2026-05-11: (a) bare-.bat scheduled tasks shipped without VBS wrappers, (b) Toolkit-Monitor Win32 4320 policy rejection, (c) pythonw.exe + uncovered subprocess children. Each recurrence required user-visible UX friction + accidental keystroke errors before being caught.
+**Why it matters for AIOS:** Documentation alone is insufficient for protocols that depend on creation-time correctness. The pattern only stops recurring when runtime detection makes the violation impossible to ship. Runtime detection options: (a) `--silent` flag enforcement in `register-asset.py register automation` (already shipped — caught WR-001 registration), (b) audit drift class `visible_window_automation` in `audit-autonomous-systems.py` (already shipped — surfaced WR-001/002), (c) future: PreToolUse hook that scans new Python scripts for `subprocess.Popen` / `subprocess.run` without CREATE_NO_WINDOW in pythonw-invoked context.
+**Apply when:** Any AIOS protocol that depends on creation-time correctness (silent execution, secrets handling, schema migrations, plugin registration, etc.). Documentation gets the protocol on paper. Runtime detection makes it real. Plan both, ship both, OR file the runtime detection follow-up the same session the documentation lands.
+**Tags:** #architecture-direction #aios-carryover #protocol-enforcement #runtime-detection #documentation-alone-fails
+
+---
+
 ## 2026-05-11 Session Lessons (Skill Hub S42 — end-session-finalize kill scope)
 
 ### process: Function name is a contract; verify the predicate matches the name
