@@ -579,10 +579,24 @@ def extract_write_content(tool_name, tool_input):
 
 
 def has_bypass_in_content(content):
+    """Return True if content contains either a BYPASS phrase or a SILENCER phrase.
+
+    S51 fix (2026-05-13): silencer phrases ("still working", "still going",
+    "not ending", etc.) now ALSO act as in-content bypasses, so the AI can
+    use natural language instead of the awkward "skip end-session" keyword
+    when continuing work past a false-positive trigger. Per user direction:
+    "did you also include a silencer phrase for the AI? For example, you
+    can just say 'still working' or 'still going', not 'ending' or something
+    like that, so it silences it." # skip end-session
+    """
     if not content:
         return False
     low = content.lower()
-    return any(phrase in low for phrase in BYPASS_PHRASES)
+    if any(phrase in low for phrase in BYPASS_PHRASES):
+        return True
+    if any(phrase in low for phrase in SILENCER_PHRASES):
+        return True
+    return False
 
 
 def is_meta_path(file_path):

@@ -351,6 +351,43 @@ def test_contains_end_session_signal_finds_imperative_after_descriptive():
 
 
 # ---------------------------------------------------------------------------
+# AI-side silencer-in-tool-content tests (S51 fix — user direction:
+# "did you also include a silencer phrase for the AI?")
+# ---------------------------------------------------------------------------
+
+
+def test_ai_silencer_still_working_in_tool_content_bypasses():
+    """When AI includes 'still working' in tool_input content, has_bypass_in_content
+    accepts it -- natural-language alternative to the awkward 'skip end-session'."""
+    module = _load()
+    assert module.has_bypass_in_content("doing the next step. still working on this.")
+
+
+def test_ai_silencer_still_going_in_tool_content_bypasses():
+    module = _load()
+    assert module.has_bypass_in_content("still going with phase 2 cleanup")
+
+
+def test_ai_silencer_not_ending_in_tool_content_bypasses():
+    module = _load()
+    assert module.has_bypass_in_content("not ending yet, more cleanup to do")
+
+
+def test_neutral_tool_content_does_not_bypass():
+    """Tool content without any bypass/silencer phrase does NOT bypass."""
+    module = _load()
+    assert not module.has_bypass_in_content("regular tool content without any keywords")
+    assert not module.has_bypass_in_content("git status; ls; echo hello")
+
+
+def test_legacy_bypass_phrases_still_work_in_tool_content():
+    """The existing 'skip end-session' family must still work for back-compat."""
+    module = _load()
+    assert module.has_bypass_in_content("skip end-session — fixing the hook itself")
+    assert module.has_bypass_in_content("save progress quickly")
+
+
+# ---------------------------------------------------------------------------
 # Lookback tightening tests (S50 fix — user direction "look at the previous
 # message not ALL RECENT MESSAGES")
 # ---------------------------------------------------------------------------
