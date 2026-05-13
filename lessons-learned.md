@@ -5907,3 +5907,34 @@ Tags: schema, hierarchy, projects, rollup, naming-convention, initiative
 
 **Tags:** preflight, verification-before-building, hook-timing, plan-discipline
 
+
+
+### 2026-05-13 — preference: Natural-language silencer phrases for AI-side hook bypass (not just keyword bypasses)
+
+**Context:** When the end-session-enforcer false-positively fires, the AI previously had to echo the keyword "skip end-session" in tool descriptions to bypass. User found this noisy and asked: "did you also include a silencer phrase for the AI? For example, you can just say 'still working' or 'still going', not 'ending' or something like that, so it silences it."
+
+**Apply when:** Designing or modifying gating hooks (PreToolUse blockers) that the AI sometimes needs to legitimately bypass. The bypass mechanism should accept natural-language state assertions ("still working", "still going", "not ending") in addition to explicit bypass keywords. Both user-side (transcript scan) AND AI-side (tool-content scan) silencer surfaces are required for symmetric UX.
+
+**Tags:** #preference #hooks #bypass-design #user-experience #ai-honesty
+
+### 2026-05-13 — process: TDD iterative RED→GREEN edits should not be flagged by repeat-edit heuristics
+
+**Context:** The methodology-nudge.py "REPEAT EDIT detected (N edits this session, RE-PATCHING prior change)" nudge fired multiple times during S51's TDD-driven fix to end-session-enforcer.py. Each edit was a legitimate GREEN-phase implementation responding to a specific failing test (descriptive markers → silencer → lookback → sentence-boundary clip). The nudge could not distinguish TDD iteration (deliberate, test-driven) from patch-on-patch debugging (hunch-driven).
+
+**Why:** TDD's natural cycle is many small edits, each responding to a specific failing test. Repeat-edit count alone is not a signal of debugging-without-investigation. Better signal: was a TDD skill invoked at the start AND is the edit preceded by a test run? If yes, edits are TDD-iteration not patch-iteration.
+
+**Tags:** #process #methodology-nudge #tdd #false-positive #hook-heuristic-design
+
+### 2026-05-13 — direction: Hooks that gate based on user-message content must distinguish imperative intent from descriptive reference
+
+**Context:** end-session-enforcer.py used pure substring matching across the last 10 user messages. User's architectural-discussion message "sort of like we did with the session checkpoint and end session" triggered the gate on every subsequent Bash/Write — even though the user was describing past behavior, not requesting an end. Documentation about Strict Bypass Vocabulary didn't prevent this — because the bypass keywords themselves became user-visible noise. Root fix required adding (a) sentence-clipped lookbehind for descriptive markers (simile/past-ref/discussion/example/definition), (b) silencer phrases, (c) tighter lookback to most-recent user TEXT message only.
+
+**Apply when:** Designing any hook that gates AI behavior based on user-message substring matching. Pure substring is brittle when users naturally reference the controlled-by-hook concepts in conversation. Required design dimensions: (1) imperative vs descriptive context discrimination via lookbehind window clipped at sentence boundaries; (2) state-reset mechanism (silencer phrases) for false-positive recovery; (3) tight lookback to avoid stale signals from earlier turns; (4) AI-side bypass via natural language, not just keyword.
+
+**Design principles:**
+- Substring match alone is a smell. Always pair with negative-context filter.
+- Lookback windows should be small (often 1 user message). Wider windows cause stale-signal noise.
+- Bypass mechanisms should match the user's mental model ("still working") not the system's internal vocabulary ("skip X").
+- Both user-side and AI-side bypass surfaces required for symmetric autonomy.
+
+**Tags:** #architecture-direction #hook-design #intent-detection #substring-match-antipattern #bypass-design

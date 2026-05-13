@@ -736,13 +736,53 @@ def route_tier_a_notifications(tier_a_actions: list, dry_run: bool = False) -> l
     return routed
 
 
+def find_existing_pending_audit_finding(
+    inbox, audit_class: str, source_workspace: str = "sentinel"
+):
+    """Search inbox for a pending audit_finding RT matching (audit_class, source_workspace).
+
+    Used by route_tier_b_findings to dedup: when same (target, audit_class) drift
+    persists across runs, refresh the existing RT rather than creating duplicates.
+
+    Matches RTs whose status is in the "still open" set (pending/new/in_progress/deferred/blocked).
+    Returns path to most-recent matching file, or None.
+    """
+    if inbox is None or not inbox.exists():
+        return None
+    OPEN_STATUSES = {"pending", "new", "in_progress", "deferred", "blocked"}
+    candidates = []
+    for jf in inbox.glob("*.json"):
+        try:
+            with open(jf, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            continue
+        if (
+            data.get("audit_finding") is True
+            and data.get("audit_class") == audit_class
+            and data.get("source_workspace") == source_workspace
+            and data.get("status") in OPEN_STATUSES
+        ):
+            candidates.append((data.get("routed_date", ""), jf))
+    if not candidates:
+        return None
+    candidates.sort(key=lambda x: x[0], reverse=True)
+    return candidates[0][1]
+
+
 def route_tier_b_findings(findings: dict, dry_run: bool = False) -> list:
     """Tier B -- Route audit_finding tasks for drift classes that need workspace judgment.
 
     Routed-task schema includes audit_finding:true so Skill Hub's hard-stop hook
     can detect and gate AI-autonomous tool calls in receiving workspaces.
 
-    Returns list of {target, path, audit_class, finding_count}.
+    Dedup: if an existing pending audit_finding RT for the same (target, audit_class)
+    is already in the target inbox, refresh its evidence + bump refresh_count instead
+    of creating a duplicate file. Prevents inbox pollution when the receiving
+    workspace has not yet acted on the prior finding.
+
+    Returns list of {target, path, audit_class, finding_count, action}
+    where action is "created" or "refreshed".
     """
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     sentinel_inbox = WORKSPACE_INBOXES["sentinel"]
@@ -768,46 +808,74 @@ def route_tier_b_findings(findings: dict, dry_run: bool = False) -> list:
 
     for (target, audit_class), items in grouped.items():
         slug = audit_class.replace("_", "-")[:40]
-        task_id = f"rt-sentinel-{today}-audit-{slug}-{target[:8]}"
         inbox = WORKSPACE_INBOXES.get(target)
         if not inbox or not inbox.exists():
             continue
-        path = inbox / f"{task_id}.json"
-        body = {
-            "id": task_id,
-            "id_format_version": 2,
-            "source_workspace": "sentinel",
-            "routed_to": target,
-            "routed_date": today,
-            "priority": "high",
-            "severity": "warning",
-            "status": "pending",
-            "kind": "audit_finding",
-            "audit_finding": True,
-            "audit_class": audit_class,
-            "audit_finding_severity": "warning",
-            "task_summary": (
+
+        # Dedup: check for existing pending audit_finding for same (target, audit_class)
+        existing_path = find_existing_pending_audit_finding(inbox, audit_class, "sentinel")
+
+        if existing_path is not None:
+            # REFRESH path: load existing, replace evidence + bump refresh metadata
+            try:
+                with open(existing_path, "r", encoding="utf-8") as f:
+                    body = json.load(f)
+            except Exception:
+                # Existing file unreadable; fall back to create-new with a new id
+                existing_path = None
+
+        if existing_path is None:
+            # CREATE path: build new body
+            task_id = f"rt-sentinel-{today}-audit-{slug}-{target[:8]}"
+            path = inbox / f"{task_id}.json"
+            body = {
+                "id": task_id,
+                "id_format_version": 2,
+                "source_workspace": "sentinel",
+                "routed_to": target,
+                "routed_date": today,
+                "priority": "high",
+                "severity": "warning",
+                "status": "pending",
+                "kind": "audit_finding",
+                "audit_finding": True,
+                "audit_class": audit_class,
+                "audit_finding_severity": "warning",
+                "task_summary": (
+                    f"Audit finding: {len(items)} {audit_class} item(s) detected in {target}"
+                ),
+                "context": (
+                    f"Cross-workspace-auditor run {today} found drift in {audit_class}. "
+                    f"See evidence array for specifics."
+                ),
+                "fix_instructions": (
+                    "Review each item in evidence array. For each, either: "
+                    "(a) take corrective action (update Supabase, close inbox item, etc.) "
+                    "and close this RT, or (b) reject with --status rejected if the finding is invalid."
+                ),
+                "evidence": items,
+                "notify_on_completion": True,
+                "notify_inbox_path": str(sentinel_inbox),
+                "notification_filename_hint": f"rt-{target[:8]}-{today}-{slug}-completed.json",
+            }
+            action = "created"
+        else:
+            # REFRESH path: keep id, status, original task_id; update evidence + refresh metadata
+            path = existing_path
+            body["evidence"] = items
+            body["task_summary"] = (
                 f"Audit finding: {len(items)} {audit_class} item(s) detected in {target}"
-            ),
-            "context": (
-                f"Cross-workspace-auditor run {today} found drift in {audit_class}. "
-                f"See evidence array for specifics."
-            ),
-            "fix_instructions": (
-                "Review each item in evidence array. For each, either: "
-                "(a) take corrective action (update Supabase, close inbox item, etc.) "
-                "and close this RT, or (b) reject with --status rejected if the finding is invalid."
-            ),
-            "evidence": items,
-            "notify_on_completion": True,
-            "notify_inbox_path": str(sentinel_inbox),
-            "notification_filename_hint": f"rt-{target[:8]}-{today}-{slug}-completed.json",
-        }
+            )
+            body["last_refreshed_at"] = datetime.now(timezone.utc).isoformat()
+            body["refresh_count"] = body.get("refresh_count", 0) + 1
+            action = "refreshed"
+
         entry = {
             "target": target,
             "path": str(path),
             "audit_class": audit_class,
             "finding_count": len(items),
+            "action": action,
         }
         if dry_run:
             entry["dry_run"] = True
