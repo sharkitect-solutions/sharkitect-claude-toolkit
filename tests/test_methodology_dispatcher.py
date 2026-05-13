@@ -2790,10 +2790,11 @@ class TestDispatcher:
     def test_real_subrules_loaded_for_pre_tool_use(self, tmp_path):
         """Sanity: actual PRE_TOOL_USE_SUBRULES list is populated post-import."""
         d = self._import_dispatcher()
-        # All 10 PreToolUse sub-rules should have imported successfully.
+        # All 11 PreToolUse sub-rules should have imported successfully.
+        # (10 original + strategy_work added in Cluster A 2026-05-12)
         # Filter Nones (none expected, but graceful).
         loaded = [s for s in d.PRE_TOOL_USE_SUBRULES if s is not None]
-        assert len(loaded) == 10
+        assert len(loaded) == 11
 
     def test_real_dispatcher_does_not_crash_on_pre_tool_use_write(self, tmp_path):
         """End-to-end smoke: dispatcher accepts a real PreToolUse:Write payload
@@ -2833,3 +2834,143 @@ class TestDispatcher:
         # Smoke: doesn't crash; result is None or valid
         if result is not None:
             assert "hookSpecificOutput" in result
+
+    # -- Cluster A: ask decision branch (Layer 3 strategy_work sub-rule contract) --
+
+    def test_ask_decision_maps_to_permission_decision_ask(self, tmp_path, monkeypatch):
+        """A sub-rule returning {'decision': 'ask', 'reason': ...} maps to permissionDecision: 'ask'."""
+        d = self._import_dispatcher()
+
+        class StubAsk:
+            @staticmethod
+            def evaluate(payload):
+                return {"decision": "ask", "reason": "stub ask reason"}
+
+        monkeypatch.setattr(d, "PRE_TOOL_USE_SUBRULES", [StubAsk])
+        monkeypatch.setattr(d, "EVENT_TO_SUBRULES", {"PreToolUse": [StubAsk]})
+
+        result = d.dispatch({
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Write",
+            "tool_input": {"file_path": "/x", "content": "y"},
+        })
+        assert result is not None
+        ho = result["hookSpecificOutput"]
+        assert ho["hookEventName"] == "PreToolUse"
+        assert ho["permissionDecision"] == "ask"
+        assert "stub ask reason" in ho["permissionDecisionReason"]
+
+    def test_deny_beats_ask_precedence(self, tmp_path, monkeypatch):
+        """If one sub-rule returns deny and another returns ask, deny wins and short-circuits."""
+        d = self._import_dispatcher()
+        called = {"ask": False}
+
+        class StubDeny:
+            @staticmethod
+            def evaluate(payload):
+                return {"decision": "deny", "reason": "stub deny reason"}
+
+        class StubAsk:
+            @staticmethod
+            def evaluate(payload):
+                called["ask"] = True
+                return {"decision": "ask", "reason": "stub ask reason"}
+
+        monkeypatch.setattr(d, "PRE_TOOL_USE_SUBRULES", [StubDeny, StubAsk])
+        monkeypatch.setattr(d, "EVENT_TO_SUBRULES", {"PreToolUse": [StubDeny, StubAsk]})
+
+        result = d.dispatch({
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Write",
+            "tool_input": {"file_path": "/x", "content": "y"},
+        })
+        assert result is not None
+        ho = result["hookSpecificOutput"]
+        assert ho["permissionDecision"] == "deny"
+        assert "stub deny reason" in ho["permissionDecisionReason"]
+        # deny short-circuits — ask sub-rule must not have been called
+        assert called["ask"] is False
+
+    def test_ask_with_advisories_merges_into_reason(self, tmp_path, monkeypatch):
+        """Ask + advisory together: emit permissionDecision=ask; reason includes both ask reason AND advisories."""
+        d = self._import_dispatcher()
+
+        class StubAdvA:
+            @staticmethod
+            def evaluate(payload):
+                return {"advisory": "advisory before ask"}
+
+        class StubAsk:
+            @staticmethod
+            def evaluate(payload):
+                return {"decision": "ask", "reason": "stub ask reason"}
+
+        class StubAdvB:
+            @staticmethod
+            def evaluate(payload):
+                return {"advisory": "advisory after ask"}
+
+        monkeypatch.setattr(d, "PRE_TOOL_USE_SUBRULES", [StubAdvA, StubAsk, StubAdvB])
+        monkeypatch.setattr(d, "EVENT_TO_SUBRULES", {"PreToolUse": [StubAdvA, StubAsk, StubAdvB]})
+
+        result = d.dispatch({
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Write",
+            "tool_input": {"file_path": "/x", "content": "y"},
+        })
+        assert result is not None
+        ho = result["hookSpecificOutput"]
+        # Ask precedence: emit ask, not advisory output
+        assert ho["permissionDecision"] == "ask"
+        reason = ho["permissionDecisionReason"]
+        # Ask reason and both advisories all surface
+        assert "stub ask reason" in reason
+        assert "advisory before ask" in reason
+        assert "advisory after ask" in reason
+
+    # -- Cluster A Task 6: strategy_work registration in dispatcher --
+
+    def test_strategy_work_imported_and_registered(self):
+        """strategy_work must be imported and present in PRE_TOOL_USE_SUBRULES."""
+        d = self._import_dispatcher()
+        assert hasattr(d, "_strategy_work"), \
+            "methodology-dispatcher must define _strategy_work via _safe_import"
+        assert d._strategy_work is not None, \
+            "strategy_work import must succeed (module file must exist + be valid Python)"
+        assert d._strategy_work in d.PRE_TOOL_USE_SUBRULES, \
+            "strategy_work must be in PRE_TOOL_USE_SUBRULES"
+
+    def test_strategy_work_full_dispatch_emits_ask(self, tmp_path, monkeypatch):
+        """End-to-end: Write to NEW Tier 1 path with no methodology + no bypass + no
+        intent-driven flag -> dispatcher emits permissionDecision: 'ask' via strategy_work."""
+        d = self._import_dispatcher()
+
+        # Patch session-journal check to return False (no methodology invoked)
+        # via monkeypatching strategy_work module-level helpers
+        sw = d._strategy_work
+        assert sw is not None, "strategy_work must be loaded"
+        monkeypatch.setattr(sw, "_session_has_methodology_skill", lambda payload: False)
+        monkeypatch.setattr(sw, "_has_bypass_phrase", lambda payload: False)
+        if sw.is_user_driven is not None:
+            monkeypatch.setattr(sw, "is_user_driven", lambda payload: False)
+
+        target = tmp_path / "knowledge-base" / "revenue" / "pricing-structure-v3.md"
+        target.parent.mkdir(parents=True)
+        # File does NOT exist on disk -> Tier 1 ask should fire
+
+        result = d.dispatch({
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Write",
+            "tool_input": {"file_path": str(target), "content": "placeholder"},
+            "session_id": "test-no-methodology",
+            "transcript_path": _write_transcript(tmp_path, "ok"),
+        })
+
+        assert result is not None, "dispatcher should have emitted something"
+        ho = result["hookSpecificOutput"]
+        # Expect ask emission from strategy_work; deny may also win if some other
+        # sub-rule short-circuits, but typically Tier 1 paths only trigger strategy_work
+        assert ho.get("permissionDecision") == "ask", \
+            f"Expected permissionDecision=ask via strategy_work, got: {ho}"
+        assert "methodology" in ho.get("permissionDecisionReason", "").lower(), \
+            "ask reason should mention methodology"

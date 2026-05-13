@@ -79,15 +79,18 @@ _plan_file_read = _safe_import("plan_file_read")
 _multi_file_build = _safe_import("multi_file_build")
 _production_tool = _safe_import("production_tool")
 _creation_gate = _safe_import("creation_gate")
+_strategy_work = _safe_import("strategy_work")  # Cluster A Layer 3 (2026-05-12)
 
 
 # Order matters for advisory concatenation; HARD GATE sub-rules go first so
 # their deny short-circuits before lower-severity advisories run.
+# ASK (strategy_work) goes after deny sub-rules and before advisories.
 PRE_TOOL_USE_SUBRULES = [
     _brainstorming,        # HARD GATE
     _writing_plans,        # HARD GATE
     _supabase_ddl,         # HARD GATE
     _creation_gate,        # HARD GATE (Tier 1) + Advisory (Tier 2)
+    _strategy_work,        # ASK (Tier 1) + Advisory (Tier 2) -- Cluster A
     _claude_api,           # Advisory
     _multistep_plan,       # Advisory
     _deep_interview,       # Advisory
@@ -124,11 +127,18 @@ def dispatch(payload):
     Returns:
       None -> no contribution from any sub-rule
       dict -> {"hookSpecificOutput": {...}}
+
+    Decision precedence (Cluster A): deny > ask > advisory.
+      - deny short-circuits the whole chain (existing behavior).
+      - ask collects across sub-rules and emits permissionDecision: "ask";
+        advisories from other sub-rules merge into the ask reason text.
+      - advisory-only fires when no deny or ask present.
     """
     event = payload.get("hook_event_name", "")
     sub_rules = EVENT_TO_SUBRULES.get(event, [])
 
     advisories = []
+    ask_reasons = []
     for sub in sub_rules:
         if sub is None:  # import failed; skip
             continue
@@ -147,8 +157,25 @@ def dispatch(payload):
                     "permissionDecisionReason": result.get("reason", ""),
                 }
             }
+        # ASK (Cluster A): collects across sub-rules; advisories merge into reason
+        if isinstance(result, dict) and result.get("decision") == "ask":
+            ask_reasons.append(str(result.get("reason", "")))
+            continue
         if isinstance(result, dict) and "advisory" in result:
             advisories.append(str(result["advisory"]))
+
+    # ASK precedence: if any ask present, emit ask with merged reasons + advisories
+    if ask_reasons:
+        reason = "\n\n---\n\n".join(ask_reasons)
+        if advisories:
+            reason += "\n\n---\n\n" + "\n\n---\n\n".join(advisories)
+        return {
+            "hookSpecificOutput": {
+                "hookEventName": event,
+                "permissionDecision": "ask",
+                "permissionDecisionReason": reason,
+            }
+        }
 
     if not advisories:
         return None

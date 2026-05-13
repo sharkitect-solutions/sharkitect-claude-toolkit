@@ -36,6 +36,40 @@ SKILL_HUB_ROOT = (
     / "3.- Skill Management Hub"
 )
 
+# Cluster A (2026-05-12): SessionStart injection of using-sharkitect-methodology meta-skill
+SHARKITECT_METHODOLOGY_SKILL_PATH = (
+    Path.home() / ".claude" / "skills" / "using-sharkitect-methodology" / "SKILL.md"
+)
+
+
+def _inject_sharkitect_methodology_meta_skill():
+    """Inject using-sharkitect-methodology SKILL.md content as <EXTREMELY_IMPORTANT> context.
+
+    Mirrors the superpowers session-start.sh injection pattern (1 SessionStart hook +
+    1 meta-skill = entire methodology enforcement layer). Returns the formatted context
+    block, or None if the skill file is missing (non-fatal).
+
+    Source: docs/superpowers/specs/2026-05-12-methodology-gate-cluster-a-design.md Layer 2.
+    Closes 4 stacked WRs (wr-hq-2026-05-11-001, wr-hq-2026-05-11-003, wr-hq-2026-05-12-001,
+    wr-sentinel-2026-05-12-004) + 1 follow-up (Sentinel using-sharkitect-methodology-skipped).
+    """
+    skill_path = SHARKITECT_METHODOLOGY_SKILL_PATH
+    if not skill_path.is_file():
+        return None
+    try:
+        content = skill_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+    return (
+        "<EXTREMELY_IMPORTANT>\n"
+        "You have Sharkitect methodology skills.\n\n"
+        "**Below is the full content of your 'using-sharkitect-methodology' skill — "
+        "your introduction to Sharkitect-specific methodology skills. For all other skills, "
+        "use the 'Skill' tool:**\n\n"
+        f"{content}\n"
+        "</EXTREMELY_IMPORTANT>"
+    )
+
 
 # ---------------------------------------------------------------------------
 # Workspace detection
@@ -1021,6 +1055,15 @@ def main():
     # -- Write heartbeat on full startup --
     if mode == "FULL_STARTUP":
         write_heartbeat(tmp_dir, workspace)
+
+    # -- Inject using-sharkitect-methodology meta-skill (Cluster A Layer 2) --
+    # Mirrors superpowers session-start.sh injection pattern. Runs on both
+    # FULL_STARTUP and VERIFY_ONLY so every session inherits the anti-rationalization
+    # discipline for Sharkitect-specific methodology skills.
+    methodology_context = _inject_sharkitect_methodology_meta_skill()
+    if methodology_context:
+        lines.append("")  # blank separator
+        lines.append(methodology_context)
 
     # -- Output as SessionStart hook format --
     output = {

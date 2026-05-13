@@ -5824,3 +5824,43 @@ Tags: schema, hierarchy, projects, rollup, naming-convention, initiative
 **Why it worked:** Meta-path exemptions are documented in the hook's own source so they're a reliable escape route for cross-workspace coordination + memory preservation. ScheduleWakeup gave autonomous progression without burning context on busy-polling. Skill Hub turned around the fix in <30 min (WR filed at 16:38 local, completion notification landed before 17:18 wakeup, retry succeeded on first attempt).
 **Apply when:** Any infrastructure-layer blocker (hook bug, plugin shadow, settings.json conflict) prevents the canonical end-session / session-checkpoint / git-push flow. DO NOT bypass-phrase-escape — that hides the real bug. DO file WR + preserve state via exempt paths + schedule autonomous retry. Pattern preserves audit-gate integrity AND keeps work flowing across the fix cycle.
 **Tags:** #process-decision #ralph-loop #infrastructure-blocker #meta-path-exemption #autonomous-loop #cross-workspace-coordination
+
+### 2026-05-12 [process] Three-tier audit model preferred over unbounded auto-fix; Pushback Protocol applied successfully
+
+**Category:** process / architecture-direction
+**Workspace:** sentinel (Topic 2 cross-workspace auditor design)
+**Context:** During Topic 2 cross-workspace auditor design, user initially proposed expanding Sentinel's role from "audit + route" to "audit + fix everything you see, then notify the workspace post-hoc." Sentinel applied Pushback Protocol: agreed with the principle (autonomy + lesson-learned notifications) but pushed back on unbounded "fix all 8 drift classes" — categorized each drift class by fix-ability and proposed a three-tier model. User accepted the differentiated model.
+**Three-tier outcome:**
+- **Tier A** (Sentinel autofixes + notifies): mechanical drift with unambiguous correctness criteria (rollup_drift via Supabase trigger touch, plan_registry_drift via global file rewrite). Sentinel writes `kind: drift_fixed_notification` with lesson_learned field; receiving workspace acks at next session start.
+- **Tier B** (routes audit_finding): drift classes needing workspace judgment (asset-registry, session_supabase_delta, coordination_drift, memory_claim_drift, stale brain-dumps, other workspaces' wr-id issues). Schema includes `audit_finding:true` for Skill Hub's hard-stop hook to detect.
+- **Tier C** (HAR personal notification): overdue HARs only the user can satisfy. Sends Slack message to user via Polaris bot + `SLACK_SENTINEL_AUDIT_REPORTS_CHANNEL`. Signed off as Sentinel.
+**Why it matters:** Without differentiation, "fix everything" would have violated Supabase Ownership Protocol for classes that need workspace context (memory edits, RT closures, session-log verification). The Pushback Protocol caught the failure mode before it shipped. Generalizing a one-time exception (2026-05-12 hierarchy backfill, recurrence #3) into permanent policy would have repeated the failure the protocol warns about.
+**Apply when:** Any time a user proposes expanding a workspace's authority to act on another workspace's records. Categorize the proposed actions by (a) mechanical vs judgment-required, (b) blast radius if wrong, (c) reversibility. Mechanical + low blast + reversible = candidate for autofix. Anything else stays as route-with-lesson.
+**Follow-up:** Universal-protocols.md amendment formalizing Tier A authority deferred to end-of-Topic-2-execution WR to Skill Hub. Current Topic 2 work proceeds under user-direction-this-session authorization.
+**Tags:** #process-decision #architecture-direction #pushback-protocol #supabase-ownership #autonomy-tiers #sentinel-scope-expansion #topic-2
+
+### 2026-05-12 [error] CronCreate durable=true persistence silently ignored
+
+**Category:** api-limitation / tool-usage
+**Workspace:** sentinel (filed BUG wr-sentinel-2026-05-12-005 to Skill Hub)
+**Context:** Created CronCreate job with `cron='3 * * * *', recurring=true, durable=true` to set up hourly inbox polling per startup-guard mandate. Tool response: `Scheduled recurring job 72ef92f8 (Every hour at :03). Session-only (not written to disk, dies when Claude exits).` Verified: `.claude/scheduled_tasks.json` was NOT created post-call; only `.claude/scheduled_tasks.lock` present.
+**The contradiction:** CronCreate tool description has two contradictory statements — the "Session-only" section says "nothing is written to disk, and the job is gone when Claude exits," while the `durable` parameter says "true = persist to .claude/scheduled_tasks.json and survive restarts."
+**Possible causes:** (a) `durable=true` is ignored by runtime, (b) the "session-only" message is templated and doesn't reflect actual persistence, (c) durable persistence is gated on something else (workspace path, permission). Not yet diagnosed.
+**Workaround:** session-startup-guard already recreates the cron job each session via its MANDATORY AUTONOMOUS ACTIONS instruction, so practical impact is small but the rule is broken.
+**Apply when:** Don't trust CronCreate `durable=true` to actually persist. Verify by checking `.claude/scheduled_tasks.json` after creation. If absent, document the gap; the cron WILL still fire for the current session (in-memory) and the startup-guard recreates it next session.
+**Tags:** #api-limitation #tool-usage #cron #durable-persistence #regression
+
+
+## 2026-05-12 S49 lessons (Cluster A Tasks 1-6)
+
+### Process Decision: meta-skill + SessionStart injection beats N-hook approach
+**Source:** S49 Cluster A. Initial Approach C proposed 3 dispatcher sub-rules; partial Bundle E read of `sharkitect-solutions/superpowers` source revealed Jesse Vincent's plugin enforces ALL methodology with 1 SessionStart hook + 1 meta-skill (`using-superpowers`). Reframed to Approach E (meta-skill + 1 narrow runtime sub-rule), 0 net new top-level hooks added. **Apply when:** building runtime enforcement for reasoning-layer failure modes. Prefer meta-skill+injection over N-hook stacks. Hook Introduction Rule budget alignment.
+
+### Architecture Direction: ask permissionDecision over deny for narrow gates
+**Source:** Cluster A Layer 3 strategy_work.py. Phase 1 platform-research Bundle A identified `permissionDecision: "ask"` as underused. Used `ask` instead of `deny` for Tier 1 narrow hard-gate (NEW pricing spec writes without methodology). User gets one-click approve OR cancel + invoke skill — no bypass-vocabulary friction for legitimate exceptions. **Apply when:** building narrow PreToolUse gates where the user MIGHT have a legitimate reason to proceed without the recommended skill. Use `ask` if the user can decide; use `deny` only if proceeding is categorically unsafe.
+
+### Error Class: plan file paths can drift from actual codebase
+**Source:** S49 Task 2. Plan specified `~/.claude/scripts/session-startup-guard.py`; actual file lives at `~/.claude/hooks/session-startup-guard.py`. Test paths needed adjustment. **Mitigation:** during writing-plans step, verify each "Modify:" path with `ls` before committing the plan. Cheap check, prevents Step 1-2 retry cycles.
+
+### Process Decision: skill-judge annealing loop closes in 2 iterations when applied properly
+**Source:** S49 Task 1 meta-skill. Iter 1 = 90/120 (C+, below B-gate). Iter 2 after 5 targeted optimizations (D5 +5 File Index, D4 +3 Scope Boundary, D3 +3 What-It-Costs column, D1/D2 +2 each Pre-Decision Framework) = 108/120 (A). **Apply when:** building any FULL skill (3 companions). Target B gate first iter; A is achievable in iter 2 with structured optimizations to the lowest-scoring dimensions.
