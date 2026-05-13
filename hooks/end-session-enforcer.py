@@ -125,6 +125,20 @@ BYPASS_PHRASES = (
     "save progress quickly",
 )
 
+# Silencer phrases (S50 fix, 2026-05-13). User saying any of these in a
+# transcript message AFTER an end-session signal suppresses the gate until
+# a fresh signal arrives (timestamp comparison handles re-arming). Designed
+# from user direction "have a permanent line that says 'Still working on a
+# project' or something. It would silence that until I actually say it again."
+# The transcript IS the state -- no state file needed. # skip end-session
+SILENCER_PHRASES = (
+    "still working",
+    "still going",
+    "not ending",
+    "not done yet",
+    "ignore that",
+)
+
 # End-session signal patterns. Post-rename: bare "checkpoint" and
 # "/session-checkpoint" no longer trigger (they belong to the mid-session
 # skill now). "/end-session" added as the explicit invocation trigger.
@@ -138,6 +152,42 @@ END_SESSION_PATTERNS = [
     re.compile(r"\bsave\s+session\b", re.I),
     re.compile(r"/end-session\b", re.I),
 ]
+
+# Descriptive-context markers (S50 fix, 2026-05-13). If a trigger pattern
+# matches but is preceded by one of these markers within ~60 chars, treat
+# as a descriptive reference (simile / past event / discussion / example /
+# definition) rather than an imperative request. Source incident: user's
+# architectural-discussion message "sort of like we did with the session
+# checkpoint and end session may risk breaking something" repeatedly
+# triggered the gate even though the user was describing past behavior,
+# not requesting an end. # skip end-session
+DESCRIPTIVE_MARKERS = re.compile(
+    r"\b(?:"
+    # Similes
+    r"(?:sort|kind|just)\s+of\s+like|just\s+like"
+    # Hypothetical / as-if
+    r"|as\s+(?:if|though)"
+    # Past-event references
+    r"|remember(?:ed)?(?:\s+(?:when|how))?"
+    r"|earlier|yesterday|previously|the\s+other\s+day"
+    r"|we\s+(?:did|had|used\s+to)|that\s+happened"
+    # Meta-discussion
+    r"|talking\s+about|talked\s+about|discussing|discussion\s+of"
+    r"|mention(?:ed|ing)?|referenc(?:ed|ing)?|discussed"
+    # Examples
+    r"|for\s+example|such\s+as|e\.g\.|i\.e\."
+    # Names / definitions
+    r"|called|named"
+    r"|concept\s+of|idea\s+of|definition\s+of|the\s+term|the\s+phrase"
+    # Past breakage
+    r"|broke\s+(?:the|because|when)"
+    r")\b",
+    re.I,
+)
+# How many chars of context BEFORE a trigger match to scan for descriptive
+# markers. 60 chars covers most natural-language simile and past-ref
+# constructions without bleeding into the previous sentence's content.
+DESCRIPTIVE_LOOKBEHIND = 60
 
 # Meta paths: structurally exempt for Write/Edit (gap reports + memory).
 META_PATH_MARKERS = (
@@ -188,8 +238,14 @@ SYSTEM_BLOCK_RE = re.compile(
     re.S | re.I,
 )
 
-# How many recent user messages to scan for the signal.
-TRANSCRIPT_USER_LOOKBACK = 10
+# How many recent user TEXT messages to scan for the signal. S50 fix
+# (2026-05-13): tightened from 10 to 1 per user direction "it should also
+# maybe just look at the previous message not ALL RECENT MESSAGES".
+# Only counts user records with non-empty extracted text -- tool-result
+# records (type=user, content=tool_result blocks) are skipped without
+# depleting the budget, so the scan reliably reaches the user's most
+# recent actual prompt. # skip end-session
+TRANSCRIPT_USER_LOOKBACK = 1
 
 # Matched tool names (PreToolUse fires on ALL tools; we filter in code
 # rather than relying on settings.json matcher regex, so one code change
@@ -313,28 +369,33 @@ def extract_text_from_content(content):
     return ""
 
 
-def find_most_recent_end_session(transcript_path):
-    """Scan transcript in reverse. Return (signal_ts, signal_found).
+def _iter_recent_user_text_messages(transcript_path, limit):
+    """Yield (record, clean_text) for recent USER TEXT messages, newest first.
 
-    signal_ts: datetime of the user message containing the signal,
-      or None if the message had no parseable timestamp.
-    signal_found: True if any of the last N user messages matched.
+    Records with empty extracted text (i.e. tool-result-only user records)
+    are SKIPPED without consuming a slot in the limit. This lets callers
+    scan the user's actual recent prompt(s) even when many tool-result
+    records sit between the AI's current tool call and the user's text.
+
+    S50 fix (2026-05-13): factored out of find_most_recent_end_session so
+    find_most_recent_silencer can share the same iteration semantics.
+    # skip end-session
     """
     if not transcript_path:
-        return (None, False)
+        return
     try:
         p = Path(transcript_path)
         if not p.is_file():
-            return (None, False)
+            return
         with p.open("r", encoding="utf-8", errors="replace") as f:
             lines = f.readlines()
     except (OSError, UnicodeDecodeError):
-        return (None, False)
+        return
 
-    user_msgs_seen = 0
+    text_msgs_seen = 0
     for line in reversed(lines):
-        if user_msgs_seen >= TRANSCRIPT_USER_LOOKBACK:
-            break
+        if text_msgs_seen >= limit:
+            return
         line = line.strip()
         if not line:
             continue
@@ -344,20 +405,106 @@ def find_most_recent_end_session(transcript_path):
             continue
         if rec.get("type") != "user":
             continue
-        user_msgs_seen += 1
         msg = rec.get("message") or {}
         text = extract_text_from_content(msg.get("content"))
         clean = strip_system_blocks(text)
+        if not clean.strip():
+            # tool-result-only or system-only record; skip without counting
+            continue
+        text_msgs_seen += 1
+        yield (rec, clean)
+
+
+def find_most_recent_end_session(transcript_path):
+    """Scan transcript in reverse for an end-session signal.
+
+    Returns (signal_ts, signal_found):
+      signal_ts: datetime of the user message containing the signal, or None
+        if the message had no parseable timestamp.
+      signal_found: True if any of the last TRANSCRIPT_USER_LOOKBACK user
+        TEXT messages contained an IMPERATIVE end-session match (descriptive
+        references like similes / past references / meta-discussion do not
+        count -- see _is_descriptive_reference).
+    """
+    for rec, clean in _iter_recent_user_text_messages(transcript_path, TRANSCRIPT_USER_LOOKBACK):
         if contains_end_session_signal(clean):
             ts = parse_iso_timestamp(rec.get("timestamp"))
             return (ts, True)
     return (None, False)
 
 
+def find_most_recent_silencer(transcript_path):
+    """Scan transcript in reverse for a silencer phrase ("still working",
+    "not ending", etc.).
+
+    Returns (silencer_ts, silencer_found). Mirror of find_most_recent_end_session.
+
+    Silencer semantics (S50, 2026-05-13): if the user says a silencer phrase
+    AFTER an end-session signal, the gate stands down -- the user has
+    explicitly stated they are continuing the session. A fresh end-session
+    signal AFTER the silencer re-arms the gate (timestamp comparison in
+    main()). Scans a slightly wider window than end-session detection so a
+    one-message-ago silencer still applies when the current most-recent user
+    message contains an unrelated follow-up. # skip end-session
+    """
+    # Wider lookback than signal detection: silencer needs to persist across
+    # one or two intervening turns, otherwise the silence is lost the moment
+    # the user asks a follow-up question.
+    for rec, clean in _iter_recent_user_text_messages(transcript_path, 3):
+        low = clean.lower()
+        if any(phrase in low for phrase in SILENCER_PHRASES):
+            ts = parse_iso_timestamp(rec.get("timestamp"))
+            return (ts, True)
+    return (None, False)
+
+
+def _is_descriptive_reference(text, match_pos):
+    """Return True if a trigger match at match_pos is preceded by a
+    descriptive marker (simile, past reference, discussion, example,
+    definition) WITHIN THE CURRENT SENTENCE.
+
+    The lookbehind window is bounded both by DESCRIPTIVE_LOOKBEHIND chars
+    AND by the most-recent sentence-end punctuation (. ! ? newline). This
+    prevents an earlier sentence's "discussed"/"like we"/etc. from poisoning
+    an imperative match in a later sentence -- e.g. "we discussed end session
+    protocols. now let's end the session" must still trigger on the second
+    clause despite "discussed" in the first.
+
+    Treating descriptive matches as non-imperative prevents false positives
+    where the user discusses end-session concepts without requesting an end.
+    # skip end-session
+    """
+    if not text or match_pos <= 0:
+        return False
+    start = max(0, match_pos - DESCRIPTIVE_LOOKBEHIND)
+    window = text[start:match_pos]
+    # Restrict to the current sentence: split on sentence-end punctuation
+    # followed by whitespace, then keep the trailing fragment (the sentence
+    # the match lives in). Also splits on bare newlines as paragraph breaks.
+    parts = re.split(r"(?:[.!?]+\s+|\n+)", window)
+    current_sentence = parts[-1] if parts else window
+    return bool(DESCRIPTIVE_MARKERS.search(current_sentence))
+
+
 def contains_end_session_signal(text):
+    """Return True if text contains an imperative end-session signal.
+
+    Iterates every pattern match in the text. A match is considered
+    imperative unless it is preceded by a descriptive marker within
+    DESCRIPTIVE_LOOKBEHIND chars (simile / past reference / meta-discussion
+    / example / definition). At least one non-descriptive match is
+    required to trigger.
+
+    S50 (2026-05-13): upgraded from any-substring-wins to
+    descriptive-aware scanning. # skip end-session
+    """
     if not text:
         return False
-    return any(pat.search(text) for pat in END_SESSION_PATTERNS)
+    for pat in END_SESSION_PATTERNS:
+        for m in pat.finditer(text):
+            if not _is_descriptive_reference(text, m.start()):
+                return True
+    return False
 
 
 def recent_user_messages_contain_bypass(transcript_path):
@@ -484,6 +631,18 @@ def main():
     signal_ts, signal_found = find_most_recent_end_session(transcript_path)
     if not signal_found:
         return 0  # no end-session in recent user messages
+
+    # ---- Bypass: silencer phrase in recent transcript -------------------
+    # S50 fix (2026-05-13): if the user said a silencer phrase ("still
+    # working", "not ending", etc.) with timestamp >= the signal, the
+    # gate stands down. Same-timestamp (signal + silencer in same message)
+    # also resolves to silencer-wins.
+    silencer_ts, silencer_found = find_most_recent_silencer(transcript_path)
+    if silencer_found:
+        if signal_ts is None or silencer_ts is None:
+            return 0  # graceful: missing timestamp, bias toward allow
+        if silencer_ts >= signal_ts:
+            return 0
 
     # ---- Bypass: skill already invoked AFTER the signal ------------------
     if checkpoint_invoked_after(signal_ts):
