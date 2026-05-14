@@ -1,113 +1,144 @@
-# Sharkitect Digital Client Tiering Framework
+# Sharkitect Digital — Client & Service Tiering (Pointer Doc)
 
-## Tier Definitions
+**Status:** active | **Last rebuilt:** 2026-05-13 | **Reason:** Drift correction per `wr-hq-2026-05-13-001` — prior version encoded a fabricated 4-tier ($5K+/$2-5K/$500-2K/<$500) client price-band model and pricing guardrails that do not exist in current v3.0 architecture.
 
-### Tier 0 — Enterprise ($5,000+/mo)
+**Authority:** This file is a POINTER. Canonical tiering content lives in the HQ knowledge-base K1 SoTs cited below. Per the No-Duplicate-Content Rule (universal-protocols.md), skill references summarize and cite — they do not encode standalone canonical content. When K1 SoTs evolve, this pointer follows automatically because the canonical decisions are NOT duplicated here.
 
-**Profile**: Multi-location businesses, 50+ employees, complex operational needs
-**Service level**: Dedicated account management, priority response (4-hour SLA), quarterly business reviews, custom development included
-**Pricing**: Custom scoping. Minimum 50% gross margin. All custom work billed at $175/hr.
-**Approval**: CEO signs all Tier 0 contracts
-**Payment terms**: Net 30 standard, Net 45 available
-**Retention priority**: CRITICAL — losing a Tier 0 client triggers immediate root cause analysis
+---
 
-### Tier 1 — Strategic ($2,000-$5,000/mo)
+## What "tiering" actually means at Sharkitect Digital
 
-**Profile**: Growing businesses, 15-50 employees, ready for systematic automation
-**Service level**: Named account contact, 8-hour SLA, monthly check-ins, limited custom development
-**Pricing**: Packaged services with customization. Minimum 45% gross margin. Custom work at $150/hr.
-**Approval**: Full deal review required. CEO reviews scope and pricing.
-**Payment terms**: Net 30
-**Retention priority**: HIGH — quarterly health check required
+There is **no single client tier model**. Three distinct tiering systems run in parallel; each answers a different question. Reach for the right one based on the task.
 
-### Tier 2 — Growth ($500-$2,000/mo)
+### 1. Client Journey Tier (T0–T4) — "where is the client in the lifecycle?"
 
-**Profile**: Established businesses, 5-15 employees, starting to feel operational pain
-**Service level**: Shared account management, 24-hour SLA, quarterly check-ins
-**Pricing**: Standardized packages. Minimum 50% gross margin. No custom development below $1,000/mo.
-**Approval**: Margin check required. Auto-approve if within guardrails.
-**Payment terms**: Net 30, no exceptions
-**Retention priority**: STANDARD — monitor usage, flag declining engagement
+**K1 SoT:** `1.- SHARKITECT DIGITAL WORKFORCE HQ/knowledge-base/strategy/client-journey-tier-framework.md` v1.0
 
-### Tier 3 — Standard (Under $500/mo)
+Tracks relationship state from cold visitor to advocate. Drives feature assignment (what experience this client gets) and which playbooks fire on tier transition.
 
-**Profile**: Small businesses, 1-5 employees, need specific solutions
-**Service level**: Self-serve with email support, 48-hour SLA, no scheduled check-ins
-**Pricing**: Fixed-price packages only. No customization. Minimum 60% gross margin.
-**Approval**: Auto-approve if standard package
-**Payment terms**: Payment upfront or Net 15
-**Retention priority**: LOW — batch management, no individual attention unless upsell signal
+| Tier | State | Key Feature Class |
+|---|---|---|
+| **T0 Anonymous Visitor** | No contact info | Public website, GBP, ads, lead magnets |
+| **T1 Lead** | Contact info submitted, no meeting | Generic branded card, nurture sequence, basic HubSpot record |
+| **T2 Prospect** | Meeting scheduled | Pre-meeting prep profile, post-meeting card upgrade, proposal generation |
+| **T3 Active Client** | Signed partnership | Fully custom card, monthly KPI reports, client Notion workspace, direct Slack |
+| **T4 Advocate** | Producing referrals / case studies | Case study placement, referral partnership, co-marketing |
 
-## Pricing Guardrails (Detailed)
+Use for: feature assignment decisions, transition playbook triggers, "what does this client get?" questions.
 
-### Minimum Margins by Service
+---
 
-| Service | Minimum Gross Margin | Typical Margin | Floor Price |
-|---------|---------------------|---------------|-------------|
-| AI Agent Setup | 50% | 65% | $2,500 one-time |
-| Workflow Automation | 55% | 70% | $1,500/mo |
-| System Integration | 45% | 60% | $3,000 one-time |
-| Ongoing Management | 60% | 75% | $500/mo |
-| Strategy Consulting | 70% | 80% | $200/hr |
-| Custom Development | 50% | 60% | $150/hr |
+### 2. Wrapper Choice — "which partnership offering did the client pick?"
 
-### Bundle Discount Rules
+**K1 SoT:** `knowledge-base/revenue/pricing-structure.md` v3.2 §2 ("The Two Wrapper Options")
 
-| Bundle Size | Max Discount | Approval |
-|------------|-------------|----------|
-| 2 services | 10% off total | Auto-approve |
-| 3 services | 15% off total | Margin check |
-| 4+ services | 20% off total | CEO approval |
+Every active client picks ONE wrapper. Both share the same Project Line behavior below the wrapper; only the wrapper-layer mechanics differ.
 
-**Rule**: Bundle discount applies to total, NOT per-service. The discount must NOT bring any individual service below its minimum margin.
+| Wrapper | Founding Partner Rate | Standard Rate | Advisory Layer |
+|---|---|---|---|
+| **Standard AI Transformation Partnership** | $1,500/mo (first 5 clients, 24-mo lock) | $2,500/mo (placeholder, pending pricing sub-step) | Chris (human) — W1 Strategic Advisory (3hr/mo retainer), W2 Monthly KPI Report, W3 Capacity Recommendation Ritual, W4 Transparency Rituals |
+| **AIOS** | $2,500/mo Founding / $5,000/mo Standard (locked, inherits from aios-pricing.md v1.5) | — | AIOS agent (continuously running version-locked product line) — same advisory scope, autonomously delivered |
 
-### Discount Authority
+**Mutual exclusivity:** A client cannot be in both wrappers. Pick one. AIOS subscriber + custom build = AIOS wrapper + Project line. Standard Partnership + custom build = Standard wrapper + Project line.
 
-| Discount Level | Who Can Approve | Condition |
-|----------------|----------------|-----------|
-| 0-10% | Auto-approve | Must stay above minimum margin |
-| 11-15% | Deal review | Documented strategic justification required |
-| 16-20% | CEO approval | Written justification + 12-month revenue projection |
-| 20%+ | Never | No exceptions — find other ways to add value |
+Use for: deal evaluation routing, advisory-layer scope definition, wrapper-vs-project line cost separation on invoices.
 
-## Deal Scoring Framework
+---
 
-Score each deal on 5 dimensions (1-5 scale each):
+### 3. Per-Service Capacity Tier (T1/T2/T3 within each service) — "how much volume does this client need?"
 
-| Dimension | 1 (Worst) | 3 (Average) | 5 (Best) |
-|-----------|-----------|-------------|----------|
-| **Revenue** | Below floor price | Standard pricing | Premium pricing |
-| **Margin** | At minimum | At typical | Above typical |
-| **Strategic fit** | Outside our ICP | Partial ICP match | Perfect ICP match |
-| **Effort** | Heavy custom work | Mix of standard + custom | Standard package |
-| **Growth potential** | One-time, no upsell | Some expansion possible | Clear multi-phase roadmap |
+**K1 SoT:** `knowledge-base/revenue/pricing-structure.md` v3.2 §7 (per-service scope breakdowns)
 
-**Total score interpretation:**
-- 20-25: Ideal deal — pursue aggressively
-- 15-19: Good deal — proceed with standard process
-- 10-14: Marginal deal — proceed only if strategic justification exists
-- Below 10: Walk away — cost of service will exceed value
+Each capacity-tiered service (VDR, RLR, PPM, CPS) has T1/T2/T3 bands that differ in **volume only**, never feature gating. SLW is scope-built and has no capacity tier.
 
-## Escalation Rules
+| Service | Type | Capacity Axis |
+|---|---|---|
+| **VDR** — VoiceDesk AI Receptionist | Capacity-Tiered | Coverage band (after-hours → 24/7) |
+| **RLR** — RapidLead Response | Capacity-Tiered | Total email sends/mo |
+| **SLW** — SystemLink Workflow Sync | Scope-Built (no tier) | N/A — flat monthly per scope |
+| **PPM** — PresencePulse Marketing Engine | Capacity-Tiered | Three independent axes (PPM-unique tier + internal RLR-component tier + internal CPS-component tier) |
+| **CPS** — ContentPulse Social Engine | Capacity-Tiered, ADD-ON ONLY | Platforms × posts/week. Requires ≥1 core service live 90+ days. |
 
-| Trigger | Escalate To | Timeline |
-|---------|------------|----------|
-| Deal score below 10 | CEO for walk-away decision | Before proposal |
-| Margin below minimum | CEO for exception approval | Before proposal |
-| Client requests Net 45+ | Financial-analyst for cash flow impact | Before contract |
-| Scope change >20% of original | Deal re-review | Before work starts |
-| Payment 30+ days overdue | CEO + pause work | Immediately |
-| Client threatening to churn | Customer-success-manager + CEO | Same day |
+**Capacity reassessed monthly** via the W3 wrapper ritual ("pay us less / pay us more" recommendations based on usage).
 
-## Revenue Health Metrics
+Use for: capacity recommendation decisions, invoice line construction, per-service usage analysis, upsell/downsell conversations.
 
-Track monthly:
+---
 
-| Metric | Target | Warning | Critical |
-|--------|--------|---------|----------|
-| Weighted pipeline value | >3x monthly target | 2-3x | Below 2x |
-| Average deal margin | >55% | 45-55% | Below 45% |
-| Close rate (qualified leads) | >30% | 20-30% | Below 20% |
-| Average deal cycle (days) | <30 | 30-45 | Over 45 |
-| Revenue concentration | No client >25% of revenue | 25-35% | Over 35% |
-| MRR churn rate | <5% monthly | 5-8% | Over 8% |
+## Special Pricing Surfaces
+
+### Founding Partner Rate (Early Client Rate Lock)
+
+**K1 SoT:** `knowledge-base/revenue/pricing-structure.md` v3.2 §11
+
+| Element | Detail |
+|---|---|
+| Eligibility | First 5 signed clients only |
+| Rate Lock Duration | 24 months from go-live |
+| Partnership Fee Lock | $1,500/mo (Standard wrapper) — anchor verified in pricing sub-step |
+| Month 18 Notification | Partnership evolution review — 6 months advance notice |
+| Month 24 Transition | Rate moves to current published pricing |
+
+**Terminology rules:** ALWAYS say "Founding Partner Rate" / "partnership evolution review". NEVER say "grandfathering" / "legacy pricing" / "price increase".
+
+### Sharkitect Growth Essentials (Sub-Threshold Offer)
+
+**K1 SoT:** `knowledge-base/revenue/sharkitect-growth-essentials.md` v1.1 + `pricing-structure.md` v3.2 §13
+
+| Element | Detail |
+|---|---|
+| Setup fee | $2,500 one-time |
+| Monthly fee | $250/mo |
+| Partnership wrapper fee | WAIVED |
+| Term | 12-month minimum |
+| Upgrade path | Graduates to full Partnership at month 12+ (transition rate decision pending pricing sub-step) |
+
+---
+
+## Pricing Guardrails (Quick Reference Only — Canonical in K1)
+
+**K1 SoT:** `pricing-structure.md` v3.2 §9, §15, plus `slw-pricing-calculator.md` v1.0 (SLW Complexity Scorecard)
+
+| Guardrail | Rule | Source |
+|---|---|---|
+| Setup fee minimum floor | $2,500 — no setup drops below this regardless of discount or tier | v3.2 §9 + §15 Rule #12 |
+| Partnership Progression Pricing | 0% on 1st system, 25% off setup on 2nd, 40% off setup on 3rd+ (efficiency saving, NOT a discount) | v3.2 §9 |
+| 12-Month Expansion Window | Progression discount only if next system added within 12 months of prior go-live | v3.2 §9 |
+| Annual Commitment Discount | 15% off monthly recurring — applies to Wrapper + Scope-Built lines ONLY (NOT capacity-tiered lines) | v3.2 §10 |
+| Capacity tiers volume-only | NEVER feature gating across tiers; every client at every tier gets standard inclusions | v3.2 §15 Rule #3 |
+| No monthly multi-service discounts | Only setup fees receive Progression Pricing; monthly rates are sum-of-projects | v3.2 §15 Rule #4 |
+| CPS entry rule | NEVER an entry point; requires ≥1 core service live 90+ days (90-day waiver only for vendor transitions) | v3.2 §15 Rule #1 |
+| Lead notification destination cap | Max 2 per service (CRM / email / Slack); additional = à la carte | v3.2 §15 Rule #13 |
+| Implementation fees never discounted | Only setup/build fees receive Progression Pricing | v3.2 §9 |
+
+**Capacity-tier dollar amounts and band thresholds:** DEFERRED to pricing sub-step (Phase 3 in progress, 2026-05-13). When pricing locks land in v3.x, this pointer reads automatically because no numbers are duplicated here.
+
+---
+
+## Deal Approval Routing (Pointer)
+
+**K1 SoT:** `knowledge-base/revenue/sales-enablement-playbook.md` and `knowledge-base/governance/financial-operations-guide.md`.
+
+Specific approval thresholds, payment terms, and escalation paths live in those K1 SoTs. This skill's role is to ROUTE to the correct K1 ruleset, not to encode the rules.
+
+---
+
+## What this file is NOT
+
+- NOT a substitute for `pricing-structure.md`. Read v3.2 for the canonical architecture.
+- NOT a discount strategy. That's the `pricing-strategy` skill.
+- NOT a margin or P&L model. That's the `smb-cfo` skill.
+- NOT a sales playbook. That's `sales-enablement-playbook.md` v1.0 in HQ knowledge-base.
+
+## Version pinning
+
+| K1 SoT | Pinned version |
+|---|---|
+| `pricing-structure.md` | v3.2 (2026-05-13) |
+| `client-journey-tier-framework.md` | v1.0 (2026-04-18) |
+| `aios-pricing.md` | v1.5 |
+| `aios-beta-program.md` | v1.0 |
+| `sharkitect-growth-essentials.md` | v1.1 |
+| `slw-pricing-calculator.md` | v1.0 |
+
+When a pinned version bumps, drift-detection should flag this pointer for review. The pointer itself doesn't need rewriting unless the K1 SoT's STRUCTURE (not just numbers) changes.

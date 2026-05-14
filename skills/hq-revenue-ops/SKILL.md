@@ -50,40 +50,78 @@ Use this skill directly (without agent) for:
 
 ## Deal Evaluation Decision Tree
 
+Routes by v3.2 architecture mechanics. Branches lead to the K1 SoT decision; this skill does not encode the decision values.
+
 ```
 NEW DEAL OR PRICING DECISION
   |
-  +-- What's the monthly recurring value?
-  |   |
-  |   |-- Under $500/mo → Tier 3 (Standard). Auto-approve if within guardrails.
-  |   |-- $500-$2,000/mo → Tier 2 (Growth). Requires margin check.
-  |   |-- $2,000-$5,000/mo → Tier 1 (Strategic). Requires full deal review.
-  |   |-- Over $5,000/mo → Tier 0 (Enterprise). CEO approval required.
+  +-- Wrapper choice clarified?
+  |     Standard Partnership Wrapper  -->  continue (advisory layer = Chris)
+  |     AIOS Wrapper                  -->  continue (advisory layer = AIOS agent;
+  |                                          mechanics inherit aios-pricing.md v1.5)
+  |     Mutual exclusivity: client picks ONE wrapper. See pricing-structure.md v3.2 § 2.
   |
-  +-- Does it involve custom development?
-  |     YES --> Add 30% margin buffer to base pricing
-  |     NO  --> Standard service pricing applies
+  +-- Sub-threshold engagement (client below typical Partnership tier)?
+  |     YES -->  Sharkitect Growth Essentials: $2,500 setup, $250/mo,
+  |              Partnership Wrapper fee WAIVED, 12-month minimum, upgrade path at month 12+.
+  |              See sharkitect-growth-essentials.md v1.1 + pricing-structure.md v3.2 § 13.
+  |     NO  -->  continue with Wrapper + Project Lines.
   |
-  +-- Is the client requesting payment terms beyond Net 30?
-  |     YES --> Requires financial-analyst assessment of cash flow impact
-  |     NO  --> Standard terms apply
+  +-- Project Lines required (per v3.2 § 7)?
+  |     VDR (VoiceDesk AI Receptionist) -- Capacity-Tiered (coverage band)
+  |     RLR (RapidLead Response)         -- Capacity-Tiered (email sends/mo)
+  |     SLW (SystemLink Workflow Sync)   -- Scope-Built (Complexity Scorecard per slw-pricing-calculator.md v1.0)
+  |     PPM (PresencePulse Marketing)    -- Capacity-Tiered (three independent axes)
+  |     CPS (ContentPulse Social Engine) -- Capacity-Tiered, ADD-ON ONLY
+  |       Gate: NEVER entry point; requires >= 1 core service live 90+ days
+  |       (90-day waiver allowed for vendor transitions). See v3.2 § 15 Rule #1.
   |
-  +-- Is this a multi-service bundle?
-        YES --> Apply bundle discount rules from client-tiers.md
-        NO  --> Single service pricing
+  +-- Founding Partner Rate eligibility?
+  |     First 5 signed clients only -->  $1,500/mo Standard wrapper, 24-month lock
+  |                                       (anchor in v3.2; numbers refined in pricing sub-step).
+  |     Client #6+                  -->  Standard non-FP rate (placeholder pending pricing sub-step).
+  |     Terminology rule: ALWAYS "Founding Partner Rate" / "partnership evolution review".
+  |                       NEVER "grandfathered" / "legacy pricing" / "price increase".
+  |     See v3.2 § 11.
+  |
+  +-- Multi-system expansion sequence (Partnership Progression Pricing, setup only)?
+  |     2nd system within 12 months of prior go-live  -->  25% off SETUP
+  |     3rd+ system within 12 months of prior go-live -->  40% off SETUP
+  |     $2,500 setup minimum floor enforced regardless of discount (v3.2 § 9 + § 15 Rule #12).
+  |     NEVER applies to monthly recurring (v3.2 § 15 Rule #4). Frame as efficiency saving,
+  |     NOT a discount.
+  |
+  +-- Annual commitment?
+  |     15% off MONTHLY recurring -->  Wrapper + Scope-Built (flat-fee) project lines ONLY.
+  |     Capacity-Tiered project lines have NO annual discount (capacity flex IS the value lever).
+  |     See v3.2 § 10.
+  |
+  +-- Approval routing & payment-term thresholds
+        Canonical decision rules live in financial-operations-guide.md (HQ knowledge-base/governance/)
+        and sales-enablement-playbook.md (HQ knowledge-base/revenue/). This skill routes to
+        those K1 SoTs rather than encoding the thresholds.
 ```
 
-## Pricing Guardrails (Quick Reference)
+## Pricing Guardrails (Quick Reference -- v3.2-sourced)
 
-Full details in companion file. Quick checks:
+Quick checks. Full details and authoritative values live in `pricing-structure.md` v3.2. This skill cites; it does not duplicate.
 
-| Guardrail | Rule | Violation Action |
-|-----------|------|-----------------|
-| **Minimum margin** | Never below 40% gross margin | Block deal, escalate |
-| **Discount cap** | Max 20% off list price | CEO approval for anything higher |
-| **Free work** | No free work beyond initial consultation | No exceptions |
-| **Scope creep** | Every change order documented and priced | Stop work if unpaid scope grows |
-| **Payment terms** | Net 30 standard, Net 45 max for Tier 0/1 | No Net 60+ without CEO approval |
+| Guardrail | Rule | K1 source |
+|-----------|------|-----------|
+| **Setup fee floor** | $2,500 minimum on every setup -- no setup drops below this regardless of discount or tier | v3.2 § 9 + § 15 Rule #12 |
+| **Partnership Progression Pricing** | 0% on 1st system, 25% off SETUP on 2nd, 40% off SETUP on 3rd+ (efficiency saving, never framed as discount) | v3.2 § 9 |
+| **Expansion window** | Progression discount applies only if next system added within 12 months of prior go-live | v3.2 § 9 |
+| **Annual Commitment** | 15% off MONTHLY recurring -- Wrapper + Scope-Built lines ONLY (NOT capacity-tiered) | v3.2 § 10 |
+| **Multi-service monthly discounts** | NONE -- only setup fees receive progression pricing | v3.2 § 15 Rule #4 |
+| **CPS entry rule** | NEVER entry point; requires >= 1 core service live 90+ days (90-day waiver only for vendor transitions) | v3.2 § 15 Rule #1 |
+| **Capacity tiers** | Volume only -- NEVER feature gating; every client at every tier gets standard inclusions | v3.2 § 15 Rule #3 |
+| **Lead notification destinations** | Cap 2 per service (CRM / email / Slack); additional = a la carte | v3.2 § 15 Rule #13 |
+| **Founding Partner eligibility** | First 5 signed clients only; 24-month lock; "Founding Partner Rate" terminology mandatory | v3.2 § 11 |
+| **Implementation fees** | Never discounted -- only setup/build fees receive Partnership Progression Pricing | v3.2 § 9 |
+| **Platform costs** | Absorbed into project monthly fee -- never passthrough line items | v3.2 § 15 Rule #9 |
+| **Verbal pricing** | NEVER given -- always present in written proposal format (see Anti-Patterns below) | Sharkitect operations standard |
+
+Margin floors, payment-term thresholds, and approval-authority brackets live in `knowledge-base/governance/financial-operations-guide.md`. Cite, don't encode.
 
 ## Pipeline Governance
 
@@ -100,7 +138,7 @@ Full details in companion file. Quick checks:
 
 1. **Undercutting for Volume**: Dropping below 40% margin to win deals destroys the business model. One bad deal at 20% margin requires three good deals at 50% to recover.
 2. **Scope Ambiguity**: "We'll figure it out as we go" in proposals leads to scope creep. Every deliverable must be listed. What's NOT included matters as much as what IS.
-3. **Tier Mismatch**: Treating a Tier 3 client with Tier 1 attention (or vice versa). Service level must match tier. Over-servicing Tier 3 clients is the #1 profitability killer.
+3. **Lifecycle-Tier Mismatch**: Treating a Tier 1 Lead (no meeting yet) with Tier 3 Active Client attention (full custom card, dedicated Slack, monthly KPI reports) OR treating a Tier 3 Active Client with Tier 1 Lead service level (still on generic card). See `client-journey-tier-framework.md` v1.0 for the canonical lifecycle tiers (T0 Anonymous → T1 Lead → T2 Prospect → T3 Active Client → T4 Advocate). Over-servicing pre-qualified leads burns capacity; under-servicing active clients signals "we stopped caring." Service level must match lifecycle state, not deal size.
 4. **Skipping Qualification**: Jumping to proposals without confirming budget, authority, need, and timeline. Unqualified proposals have a <10% close rate and waste 8+ hours each.
 5. **Verbal Agreements**: "They said yes on the call" is not a closed deal. Nothing is real until it's signed and payment method is on file.
 6. **Making It Up Next Phase**: Discounting Phase 1 assuming Phase 2 will be at full price. Recovery rate is only 30% — 7 out of 10 clients who got a discounted Phase 1 expect the same discount on Phase 2 or walk. A $1,000 Phase 1 discount turns into $3,000+ in lost margin across a 3-phase engagement.

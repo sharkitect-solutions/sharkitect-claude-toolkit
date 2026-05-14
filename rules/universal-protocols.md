@@ -685,6 +685,94 @@ Every workspace's `MEMORY.md` references this protocol so it gets reinforced at 
 4. HQ acknowledges by closing the notification with `--status processed`, optionally flipping `AUTOFIX_V2_MODE=on` as the downstream action.
 5. Loop closed. Both sides know the work is done.
 
+## Autonomous Completion Notification to User Protocol (NON-NEGOTIABLE)
+
+When ANY workspace finishes a unit of autonomous work — work the user delegated and stepped away from, OR work the workspace initiated and proceeded with under Proactive Autonomy — it MUST notify the user via that workspace's dedicated Slack channel.
+
+**Source:** User direction 2026-05-13 (Skill Hub S52 closeout). Verbatim: *"anytime it's working autonomously, it needs to notify me once it's done in its corresponding Slack channel or Telegram. I've said this several times."* The "I've said this several times" signal classifies this as a recurring-drift class — documentation alone has not been sufficient. Codified here so every workspace honors it uniformly; runtime enforcement is a follow-up (see Enforcement section below).
+
+### Relationship to existing protocols
+
+| Protocol | Surface |
+|---|---|
+| **Completion Notification Protocol** (above) | Cross-workspace inbox-item closures (workspace A closes B's WR → routed-task notification to B's inbox). |
+| **Human Action Required Protocol** (below) | Specific case: workspace closes work that requires a user-facing follow-up action; entry written to HUMAN-ACTION-REQUIRED.md + Slack alert. |
+| **Autonomous Completion Notification (this protocol)** | Workspace finishes a unit of autonomous work → notifies the USER directly via the workspace's dedicated Slack channel. No inbox routing; no follow-up action required from user; purely "the work is done, here's the summary." |
+
+These three protocols are complementary, not overlapping. A single completed work unit may trigger zero, one, or multiple of them depending on its shape.
+
+### Triggers (what counts as "autonomous work")
+
+- User said something equivalent to "go do X autonomously" / "work on this while I'm away" / "execute" / "take care of X" — then was not actively present turn-by-turn.
+- Cron-fired idle-mode processing (per Mid-Session Inbox Polling Protocol Idle Mode) completed a unit of work.
+- Workspace acted under Proactive Autonomy Protocol Tier 1 (100% confidence: build it, then report) — the "then report" part lives here.
+- Multi-step task the workspace proceeded through without user check-ins between steps.
+
+### NOT triggered by
+
+- Interactive turn-by-turn work where the user is actively reading each response (they see results as they land — Slack alert would be noise).
+- Sub-steps within a single user-engaged request (only the final completion notifies; not each intermediate step).
+- Failed/aborted work units where there is no user-actionable summary (instead, surface inline in the same turn).
+
+### Per-workspace channel table (canonical, 2026-05-13)
+
+| Workspace | Slack channel ID | Env var | Bot |
+|---|---|---|---|
+| **Skill Management Hub** | `C0B0P7H0BL6` | `SKILL_MANAGMENT_HUB_ALERTS` | Polaris (`SLACK_POLARIS_BOT_OAUTH_TOKEN`) |
+| **Workforce HQ** | `C0B0MT7ANTF` | `HQ_ALERTS` | Polaris |
+| **Sentinel** | `C0B0P86BU3Y` | `SENTINEL_ALERTS` | Polaris |
+
+The env-var key `SKILL_MANAGMENT_HUB_ALERTS` preserves user-written spelling ("MANAGMENT" — missing the second 'e') deliberately; do not auto-correct.
+
+Telegram is repurposed for two-way mobile bridge only and is NOT a valid notification surface for this protocol.
+
+### Required message structure
+
+Slack mrkdwn (per [2026-04-12] visual-style rule, channel updated 2026-05-13). Minimum content:
+
+1. **Header line** — what was done, in one line, with workspace identifier.
+2. **What landed** — bulleted list of concrete deliverables / closures / file changes.
+3. **What's awaiting your decision** (if anything) — items the user needs to act on, with location/path so they can find each one.
+4. **What's parked as follow-up** (if anything) — items deferred to next session with brief reason.
+5. **Process honored** (optional but recommended for high-stakes autonomous work) — short tag list of which protocols were followed, so user can audit at a glance.
+
+Verbose summaries are fine; the user will scan. Brief one-liners are also fine for short work units.
+
+### Mechanism (how to send)
+
+Use the global `~/.claude/scripts/notify-slack.py` helper:
+
+```bash
+python ~/.claude/scripts/notify-slack.py \
+  --token-env SLACK_POLARIS_BOT_OAUTH_TOKEN \
+  --channel-env <workspace-channel-env-var> \
+  --message "$(cat <<'EOF'
+*[<Workspace> S<N> — <one-line summary>]*
+...
+EOF
+)"
+```
+
+Channel-env-var values per the table above. If `--channel-env` resolves empty in the current environment (e.g., the global `.env` add hasn't propagated to this shell yet), fall back to `--channel <channel-id>` directly so the notification doesn't silently fail.
+
+### Failure modes that this protocol prevents
+
+- **Silent completion** — autonomous work finishes but the user discovers it on their own. Erodes trust in the autonomy model.
+- **Channel drift** — workspace posts to a generic channel (audit-reports, CEO-brief, toolkit-monitor) instead of the workspace's dedicated channel. User has to hunt across channels.
+- **Telegram fallback** — workspace sends to Telegram out of habit. Telegram is mobile-bridge inbound only.
+
+### Enforcement
+
+- **Documentation (this section):** the rule. Necessary but not sufficient per the documented "Documentation without runtime detection eventually fails" lesson.
+- **Runtime enforcement (recommended, not yet built):** end-of-session enforcer that detects autonomous-mode session close without an outgoing Slack-to-workspace-channel call in the recent tool journal — nudges or blocks close. Sentinel is the natural owner to propose the schema/hook design as schema/protocol owner (see rt-skillhub-2026-05-13-channel-routing-sentinel.json). Trigger detection candidate: scan recent assistant turns for "autonomously" / "while I'm away" / "execute these" phrases from user + multi-turn work without user message between sub-steps + session approaches close.
+- **Self-audit:** the resource-auditor PROCESS check can include "autonomous-completion-notification-missing" as a gap class.
+
+### Exceptions and explicit no-op cases
+
+- **Interactive turn-by-turn work** — no notification needed; the user is reading each turn live.
+- **User explicitly opts out for this session** — e.g., "skip the Slack notification, just tell me here." Honor in-session; do not persist the opt-out across sessions.
+- **Notification would itself be the only output** (the work was trivial / fully self-contained) — surface inline; a Slack ping with no substance is worse than no ping.
+
 ## Mid-Session Inbox Polling Protocol (NON-NEGOTIABLE)
 
 CronCreate fires hourly in ALL workspaces to check inboxes. Behavior depends on session state.
@@ -1394,7 +1482,7 @@ Chronological entries. Each entry has these fields:
 
 ### Notification
 
-When filing an entry, notify the user via Telegram HQ bot synchronously with the file write. Message format:
+When filing an entry, notify the user via Slack (Polaris bot) synchronously with the file write. Slack is the canonical outbound alert channel per 2026-05-13 user direction; Telegram is repurposed for two-way mobile bridge only and is NOT used for alerts/notifications. Message format:
 
 ```
 [HUMAN ACTION NEEDED]
@@ -1403,7 +1491,7 @@ Action: {short summary}
 Details: {workspace}/HUMAN-ACTION-REQUIRED.md
 ```
 
-Use `~/.claude/scripts/notify-human-action.py` (see helper below) to append entry + send Telegram in one atomic call.
+Use `~/.claude/scripts/notify-human-action.py` (see helper below) to append entry + send Slack notification in one atomic call.
 
 ### Completion flow
 
@@ -1412,7 +1500,7 @@ When the user signals done in the relevant workspace:
 2. Update the entry's `Status:` to `done` and fill the `Done:` timestamp.
 3. Append a short resolution line describing what was verified.
 4. Execute the downstream work that was blocked.
-5. (Optional) Notify completing via Telegram if the blocked work produces output the user should see.
+5. (Optional) Notify completing via Slack if the blocked work produces output the user should see.
 
 ### Append-only rule
 
@@ -1441,7 +1529,7 @@ python ~/.claude/scripts/notify-human-action.py \
   --expected-outcome "<what success looks like>"
 ```
 
-Appends entry to the workspace's HUMAN-ACTION-REQUIRED.md (creating it with header if missing) and sends Telegram HQ bot notification. Telegram credentials loaded from `~/.claude/.env` (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`).
+Appends entry to the workspace's HUMAN-ACTION-REQUIRED.md (creating it with header if missing) and sends Slack notification via the Polaris bot to the **workspace's dedicated channel** (per the per-workspace channel table established 2026-05-13 — see Autonomous Completion Notification to User Protocol below). Slack credentials loaded from `~/.claude/.env`: `SLACK_POLARIS_BOT_OAUTH_TOKEN` (bot token) + workspace channel env var (`SKILL_MANAGMENT_HUB_ALERTS` / `HQ_ALERTS` / `SENTINEL_ALERTS`). Override per-call with `--channel <id>` if needed. Telegram credentials are no longer consulted by this helper as of 2026-05-13 (wr-sentinel-2026-05-13-002).
 
 ## 100% Verification Before Any Action, Recommendation, or Judgment Call (NON-NEGOTIABLE)
 
@@ -2597,6 +2685,122 @@ The same global `Edit/Write(.env)` deny that blocks Edit/Write also blocks the c
 2026-04-29 (Skill Hub session 12): user asked the AI to clean up Skill Hub's workspace `.env` and promote Polaris credentials to `~/.claude/.env` (global). Write tool denied on `.env`. Bash + Python `open(..., 'w')` and `open(..., 'a')` succeeded on first try with archive snapshot + idempotent guard + count-only verification. User instruction (verbatim): "I need you to document what you did so other workspaces know how to do it, because that has been an issue we've had."
 
 The pattern parallels the `~/.claude/settings.json` modification path documented in the section above. Both files are gated by the same family of permission rules; both unblock through the same Bash + Python `open()` mechanism. Documenting them as a single class so workspaces don't re-discover the workaround twice.
+
+---
+
+## Document Versioning Protocol (NON-NEGOTIABLE)
+
+Every versioned canonical document in the system — K1 SoTs, governance docs, strategy docs, pricing docs, AIOS specs, partnership/sales templates, and any document whose evolution matters for cross-doc referencing — follows ONE pattern: **edit in place, version-bump in metadata, git carries the history.** No new files for new versions. No `_archive/v2.0/` parallel-universe directories.
+
+**Source:** wr-hq-2026-05-12-004. HQ battle-tested this pattern internally for Sub-project A Phase 2 (`knowledge-base/revenue/pricing-structure.md` v2.1 → v3.0 → v3.1 → v3.2 across 2026-05-12 / 2026-05-13) and requested Skill Hub codify it universally so all workspaces converge. K1 SoT `pricing-structure.md` v3.2 §18 cites this protocol as "pending Skill Hub codification." Codified 2026-05-13.
+
+### Scope
+
+**Applies to:** versioned canonical documents — K1 SoTs (`knowledge-base/`), governance docs, strategy docs, pricing structures, AIOS specs, partnership/sales templates, and any document whose evolution affects cross-doc referencing.
+
+**Does NOT apply to:** brain-dump captures (own frontmatter convention; see Brain Dump Capture Protocol), inbox items (own JSON schema; see WR/RT/Lifecycle JSON Schema Contract), session logs, plan files in `~/.claude/plans/` (use plans-registry for those), transient working files in `.tmp/`.
+
+### Rule 1 — Edit in place, version-bump in metadata
+
+Versioned docs are revised AT THEIR EXISTING PATH. Do NOT create `pricing-structure-v3.md` alongside `pricing-structure.md`. Do NOT branch to `pricing-structure-2026-05-13.md`. ONE canonical path; the path IS the identity.
+
+On substantive change:
+1. Edit the doc at its existing path.
+2. Bump `version:` in frontmatter (major.minor — e.g., 3.1 → 3.2 for scope clarification; 3.x → 4.0 for architecture-level rewrite).
+3. Update `last_updated:` and `last_updated_by:`.
+4. Append to `previous_versions:` field with a brief note about what each prior version locked.
+5. Commit. Git carries the diff history.
+
+Trivial typo fixes / formatting cleanup do not require version bumps. Substantive scope, decision, or architecture changes DO.
+
+### Rule 2 — Required frontmatter fields
+
+Every versioned canonical doc carries this minimal frontmatter (extra workspace-specific fields are allowed):
+
+```yaml
+---
+document: <slug>                              # filename stem (no extension)
+classification: K1                            # K1 / K2 / K3, or include description like "K1 — Source of Truth"
+owner: <person or function>                   # who can approve changes
+approved_by: <name>                           # when status is APPROVED
+approved_date: YYYY-MM-DD                     # when status is APPROVED
+version: <major.minor>                        # e.g., 3.2
+status: DRAFT | APPROVED | SUPERSEDED | DEPRECATED   # parenthetical refinements OK (e.g., "APPROVED (partial — sub-step in progress)")
+last_updated: YYYY-MM-DD
+last_updated_by: <name>[+<actor>]             # e.g., chris+claude for human+AI collaboration
+previous_versions: <narrative>                # semicolon-separated: "v3.1 (2026-05-13, APPROVED — superseded by v3.2 partial pricing lock); v3.0 (...); v2.1 (full history in git)"
+supersedes: <path>                            # ONLY when this doc fully replaces a DIFFERENT doc (Rule 3)
+superseded_by: <path>                         # ONLY when status is SUPERSEDED (Rule 3)
+---
+```
+
+**Status meanings:**
+- **DRAFT** — under active development; not yet authoritative; readers should treat with caution
+- **APPROVED** — current authoritative version; safe to reference; cross-doc pins resolve to it
+- **SUPERSEDED** — a DIFFERENT doc has fully replaced this one (not a version bump — see Rule 3); reader should follow `superseded_by` pointer
+- **DEPRECATED** — no longer in use; not replaced by anything specific; do not reference
+
+### Rule 3 — Supersede-and-archive (DIFFERENT-doc replacement ONLY)
+
+Apply ONLY when one document FULLY replaces a DIFFERENT document — different canonical name, different scope, different lifecycle. This is NOT for version bumps of the same doc (those are Rule 1 — edit in place).
+
+**Correct use** (supersede-and-archive):
+- Old: `knowledge-base/revenue/pricing-tiers-v1.md` (a 4-tier per-client price-band model)
+- New: `knowledge-base/revenue/pricing-structure.md` (the two-layer Partnership Wrapper + Project Lines model)
+- These are DIFFERENT docs with different architecture. Old gets `status: SUPERSEDED` + `superseded_by: knowledge-base/revenue/pricing-structure.md`, then moves to `_archive/`. New doc adds `supersedes: knowledge-base/revenue/pricing-tiers-v1.md` to its frontmatter.
+
+**Wrong use** (this is Rule 1, NOT Rule 3):
+- `pricing-structure.md` v2.1 → v3.0 → v3.1 → v3.2
+- Same doc, same path. Just bump `version:` + update `previous_versions:`. Git carries the diff. **NO** `_archive/pricing-structure-v2.1.md`.
+
+### Rule 4 — Git is the version history
+
+Prior versions live in git history. **Do NOT keep `_archive/v2.0/pricing-structure.md` parallel-universe directories.** If you need to read v2.1:
+
+```bash
+git show <commit>:knowledge-base/revenue/pricing-structure.md
+git log -p --follow knowledge-base/revenue/pricing-structure.md
+```
+
+The `previous_versions:` frontmatter field is a short narrative pointer so readers can identify which git commits matter without a full log dive. Example from v3.2: `"v3.1 (2026-05-13, APPROVED — superseded by v3.2 partial pricing lock); v3.0 (2026-05-13, APPROVED — superseded by v3.1 scope clarification); v2.1 (2026-04-22, ACTIVE through 2026-05-12 — full history in git)"`.
+
+### Rule 5 — Cross-doc references use version-pinning
+
+When one doc references another versioned doc, pin the version explicitly:
+
+| Reference style | Verdict |
+|---|---|
+| `"See aios-pricing.md v1.5"` | ✅ pinned |
+| `"Mechanics inherit from aios-beta-program.md v1.0 + aios-pricing.md v1.5"` | ✅ pinned |
+| `"See aios-pricing.md"` (no version) | ❌ stale-reference risk |
+
+This enables drift-detection to surface when a referenced doc's `version:` bumps without the referring doc being reviewed. Authoritative version pins live in the referrer's body inline OR in a dedicated "Cross-references" or "Version pinning" section at the doc's end (v3.2 §17 is the canonical pattern).
+
+### Enforcement
+
+- **Documentation (this section):** the rule. Necessary but not sufficient per the documented "Documentation without runtime detection eventually fails" lesson.
+- **Existing runtime detection:** `drift-detection-hook.py` (PreToolUse Edit|Write) surfaces cross-doc-reference staleness when a referenced doc's `version:` field changes (via `~/.claude/.tmp/doc-lifecycle-cache.json` + workspace document-relationship maps).
+- **Recommended next layer (not built):** a `version-pin-checker` hook that scans new/edited docs for unpinned cross-references and nudges adding the pin. Sentinel-owned per the schema/protocol-ownership convention.
+- **Self-audit:** `resource-auditor` PROCESS check can flag `versioned_doc_missing_frontmatter` and `unpinned_cross_reference` as gap classes.
+
+### Concrete reference implementation
+
+`1.- SHARKITECT DIGITAL WORKFORCE HQ/knowledge-base/revenue/pricing-structure.md` v3.2 (HQ-owned, 2026-05-13) is the canonical exemplar:
+- Edit-in-place evolution v2.1 → v3.0 → v3.1 → v3.2 — no file renames, no parallel-version files
+- Full frontmatter with all required fields
+- `previous_versions:` narrative pointer with semicolon-separated history
+- `status: "APPROVED (partial — Phase 3 pricing sub-step in progress)"` shows status-with-refinement pattern
+- §17 cross-references list, all with explicit version pins
+- §18 cites this protocol
+
+### Migration for legacy docs
+
+Workspaces with existing docs that don't yet match the frontmatter contract: **retrofit on touch, do not mass-rewrite.**
+
+1. On the next substantive edit of a doc, add the frontmatter retroactively.
+2. Set `version: 1.0` (or best-guess current version) + `status: APPROVED` if the doc is currently authoritative.
+3. `previous_versions:` field can start empty or with `"v1.0 (this version) — initial frontmatter retrofit YYYY-MM-DD"`.
+4. The protocol applies to ALL future edits going forward; retrofit happens incrementally as docs are touched.
 
 ---
 

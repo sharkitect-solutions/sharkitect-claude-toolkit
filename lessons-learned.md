@@ -1332,20 +1332,62 @@ Cross-project patterns, API limitations, tool quirks, user preferences, and proc
 **Apply when:** Every task, every workspace, every session. This is not a preference — it is the operating constitution of the AI Workforce.
 **Tags:** accuracy, quality, verification, elite, standards, non-negotiable, proactive, zero-tolerance
 
+### [2026-05-13] process: Cross-Workspace Completion Notification Protocol gap — Slack-to-Chris ≠ routed-task-to-workspace-inbox
+
+**Context:** During Skill Hub S52, completed Part A of wr-hq-2026-05-13-001 (CPS Phase 3 Session 1 unblocker — pricing-structure.md v3.2-grounded reference rebuild). Sent Slack summaries to Chris (the new Autonomous Completion Notification to User Protocol I wrote that same session). FAILED to also route a completion notification to HQ's `.routed-tasks/inbox/` via `close-inbox-item.py`. Two distinct surfaces; conflated them. HQ stayed blocked invisibly until Chris caught it.
+**Why it matters:** The Cross-Workspace Completion Notification Protocol (existing in universal-protocols.md since wr-2026-04-25-002) and the new Autonomous Completion Notification to User Protocol target DIFFERENT recipients (workspace inbox vs Chris's Slack). Both must fire when applicable; they are not interchangeable. Honoring the new rule while skipping the old one is exactly the silent-completion failure mode the old rule was filed to prevent.
+**Apply when:** Closing any WR/RT/lifecycle-review that originated from another workspace AND the completed work unblocks downstream action by that workspace AND/OR by Chris. Use `close-inbox-item.py` (which auto-routes the notification) rather than direct `mv` + `Edit`. The script enforces the 5-step contract (backup-verify / move / acknowledge / Supabase update / close-out verify) so neither surface gets skipped.
+**Tags:** completion-notification, cross-workspace, silent-completion, drift, recurring-pattern
+
+### [2026-05-13] preference: Slack channel routing INVERTED (supersedes 2026-04-07) + per-workspace dedicated channels + autonomous-completion notification rule
+
+**Context:** Direction issued 2026-05-13 during Skill Hub S52 closeout. Three connected rules established / clarified by the user:
+
+**Rule 1 — Channel inversion (replaces 2026-04-07 entry).** Slack is now the canonical channel for ALL internal business communications: briefs, health checks, status updates, business summaries, internal reports, daily digests, audits, completion notifications to user, ANY outbound from a workspace to Chris. Telegram is repurposed for **two-way mobile bridge only** — no outbound alerts/notifications/reports flow through Telegram going forward. (Aligns with Sentinel `wr-sentinel-2026-05-13-002` which migrated the HAR Protocol from Telegram to Slack the same day; today's rule generalizes the channel migration system-wide.)
+
+**Rule 2 — Per-workspace dedicated Slack channels.** Each workspace has its own dedicated Slack channel for ALL its outbound notifications to Chris. Canonical (global `.env` synced 2026-05-13):
+
+| Workspace | Channel ID | Env var (canonical) | Bot |
+|---|---|---|---|
+| **Skill Management Hub** | `C0B0P7H0BL6` | `SKILL_MANAGMENT_HUB_ALERTS` | Polaris (`SLACK_POLARIS_BOT_OAUTH_TOKEN`) |
+| **Workforce HQ** | `C0B0MT7ANTF` | `HQ_ALERTS` | Polaris |
+| **Sentinel** | `C0B0P86BU3Y` | `SENTINEL_ALERTS` | Polaris |
+
+**Sync history (2026-05-13):** Global `~/.claude/.env` previously held these three channel IDs under legacy Polaris-namespaced keys (`SLACK_POLARIS_TOOLKIT_MONITOR_CHANNEL` / `SLACK_POLARIS_CEO_BRIEF_CHANNEL` / `SLACK_POLARIS_AUDIT_REPORTS_CHANNEL`). Skill Hub renamed them in place to the canonical short-form keys above with a timestamped snapshot at `~/.claude/.env.bak.20260513-*-channel-rename`. The user's initial workspace `.env` had two typos (`SKILL_MANAGMENT_HUB_ALERTS_CHANNEL` long-form with `SLACK_` prefix and `MANAGMENT` typo; `SENTINEL_ALERTSL` with extra L) — user resolved by canonicalizing to short-form `<WORKSPACE>_ALERTS` and removing the L. The MANAGMENT spelling is preserved deliberately ("MANAGMENT" not "MANAGEMENT") — do not auto-correct.
+
+The per-workspace channel binding means: do NOT use generic Polaris channels for routine workspace-to-Chris notifications. Use the workspace's own channel as listed above.
+
+**Backward compatibility:** Any script still referencing the legacy Polaris env-var names will fail to resolve a channel after the rename. `~/.claude/scripts/notify-human-action.py` was updated in lockstep to use the canonical names + per-workspace mapping. HQ-owned and Sentinel-owned scripts that may still reference the legacy names are flagged in the cross-workspace routed-tasks filed 2026-05-13 (`rt-skillhub-2026-05-13-channel-routing-hq.json` and `rt-skillhub-2026-05-13-channel-routing-sentinel.json`).
+
+**Rule 3 — Autonomous completion notification (cross-workspace, NON-NEGOTIABLE).** When ANY workspace works autonomously on a user request and reaches end-of-work, it MUST notify Chris via that workspace's corresponding Slack channel. Applies system-wide:
+- Triggered by: any autonomous work session (user said "go do X autonomously" / "work on this while I'm away" / cron-fired idle processing / multi-step task that proceeds without user check-ins).
+- Channel: the workspace's dedicated Slack channel (per Rule 2). If the workspace's dedicated channel isn't yet confirmed, fall back to its closest equivalent and surface the gap.
+- Timing: at the moment of completion or at the natural pause point before user-decision-required handoff.
+- Content: structured summary of what was done, what's awaiting decision, what's parked as follow-up. Use Slack mrkdwn per the [2026-04-12] visual style rule.
+- Why: Chris explicitly stated "I've said this several times. It has been updated." → recurring drift; runtime enforcement candidate.
+
+**Apply when:** Any workspace builds a notification flow, any AI session finishes autonomous work, any report/audit/summary is being delivered. Route to the workspace's dedicated Slack channel.
+
+**Enforcement next step (recommended):** Encode Rule 3 in `~/.claude/rules/universal-protocols.md` as a NEW NON-NEGOTIABLE protocol (e.g., "Autonomous Completion Notification to User Protocol"). Per the documented "Documentation without runtime detection is insufficient" lesson and the user's "I've said this several times" signal, this rule belongs in the rule-class file with a paired runtime hook OR end-of-session enforcer integration. **Awaiting explicit user authorization to edit universal-protocols.md** (rule-class file requires per-edit auth).
+
+**Tags:** communication, notifications, slack, telegram, routing, channel-routing, per-workspace-channels, autonomous-completion, supersession, runtime-enforcement-candidate
+
 ### [2026-04-09] preference: n8n hardcoded credentials — accepted risk, don't nag
 
 **Context:** 63+ hardcoded credentials in n8n workflows (Supabase service_role, Telegram, Slack, Anthropic). User acknowledges this and will migrate to n8n credential store when time permits. Instance is access-locked — no collaborators.
 **Apply when:** Running n8n audits or security reviews. Do NOT flag as urgent or CRITICAL. Do NOT repeatedly remind. If access controls change (adding collaborators), THEN escalate.
 **Tags:** n8n, security, credentials, accepted-risk, dont-nag
 
-### [2026-04-07] preference: Communication channel routing
+### [2026-04-07] preference: Communication channel routing — **SUPERSEDED 2026-05-13**
 
-**Context:** User has specific channel assignments for different communication types. This is non-negotiable routing.
-**Telegram:** ALL internal business communications -- briefs, health checks, status updates, business summaries, internal reports, daily digests. Telegram is the primary internal channel.
-**Slack:** Workflow error alerts and system notifications only -- n8n failures, hook errors, automation breakdowns, monitoring alerts.
-**Apply when:** Building ANY notification, alert, report, or communication workflow. Route to the correct channel based on content type, not convenience.
-**Rule of thumb:** Is it a business/operational message? -> Telegram. Is it a system/workflow error? -> Slack.
-**Tags:** communication, notifications, telegram, slack, routing, alerts, briefs, internal-comms
+> ⚠️ **SUPERSEDED 2026-05-13 by the [2026-05-13] Slack channel routing inversion entry below.** Channel assignments are inverted: Slack now handles ALL internal business communications; Telegram is repurposed for two-way mobile bridge only. The original rule below is preserved for historical context — do NOT apply.
+
+**Original context (no longer in force):** User has specific channel assignments for different communication types. This is non-negotiable routing.
+**Telegram (HISTORICAL):** ALL internal business communications -- briefs, health checks, status updates, business summaries, internal reports, daily digests. Telegram is the primary internal channel.
+**Slack (HISTORICAL):** Workflow error alerts and system notifications only -- n8n failures, hook errors, automation breakdowns, monitoring alerts.
+**Apply when:** N/A — see superseding entry.
+**Rule of thumb (HISTORICAL):** Is it a business/operational message? -> Telegram. Is it a system/workflow error? -> Slack.
+**Tags:** communication, notifications, telegram, slack, routing, alerts, briefs, internal-comms, SUPERSEDED
 
 ### [2026-04-07] preference: Compact between phases to preserve context
 
@@ -1353,10 +1395,12 @@ Cross-project patterns, API limitations, tool quirks, user preferences, and proc
 **Apply when:** Multi-phase work sessions. Announce phase completion and wait for user signal before continuing.
 **Tags:** context-management, phases, workflow, compaction
 
-### [2026-04-12] preference: Telegram reports must match CEO brief visual style
+### [2026-04-12] preference: Reports must match CEO brief visual style — **CHANNEL UPDATED 2026-05-13**
+
+> ⚠️ **CHANNEL UPDATED 2026-05-13** — per the inversion below, briefs and reports now deliver to Slack, not Telegram. The VISUAL STYLE rule still applies; only the delivery channel changed. Use Slack mrkdwn (`*bold*`, bullet structures, emoji prefixes) — formatting mostly transfers 1:1 from Telegram Markdown.
 
 **Context:** Morning System Report was plain text with ASCII separators. Chris showed the CEO Morning Brief (n8n-generated) as the visual standard: bold section headers, emojis per section, bullet points with sub-bullets, spelled-out dates ("Sunday, April 12, 2026"), MM/DD/YYYY for timestamps. Reports should be scannable at a phone glance.
-**Apply when:** Building ANY Telegram-delivered report or brief. Use Telegram Markdown: `*bold*` for headers, emoji prefixes per section, `- ` bullets, `  •` sub-bullets. Never plain-text block format.
+**Apply when:** Building ANY report or brief (Slack-delivered as of 2026-05-13). Use mrkdwn: `*bold*` for headers, emoji prefixes per section, `- ` bullets, `  •` sub-bullets. Never plain-text block format.
 **Tags:** telegram, formatting, markdown, emojis, reports, briefs, visual-style
 
 ### [2026-04-12] preference: Report sections must be daily-actionable or cut
@@ -5938,3 +5982,155 @@ Tags: schema, hierarchy, projects, rollup, naming-convention, initiative
 - Both user-side and AI-side bypass surfaces required for symmetric autonomy.
 
 **Tags:** #architecture-direction #hook-design #intent-detection #substring-match-antipattern #bypass-design
+
+---
+
+## 2026-05-13 — HQ — Sub-project A Phase 2 scope-breakdown session
+
+### preference: User explicitly wants pushback, not yes-agent compliance
+- **Context:** During Phase 2 scope-breakdown, user said verbatim: *"I don't want yes-agents, so that's where I was suggesting. Do you agree with everything on here? Do you push back on anything?"*
+- **Apply when:** Any design decision where AI is tempted to agree without independent analysis. Re-evaluate honestly against the brand directive + cited skill patterns before agreeing.
+- **Tags:** pushback, design-review, brand-directive
+
+### process: Self-review pass flags ambiguous terms — ASK don't INVENT
+- **Context:** During self-review of pricing-structure.md v3.0 DRAFT, identified "distinct sources" as ambiguous. Filled in with my own invented definition (configuration-set framing). User pushed back — their mental model was platform/channel-level. Required 3 edits to resolve. Same failure mode applied earlier (saving spec under `docs/superpowers/` without asking user's organizational preference).
+- **Why it's wrong:** Filling ambiguity with assumptions = drift. The user's mental model is the source of truth on terms they use; AI's job is to ask, not invent.
+- **Apply when:** Self-review surfaces an ambiguous term/concept/structure that's user-facing. Flag the ambiguity as a question to the user, do NOT auto-resolve with a default or convention.
+- **Tags:** self-review, ambiguity, anti-drift, anti-yes-agent
+
+### direction: Document Versioning Protocol — edit-in-place, no duplicate files
+- **Context:** User explicitly stated during Phase 2 scope-breakdown brainstorming: when upgrading an existing canonical doc, edit-in-place + metadata version bump is correct. NOT consolidate-and-archive (which would create duplicate versioned files). Git captures history.
+- **Apply when:** Any time a versioned doc (governance/strategy/pricing/operations) gets an update. Single file at canonical path. Frontmatter has version/last_updated/last_updated_by/status/approved_by/approved_date.
+- **Design principles:**
+  - Edit-in-place at canonical path
+  - Version + status in frontmatter
+  - Git is the history (no `_archive/v2.0/` stale files)
+  - Cross-doc references use explicit version-pinning (`aios-pricing.md v1.5`)
+  - Supersede-and-archive ONLY when one doc fully replaces a different canonical doc (different scope, different name) — NOT for version bumps of the same doc
+- **Filed:** wr-hq-2026-05-12-004 to Skill Hub for universal-protocols.md formalization
+- **Tags:** document-versioning, anti-drift, canonical-docs
+
+### direction: Brand directive — no hiding standard wants behind tiers or à la carte
+- **Context:** User repeatedly reaffirmed during Phase 2: capacity tiers differ in VOLUME only, never feature gating. À la carte = special requests (<20% client frequency) OR items that add real overhead not justifiable in base price. Included = what ≥60% of clients want most months.
+- **Apply when:** Any service-design or pricing-structure decision. Test every standard inclusion against "do most clients want this?" and every à la carte item against "is this genuinely rare or overhead-justified?"
+- **Design principles:**
+  - Same FEATURES at every tier of the same service
+  - Capacity tiers differ ONLY in volume (calls/mo, sends/mo, SAPs, platforms, etc.)
+  - À la carte items justify their cost (real overhead) OR are genuinely special-request
+  - Per-feature pricing fragments the experience → REJECTED
+- **Tags:** brand-directive, pricing-design, contrarian-truth
+
+### process: Skill stack for design work — pricing-strategy + brainstorming + marketing-psychology + brand-review + pmm
+- **Context:** Phase 2 scope-breakdown applied 5 skills in sequence: pricing-strategy (value-anchor patterns) → superpowers:brainstorming (propose options) → marketing-psychology (buyer-perception lens) → hq-brand-review (Sharkitect brand voice on new service name) → marketing-strategy-pmm (April Dunford positioning evaluation). Produced strong design output with multiple cross-validations.
+- **Apply when:** Any new service/product/pricing design work. Stack methodology skills BEFORE proposing options. Each skill catches different failure modes.
+- **Tags:** methodology, design-process, skill-stack
+
+### preference: Iterative section-by-section lock pattern
+- **Context:** User explicitly requested iterative lock: *"Right now we're at Section 2. Let's work on that, get that locked in, and then move to Section 3, all one at a time. That's the way all these should be."*
+- **Apply when:** Multi-section design work (spec drafts, scope-breakdowns, multi-offer pricing). Present one section at a time, gather pushback, lock, then proceed. Avoid bombarding with full document up-front.
+- **Tags:** iteration, section-lock, anti-overwhelm
+
+### direction: Service offer breakdown template — Standard / Volume axis / À la carte
+- **Context:** Phase 2 established a canonical template for all capacity-tiered service offers. Three buckets, brand-directive-enforced.
+- **Apply when:** Designing or auditing any future Sharkitect service offer. Use the same template (Standard inclusions / Capacity volume axis / À la carte) for clarity-parity across the catalog.
+- **Design principles:**
+  - Standard = ≥60% of clients want it most months
+  - Volume axis = SINGLE honest scale metric (or two correlated dimensions like CPS platforms + posts/wk)
+  - À la carte = <20% of clients OR cost-justified overhead
+- **Tags:** service-design, template, brand-directive
+
+## 2026-05-13 (Sentinel S42) — Sentinel Reports Restructure Phase 0 lessons
+
+### direction: Sentinel reporting scope is operator drift + machine drift (not machine-only)
+- **Date:** 2026-05-13
+- **Workspace:** sentinel
+- **Context:** During Phase 0 of the Sentinel Reports Restructure plan, user invited advisor-level critique on the verbatim philosophy doc content. The strategic question "machine-only vs. operator + machine" surfaced. User locked Option B: Sentinel surfaces operator commitment-pattern drift visible across multiple sessions/workspaces, presented consultatively ("punted 3 times in 30 days — still important, or kill it?") never as lecture. This is Sentinel's unique cross-workspace value that HQ + Skill Hub cannot duplicate from their own vantage.
+- **Apply when:** Any Sentinel report design, Sentinel Alert content selection, Weekly Sentinel Review section-content decisions. Operator drift is in scope; report on PATTERNS visible across multiple sessions or workspaces, never on individual decisions. Surface respectfully, framed as a question, not a finding.
+- **Design principles:**
+  - Operator drift = aggregate commitment pattern across multiple sessions
+  - Never report on individual decisions (one deferral is data, three is a pattern)
+  - Surface as consultative question, not statement
+  - Cross-workspace vantage is the unique value — only report what no single workspace can see
+- **Tags:** sentinel-scope, architecture-direction, operator-drift, cross-workspace-vantage
+
+### direction: Sentinel philosophy — Liveness + Citation + Signal-quality contract (3 new principles, S42)
+- **Date:** 2026-05-13
+- **Workspace:** sentinel
+- **Context:** Advisor-pushback round on the verbatim plan content surfaced 3 load-bearing gaps. User approved all three additions to `4.- Sentinel/docs/sentinel-reporting-philosophy.md`:
+  - **P6 Liveness as a separate signal** — "silence is signal" only works when watchdog is verifiably alive. Reference incident: 2026-05-10 HealthCheck miscall (paused operational heartbeat assuming it was a report).
+  - **P7 Cite the source, mark the confidence** — VERIFIED / INFERRED / SPECULATIVE markers on every Sentinel finding. Anchors universal 100%-verify-before-acting protocol (NON-NEGOTIABLE) into Sentinel's foundation by reference.
+  - **P8 Signal-quality contract** — when Sentinel fires, every fire requires action; false-positive rate tracked; if bar drifts toward "I glance and ignore," threshold tunes not reader. Prevents the very pattern that triggered this whole restructure.
+- **Apply when:** Designing any Sentinel surface (Alert, Weekly Review, Goal Monitor) or any future Sentinel report. Liveness + Citation + Signal-quality must inherit by default; don't re-derive them per surface.
+- **Tags:** sentinel-philosophy, architecture-direction, anti-drift, foundation-principles
+
+### process: When user invites advisor-style critique, treat as Pushback Protocol invitation — actually critique
+- **Date:** 2026-05-13
+- **Workspace:** sentinel (generalizable to all)
+- **Context:** User asked verbatim: *"as a consultant, as an advisor and a specialist in your role, is there anything else you would suggest including in this purpose?"* — explicit invitation to push back on the verbatim plan content rather than rubber-stamp it. Right move: produce honest, specific, evidence-cited gap analysis with reasoning. Wrong move: "looks great, ship it." Three additions surfaced and were approved; one strategic question forced an explicit decision (Option A vs B); some candidate additions were correctly NOT recommended (over-engineering).
+- **Why:** "Looks good, ship it" is the yes-agent failure mode. Pushback Protocol applies even when the content was written by someone else (plan author was a prior session). An advisor invitation is a structural request for divergent thinking — answer it with actual divergent thinking, including what NOT to add and why.
+- **Apply when:** User asks "anything else you'd suggest," "what would you add," "as my advisor/consultant/specialist...," "push back on this," or similar phrasing. Produce: (a) specific suggested additions with reasoning, (b) strategic questions requiring explicit user decision, (c) what NOT to add (proof of having considered and rejected, prevents kitchen-sink response).
+- **Tags:** pushback-protocol, anti-yes-agent, advisor-invitation, process
+
+### process: Rule-file self-audit gate caught real drift mid-session (validation)
+- **Date:** 2026-05-13
+- **Workspace:** sentinel
+- **Context:** When editing `~/.claude/docs/plans-registry.md` to mark Phase 0 complete, the PostToolUse rule-file-self-audit-gate fired the 4-question checklist. Honest self-audit surfaced two real gaps: (1) hadn't run duplicate-entry scan; (2) hadn't cross-referenced the plan file's own frontmatter against the registry row. Plan file still said `status: pending, phases_complete: [], current_phase: 0` while registry now said ACTIVE Phase 0 done. Real drift introduced by my own edit. Remediated within the same session: ran duplicate scan (clean) + updated plan file frontmatter (commit 7d8030d).
+- **Why it matters:** Validates that the runtime gate works as designed. Documentation alone (which I had read earlier in the session) was insufficient — I missed the cross-reference check. Without the gate, the drift would have surfaced at next session's data-quality audit, days later. The "documentation without runtime detection eventually fails" lesson holds.
+- **Apply when:** Any edit to rule-class files (universal-protocols.md, lessons-learned.md, CLAUDE.md, MEMORY.md, settings.json, plans-registry.md, ~/.claude/rules/**, ~/.claude/plans/**). Run the gate's 4-question checklist BEFORE editing, not after. Treat the post-edit gate as the last-line-of-defense backstop, not the primary check.
+- **Tags:** runtime-gate-validation, rule-self-audit, contradiction-check, anti-drift
+
+---
+
+## 2026-05-13 — Phase 3 Pricing Sub-Step (grounding session) lessons
+
+### process: Anchor pricing to differentiator value, not commodity-competitor headlines
+- **Context:** When researching market pricing for new offers, the FIRST pass of agents returned commodity-competitor headline prices (e.g., Goodcall $129/mo for AI receptionist). These headline prices are anchored to bare-feature SaaS tiers, not full-managed-service scope. Comparing our prices to headlines underprices our offer because our standard scope includes 6-8 capabilities that competitors gate behind higher tiers OR don't offer at all.
+- **Why:** A SECOND pass of agents — building per-service differentiator value matrices — revealed calibrated price floors that were materially different from headline-anchored floors. For PPM specifically, the standalone unbundled value was $11K+/mo while our list-price hypothesis was $5K/mo — the "deliver more for less" pitch IS the value proposition, but you have to QUANTIFY the gap to use it in sales materials.
+- **Apply when:** Pricing any new service against a competitive market. After the headline-comparison pass, run a differentiator-matrix pass: for each Sharkitect standard inclusion, find (a) which commodity competitors include it at entry, (b) which gate it behind higher tiers (price delta), (c) what it costs when sold standalone. Sum the differentiator premiums above commodity baseline = calibrated floor. The sale price should ALWAYS price above the floor; the unbundled value should be the savings story.
+- **Tags:** pricing-strategy, market-research, differentiator-calibration, value-anchor, competitive-benchmarking
+
+### process: Pace long sessions as one-task-per-session before they spiral
+- **Context:** A single session that started as "lock Phase 3 pricing" turned into 2+ hours of grounding work — scope reconciliation, sweep findings, market research, differentiator calibration. The user explicitly stopped at the end and restructured: "each session is going to be solely for that specific offer." Trying to do all 6 offers in one session would have produced fatigued decisions and shallow per-offer analysis.
+- **Why:** Complex multi-offer pricing work has structural sub-decisions per offer (volume thresholds, setup fee, tier prices, add-on rates) that each benefit from focused attention. Marathoning them produces decision fatigue and weak pricing logic. The user's "one offer per session" framing is the discipline that prevents this.
+- **Apply when:** Any multi-component lock-down work (pricing each of 5 services, building each of 5 hooks, designing each of 4 SOPs) — propose the per-component session structure UPFRONT rather than after exhaustion sets in. Each session: load just that component's briefing, lock just that component's decisions, commit, close.
+- **Tags:** session-pacing, multi-task-decomposition, decision-fatigue, anti-marathon
+
+### preference: K1 SoT docs are generic — no specific competitors or clients
+- **Context:** Chris caught multiple instances of named-competitor (Hibu) and specific-prospect (FF, Fantastic Floors) references in K1 source-of-truth docs (`pricing-structure.md`, `aios-beta-program.md`, `brand-identity-guide.md`, `icp.md`, etc.). The leak-risk: K1 SoT content cascades into client-facing materials (proposals, sales playbooks, business plan), and named-competitor references signal weak strategic positioning.
+- **Apply when:** Any time content is being added to K1 or K2 SoT generic docs. Rule: specific competitor names or specific client/prospect names appear ONLY in (a) explicit per-client docs (`clients/<name>/...`), (b) per-prospect proposals/SOWs, (c) comparison docs whose explicit purpose is the comparison. Everywhere else: generic terms ("other providers," "incumbent agency," "named launch pilot client," "a flooring-vertical SMB prospect," etc.). Drift-detection hook will fire on Hibu mentions in PPM-related docs — treat that as runtime backstop, NOT as primary check; verify-before-write.
+- **Tags:** brand-discipline, K1-SoT, drift-prevention, generic-prose, no-named-competitors
+
+### direction: Setup fees flat WITHIN service, differ ACROSS services
+- **Context:** Pricing-structure.md v3.1 locked the rule that setup fees are flat across all tiers of a single service (e.g., VDR Tier 1/2/3 all share the same setup fee) because tiers differ in volume only, not feature gating. Setup fees DO differ across services because the build effort differs (VDR voice persona + telephony + KB build is materially more work than RLR email + sequence setup).
+- **Apply when:** Designing any capacity-tiered service pricing. Volume-only differentiation principle means the build is the same regardless of which tier the client lands on — the price flexes monthly via the capacity recommendation ritual, not setup-time. If tier-up requires re-building anything, the tiers aren't truly volume-only.
+- **Tags:** pricing-architecture, setup-fee-discipline, volume-only-tiers, no-feature-gating
+
+---
+
+### preference: One decision at a time — never bundle (2026-05-13)
+- **Context:** During Phase 3 PPM pricing session, presented 6 decisions in one response (reconciliation policy + T1-T3 pricing + setup + proposal display). Chris reacted: *"I hate all these decisions all at once, one at a time."* + *"you keep on doing this. Seriously, you have burnt me out."* Burnout was real, not figurative — pattern repeated across the session until explicitly flagged.
+- **Apply when:** Multi-decision sessions (pricing, planning, structural design). Present ONE atomic decision per response. Acknowledge other decisions exist but defer them. Do NOT preemptively raise downstream concerns (proposal display, cascade work, Sub-project D) when locking upstream specs — those are placeholders the user is explicitly redefining later. Flag-and-proceed if you must mention them; do not dwell.
+- **Tags:** pacing, decision-bundling, scope-discipline, user-burnout, anti-drift
+
+### process: Component-sovereign pricing (Option B) — settle components before composite (2026-05-13)
+- **Context:** Phase 3 attempted PPM-first because FF-pitch-critical, but PPM uses Model 2 (PPM = PPM-unique-tier + RLR-component + CPS-component). Trying to lock PPM totals while RLR/CPS were on working hypothesis created back-derivation pressure. Mid-session, Chris pivoted to component-first sequence (CPS → RLR → PPM). Component-sovereign pricing means each layered component is priced on its own standalone value floor; the composite emerges from the sum, not back-derived from a target total.
+- **Why:** Avoids two failure modes: (a) locking composite headlines forces components to fit (kills component standalone integrity), (b) locking components without composite context produces composites that exceed positioning anchors. Component-first sequence resolves this: lock smallest/most-independent first, larger composites emerge with concrete numbers visible.
+- **Apply when:** Any pricing model where one offer mathematically includes other offers as internal components (PPM = bundled RLR + CPS + unique). Always sequence component-first, composite-last. Pricing-strategy + marketing-strategy-pmm round-table on each component independently. Lock reconciliation policy at the FIRST session of a sequence so all subsequent sessions know which numbers are sovereign.
+- **Tags:** pricing-architecture, sequencing, layered-offers, reconciliation-policy, ppm-rlr-cps
+
+### process: Mid-session "are we using any skills?" is a high-leverage user check (2026-05-13)
+- **Context:** Mid-pricing-session, Chris asked: *"are we using any skills while we are doing this? Again, I have to ask again because I doubt we are."* Honest answer was: pricing-strategy was invoked, but superpowers:brainstorming and marketing-strategy-pmm were NOT — gap from the Strategy Creation Rules. Invoking them in response (running the formal alternatives round-table) materially improved the decision quality and surfaced a real positioning recalibration that the conversational pass had not caught.
+- **Why:** The user is using the question as a mid-session audit. The right response is honest gap acknowledgment + immediate skill invocation, not defensive justification. The skills exist BECAUSE conversational reasoning skips alternatives and converges too fast. When the user asks, the gap is usually real.
+- **Apply when:** User asks "are we using skills" / "what skills" / "did you invoke X" mid-session OR end-session. Read tool journal honestly. Name what was invoked, what was skipped, what should have been invoked. Offer the user the choice: invoke now, defer, or accept the gap with rationale.
+- **Tags:** methodology-discipline, skill-invocation, user-audit-pattern, mid-session-correction
+
+### process: Round-table format with multiple skill lenses (2026-05-13)
+- **Context:** When formal brainstorming was invoked mid-session, applied both pricing-strategy + marketing-strategy-pmm + superpowers:brainstorming to the same decision. Result: alternatives anchored on quantitative value-floor analysis (pricing-strategy) AND positioning/competitive-alternatives analysis (PMM) — two independent lenses converging on the same recommendation. Chris validated this format: *"do kind of like a round table on it."*
+- **Apply when:** High-stakes pricing/positioning/strategy decisions where multiple skill domains apply. Don't pick one skill — apply both, present each lens separately, then state the convergence (or divergence + how to resolve). Format: brainstorming alternatives table + PMM competitive-alternatives check + recommendation with both rationales.
+- **Tags:** methodology, round-table-pattern, multi-skill-application, pricing, positioning
+
+### preference: Provisional ≠ Locked — explicit downgrade syntax matters (2026-05-13)
+- **Context:** After locking PPM-unique-T1 at $2,500/mo (formal user approval), Chris later said: *"we may change that price that we just threw out there at 2,500. That might change."* — signaling the lock should be downgraded to provisional pending fuller engine math. Updated pricing-structure.md to use "PROVISIONAL" marker explicitly with rationale, not just "TBD" or removing the number entirely.
+- **Why:** "Locked" implies finality; "TBD" implies no work done. "PROVISIONAL working anchor" captures the actual state: a number arrived at through methodology, preserved as a working baseline, expected to revise when more information lands. Future sessions can use it as an anchor without treating it as committed.
+- **Apply when:** User signals a previous lock may revise. Don't delete the number — downgrade its status with explicit "PROVISIONAL" or "WORKING ANCHOR" marker, preserve the rationale, and note what triggers the revisit. This way future sessions can build on the prior analysis without re-deriving from scratch.
+- **Tags:** versioning, status-vocabulary, provisional-vs-locked, decision-traceability

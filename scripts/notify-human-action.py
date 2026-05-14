@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """
 notify-human-action.py -- Append an entry to a workspace's HUMAN-ACTION-REQUIRED.md
-file and send a Telegram HQ bot notification in one atomic call.
+file and send a Slack (Polaris bot) notification in one atomic call.
 
-Implements the Human Action Required Protocol added to universal-protocols.md
-per wr-2026-04-21-006. Any workspace closing work that requires a user-facing
-action before dependent work can proceed MUST call this helper to surface the
-ask actively; silent drift is prohibited.
+Implements the Human Action Required Protocol in ~/.claude/rules/universal-protocols.md
+(originally per wr-2026-04-21-006; channel migrated to Slack per
+wr-sentinel-2026-05-13-002, 2026-05-13). Any workspace closing work that requires
+a user-facing action before dependent work can proceed MUST call this helper to
+surface the ask actively; silent drift is prohibited.
+
+Channel decision (2026-05-13): Slack is the canonical outbound alert channel.
+Telegram is repurposed for two-way mobile bridge only and is NOT used here.
 
 Usage:
     python ~/.claude/scripts/notify-human-action.py \
@@ -17,25 +21,30 @@ Usage:
         --details "From Skill Hub: python tools/migrate-env-to-global.py --workspace skillhub --execute" \
         --expected-outcome "~/.claude/.env contains SKILLHUB_* prefixed keys"
 
-Credentials (in ~/.claude/.env, then fall back to per-workspace .env):
-    TELEGRAM_BOT_TOKEN   Bot token for @SharkitectHQBot
-    TELEGRAM_CHAT_ID     Chat ID to message
+Credentials (loaded from ~/.claude/.env, then per-workspace .env):
+    SLACK_POLARIS_BOT_OAUTH_TOKEN  OAuth token for the Polaris bot
 
-If Telegram credentials are missing, the file entry is still written and
-the script prints a warning. File update is mandatory; Telegram is advisory.
+Per-workspace dedicated channels (set 2026-05-13):
+    SKILL_MANAGMENT_HUB_ALERTS     C0B0P7H0BL6   (skill-management-hub)
+    HQ_ALERTS                      C0B0MT7ANTF   (workforce-hq)
+    SENTINEL_ALERTS                C0B0P86BU3Y   (sentinel)
+
+Channel resolution order (per Human Action Required Protocol + 2026-05-13 channel routing):
+    1. CLI --channel (explicit override)
+    2. Workspace's dedicated channel env var (based on --workspace flag)
+
+If Slack credentials are missing, the file entry is still written and the
+script prints a warning. File update is mandatory; Slack is advisory.
 
 Non-blocking; always exits 0 unless CLI args are malformed. Pure stdlib.
 """
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import sys
-import urllib.error
-import urllib.parse
-import urllib.request
 from datetime import datetime, timezone
+from importlib import util
 from pathlib import Path
 
 
@@ -63,6 +72,8 @@ def load_env():
                 k, _, v = line.partition("=")
                 k = k.strip()
                 v = v.strip().strip('"').strip("'")
+                if "#" in v:
+                    v = v.split("#", 1)[0].strip()
                 if k and k not in env:
                     env[k] = v
         except OSError:
@@ -91,6 +102,7 @@ and a completion timestamp.
   the blocked work.
 
 Source: universal-protocols.md Human Action Required Protocol (wr-2026-04-21-006).
+Channel: Slack (Polaris bot) per wr-sentinel-2026-05-13-002, 2026-05-13.
 
 ---
 
@@ -122,25 +134,48 @@ def append_entry(file_path, workspace, action, execute_from, reference_id,
         fh.write(entry)
 
 
-def send_telegram(token, chat_id, message):
-    if not token or not chat_id:
-        return False, "missing credentials"
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    data = urllib.parse.urlencode({
-        "chat_id": chat_id,
-        "text": message,
-        "disable_web_page_preview": "true",
-    }).encode("utf-8")
-    req = urllib.request.Request(url, data=data, method="POST")
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            body = resp.read().decode("utf-8", errors="replace")
-            result = json.loads(body)
-            if result.get("ok"):
-                return True, ""
-            return False, f"telegram api: {result.get('description', 'unknown')}"
-    except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, OSError) as exc:
-        return False, f"{type(exc).__name__}: {exc}"
+def _load_notify_slack():
+    """Import notify-slack.py as a module (it uses a hyphenated filename)."""
+    slack_path = Path.home() / ".claude" / "scripts" / "notify-slack.py"
+    if not slack_path.exists():
+        return None
+    spec = util.spec_from_file_location("notify_slack", str(slack_path))
+    if spec is None or spec.loader is None:
+        return None
+    mod = util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+WORKSPACE_CHANNEL_ENV = {
+    "skill-management-hub": "SKILL_MANAGMENT_HUB_ALERTS",
+    "workforce-hq":          "HQ_ALERTS",
+    "sentinel":              "SENTINEL_ALERTS",
+}
+
+
+def send_slack_notification(env, workspace, channel_override, message):
+    """Post the HAR alert via Polaris bot to the workspace's dedicated channel.
+
+    Per 2026-05-13 channel routing: each workspace has its own dedicated channel.
+    HAR notifications route to the workspace whose HAR file was just appended,
+    so the user sees the alert in the channel for that workspace.
+    """
+    mod = _load_notify_slack()
+    if mod is None:
+        return False, "notify-slack.py not available"
+    token = env.get("SLACK_POLARIS_BOT_OAUTH_TOKEN")
+    channel = channel_override
+    if not channel:
+        channel_env_name = WORKSPACE_CHANNEL_ENV.get(workspace)
+        if channel_env_name:
+            channel = env.get(channel_env_name)
+    if not token:
+        return False, "missing credentials: SLACK_POLARIS_BOT_OAUTH_TOKEN"
+    if not channel:
+        env_name = WORKSPACE_CHANNEL_ENV.get(workspace, "(unmapped workspace)")
+        return False, f"missing credentials: channel (env {env_name} for workspace '{workspace}')"
+    return mod.send_slack(message=message, channel=channel, token=token, env=env)
 
 
 def main():
@@ -156,8 +191,12 @@ def main():
                    help="Multi-line step-by-step detail for the user")
     p.add_argument("--expected-outcome", required=True,
                    help="Success signal the workspace will verify on completion")
+    p.add_argument("--channel", default=None,
+                   help="Slack channel ID override (else env-resolved)")
+    p.add_argument("--skip-slack", action="store_true",
+                   help="Append file entry only; skip Slack notification")
     p.add_argument("--skip-telegram", action="store_true",
-                   help="Append file entry only; skip Telegram notification")
+                   help="DEPRECATED alias for --skip-slack (Telegram channel removed 2026-05-13).")
     args = p.parse_args()
 
     root = workspace_root(args.workspace)
@@ -170,24 +209,26 @@ def main():
                  args.reference_id, args.details, args.expected_outcome)
     print(f"OK: appended entry to {file_path}")
 
-    if args.skip_telegram:
-        print("OK: skipped Telegram notification (--skip-telegram)")
+    if args.skip_slack or args.skip_telegram:
+        if args.skip_telegram and not args.skip_slack:
+            print("NOTE: --skip-telegram is deprecated; honoring as --skip-slack "
+                  "(channel migrated 2026-05-13 per wr-sentinel-2026-05-13-002)")
+        print("OK: skipped Slack notification")
         return 0
 
     env = load_env()
-    token = env.get("TELEGRAM_BOT_TOKEN") or env.get("HQ_TELEGRAM_BOT_TOKEN")
-    chat_id = env.get("TELEGRAM_CHAT_ID") or env.get("HQ_TELEGRAM_CHAT_ID")
     message = (
         "[HUMAN ACTION NEEDED]\n"
         f"Workspace: {args.workspace}\n"
         f"Action: {args.action}\n"
+        f"Reference: {args.reference_id}\n"
         f"Details: {args.workspace}/HUMAN-ACTION-REQUIRED.md"
     )
-    ok, err = send_telegram(token, chat_id, message)
+    ok, err = send_slack_notification(env, args.workspace, args.channel, message)
     if ok:
-        print("OK: Telegram notification sent")
+        print("OK: Slack notification sent")
     else:
-        print(f"WARN: Telegram notification failed ({err}); file entry still written")
+        print(f"WARN: Slack notification failed ({err}); file entry still written")
     return 0
 
 
