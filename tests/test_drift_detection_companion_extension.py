@@ -1,7 +1,6 @@
 # ~/.claude/tests/test_drift_detection_companion_extension.py
 """Tests for drift-detection-hook.py companion prose-density extension."""
 import importlib.util
-import sys
 from pathlib import Path
 
 HOOK = Path.home() / ".claude" / "hooks" / "drift-detection-hook.py"
