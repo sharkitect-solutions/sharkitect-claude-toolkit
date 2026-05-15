@@ -6134,3 +6134,127 @@ Tags: schema, hierarchy, projects, rollup, naming-convention, initiative
 - **Why:** "Locked" implies finality; "TBD" implies no work done. "PROVISIONAL working anchor" captures the actual state: a number arrived at through methodology, preserved as a working baseline, expected to revise when more information lands. Future sessions can use it as an anchor without treating it as committed.
 - **Apply when:** User signals a previous lock may revise. Don't delete the number — downgrade its status with explicit "PROVISIONAL" or "WORKING ANCHOR" marker, preserve the rationale, and note what triggers the revisit. This way future sessions can build on the prior analysis without re-deriving from scratch.
 - **Tags:** versioning, status-vocabulary, provisional-vs-locked, decision-traceability
+
+### [2026-05-13] direction: Skill/agent/tool companion files MUST point at K1 SoTs, never fabricate
+
+**Context:** Phase 3 Session 1 pre-flight on hq-revenue-ops discovered companion files (`references/client-tiers.md`, `references/pricing-psychology.md`) encoded fabricated content: 4-tier price-band model that didn't exist in v3.0 architecture, hallucinated service names ("Virtual Delivery Room"/"Revenue Lifecycle Revenue"/"Sharkitect Live Web"/"Client Platform Services"). Root cause: Skill Hub built skills WITHOUT searching for or grounding against canonical K1 SoTs in workspace knowledge-base/.
+**Apply when:** Building or auditing ANY skill/agent/tool. The No-Duplicate-Content Rule (Alt 5 chosen 2026-05-13 from 6-alternatives matrix) makes companion files structurally pointers — headers + bullets + path citations + version pins, never canonical prose. Creation workflow: search workspaces by scope ownership map → reference real K1 paths if found → STOP creation and ask owning workspace if not found → never improvise from training data.
+**Tags:** skills, agents, sot-reference, no-duplicate-content, supersession-pointer, alt-5, wr-hq-2026-05-13-001, wr-hq-2026-05-13-004
+
+### [2026-05-13] preference: Pricing — whole numbers only, no charm pricing, no floors
+
+**Context:** Chris corrected multiple times. Sharkitect uses clean whole numbers ($500, $900, $1,500, $2,500) NOT $497/$897/$1,497. Also explicitly dropped the $2,500 setup floor universally (was a v1 idea that doesn't fit; replaced with "honest, transparent, true" pricing without artificial floor).
+**Apply when:** Any pricing recommendation, tier-structure decision, setup fee discussion, à la carte rate, partnership progression %. Whole numbers (rounded to nearest $50 or $100) signal premium positioning. The $2,500 setup floor language in pricing-structure.md v3.2 §9 + §15 Rule #12 is now stale — slated for v3.3 amendment.
+**Tags:** pricing, brand-positioning, charm-pricing-banned, floor-dropped, whole-numbers
+
+### [2026-05-13] preference: Pricing analysis sessions — standing Tier 1 + Tier 2 skill stack
+
+**Context:** Chris codified the skill invocation pattern for Sharkitect pricing/strategy analysis. Tier 1 (mandatory always): pricing-strategy + marketing-strategy-pmm + superpowers:brainstorming. Tier 2 (mandatory always): marketing-psychology + smb-cfo + competitor-alternatives + competitive-intelligence-analyst (paired) + using-sharkitect-methodology. Tier 3 (situational): hq-revenue-ops, product-strategist, etc.
+**Apply when:** ANY pricing, tier-structure, positioning, or offer-economics analysis session starts. Skip the "which skills?" question — invoke as default. competitive-intelligence-analyst is ALWAYS paired with competitor-alternatives, never solo.
+**Tags:** pricing, methodology, skill-stack, tier-1-tier-2, cia-cohort-pairing
+
+### [2026-05-13] process: Brainstorm before protocol/strategy design — fix-desc is ONE input, not authoritative
+
+**Context:** wr-hq-2026-05-13-002 PROCESS gap (self-filed). When AI drafts a protocol or strategy design and files it as a WR fix-desc, that recommendation is ONE input to brainstorming alternatives — NOT the design. Skill Hub honored this in real time by producing a 6-alternative matrix instead of executing the recommended design. Class recurrence: prior offender was wr-sentinel-2026-05-12-004 (schema design). Documentation alone isn't sufficient — runtime nudge candidate exists for "new protocol design" pattern.
+**Apply when:** Any WR with fix-type=protocol that proposes new universal-protocols.md sections, new K1 SoT structure, new schema design, or other strategy-design work. Receiving workspace MUST invoke superpowers:brainstorming before implementing.
+**Tags:** process, brainstorming, protocol-design, fix-desc, recurrence-third
+
+---
+
+## 2026-05-14 — process: Strategy Creation Rules round-table format successfully landed CPS pricing in one turn
+
+**Category:** Process Decisions
+
+**Context:** CPS Phase 3 Session 1 (HQ workspace). Needed to lock CPS monthly tier prices + setup fee in pricing-structure.md K1 SoT.
+
+**Pattern applied:** Strategy Creation Rules round-table — invoke `pricing-strategy` + `hq-revenue-ops` + `marketing-strategy-pmm` + `superpowers:brainstorming` at session start, present analysis through all four lenses, propose 3-4 alternatives with explicit tradeoff table, recommend one with reasoning. Confirmed-pattern instance #2 (first instance: prior partial PPM session 2026-05-13).
+
+**Why it works:** Each skill contributes a distinct lens (positioning / value-floor / deal-governance / divergent-thinking). User can pick the recommended approach OR redirect to an alternative without re-running analysis. Decision lands in one turn instead of multiple-round Q&A.
+
+**Apply when:** Any per-offer pricing session in Phase 3 (RLR, PPM, Wrapper, SLW, VDR) + future offer pricing decisions. The round-table is the user-validated format.
+
+**Tags:** pricing, strategy-creation-rules, round-table, methodology-pattern
+
+## 2026-05-14 — process: Verify cross-workspace task state by checking processed/ NOT just inbox/
+
+**Category:** Process Decisions
+
+**Context:** Session-start failure — claimed CPS Phase 3 Session 1 was BLOCKED pending wr-hq-2026-05-13-001 after checking only `.routed-tasks/inbox/`. The completion notification was in `.routed-tasks/processed/` (the standard cross-workspace completion-notification destination). User had to interject to correct.
+
+**Lesson:** When verifying whether a cross-workspace task / WR / routed-task / lifecycle review is still pending vs complete:
+1. Check ALL relevant directories: `inbox/` AND `processed/` AND Supabase row
+2. Routed-task completion notifications land in the originator's `.routed-tasks/inbox/` per Completion Notification Protocol, then move to `processed/` after the originator acknowledges
+3. A "block cleared" notification can be in processed/ if the originator already acknowledged it last session
+4. The Supabase `cross_workspace_requests.status` field is authoritative for the underlying WR — query it before claiming state
+
+**Tools that have the answer:**
+- `git log --oneline -10` → recent end-session commits often summarize what landed
+- `cat .tmp/session-brief-YYYY-MM-DD.md` → previous session's deliverable summary
+- `ls .routed-tasks/processed/` → completion notifications already processed
+- Supabase: `SELECT status FROM cross_workspace_requests WHERE item_id = 'wr-...'`
+
+**Apply when:** Any session-start verification of cross-workspace task state. Especially when resume_next_session.md says "BLOCKED" — verify against current source before trusting the flag.
+
+**Tags:** verify-before-action, cross-workspace, session-start, non-negotiable-enforcement
+
+---
+
+## 2026-05-14 — HQ S37 — RLR pricing lock + chatbot rate (Phase 3 Session 2)
+
+### Process: Pre-built (Capacity-Tiered) vs Scope-Built setup cost basis
+
+**Context:** During RLR pricing Session 2, initial $1,000 setup recommendation undersold genuine build complexity. Chris pushed back. AI re-ran build-effort itemization (70-130 hrs for full RLR scope) and proposed $3,000-$4,000 range. Chris then clarified: RLR is PRE-BUILT (Capacity-Tiered per v3.1 §7), so the 70-130 hrs is ONE-TIME R&D amortized across all clients — per-client setup is configuration + integration + persona KB build + testing (~20-36 hrs).
+
+**Process: Pricing setup correctly requires distinguishing service classification BEFORE cost-basis math.**
+
+**Why:** Capacity-Tiered services (VDR/RLR/PPM/CPS) have productized cost basis — initial engineering is sunk; per-client effort is integration + customization. Scope-Built services (SLW) have per-client engineering as the cost basis. Same hours of "build effort" mean different things across these two classes. Calibrating setup against the wrong class = wrong number.
+
+**How to apply:** At the start of any Capacity-Tiered pricing session, explicitly flag "per-client work is integration + customization, NOT engineering" so the setup math anchors against productized industry comps (BizIQ, WebFX, GoHighLevel agency snapshots) rather than custom-engineering comps (custom n8n agencies, SLW Complexity Scorecard bands).
+
+**Tags:** pricing, setup-calibration, capacity-tiered, scope-built, sharkitect-services, methodology
+
+### Process: Phantom decisions in resume handoffs — verify "open" items against current SoT before treating as open
+
+**Context:** Resume handoff (resume_next_session.md) flagged "2-way calendar booking standard or opt-in (v3.1 marked optional-by-need)" as an open decision for RLR Session 2. At session start, verified against pricing-structure.md v3.4 §7.2 — already STANDARD ("2-way calendar booking links integrated where applicable"). Decision was carried forward from earlier-session ambiguity but was already resolved in v3.1 scope-locking.
+
+**Process: At session start, EVERY "open decision" listed in resume handoff must be verified against the current source-of-truth document before being treated as actually open.**
+
+**Why:** Resume handoffs are written at end-of-session by an AI under time pressure. Earlier-session ambiguity can be transcribed as "open decision" even when subsequent edits resolved it. Treating phantom-open decisions as real wastes session time + risks re-opening locked decisions.
+
+**How to apply:** When loading a resume handoff's "Session N open decisions" list, immediately verify each item by reading the current SoT for that scope (e.g., pricing-structure.md §7.X). If the decision is already locked there, strike it from the session agenda explicitly. Do NOT bring locked items back into round-table discussion.
+
+**Tags:** verify-before-action, resume-handoff, source-of-truth, sharkitect-methodology, phase-3-pricing
+
+### Pushback Protocol successfully exercised — Chatbot-5 / Chatbot-7 rejection
+
+**Context:** Chris asked AI to compare 4 chatbot configurations (Chatbot-4/5/6/7) through skill lenses. AI honestly evaluated each — Chatbot-5 ($1K + $250/mo) and Chatbot-7 ($1.5K + $250/mo) had specific positioning issues (drops below managed-service whitespace floor of $300/mo, creates inconsistent setup/monthly signal on Chatbot-7). AI explicitly flagged "Recommend NOT picking Chatbot-5 or Chatbot-7" rather than presenting all 4 as equally defensible.
+
+**Process: Pushback Protocol applies even when user explicitly asks for option-comparison.** Comparing options ≠ rubber-stamping all options as valid.
+
+**Why:** User asking "compare these" can be conflated with "validate all of these." Honest comparison requires explicit ranking + rejection of weaker options with reasoning, not neutral side-by-side that defers the decision back.
+
+**How to apply:** When presenting comparative analysis (A/B/C/D options), always explicitly rank by lens-convergence + flag which options the AI would push back on if selected. User can still override, but the recommendation must be honest.
+
+**Tags:** pushback-protocol, sharkitect-methodology, pricing, brainstorming, option-comparison
+
+## Process Decisions
+
+### 2026-05-14 — process: Auto-trigger 4-skill round-table on Phase 3 session phrasing without confirmation
+
+Context: PPM Session 3 (S38) opened with user directive: *"every one of these has to be running with skills... if I say 'let's start with' or 'let's proceed with' session N, automatically trigger them. Don't ask me shit."* User explicitly authorized auto-invocation of the locked 4-skill round-table (pricing-strategy + marketing-strategy-pmm + hq-revenue-ops + superpowers:brainstorming) on those trigger phrases.
+
+Why: Prior pattern showed AI hedging/asking which skills to invoke produced friction. The Phase 3 round-table mandate is already documented in HQ CLAUDE.md Strategy Creation Rules + standing skills-first rule. User wants behavior consistent with documented protocol — no permission prompts for established patterns.
+
+Apply when: ANY workspace session where the user uses "let's start with [session/work-unit N]" / "let's proceed with [session/work-unit N]" / "move on to [N]" / "go to [N]" phrasing within an active methodology-locked workflow (Phase 3 pricing, AIOS cohorts, etc.). Auto-invoke the relevant skill stack at session start. Do not ask "should I invoke these?" Do not pre-announce. Just invoke and proceed with the work.
+
+Tags: skills-first, autonomy, no-asking, phase-3, auto-trigger
+
+### 2026-05-14 — process: SAP terminology — locked threshold is footprint (total cumulative), not monthly cadence
+
+Context: PPM Session 3 (S38). At session close, user flagged ambiguity in "SAPs/month" phrasing seen across resume handoffs and conversation. Verified: `pricing-structure.md` §7.4 column header reads "SAP Footprint" — locked semantic is total cumulative pages at each tier (T1=10 / T2=30 / T3=75), NOT a monthly build rate. Blog cadence and backlink cadence ARE per-month rates.
+
+Why: Loose phrasing "T1 ~10 SAPs/1-2 blogs/mo" mixed footprint with cadence using slash separator. Created propagating ambiguity in resume handoffs that could mislead future sessions or sales conversations.
+
+Apply when: Anytime referencing PPM tier capacity. Always disambiguate: "SAPs" = total footprint; "blogs/mo" + "backlinks/mo" = monthly cadence. Build-cadence for getting T2/T3 clients from 10-SAP-at-setup baseline to their target footprint is operationally separate and deferred to Sub-project D (proposal templates / partnership agreement).
+
+Tags: ppm, terminology, sap, capacity-language, sub-project-d
