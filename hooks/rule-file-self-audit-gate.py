@@ -44,6 +44,7 @@ from types import SimpleNamespace
 
 
 CONFIG_PATH = Path.home() / ".claude" / "config" / "rule-file-checklists.json"
+SCHEMAS_PATH = Path.home() / ".claude" / "config" / "frontmatter-schemas.json"
 
 
 # ---------------------------------------------------------------------------
@@ -74,6 +75,58 @@ def _match_class(file_path: str, classes: list[dict]) -> dict | None:
 
 
 # ---------------------------------------------------------------------------
+# Frontmatter schema helpers
+# ---------------------------------------------------------------------------
+
+def _load_schemas() -> dict:
+    try:
+        return json.loads(SCHEMAS_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {"classes": []}
+
+
+def _parse_frontmatter(content: str) -> dict:
+    """Return frontmatter dict (or empty) from YAML block at top of content."""
+    if not content.startswith("---\n"):
+        return {}
+    end = content.find("\n---\n", 4)
+    if end < 0:
+        return {}
+    block = content[4:end]
+    out = {}
+    for line in block.splitlines():
+        if ":" in line:
+            k, _, v = line.partition(":")
+            out[k.strip()] = v.strip()
+    return out
+
+
+def _frontmatter_findings(content: str, schema: dict) -> list:
+    """Return human-readable findings list (empty == compliant)."""
+    findings = []
+    fm = _parse_frontmatter(content)
+    required = schema.get("required_fields", [])
+    missing = [f for f in required if f not in fm or not fm[f]]
+    if missing:
+        findings.append(
+            "missing required frontmatter field(s) for class '"
+            + schema.get("file_class_name", "")
+            + "': "
+            + ", ".join(missing)
+        )
+    status = fm.get("status")
+    enum = schema.get("status_enum")
+    if enum and status and status not in enum:
+        findings.append("status '" + status + "' not in allowed enum " + str(enum))
+    cond = schema.get("conditional_required", {})
+    if status in ("SUPERSEDED", "superseded"):
+        for cf in cond.get("when_status_superseded", []):
+            if cf not in fm or not fm[cf]:
+                findings.append("status=SUPERSEDED requires field '" + cf + "'")
+    return findings
+
+
+# ---------------------------------------------------------------------------
 # evaluate() - per-file-class checklist injection
 # ---------------------------------------------------------------------------
 
@@ -101,6 +154,13 @@ def evaluate(payload: dict) -> SimpleNamespace:
     if not file_path:
         return result
 
+    # Extract file content for bypass check + frontmatter analysis.
+    content = str(tool_input.get("content", "") or "")
+
+    # Bypass short-circuit: if bypass phrase appears in content, skip the gate.
+    if "skip rule-self-audit" in content:
+        return result
+
     config = _load_config()
     cls = _match_class(file_path, config.get("classes", []))
     if cls is None:
@@ -108,7 +168,28 @@ def evaluate(payload: dict) -> SimpleNamespace:
 
     result.file_class = cls.get("file_class_name", "rule-class file")
     bv = config.get("bypass_vocabulary", {})
-    result.additional_context = _build_audit_prompt(cls, bv, file_path)
+
+    # Build base checklist prompt.
+    base_prompt = _build_audit_prompt(cls, bv, file_path)
+
+    # Append frontmatter findings if this class has a schema reference.
+    schema_ref = cls.get("frontmatter_schema_ref")
+    frontmatter_lines = []
+    if schema_ref and content:
+        schemas = _load_schemas()
+        matched_schema = next(
+            (s for s in schemas.get("classes", []) if s.get("file_class_name") == schema_ref),
+            None,
+        )
+        if matched_schema:
+            findings = _frontmatter_findings(content, matched_schema)
+            if findings:
+                frontmatter_lines.append("")
+                frontmatter_lines.append("Frontmatter completeness findings (fix before closing):")
+                for f in findings:
+                    frontmatter_lines.append("  - " + f)
+
+    result.additional_context = base_prompt + "\n".join(frontmatter_lines)
     return result
 
 

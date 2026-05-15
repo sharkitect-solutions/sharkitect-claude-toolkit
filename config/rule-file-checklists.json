@@ -47,6 +47,48 @@
       ]
     },
     {
+      "file_class_name": "k1-sot",
+      "globs": ["**/knowledge-base/**/*.md"],
+      "checklist": [
+        "Did you set frontmatter required fields (per ~/.claude/config/frontmatter-schemas.json k1-sot class)?",
+        "If status=SUPERSEDED, did you set superseded_by + superseded_date + superseded_reason?",
+        "Did you bump version on substantive change (Rule 1 of Document Versioning Protocol)?",
+        "Did you update previous_versions narrative?",
+        "Did you verify the K1 SoT path matches the workspace scope-ownership map?"
+      ],
+      "frontmatter_schema_ref": "k1-sot"
+    },
+    {
+      "file_class_name": "skill-ref-companion",
+      "globs": ["**/.claude/skills/**/references/*.md"],
+      "checklist": [
+        "Did you confirm this companion is POINTER (headers + bullets + citations) and not canonical prose?",
+        "Did you set status + last_rebuilt + reason in frontmatter?",
+        "Did you cite K1 SoT paths with version pins per SoT-Reference Discipline?",
+        "If superseding a prior version, did you set superseded_by?"
+      ],
+      "frontmatter_schema_ref": "skill-ref-companion"
+    },
+    {
+      "file_class_name": "plan-file",
+      "globs": ["**/.claude/plans/*.md", "**/docs/superpowers/plans/*.md"],
+      "checklist": [
+        "Did you set frontmatter status + created + last_updated?",
+        "Did you update plans-registry.md with this plan's row?",
+        "Does this plan reference its trigger WR or spec by id?"
+      ],
+      "frontmatter_schema_ref": "plan-file"
+    },
+    {
+      "file_class_name": "brain-dump",
+      "globs": ["**/brain-dump/*.md"],
+      "checklist": [
+        "Did you set date + session_context + status + relates_to + priority + ai_preliminary_thoughts?",
+        "If cross-workspace topic, did you add routed_to and file routed-task copies per Brain Dump Capture Protocol?"
+      ],
+      "frontmatter_schema_ref": "brain-dump"
+    },
+    {
       "file_class_name": "plans-registry.md",
       "globs": [
         "**/.claude/docs/plans-registry.md"
