@@ -16,6 +16,7 @@ Evaluate Agent Skills against official specifications and patterns derived from 
 | `references/common-failures.md` | First evaluation of session, unfamiliar with the 9 failure patterns, need quick reference checklist | Already evaluated 2+ skills this session (patterns memorized) |
 | `references/scoring-calibration.md` | Unsure about D1 for a domain, need companion impact data for D5, verifying sub-grade thresholds, checking for scoring errors | Confident in calibration from recent evaluations |
 | `references/dimension-examples.md` | Need concrete high/low examples for a specific dimension, calibrating for unfamiliar skill type | Already calibrated from recent similar evaluations |
+| `references/pointer-validator.md` | Evaluating a reference companion file under `skills/**/references/*.md` — need H4 heuristic thresholds, citation patterns, or escalation criteria | Evaluating a SKILL.md file (not a reference companion) |
 
 ---
 
@@ -274,6 +275,14 @@ Total = D1 + D2 + D3 + D4 + D5 + D6 + D7 + D8 (Max = 120)
 ### Step 5: Generate Report
 
 Include: Total/120 with grade, dimension table with scores and notes, critical issues, top 3 improvements with specific guidance.
+
+---
+
+## Pointer-Only Validator (Alt 5)
+
+For skill reference companions under `~/.claude/skills/**/references/*.md`, invoke the H4 hybrid pointer-vs-prose validator from `~/.claude/scripts/skill_judge_pointer_validator.py`. POINTER passes certification; PROSE refuses; BORDERLINE escalates to AI-judge pass with K1 SoT loaded.
+
+See `references/pointer-validator.md`.
 
 ---
 
