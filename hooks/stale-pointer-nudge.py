@@ -55,15 +55,40 @@ def _parse_frontmatter(text: str) -> dict:
     return out
 
 
-def _check_citation(cited_path: str, search_root: Path) -> str | None:
+def _candidate_roots(k1_search_root: Path | None = None) -> list[Path]:
+    """Return list of candidate roots to try when resolving a relative citation."""
+    if k1_search_root is not None:
+        return [k1_search_root]
+    cwd = Path.cwd()
+    candidates = [cwd, cwd.parent]
+    # Walk up looking for a 'Claude Code Workspaces' ancestor as fallback
+    for ancestor in cwd.parents:
+        if ancestor.name == "Claude Code Workspaces":
+            if ancestor not in candidates:
+                candidates.append(ancestor)
+            break
+    return candidates
+
+
+def _resolve_citation(cited_path: str, roots: list[Path]) -> Path | None:
+    """Try absolute, then each root in order. Return the first existing path, or None."""
+    p = Path(cited_path)
+    if p.is_absolute():
+        return p if p.exists() else None
+    for r in roots:
+        candidate = r / cited_path
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def _check_citation(cited_path: str, roots: list[Path]) -> str | None:
     """Return a finding string if cited path is superseded or missing; else None."""
-    candidate = Path(cited_path)
-    if not candidate.is_absolute():
-        candidate = search_root / cited_path
-    if not candidate.exists():
+    resolved = _resolve_citation(cited_path, roots)
+    if resolved is None:
         return f"cited K1 path not found: {cited_path}"
     try:
-        fm = _parse_frontmatter(candidate.read_text(encoding="utf-8"))
+        fm = _parse_frontmatter(resolved.read_text(encoding="utf-8"))
     except OSError:
         return None
     if fm.get("status", "").lower() == "superseded":
@@ -84,7 +109,7 @@ def evaluate(payload: dict, k1_search_root: Path | None = None) -> SimpleNamespa
         return SimpleNamespace(additional_context=None)
     if BYPASS_PHRASE in text.lower():
         return SimpleNamespace(additional_context=None)
-    root = k1_search_root or Path.cwd()
+    roots = _candidate_roots(k1_search_root)
     findings = []
     seen: set[str] = set()
     # Pattern 1: backtick-delimited paths (captures spaces, absolute paths)
@@ -92,7 +117,7 @@ def evaluate(payload: dict, k1_search_root: Path | None = None) -> SimpleNamespa
         cited = m.group(1)
         if cited not in seen:
             seen.add(cited)
-            f = _check_citation(cited, root)
+            f = _check_citation(cited, roots)
             if f:
                 findings.append(f)
     # Pattern 2: unquoted relative knowledge-base/... paths
@@ -100,7 +125,7 @@ def evaluate(payload: dict, k1_search_root: Path | None = None) -> SimpleNamespa
         cited = m.group(0)
         if cited not in seen:
             seen.add(cited)
-            f = _check_citation(cited, root)
+            f = _check_citation(cited, roots)
             if f:
                 findings.append(f)
     if not findings:
