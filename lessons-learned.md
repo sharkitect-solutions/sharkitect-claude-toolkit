@@ -6299,3 +6299,18 @@ context: 2026-05-15 Sentinel KB seeding (49 rows from 4-parallel-agent sweep). s
 why: PostgREST batches add ~150ms each; subprocess startup adds ~200ms each. For 49 rows that is ~17s on the happy path + retry overhead on partial failures. Bulk SQL is atomic-per-batch + verifiable via RETURNING.
 
 tags: supabase, bulk-insert, performance, sentinel
+
+---
+
+## Process Decision — Stale K1 calculator reconciliation as a coherent block (2026-05-15)
+<!-- key: stale_k1_calculator_reconciliation_block_2026_05_15 -->
+
+process: When a K1 SoT calculator/methodology doc predates downstream policy changes in its parent SoT, the recalibration session must reconcile ALL stale references as a single coherent block BEFORE locking new numbers — not piecemeal interleaved with band/threshold decisions. Surface every stale reference upfront in a tension table; let the user choose block-vs-sequential resolution.
+
+context: 2026-05-15 HQ Phase 3 Session 5 (SLW pricing lock). The v1.0 SLW Pricing Calculator (2026-04-07) had 6 stale references vs pricing-structure.md v3.7: tier names (Standard/Medium/Complex → Basic/Standard/Advanced), setup floor ($2,500 vs v3.3 universal-drop), monthly floor (decision needed), wrapper-base reference (incompatible with v3.7 Two-Layer Architecture), missing whole-numbers rule (v3.3 §15 Rule #15), and divergence between calculator outputs vs marketing-band hypothesis. Surfacing all 6 as Decision 1 block, then advancing to band-threshold numbers, eliminated oscillation. Chris confirmed block format works for tightly-coupled meta-decisions.
+
+why: Locking band numbers (rates, hour ranges) without first reconciling the stale references would have produced incoherent downstream output — e.g., new rates × old floor × old rounding rule = numbers that satisfy no single decision authority. Coupled decisions resolve cleanly together; sequenced separately, they oscillate as each one reopens the prior.
+
+how to apply: At session start when working from a K1 calculator/methodology doc, grep the doc for references to its parent SoT's recent change-log entries (last 3 versions). Flag every stale reference. Present them as a Decision 1 block with committee-lensed options. Lock the block before advancing to content-level decisions.
+
+tags: pricing, methodology, k1-sot, calibration, sharkitect, hq, phase-3, decision-sequencing
