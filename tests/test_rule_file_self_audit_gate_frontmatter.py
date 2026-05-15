@@ -20,8 +20,13 @@ def test_k1_sot_missing_frontmatter_surfaces_checklist(tmp_path):
     fake.write_text("# No frontmatter here\n\nbody only.\n", encoding="utf-8")
     result = rfsg.evaluate(_payload(str(fake), fake.read_text(encoding="utf-8")))
     assert result.additional_context is not None
-    assert "k1-sot" in result.additional_context.lower() or "k1 sot" in result.additional_context.lower()
-    assert "version" in result.additional_context.lower()  # required field name surfaces
+    # The "missing required frontmatter field" string is ONLY emitted by _frontmatter_findings()
+    # - not present in any checklist text. This assertion fails if the helper is not wired.
+    assert "missing required frontmatter field" in result.additional_context.lower()
+    # And specifically name at least one concrete required field that's missing
+    assert ("document" in result.additional_context.lower()
+            or "classification" in result.additional_context.lower()
+            or "approved_by" in result.additional_context.lower())
 
 def test_k1_sot_with_complete_frontmatter_no_completeness_flag(tmp_path):
     fake = tmp_path / "knowledge-base" / "revenue" / "x.md"
@@ -49,6 +54,9 @@ def test_superseded_without_pointer_flagged(tmp_path):
     fake.write_text(fm, encoding="utf-8")
     result = rfsg.evaluate(_payload(str(fake), fake.read_text(encoding="utf-8")))
     assert result.additional_context is not None
+    # "status=SUPERSEDED requires field" is ONLY emitted by _frontmatter_findings()
+    # - fails if the helper or its conditional_required branch is not wired
+    assert "status=superseded requires field" in result.additional_context.lower()
     assert "superseded_by" in result.additional_context.lower()
 
 def test_skill_ref_companion_class_matches(tmp_path):
@@ -73,5 +81,5 @@ def test_bypass_skip_rule_self_audit_short_circuits(tmp_path):
     fake.write_text("body\n", encoding="utf-8")
     payload = _payload(str(fake), "skip rule-self-audit\nbody")
     result = rfsg.evaluate(payload)
-    # The existing gate already honors the bypass phrase — this re-asserts it survives the extension.
-    assert result.additional_context is None or "bypass" in (result.additional_context or "").lower()
+    # When bypass fires, evaluate() returns additional_context=None -- strict assertion
+    assert result.additional_context is None
