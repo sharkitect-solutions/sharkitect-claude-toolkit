@@ -1,6 +1,6 @@
 ---
 name: skill-judge
-description: "Use when evaluating, auditing, scoring, or reviewing Agent Skills (SKILL.md files) for quality. Use when comparing skills, running skill quality audits, benchmarking skill effectiveness, or deciding which skills need optimization. Use when a user says 'score this skill', 'evaluate this skill', 'audit my skills', 'how good is this skill'. Do NOT use for: ultimate-skill-creator (creating new skills), skill-creator (lightweight skill creation), superpowers:writing-skills (auto-triggered writing workflows)."
+description: "MANDATORY when evaluating, auditing, scoring, or reviewing Agent Skills (SKILL.md files) for quality. MANDATORY when certifying skill reference companions under ~/.claude/skills/**/references/*.md (runs Pointer-Only Validator per SoT-Reference Discipline, universal-protocols.md). Use when comparing skills, running skill quality audits, benchmarking skill effectiveness, or deciding which skills need optimization. Use when a user says 'score this skill', 'evaluate this skill', 'audit my skills', 'how good is this skill'. CRITICAL: refuses certification of PROSE-class companions; escalates BORDERLINE classifications to AI-judge pass. Do NOT use for: ultimate-skill-creator (creating new skills), skill-creator (lightweight skill creation), superpowers:writing-skills (auto-triggered writing workflows)."
 ---
 
 # Skill Judge
