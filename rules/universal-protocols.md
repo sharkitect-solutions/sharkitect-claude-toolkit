@@ -2804,6 +2804,46 @@ Workspaces with existing docs that don't yet match the frontmatter contract: **r
 
 ---
 
+## Supersession-Pointer Pattern (NON-NEGOTIABLE)
+
+**Source:** wr-hq-2026-05-13-001 Part B + Alt 5 implementation plan 2026-05-15. Closes the "path drift unsignalled" failure mode where dependent skills/agents/tools held citations to K1 SoT paths that had moved or whose versions had advanced, with no machine-readable signal.
+
+### The rule
+
+Every versioned K1 SoT carries a `status` field in frontmatter from the closed set `{ DRAFT | APPROVED | SUPERSEDED | DEPRECATED }`. When a K1 SoT transitions to SUPERSEDED, it MUST also carry:
+
+- `superseded_by:` — relative path to the new authoritative doc
+- `superseded_date:` — ISO date of the transition
+- `superseded_reason:` — one-line summary of why
+
+Skill reference companions that cite K1 SoT paths gain an advisory nudge at read time when the cited K1 has `status: SUPERSEDED` (via `~/.claude/hooks/stale-pointer-nudge.py`, advisory not blocking).
+
+### Why advisory, not transparent redirect
+
+Transparent redirects mask drift the user wants to see. Per Alt 5 spec design choice, readers continue to SEE the cited doc and receive a nudge — not silent rerouting.
+
+### Mechanics
+
+| Concern | Mechanism |
+|---|---|
+| Where the signal lives | Inline frontmatter on the K1 SoT (`status` + `superseded_by` etc.) |
+| Reader-side discovery | PostToolUse Read advisory nudge hook (`stale-pointer-nudge.py`) |
+| Writer-side enforcement | `rule-file-self-audit-gate.py` frontmatter check (Task 3 extension) — fires when K1 SoT is edited without compliant frontmatter |
+| Companion structural fix | Pointer-Only Constraint (next section) |
+
+### Enforcement
+
+- Documentation (this section): the rule.
+- Runtime hooks: `stale-pointer-nudge.py` (PostToolUse Read advisory), `rule-file-self-audit-gate.py` (PostToolUse Write/Edit frontmatter check), `drift-detection-hook.py` companion prose-density extension.
+- Self-audit: `resource-auditor` PROCESS check.
+
+### Cross-references
+
+- Document Versioning Protocol (preceding section) — defines the frontmatter schema enforced here.
+- SoT-Reference Discipline (following section) — the no-duplicate + creation-time workflow that companion pointers depend on.
+
+---
+
 ## Naming Conventions (NON-NEGOTIABLE)
 
 Every user-facing artifact MUST have a name a non-technical reader can understand within 5 seconds. Engineery, metaphor-based, or self-referential names are prohibited at the user-facing surface.
