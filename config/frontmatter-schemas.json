@@ -1,0 +1,37 @@
+{
+  "_source": "~/.claude/rules/universal-protocols.md 'Document Versioning Protocol' section + Alt 5 Phase 1 plan",
+  "_created": "2026-05-15",
+  "_purpose": "Machine-readable per-file-class frontmatter schemas. Consumed by rule-file-self-audit-gate.py frontmatter-completeness check.",
+  "classes": [
+    {
+      "file_class_name": "k1-sot",
+      "globs": ["**/knowledge-base/**/*.md"],
+      "required_fields": ["document", "classification", "owner", "approved_by", "approved_date", "version", "status", "last_updated", "last_updated_by", "previous_versions"],
+      "status_enum": ["DRAFT", "APPROVED", "SUPERSEDED", "DEPRECATED"],
+      "conditional_required": {
+        "when_status_superseded": ["superseded_by", "superseded_date", "superseded_reason"]
+      }
+    },
+    {
+      "file_class_name": "skill-ref-companion",
+      "globs": ["**/.claude/skills/**/references/*.md"],
+      "required_fields": ["status", "last_rebuilt", "reason"],
+      "status_enum": ["active", "superseded", "archived"],
+      "conditional_required": {
+        "when_status_superseded": ["superseded_by", "superseded_date", "superseded_reason"]
+      }
+    },
+    {
+      "file_class_name": "plan-file",
+      "globs": ["**/.claude/plans/*.md", "**/docs/superpowers/plans/*.md"],
+      "required_fields": ["status", "created", "last_updated"],
+      "status_enum": ["DRAFT", "ACTIVE", "COMPLETE", "ABANDONED", "TABLED"]
+    },
+    {
+      "file_class_name": "brain-dump",
+      "globs": ["**/brain-dump/*.md"],
+      "required_fields": ["date", "session_context", "status", "relates_to", "priority"],
+      "status_enum": ["new", "triaged", "absorbed", "new-project-pending", "follow-up", "dropped"]
+    }
+  ]
+}
