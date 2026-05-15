@@ -497,6 +497,58 @@ def maybe_governance_nudge(file_path):
     )
 
 
+import fnmatch
+
+# Path to the H4 hybrid validator from Task 5
+_POINTER_VALIDATOR_PATH = Path.home() / ".claude" / "scripts" / "skill_judge_pointer_validator.py"
+
+
+def _load_pointer_validator():
+    """Lazily load skill_judge_pointer_validator.py. Returns module or None."""
+    import importlib.util as _ilu
+    spec = _ilu.spec_from_file_location("sjpv", _POINTER_VALIDATOR_PATH)
+    if spec is None or spec.loader is None:
+        return None
+    m = _ilu.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(m)
+    except Exception:
+        return None
+    return m
+
+
+def check_companion_prose_density(file_path: str, content: str):
+    """Return a finding string if companion content classifies as PROSE or BORDERLINE; else None.
+
+    Fires only on paths matching */.claude/skills/*/references/*.md (skill ref companions).
+    Uses Task 5's H4 hybrid validator (skill_judge_pointer_validator.py).
+    """
+    norm = file_path.replace("\\", "/")
+    if not fnmatch.fnmatch(norm.lower(), "*/.claude/skills/*/references/*.md"):
+        return None
+    validator = _load_pointer_validator()
+    if validator is None:
+        return None
+    try:
+        v = validator.classify(content)
+    except Exception:
+        return None
+    if v.classification == "PROSE":
+        return (
+            f"[drift-detection] companion `{file_path}` classifies as PROSE "
+            f"(prose-ratio fail + citation-density fail). Skill ref companions must be POINTER per "
+            f"SoT-Reference Discipline (universal-protocols.md). See "
+            f"~/.claude/skills/skill-judge/references/pointer-validator.md."
+        )
+    if v.classification == "BORDERLINE":
+        reasons = "; ".join(v.reasons) if v.reasons else "mixed line-class/citation-density signals"
+        return (
+            f"[drift-detection] companion `{file_path}` is BORDERLINE pointer-vs-prose. "
+            f"Reasons: {reasons}. Consider tightening to clear POINTER form."
+        )
+    return None
+
+
 def main():
     try:
         data = json.load(sys.stdin)
@@ -511,6 +563,20 @@ def main():
 
     file_path = tool_input.get("file_path", "")
     if not file_path:
+        return 0
+
+    # --- Companion prose-density check (runs BEFORE skip-pattern filter) ---
+    # Skill ref companion paths contain .claude/ which would be caught by the
+    # skip filter below. Run this check first so it sees those paths.
+    content = tool_input.get("content", "") or tool_input.get("new_string", "") or ""
+    companion_finding = check_companion_prose_density(file_path, content)
+    if companion_finding:
+        print(json.dumps({
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "additionalContext": companion_finding,
+            }
+        }))
         return 0
 
     normalized = file_path.replace("\\", "/").lower()
