@@ -2844,6 +2844,66 @@ Transparent redirects mask drift the user wants to see. Per Alt 5 spec design ch
 
 ---
 
+## SoT-Reference Discipline (NON-NEGOTIABLE)
+
+**Source:** wr-hq-2026-05-13-001 (no-duplicate-content), wr-hq-2026-05-13-004 (creation-time workflow), Alt 5 implementation plan 2026-05-15.
+
+This protocol has two parts: **No-Duplicate-Content Rule** (skill reference companions are pointers, not canonical prose) + **Creation-Time SoT-Reference Workflow** (builders find OR ask before fabricating).
+
+### Part 1 — No-Duplicate-Content Rule
+
+Skill reference companions under `~/.claude/skills/**/references/*.md` MUST be POINTER documents:
+- headers
+- bulleted lists
+- citations to K1 SoT paths (with version pins)
+- short explanatory sentences linking the above
+
+Companions MUST NOT encode canonical prose that duplicates K1 SoT content. When a companion needs to convey policy/decisions/architecture/pricing/tiering, it cites the K1 SoT path and version — it does not restate the content.
+
+**Validator:** `~/.claude/scripts/skill_judge_pointer_validator.py` (H4 hybrid: line-class ratio + citation density + AI-judge escalation). skill-judge refuses certification of PROSE-class companions.
+
+**Concrete exemplars:** `~/.claude/skills/hq-revenue-ops/references/{client-tiers.md, pricing-psychology.md}` (rebuilt 2026-05-13 under wr-hq-2026-05-13-001 Part A).
+
+### Part 2 — Creation-Time SoT-Reference Workflow
+
+When building or modifying ANY skill / agent / tool that needs canonical workspace-specific information (pricing, services, tiers, persona, schema, audits, etc.):
+
+1. **Identify the canonical info input.** What information does this asset need? Is it WORKSPACE-OWNED canonical content (vs general-purpose framework)?
+2. **Search the owning workspace via the scope-ownership map** (below) for an existing K1 SoT.
+3. **If K1 SoT exists**: companion files reference its path with version pin. Do not restate.
+4. **If K1 SoT does NOT exist**: STOP creation. File a routed task to the owning workspace asking them to author the K1 SoT first. Resume the asset build after the K1 lands.
+
+**Anti-pattern (the failure mode this rule prevents):** fabricating canonical content from training data because no K1 SoT was found. Documented in hq-revenue-ops's pre-2026-05-13 references (invented 4-tier price-band model, invented $2,500 floor, invented service names — none of which existed in current architecture).
+
+### Workspace scope-ownership map
+
+| Doc category | Owning workspace | Canonical K1 path pattern |
+|---|---|---|
+| Revenue / pricing / client tiering / sales | workforce-hq | `knowledge-base/revenue/**`, `knowledge-base/strategy/**`, `knowledge-base/clients/**` |
+| Business operations / SOPs / playbooks | workforce-hq | `knowledge-base/operations/**`, `workflows/**` |
+| Persona profile / brand voice | workforce-hq | `knowledge-base/governance/about-chris.md` + `knowledge-base/governance/brand-voice.md` |
+| Supabase schema / audits / drift / system health | sentinel | `4.- Sentinel/docs/audits/**`, `4.- Sentinel/health/**`, schemas live in Supabase |
+| Capability infrastructure / skills / hooks / agents | skill-management-hub | `~/.claude/skills/**`, `~/.claude/hooks/**`, `~/.claude/agents/**` |
+| Global protocols / rules | skill-management-hub | `~/.claude/rules/universal-protocols.md` |
+
+### Enforcement
+
+- Documentation (this section): the rule.
+- Runtime hooks: pointer-only validator in skill-judge (build-time + audit-time), drift-detection companion prose-density (in-session edits), frontmatter gate via `rule-file-self-audit-gate.py` (Task 3 extension).
+- Creation-time: when builder identifies a needed canonical input with no K1 SoT, MUST file routed-task to owning workspace per the scope-ownership map. The Anti-Drift Scope Discipline absorbs the question into a brain dump if the builder cannot pause; otherwise pause and await.
+
+### Audit methodology (M4)
+
+Per Alt 5 spec recommendation: M1 manual review of top-20% by usage NOW (from `<tempdir>/claude_tool_usage_journal.jsonl` rankings) + M2 automated sweep with the pointer-only validator once it ships. This protocol's existence covers M2; M1 manual pass is filed as a follow-up Sub-project A audit task.
+
+### Cross-references
+
+- Supersession-Pointer Pattern (preceding section) — frontmatter mechanics for K1 SoT supersession signals.
+- Document Versioning Protocol — frontmatter schema for K1 SoTs.
+- Verification-Before-Building Protocol — preflight registry check (runs IN ADDITION TO scope-map search).
+
+---
+
 ## Naming Conventions (NON-NEGOTIABLE)
 
 Every user-facing artifact MUST have a name a non-technical reader can understand within 5 seconds. Engineery, metaphor-based, or self-referential names are prohibited at the user-facing surface.
