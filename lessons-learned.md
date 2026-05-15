@@ -6258,3 +6258,44 @@ Why: Loose phrasing "T1 ~10 SAPs/1-2 blogs/mo" mixed footprint with cadence usin
 Apply when: Anytime referencing PPM tier capacity. Always disambiguate: "SAPs" = total footprint; "blogs/mo" + "backlinks/mo" = monthly cadence. Build-cadence for getting T2/T3 clients from 10-SAP-at-setup baseline to their target footprint is operationally separate and deferred to Sub-project D (proposal templates / partnership agreement).
 
 Tags: ppm, terminology, sap, capacity-language, sub-project-d
+
+
+## Architecture Direction — Sentinel as internal-ops AutoFix analog (2026-05-15)
+<!-- key: sentinel_internal_ops_autofix_analog_2026_05_15 -->
+
+direction: Sentinel operates as the n8n AutoFix analog for internal ops — autonomous fix attempts (in-lane) + autonomous routing (out-of-lane) + autonomous notification, with structural guardrails replacing per-fix user authorization. Default is act; user is genuinely needed only when fix requires API credential rotation, hardware action, billing decision, domain/DNS change, strategic judgment, or contains explicit user-review markers.
+
+context: 2026-05-15 S43 design lock for Sentinel Alert (Phase 1 of Sentinel Reports Restructure). User reversed an earlier proposal of  default after Wispr-Flow voice-typing initially parsed ambiguously. Verbatim user direction: "the whole purpose of this is to make it more autonomous and more agentic-type workflow. I do not want to have to be specifically for each one give you authorization, and that defeats the whole purpose of this."
+
+apply-when:
+- Designing autonomous-action systems on internal ops surfaces (audits, drift detection, schema integrity, scheduled-task health)
+- Tempted to default new automation behaviors to require user authorization per-action
+- Building handoff flows between workspaces (Sentinel handoffs to HQ/Skill Hub via WR/RT auto-route, not user-mediated)
+
+design principles:
+1. Mandatory audit trail per action (4-field: pre-state, diagnosis, action, post-state)
+2. Hard Wall list inherited from Affirmative Authorization Vocabulary (never auto-acts on settings.json deny edits, force-push main, prod data deletes, etc.)
+3. Reversibility filter — auto-fix only on reversible OR idempotent actions; non-reversible always escalates
+4. Confidence threshold gate — auto-apply only fires when fix_confidence >= 0.8 AND fix_validated_count >= 2 (one-shot test allowed for novel reversible fixes)
+5. Rate limit per signature — 3+ in 24h escalates as recurring_failure (root cause investigation, not symptom treatment)
+6. Live notification per fix — visibility != authorization; user sees, doesn'+chr(39)+'t authorize
+7. Cross-workspace routing is also auto — never user-mediated handoff
+8. Daily digest — single audit view of "what I fixed yesterday"
+9. User-review marker honor — explicit markers in KB suppress auto-apply
+10. Verify-before-act — re-read state immediately before applying
+11. Bounded lane definition — explicit enumeration of in-lane vs auto-route vs human-needed
+
+tags: architecture, autonomy, sentinel, autofix, internal-ops, guardrails
+
+---
+
+## Process Decision — Bulk Supabase insert via execute_sql > Python tool subprocess loop (2026-05-15)
+<!-- key: bulk_insert_via_execute_sql_2026_05_15 -->
+
+process: For bulk Supabase row inserts (>10 rows), use Supabase MCP execute_sql with multi-row INSERT ... VALUES + ON CONFLICT DO NOTHING for idempotency. Do NOT invoke a Python CRUD helper in a subprocess loop (N rows = 2N HTTP requests via PostgREST). 4 SQL batches of ~13 rows each completed 49 seed inserts in <30s vs estimated 98 HTTP calls.
+
+context: 2026-05-15 Sentinel KB seeding (49 rows from 4-parallel-agent sweep). sentinel-kb.py upsert was built for per-row idempotency but its per-call overhead (GET-then-POST/PATCH) compounded would have been slow + brittle. Bulk SQL with UNIQUE constraint on failure_signature handles idempotency at the DB layer.
+
+why: PostgREST batches add ~150ms each; subprocess startup adds ~200ms each. For 49 rows that is ~17s on the happy path + retry overhead on partial failures. Bulk SQL is atomic-per-batch + verifiable via RETURNING.
+
+tags: supabase, bulk-insert, performance, sentinel

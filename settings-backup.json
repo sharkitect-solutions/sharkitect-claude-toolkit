@@ -249,6 +249,15 @@
             "command": "python \"{HOME}/.claude/hooks/methodology-dispatcher.py\""
           }
         ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"{HOME}/.claude/hooks/stale-pointer-nudge.py\""
+          }
+        ]
       }
     ],
     "SessionStart": [
