@@ -1,7 +1,7 @@
 {
   "_source": "~/.claude/rules/universal-protocols.md 'Document Versioning Protocol' section + Alt 5 Phase 1 plan",
   "_created": "2026-05-15",
-  "_purpose": "Machine-readable per-file-class frontmatter schemas. Consumed by rule-file-self-audit-gate.py frontmatter-completeness check.",
+  "_purpose": "Machine-readable per-file-class frontmatter schemas. Consumed by rule-file-self-audit-gate.py frontmatter-completeness check. Globs use fnmatch.fnmatch semantics (lowercase path-normalized; '*' is greedy across '/'), matching the rule-file-checklists.json convention.",
   "classes": [
     {
       "file_class_name": "k1-sot",

@@ -3,8 +3,6 @@
 import json
 from pathlib import Path
 
-import pytest
-
 CONFIG_PATH = Path.home() / ".claude" / "config" / "frontmatter-schemas.json"
 
 def _load():
@@ -56,3 +54,11 @@ def test_superseded_requires_pointer():
     k1 = next(c for c in cfg["classes"] if c["file_class_name"] == "k1-sot")
     cr = k1.get("conditional_required", {})
     assert cr.get("when_status_superseded") == ["superseded_by", "superseded_date", "superseded_reason"]
+
+def test_each_class_has_status_enum():
+    """Every class must declare its allowed status values."""
+    cfg = _load()
+    for cls in cfg["classes"]:
+        assert "status_enum" in cls, f"class {cls['file_class_name']} missing status_enum"
+        assert isinstance(cls["status_enum"], list) and len(cls["status_enum"]) > 0, \
+            f"class {cls['file_class_name']} status_enum must be non-empty list"
