@@ -258,6 +258,15 @@
             "command": "python \"{HOME}/.claude/hooks/stale-pointer-nudge.py\""
           }
         ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"{HOME}/.claude/hooks/log-hook-fire.py\""
+          }
+        ]
       }
     ],
     "SessionStart": [
