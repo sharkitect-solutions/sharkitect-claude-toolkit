@@ -1,5 +1,31 @@
 # Global Lessons Learned
 
+## 2026-05-17 S44 (Sentinel) Architecture Direction
+
+### direction: Memory architecture evolution is incremental on existing infrastructure, not replacement
+
+- **Context:** Evaluating `sharkitect-solutions/agentmemory` + `sharkitect-solutions/mycelium` repos for adoption.
+- **Discovery:** `public.memories` table already had `embedding vector(3072)` + `use_count` + `last_accessed` + `decay_days` + `active` + `tags` columns. 868 of 1335 rows already embedded. The schema was 80% there; usage just hadn't caught up.
+- **Why:** Schema evolved through prior incremental work (Luminous Phase 7, memory-index-distillation, voice synthesis pipeline) without an explicit "design the memory layer" project. The pieces accreted; usage didn't follow.
+- **Apply when:** Any time a new architectural pattern is proposed (semantic retrieval, decay, co-activation, observability layer, etc.). Run `preflight-check.py` first. Read the schema. The "new design" is usually a usage gap, not a schema gap.
+- **Tags:** architecture, preflight, memory, schema-evolution, anti-redesign
+
+## 2026-05-17 S44 (Sentinel) Process Decisions
+
+### process: Trust-but-verify MEMORY.md against Supabase at session start
+
+- **Context:** S44 inherited MEMORY.md "Current state" claiming Reports Restructure Phase 1 Tasks 1.2-1.6 were pending. Supabase showed Tasks 1.2-1.5 + both stale-doc CRITICALs DONE (commit `26458f8`). Memory was stale by at least one session.
+- **Why:** MEMORY.md is updated by session-end discipline, which can lag actual progress when sessions don't run end-session cleanly or when other sessions edit Supabase but don't update Sentinel's MEMORY (Sentinel doesn't run end-session in every parallel session).
+- **Apply when:** Before quoting "current state" from MEMORY.md as basis for any decision. Run `update-project-status.py my-tasks --workspace <ws>` at session start to cross-check. If divergence found, fix MEMORY before propagating stale info.
+- **Tags:** memory, supabase, session-start, trust-but-verify, drift
+
+### process: When Sentinel needs to modify ~/.claude/scripts/, route to Skill Hub via work-request.py with patch inline
+
+- **Context:** S44 needed to apply log-misclassification fix to `kill-orphan-claude-processes.py` per `rt-skillhub-2026-05-15-orphan-cleanup-log-misclassification-reframe`. Edit tool denied with "File is in a directory that is denied by your permission settings." Sentinel-workspace permission posture prevents direct edit.
+- **Why:** ~/.claude/scripts/ is global infrastructure; Skill Hub owns global edit. Sentinel doing the analysis + producing the patch + routing it via work-request.py preserves the ownership boundary while keeping execution fast.
+- **Apply when:** Any time Sentinel diagnostics produce a patch for ~/.claude/scripts/, ~/.claude/hooks/, ~/.claude/rules/, or other global infra. Don't try Bash+open() workaround — that's documented for settings.json/.env only. Use work-request.py with patch inline + `--fix-type code` + `--target-file` set; Skill Hub applies via Edit (they have permission). RT-from-Sentinel ack closes with citation of the new WR.
+- **Tags:** permissions, scope-discipline, sentinel, skill-hub, routing, global-infra
+
 ## 2026-05-17 S55 Process Decisions
 
 ### process: Silent-skip on missing/malformed data is a defective default for dedup logic; safer default is match-eligible

@@ -3038,6 +3038,90 @@ Names should answer:
 
 ---
 
+## CEO Advisor Mandatory Invocation for Company-Affecting Work (NON-NEGOTIABLE)
+
+Before generating any substantive response about Sharkitect Digital plans, projects, modifications, strategic decisions, or anything that affects the company, the AI MUST invoke the `ceo-advisor` skill via the Skill tool. Applies UNIFORMLY to every workspace (HQ, Skill Hub, Sentinel, and any future workspace).
+
+**Source:** User direction 2026-05-17 (S55, Skill Hub, mid-Phase-1.5 session). Verbatim: *"whenever we are discussing any company-related plans, projects, modifications, anything that affects the company, our company Sharkitect Digital, that the CEO advisor is always skilled at, are always non-negotiable. Across all workspaces."*
+
+### Triggers (when this protocol fires)
+
+Any conversation, task, or work request involving:
+
+- **Strategic decisions:** pricing, positioning, market entry, pivots, partnerships, go/no-go on initiatives
+- **Revenue / sales:** deal economics, client tier decisions, proposal structure, billing model changes
+- **Project portfolio:** which projects to start/pause/kill, prioritization, resource allocation across workspaces
+- **Architecture decisions** affecting the company's technology stack or AIOS product direction (e.g., the Post-Hard-Stop System Reassessment — Phase 1, 1.5, 2 build pattern decisions; choice of platform; deny-vs-substitute paradigm; etc.)
+- **Brand:** voice, positioning, marketing strategy, communication standards, public-facing surface
+- **Operations:** process changes, SOPs, hiring, vendor selection, infrastructure shifts
+- **Capability investments:** building new skills/agents/plugins/hooks that change the company's capability surface
+- **Product:** AIOS roadmap, client-shipped features, capability productization, what makes it into the AIOS bundle vs stays internal
+- **Competitive moves:** responses to competitor activity, reverse engineering for strategic intel, market positioning shifts
+- **Regulatory / legal / financial:** compliance posture, terms of service, contracts, financial model changes
+- **Anything reasonably described as "affecting Sharkitect Digital"** — when unsure, invoke. Cost of invoking is low; cost of skipping is strategic misalignment compounding silently.
+
+### What does NOT trigger this protocol
+
+- Pure infrastructure maintenance with no strategic or brand implication (e.g., fixing a syntax bug, updating a dependency, closing an inbox item with no strategic dimension)
+- Read-only audits or inventory reads where no decision is being made
+- Conversational state-of-play interactions (e.g., "what's pending today" / Pending-Items Briefing surfacing — but the DECISIONS that briefing surfaces, if company-affecting, DO trigger)
+- Workspace-internal mechanical operations (e.g., running a sync, closing a notification)
+
+If a "mechanical" task starts to imply a strategic question ("should we build X this way or pivot?") → invocation re-triggers immediately.
+
+### Required AI behavior
+
+1. **Recognize trigger** — when any company-affecting topic surfaces, BEFORE generating substantive output, invoke `ceo-advisor` via the Skill tool.
+2. **Apply lens** — frame the response through the CEO advisor's strategic decision framework: revenue impact, brand impact, resource cost, competitive implication, timeline, risk, alignment with company direction.
+3. **Cite the invocation in the response** — surface that ceo-advisor framed the response, so the user sees the protocol was honored (1-line acknowledgement, not a sermon).
+4. **Stack with workspace-specific skills** — ceo-advisor invokes FIRST as the strategic frame; workspace-specific skills (hq-orchestrator, hq-revenue-ops, hq-tech-strategy, brand-reviewer, etc.) layer on top for execution detail.
+
+### What this protocol prevents
+
+- AI making technical or operational decisions without applying strategic lens → drift between what's built and what serves company goals.
+- "Yes-agent" responses to company-affecting proposals where Pushback Protocol applies but lacks strategic framing.
+- Cross-workspace work shipping under one workspace's local logic when the work affects the company globally.
+- Architecture decisions (like Phase 2 of Post-Hard-Stop System Reassessment) shipping without strategic alignment check.
+- Brand / pricing / partnership decisions ad-hoc'd without revenue / positioning impact assessment.
+
+### Stacks with (does NOT replace)
+
+- **Pushback Protocol** — applies to any user proposal; ceo-advisor applies strategic lens on top of the pushback evaluation.
+- **Proactive Autonomy Protocol** — Tier 1/2/3 autonomy still applies; ceo-advisor is the framing layer for any Tier 2+ decision affecting the company.
+- **Anti-Drift Scope Discipline** — side concerns about the company still park as brain dumps; ceo-advisor doesn't override scope discipline.
+- **Bilateral Scope Discipline** — CEO mid-plan additions still require A/B/C/D justification; ceo-advisor is the lens for evaluating whether the addition is fortification vs expansion.
+- **100% Verification Before Any Action** — verification still happens against source; ceo-advisor frames the strategic interpretation of the verified facts.
+- **Workspace-specific Mandatory Skill Invocations** — for example, Skill Hub's brand-reviewer for content checks, HQ's hq-orchestrator for multi-domain HQ work — those still fire; ceo-advisor stacks on top as strategic frame.
+
+### Edge cases and worked examples
+
+| Scenario | Trigger? | Why |
+|---|---|---|
+| User asks "what's pending today" → briefing lists active projects | NO (briefing) / YES (when discussing any specific project) | Briefing is informational. Drilling into a project = company-affecting decision = invoke. |
+| Fixing a Python syntax bug in a hook | NO | Pure infrastructure maintenance, no strategic implication. |
+| Deciding whether to build hook X vs Y to solve a runtime drift class | YES | Capability investment + architecture decision → invoke. |
+| Choosing whether to ship Phase 2 with DENY paradigm or PIVOT to SUBSTITUTE | YES | Architecture decision affecting AIOS product direction → invoke. |
+| Reading a doc to understand current state | NO | Read-only. |
+| Writing a doc that locks a strategic position | YES | Affects company direction → invoke. |
+| Pricing a client engagement | YES | Revenue + positioning → invoke. |
+| Closing a routed-task with `--what-was-done` describing mechanical work | NO (mechanical) / YES (if the close has strategic implication, e.g., committing to a path) | Default mechanical = no; strategic implication = yes. |
+| Reviewing a competitor's product | YES | Competitive intelligence → invoke. |
+| Reverse engineering a creator's tool for our own use | YES | Capability investment + strategic absorption → invoke. |
+
+### Enforcement
+
+- **Documentation (this rule):** the rule itself. Necessary but not sufficient per the documented "Documentation without runtime detection eventually fails" lesson.
+- **Runtime detection (planned, not yet built):** UserPromptSubmit hook + assistant-turn scanner that detects company-affecting keyword/intent patterns in the user message and flags absence of ceo-advisor invocation in recent assistant turns; advisory nudge if missing. Filed as a follow-up runtime build to the post-Phase-2 hook budget.
+- **Self-audit:** resource-auditor PROCESS check includes `ceo_advisor_skipped_on_company_affecting_work` as a gap class.
+- **Cross-workspace consistency:** Sentinel tracks recurrence via cross_workspace_requests audit; third recurrence triggers runtime-enforcement build (not another doc edit).
+
+### Scope and persistence
+
+- All sessions, all workspaces (HQ, Skill Hub, Sentinel, future workspaces), PERMANENT (not project-scoped).
+- Ships as AIOS client feature when AIOS productizes — every client AIOS instance inherits this protocol with their company's CEO-equivalent (their CEO, their company name, their strategic frame), making the protocol load-bearing for the product.
+
+---
+
 ## Extension Rule
 
 Workspace CLAUDE.md files define ONLY workspace-specific additions to these protocols. They should NOT duplicate items listed above, but if they do, this rule is authoritative.
