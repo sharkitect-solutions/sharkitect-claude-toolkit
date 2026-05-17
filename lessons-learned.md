@@ -1,5 +1,16 @@
 # Global Lessons Learned
 
+## 2026-05-17 S55 Process Decisions
+
+### process: Silent-skip on missing/malformed data is a defective default for dedup logic; safer default is match-eligible
+
+**Date:** 2026-05-17
+**Workspace:** skill-management-hub
+**Context:** Toolkit-Monitor-Daily fired twice within minutes during silent-execution-protocol retrofit verification, producing 50 periodic-re-audit WRs instead of the expected 25. Root cause: `build_wr_payload` in `tools/audit_cadence_engine.py` constructed WR JSON without a `timestamp` field. `_find_dedup_match` in `~/.claude/scripts/work-request.py` had `if not ts: continue` — silently skipping records with missing timestamps. The "is this a duplicate" question was answered "no" because the data needed to answer it was absent. Result: same-task WRs landed twice because dedup couldn't see itself.
+**Why:** When dedup logic encounters missing/malformed data needed to make the match decision, the safer default is to ASSUME MATCH (dedup-true) when the OTHER match criteria align — not to skip and allow the write. The cost of a false-positive dedup (one legitimate WR not re-filed when intended) is recoverable with `--skip-dedup`. The cost of a false-negative dedup (duplicate WRs flood the inbox) compounds: 50 duplicates means 50 file deletes, 50 Supabase rows, downstream audits flagging the duplicates as drift, and human time to triage. Failed-secure ≠ failed-open for dedup: failed-secure means "if uncertain, don't write."
+**Apply when:** Reviewing or writing ANY dedup / idempotency / "have I done this already" logic. If the matching key is partial or some field is missing, default to MATCH unless explicitly opted out. Companion rule for WR payload-build sites: timestamp MUST be set at payload construction, never later. Same applies to any quasi-idempotent operation: inbox writes, Supabase upserts, asset registrations, notification dispatches. Tests should include "what happens when timestamp/key/id is missing" — this class of bug is invisible until production load shape (e.g., a multi-fire day) surfaces it.
+**Tags:** #process #dedup-discipline #cadence-engine #fail-secure #idempotency #defensive-defaults
+
 ## 2026-05-17 S46 Process Decisions
 
 ### process: When user asks for "the spec for X", default to K1 SoT — not derivative client-specific docs
