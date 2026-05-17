@@ -60,8 +60,31 @@ def load_check_module():
     return mod
 
 
-def kill_pid(pid: int) -> tuple[bool, str]:
-    """Force-kill a process by PID. Returns (success, message)."""
+CASCADE_KILLED_MARKERS = (
+    "no running instance",
+    "not found",
+    "process not running",
+    "not running",
+)
+
+
+def kill_pid(pid: int) -> tuple[str, str]:
+    """Force-kill a process by PID. Returns (status, message).
+
+    status is one of:
+      - 'killed':         taskkill succeeded (rc=0)
+      - 'cascade_killed': PID already dead (Windows cascade-killed it via
+                          process-tree / job-object semantics when its
+                          parent/sibling claude.exe was taskkilled)
+      - 'failed':         genuine failure (timeout, missing taskkill, other)
+
+    Cascade-killed is NOT a failure: it's the normal Windows behavior where
+    one taskkill /F on claude.exe brings down its child claude.exe processes
+    via job-object membership. Logging these as 'failed' inflates the failure
+    count and triggers false drift signals in Sentinel cross-workspace audits.
+    Source: wr-sentinel-2026-05-17-001 (Sentinel analysis after S39 empirical
+    verification: 1 success + 12 cascade-kills from a single taskkill).
+    """
     try:
         result = subprocess.run(
             ["taskkill", "/PID", str(pid), "/F"],
@@ -69,14 +92,17 @@ def kill_pid(pid: int) -> tuple[bool, str]:
             creationflags=CREATE_NO_WINDOW,
         )
         if result.returncode == 0:
-            return True, result.stdout.strip()
-        return False, result.stderr.strip() or f"exit {result.returncode}"
+            return "killed", result.stdout.strip()
+        stderr_lower = (result.stderr or "").lower()
+        if any(marker in stderr_lower for marker in CASCADE_KILLED_MARKERS):
+            return "cascade_killed", result.stderr.strip()
+        return "failed", result.stderr.strip() or f"exit {result.returncode}"
     except subprocess.TimeoutExpired:
-        return False, "taskkill timed out after 10s"
+        return "failed", "taskkill timed out after 10s"
     except FileNotFoundError:
-        return False, "taskkill not found (Windows-only script)"
+        return "failed", "taskkill not found (Windows-only script)"
     except Exception as e:
-        return False, f"{type(e).__name__}: {e}"
+        return "failed", f"{type(e).__name__}: {e}"
 
 
 def log_kill(entries: list):
@@ -134,31 +160,34 @@ def main():
     print()
     print(f"Executing taskkill on {n} processes...")
     log_entries = []
-    killed = failed = 0
+    killed = cascade_killed = failed = 0
     now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    status_markers = {"killed": "OK", "cascade_killed": "CASCADE", "failed": "FAIL"}
     for o in report["orphan_suspects"]:
         if o["pid"] == current_pid:
             print(f"  SKIP PID {o['pid']} (current session)")
             continue
-        ok, msg = kill_pid(o["pid"])
-        marker = "OK" if ok else "FAIL"
+        status, msg = kill_pid(o["pid"])
+        marker = status_markers.get(status, "FAIL")
         print(f"  {marker} PID {o['pid']} (age {o['age_hours']}h): {msg}")
         log_entries.append({
             "timestamp": now_iso,
             "pid": o["pid"],
             "age_hours": o["age_hours"],
             "mb": o["mb"],
-            "result": "killed" if ok else "failed",
+            "result": status,
             "message": msg,
         })
-        if ok:
+        if status == "killed":
             killed += 1
+        elif status == "cascade_killed":
+            cascade_killed += 1
         else:
             failed += 1
 
     log_kill(log_entries)
     print()
-    print(f"Killed {killed}, Failed {failed}. Log: {LOG_FILE}")
+    print(f"Killed {killed}, Cascade-killed {cascade_killed}, Failed {failed}. Log: {LOG_FILE}")
     return 0 if failed == 0 else 3
 
 
