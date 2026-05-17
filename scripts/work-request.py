@@ -477,7 +477,14 @@ def _find_dedup_match(inbox_dir, source_workspace, task_description, today_iso):
                 continue
             ts = data.get("timestamp")
             if not ts:
-                continue
+                # Missing timestamp historically caused silent dedup-skip,
+                # producing duplicate WRs (see 2026-05-17 cadence-engine
+                # fire-storm where 25 assets x 2 fires = 50 WRs landed
+                # because payloads lacked timestamp). Treat missing-timestamp
+                # as a MATCH if source_workspace + task_description align --
+                # the safer default is dedup-true; users can --skip-dedup
+                # if they truly want to file a same-task repeat.
+                return f, data
             try:
                 # Tolerate both 'Z' and explicit offset
                 ts_clean = ts.replace("Z", "+00:00")
@@ -485,7 +492,8 @@ def _find_dedup_match(inbox_dir, source_workspace, task_description, today_iso):
                 if filed_dt.tzinfo is None:
                     filed_dt = filed_dt.replace(tzinfo=timezone.utc)
             except ValueError:
-                continue
+                # Malformed timestamp -> same defensive behavior as missing.
+                return f, data
             if window_start <= filed_dt <= today_dt + timedelta(days=1):
                 return f, data
     return None, None

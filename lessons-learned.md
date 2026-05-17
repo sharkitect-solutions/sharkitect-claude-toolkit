@@ -1,5 +1,25 @@
 # Global Lessons Learned
 
+## 2026-05-17 S46 Process Decisions
+
+### process: When user asks for "the spec for X", default to K1 SoT — not derivative client-specific docs
+
+**Date:** 2026-05-17
+**Workspace:** workforce-hq
+**Context:** During FF PPM founding-partner deal verification, Chris asked me to "pull all the specs for that so that we can figure out what the pricing was." I went to the FF-specific `locked-deal-components-2026-05-17.md` (a DRAFT v0.1 client-specific consolidation doc) instead of the canonical PPM source `knowledge-base/revenue/pricing-structure.md v3.9 §7.4 PPM`. Chris immediately caught the misread: "I didn't ask you to pull up our marketing takeover SOP. What I asked you for was regarding the locked specs that we had originally come up with with the PPM." Correct anchor was the K1 SoT, not a derivative client deal doc.
+**Why:** Client-specific consolidation docs DERIVE from K1 SoTs but layer in client-specific decisions. They are not the authoritative source for product pricing/structure. Anchoring to a derivative doc when verifying canonical pricing produces drift because (a) the derivative may have already applied client-specific deviations, and (b) the K1 SoT may have updated since the derivative was last refreshed.
+**Apply when:** Any session where user asks for "the spec for X" / "the original pricing of Y" / "what we originally locked in for Z" / similar phrasings of "show me the canonical." Default targets: `knowledge-base/revenue/pricing-structure.md` for pricing of any active offer; `knowledge-base/strategy/aios-pricing.md` for AIOS; `knowledge-base/governance/brand-identity-guide.md` for brand canonical; `knowledge-base/governance/about-chris.md` for persona profile. Verify the K1 SoT FIRST, then layer in client-specific derivations if relevant.
+**Tags:** #process #verification-discipline #k1-sot-anchor #ff-deal #pricing #drift-prevention
+
+### process: Placeholder figures from "DO NOT PROPAGATE" docs can still leak into session memory via verbal recall — verify every pricing figure against K1 SoT before propagating
+
+**Date:** 2026-05-17
+**Workspace:** workforce-hq
+**Context:** Same session, Chris recalled "$3,700 setup fee" from memory as an anchor he wanted to apply 40% off to → land at $3,000. The math didn't work ($3,700 × 60% = $2,220, not $3,000). On verification: $3,700 doesn't appear in any locked spec. Earlier `plan.md` drafts referenced $3,500-$4,500 setup as illustrative placeholders that were EXPLICITLY flagged at the top of the file: *"⚠️ Pricing notice — Any Sharkitect pricing references in this document are illustrative placeholders from internal analysis. Do NOT propagate these figures into client-facing deliverables."* The do-not-propagate warning didn't prevent the figure from entering verbal memory and being recalled later as if locked. Canonical is $5,000 base (per `pricing-structure.md v3.9 §7.4` lines 528-530, 544); FF qualifies for 3rd-system 40% off = $3,000 final.
+**Why:** DO-NOT-PROPAGATE warnings on placeholder figures protect against direct document propagation (copy-paste, draft-to-final cascades) but DON'T protect against verbal/memory recall in future sessions. A figure that's been "seen" in a planning doc 2 weeks ago can return as confidently-remembered "canonical" even when the original doc flagged it. The placeholder range $3,500-$4,500 became "$3,700" in recall via roughly-the-middle. This is a recurring class of error not solved by warning labels alone.
+**Apply when:** Any session where pricing/quantitative figures are recalled verbally and not freshly cited from a K1 SoT. ALWAYS trace any pricing figure back to its canonical source before propagating into client-facing thinking, deliverables, or proposal math. If the user states a figure from memory, gently flag-and-verify rather than accept. The K1 SoT verification chain for PPM specifically: $5,000 base → apply progression discount → final figure. Anchor `memory/ppm_setup_fee_canonical.md` in workforce-hq locks this.
+**Tags:** #process #verification-discipline #pricing #placeholder-leakage #verbal-recall-drift #ff-deal #ppm
+
 ## 2026-05-12 Architecture Direction (AIOS LOAD-BEARING — Windows + Antigravity + Claude Code platform mechanics)
 
 > **AIOS-carryover: TRUE.** These four findings are platform-mechanics knowledge that every Sharkitect AIOS deployment on Windows + Antigravity will hit. HQ should pull these into the AIOS K1 knowledge base (`knowledge-base/aios/platform-mechanics/`). Skill Hub is routing a follow-up task to HQ to draft the K1 entry.
