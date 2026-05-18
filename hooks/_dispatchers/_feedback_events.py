@@ -42,6 +42,7 @@ from datetime import datetime, timezone
 
 
 _DEFAULT_STREAM = os.path.join(tempfile.gettempdir(), "feedback_events.jsonl")
+_DEFAULT_PERF_STREAM = os.path.join(tempfile.gettempdir(), "dispatcher-perf.jsonl")
 
 # Top-level payload keys safe to record (metadata only -- no content / secrets).
 _SAFE_PAYLOAD_KEYS = (
@@ -51,6 +52,10 @@ _SAFE_PAYLOAD_KEYS = (
     "hook_event_name",
     "workspace",
 )
+
+# Tag values must be JSON primitives. Nested dicts/lists/objects may carry
+# secrets or balloon log size; default-deny matches _filter_payload posture.
+_PRIMITIVE_TAG_TYPES = (str, int, float, bool, type(None))
 
 
 def _filter_payload(payload):
@@ -90,7 +95,32 @@ def _filter_payload(payload):
     return out
 
 
-def record(cluster, sub_rule, decision, trigger, payload, *, stream_path=None):
+def _filter_tags(tags):
+    """Reduce sub-rule-supplied tags to a dict of JSON primitives.
+
+    Sub-rules pass tags={...} to attach domain-specific structured metadata
+    (matched_path_tier, severity, bypass_used, workspace_canonical, etc.)
+    per the kb_governance.py pattern. Nested dicts/lists are dropped to
+    prevent secret leakage and bound log line size.
+
+    Returns:
+      dict of {str: primitive} -- safe to JSON-serialize
+      empty dict if input is not a dict (graceful degrade)
+    """
+    if not isinstance(tags, dict):
+        return {}
+    out = {}
+    for k, v in tags.items():
+        if not isinstance(k, str):
+            continue
+        if isinstance(v, _PRIMITIVE_TAG_TYPES):
+            out[k] = v
+        # Non-primitive values (dict, list, custom objects) silently dropped.
+    return out
+
+
+def record(cluster, sub_rule, decision, trigger, payload, *, tags=None,
+           stream_path=None):
     """Append one record to the feedback events stream.
 
     Args:
@@ -101,6 +131,11 @@ def record(cluster, sub_rule, decision, trigger, payload, *, stream_path=None):
         trigger: short human-readable description of what fired
         payload: dict with tool_name, tool_input, session_id, etc.
             (filtered before recording)
+        tags: optional dict of sub-rule-specific structured metadata.
+            Values must be JSON primitives (str/int/float/bool/None);
+            nested dicts/lists are dropped. Non-dict tags ignored silently.
+            Recorded under top-level 'tags' key when non-empty; omitted
+            otherwise so backward-compatible consumers see no schema shift.
         stream_path: override the default stream location. Used by tests
             for isolation; production code uses the default.
 
@@ -121,8 +156,45 @@ def record(cluster, sub_rule, decision, trigger, payload, *, stream_path=None):
             "trigger": str(trigger),
             "payload": _filter_payload(payload),
         }
+        filtered_tags = _filter_tags(tags)
+        if filtered_tags:
+            rec["tags"] = filtered_tags
         with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec) + "\n")
     except Exception:
         # Silent: never break the calling hook.
+        pass
+
+
+def record_perf(cluster, sub_rule, duration_ms, *, stream_path=None):
+    """Append one per-sub-rule timing record to the dispatcher-perf stream.
+
+    Per Phase 2 architecture spec A.6 R5: each sub-rule has a soft 30ms
+    budget; the dispatcher emits a warning to <tempdir>/dispatcher-perf.jsonl
+    when total exceeds 150ms. This helper is the writer for that stream.
+
+    Args:
+        cluster: 'methodology' | 'content_governance' | 'post_action'
+        sub_rule: sub-rule module name
+        duration_ms: int | float of measured wall-clock duration
+        stream_path: override the default stream location. Used by tests
+            for isolation; production code uses
+            <tempdir>/dispatcher-perf.jsonl.
+
+    Returns:
+        None.
+
+    Never raises. Same fail-silent posture as record().
+    """
+    try:
+        path = stream_path or _DEFAULT_PERF_STREAM
+        rec = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "cluster": str(cluster),
+            "sub_rule": str(sub_rule),
+            "duration_ms": duration_ms,
+        }
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(rec) + "\n")
+    except Exception:
         pass
