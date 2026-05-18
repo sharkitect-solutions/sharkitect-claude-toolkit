@@ -3122,6 +3122,101 @@ If a "mechanical" task starts to imply a strategic question ("should we build X 
 
 ---
 
+## Bigger-Picture-First Discipline (NON-NEGOTIABLE)
+
+**Classification (per Contradiction Check protocol):** NEW additive rule. Grep of universal-protocols.md (2026-05-18, S58) found 1 adjacent match at line 1758 (Platform Grounding "future-proofing considerations" — narrow-scope, only for unfamiliar-platform research) and 4 AIOS product references at lines 1139 / 3054 / 3103 / 3121 (individual rule mentions, not a general discipline). No existing rule prescribes "always start from long-term vision and walk back to today's step" across all work. No contradictions; no supersessions.
+
+Every plan, build, decision, and refactor — internal or client-facing, any workspace, any scope — MUST start from the long-term vision and walk backward to today's step. Short-term work is valid ONLY when each step is demonstrably aligned with the long-term goal. Looking only at the short-term goal produces work that has to be replaced once the long-term picture catches up; looking only at the long-term goal without walking it back produces vapor. Both are violations. The rule is: long-term FIRST, then trace the path back, then execute today's step with the long-term frame visible.
+
+**Source:** User direction 2026-05-18 (verbatim, S58 mid-session): *"anything that we work on, that's across any workspace, we should always have our focus on the bigger picture. That's the key... If we look at the smaller picture, we're never going to get to the bigger picture, because we're going to be building something that later on we're going to have to replace because we didn't see further ahead... we are always looking at the bigger picture to make sure that we're building something that is going to scale, evolve, grow, lead us, and take us to that next level... if you shoot for the moon, even if you miss, you'll be in the stars... We always start with the long-term goal and then walk it back so that every step we make is going towards that, but we're always with that focus on the long-term goal, non-negotiable."*
+
+The directive landed mid-session during Phase 2 Build 6 planning. The trigger: AI proposed 3 net-new UserPromptSubmit hooks for Build 6 while the system-wide strategic direction (since S56) was *consolidation* (lifting source-hooks INTO the methodology-dispatcher to reduce surface area). The short-term ask (Build 6 fixes the recurring PROCESS-skill failure class) was being satisfied in a way that fought the long-term direction (one dispatcher, multiple sub-rules, fewer entry points). Codified the same session to prevent recurrence.
+
+### The rule
+
+Before producing any plan, spec, build proposal, or architecture decision, the work MUST pass these checks IN THIS ORDER:
+
+| Order | Check | What it produces |
+|---|---|---|
+| 1 | **Long-term vision frame** | What is the destination this work serves? (System architecture state, product roadmap milestone, capability the company is building toward, AIOS client ship surface, etc.) Cite the specific vision document, plan, or strategic frame. |
+| 2 | **Walk-back from vision to today** | Trace the path from the long-term destination back to the current step. Each intermediate milestone must be named. The current step must be a load-bearing piece of the path, not an orthogonal addition. |
+| 3 | **Alignment test for the current step** | Does THIS step move us toward the long-term vision, or does it satisfy a short-term ask in a way that creates rework later? If rework is likely, redesign the step to align — even if the short-term cost is higher. |
+| 4 | **Scope-widening before scope-narrowing** | Before deciding the step's scope, look at the BROADER context: what adjacent systems / workspaces / capabilities does it touch? Can the step be consolidated with adjacent in-flight work? Can it be designed so the same artifact serves multiple long-term needs? |
+| 5 | **Execute with vision visible** | The plan / spec / build description MUST include an explicit "Long-term vision served" section so reviewers (and future sessions) see the bigger frame the step belongs to. Not a footnote. A first-class section. |
+
+### Triggers (when this protocol fires)
+
+- Planning new infrastructure (hooks, scripts, automations, plugins, tables, workflows)
+- Architecture decisions (one-vs-many, consolidate-vs-add, native-vs-custom)
+- Refactors (especially "fix the symptom" tickets that could be addressed at a deeper layer)
+- Cross-workspace coordination work
+- Roadmap / sequencing decisions ("what should we build next?")
+- Closing inbox items by "ship something quickly" if a broader consolidation is already in flight elsewhere
+- Designing AIOS client-facing capabilities (every client artifact must serve the long-term product vision, not just internal needs)
+
+### What this protocol PREVENTS
+
+- **Kitchen-sink builds:** adding 3–5 new hooks when one consolidated dispatcher would absorb them
+- **Symptomatic fixes:** patching a recurrence without asking whether the failure class itself could be eliminated at a higher layer
+- **Direction reversals:** building in one direction while the broader strategy is going the other way (the 2026-05-18 trigger incident)
+- **Client product fragmentation:** shipping internal-only infrastructure that won't survive AIOS productization, forcing rework when the client SDK assembles
+- **Short-term wins that produce long-term debt:** the entire class of "we'll clean it up later" decisions that never get cleaned up
+- **Scope-narrowing too early:** committing to a build scope before checking whether consolidation with adjacent work is possible
+
+### Concrete tests AI must run before producing a plan
+
+1. *"Where is this going long-term — what does the end-state architecture / product look like?"* If you can't name the destination, you haven't done step 1.
+2. *"What are the 2–3 intermediate milestones between today and that destination?"* If you can't name them, the walk-back hasn't happened.
+3. *"Is this step on the path, or off to the side?"* If it's off to the side, redesign or defer.
+4. *"What adjacent in-flight work could this consolidate with?"* If you haven't checked, you risk the 2026-05-18 contradiction class.
+5. *"How will this artifact be different (or absent) when it ships in AIOS?"* If you haven't thought about it, the work may not survive productization.
+
+The plan/spec MUST cite each of these answers in its long-term-vision section.
+
+### Long-term vision artifacts to consult before planning
+
+- `~/.claude/about-user.md` + `1.- SHARKITECT DIGITAL WORKFORCE HQ/knowledge-base/governance/about-chris.md` — operator profile + how to make decisions on his behalf
+- HQ AIOS strategy documents under `1.- SHARKITECT DIGITAL WORKFORCE HQ/knowledge-base/` — AIOS pricing, productization scope, client-facing roadmap
+- `~/.claude/plans/` — active multi-phase plans (Post-Hard-Stop System Reassessment, Foundation Reset history, etc.)
+- `~/.claude/docs/plans-registry.md` — full active+completed plan index
+- Sentinel system-health components — what the system needs to look like at scale
+- Brain dumps in each workspace `brain-dump/` — frozen strategic thoughts the user has captured
+
+Reading at least 1–2 of these before planning anything substantive is the bare minimum to honor this rule.
+
+### Stacking with other strategic-frame protocols
+
+This rule is the GENERAL-CASE strategic frame. The other strategic-frame protocols are SPECIFIC-CASE applications:
+
+| Protocol | What it covers | Relationship |
+|---|---|---|
+| **CEO Advisor Mandatory Invocation** | Company-affecting work needs CEO strategic lens | Always stacks on top — invoke ceo-advisor for any company-affecting build. |
+| **Platform Grounding Before Building** | Unfamiliar-platform work needs docs research first | Subset of "scope-widening" (check 4). |
+| **Anti-Drift Scope Discipline** | AI doesn't absorb user side-concerns mid-task | Bigger-Picture-First is BEFORE the task; Anti-Drift is DURING. Both run. |
+| **Bilateral Scope Discipline** | CEO mid-plan additions need justification | Same — applies during, after the bigger-picture frame is established. |
+| **Pushback Protocol** | AI must push back when user proposes a wrong path | Bigger-Picture-First gives the AI the frame to RECOGNIZE when a path is short-term-only. |
+| **Verification-Before-Building Protocol** | Preflight registry check before new builds | Subset of "scope-widening" (check 4) — the registry is one input to consolidation analysis. |
+
+If a build passes all the specific-case protocols but fails the Bigger-Picture-First general-case test, the build is wrong. The general case is the authoritative frame.
+
+### Operator preference reinforcement
+
+This rule encodes the user's documented operating style (per about-chris.md K1 SoT, in the "How he thinks" section as that section matures). Treating the rule as a system constraint, not just a personal preference, makes it transferable to AIOS clients: every AIOS client inherits this discipline with their own long-term vision filling the "destination" slot. The protocol is the same; the destination is the operator's.
+
+### Enforcement
+
+- **Documentation (this rule):** the protocol itself.
+- **Runtime detection (planned):** UserPromptSubmit hook that detects "user is asking for a new plan / build / architecture decision" and injects an additionalContext nudge requiring the long-term vision walk-back as a first-class section in the response. Filed as a follow-up sub-rule for the Phase 2 Build 6 UserPromptSubmit dispatcher (so this protocol is one of the dispatcher's sub-rules at launch — meta-correctness: the rule that codifies bigger-picture thinking is itself enforced by the same dispatcher that demonstrates bigger-picture-first design).
+- **Self-audit:** resource-auditor PROCESS check includes `bigger_picture_frame_missing_from_plan` as a gap class.
+- **Cross-workspace consistency:** every workspace honors this identically — no workspace gets a short-term-only exemption.
+
+### Scope and persistence
+
+- All sessions, all workspaces (HQ, Skill Hub, Sentinel, future workspaces), PERMANENT (not project-scoped).
+- Ships as AIOS client feature when AIOS productizes — load-bearing for the product. Every AIOS client's plans, builds, and architecture decisions are made under this discipline, with their company's vision filling the long-term-destination slot. This is what makes the AIOS product strategic, not just operational.
+
+---
+
 ## Extension Rule
 
 Workspace CLAUDE.md files define ONLY workspace-specific additions to these protocols. They should NOT duplicate items listed above, but if they do, this rule is authoritative.

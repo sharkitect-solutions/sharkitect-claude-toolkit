@@ -60,7 +60,7 @@
           },
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/content-enforcer-hook.py\""
+            "command": "python \"{HOME}/.claude/hooks/content-governance-dispatcher.py\""
           },
           {
             "type": "command",
@@ -72,31 +72,7 @@
           },
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/n8n-httpRequest-guard.py\""
-          },
-          {
-            "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/drift-detection-hook.py\""
-          },
-          {
-            "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/workspace-scope-guard.py\""
-          },
-          {
-            "type": "command",
             "command": "python \"{HOME}/.claude/hooks/inbox-move-guard.py\""
-          },
-          {
-            "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/marketing-content-detector.py\""
-          },
-          {
-            "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/content-pitching-detector.py\""
-          },
-          {
-            "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/end-session-enforcer.py\""
           },
           {
             "type": "command",
@@ -112,12 +88,7 @@
       },
       {
         "matcher": "TodoWrite",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/end-session-enforcer.py\""
-          }
-        ]
+        "hooks": []
       },
       {
         "matcher": "mcp__|Bash",
@@ -136,15 +107,7 @@
           },
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/n8n-httpRequest-guard.py\""
-          },
-          {
-            "type": "command",
             "command": "python \"{HOME}/.claude/hooks/content-enforcement-gate.py\""
-          },
-          {
-            "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/end-session-enforcer.py\""
           }
         ]
       },

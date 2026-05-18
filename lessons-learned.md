@@ -1,5 +1,43 @@
 # Global Lessons Learned
 
+## 2026-05-18 S57 (Sentinel) Lessons
+
+### preference: User wants forcing-function reports, not data-dump reports
+- **date:** 2026-05-18
+- **context:** Weekly Sentinel Review v0.2 smoke output was rejected as "not useful" — jargon ("Decision Debt", "Reality vs Stated Priority"), unclear referents (no workspace tags), no clear action per section, broken narrative between sections. User verbatim: "no yes agents... It needs to earn its place. It needs to drive performance. It needs to drive outcome."
+- **apply-when:** Designing any operator-facing periodic report. Defaults: plain English section names, explicit scope (per-workspace OR cross-workspace tagged), per-item workspace tags, narrative bridges between sections, forced yes/no per finding, suppress sections that don't change behavior ("everything is fine" trap).
+- **tags:** reports, ceo-advisor-anti-patterns, weekly-review
+
+### direction: AI-inference-with-correction over manual tagging for project priorities
+- **date:** 2026-05-18
+- **context:** When proposing user manually tag 3-5 strategic projects per quarter, user pushed back: "the system should already know based on what we're talking about and what we're working on. It should be smart enough for the AI to identify the priorities."
+- **design principle:** AI infers from signal stack (goal-alignment, cross-workspace involvement, activity, blockers, deadlines, voice mentions, strategic-focus flag). User corrects only when wrong (30-day TTL overrides). Silence = AI's inference stands as strategic position. The 30-60 second weekly validation moment IS the strategic ownership ritual — eliminates spreadsheet/quarterly-planning friction.
+- **apply-when:** Any system that requires user prioritization decisions. Default to AI computing + surfacing inferred ranking with correction mechanism, not manual tagging UI.
+- **tags:** priority-inference, autonomy, friction-reduction, sharkitect
+
+### direction: 5-tier priority model with cross-workspace precedence
+- **date:** 2026-05-18
+- **context:** Sentinel-side priority inference engine shipped in Phase A. Tier model balances strategic focus (T1, capped at 5 per ceo-advisor "strategy is saying NO") with operational reality.
+- **design principle:** T1 Strategic Focus / T2 Defensive Critical (deadline <14d OR active blockers) / T3 Core Operations (active workspace-internal) / T4 Maintenance / T5 Exploratory or Parked (deferred/paused/tabled regardless of score). Cross-workspace projects auto-get precedence via signal stack (+3 for cross_workspace), not manual override. Override always wins when active=true AND not expired.
+- **apply-when:** Any priority-classification system across the Sharkitect workspaces.
+- **tags:** priority-tiers, cross-workspace, sentinel, design-principle
+
+### process: Tasks vocabulary does NOT include "superseded" — use "withdrawn" for superseded-task closures
+- **date:** 2026-05-18
+- **context:** Tried to close `tasks` row with `status='superseded'` (the right semantic) for a Lessons-Learned Audit task that was absorbed by a newer Lessons Taxonomy Sweep System. Postgres CHECK constraint rejected (HTTP 400, `tasks_status_check`).
+- **why:** Per universal-protocols.md "Status Vocabulary Layers", tasks vocabulary is `pending | in_progress | completed | blocked | deferred | tabled | paused | rejected | withdrawn`. `superseded` exists ONLY on `cross_workspace_requests.inbox_items_status_check`.
+- **apply-when:** Closing a task whose work was absorbed by newer work. Use `withdrawn` (drops off the rollup's `total_tasks` count per documented rollup behavior). For cross_workspace_requests with same semantic, use `superseded` (with `resolution.superseded_by` reference).
+- **tags:** supabase, status-vocabulary, rollup, sentinel
+
+### process: writing-plans skill applies even to ARC/overview plans
+- **date:** 2026-05-18
+- **context:** Wrote a multi-phase arc plan (`2026-05-18-cross-workspace-priority-inference.md` covering 5 phases) without invoking writing-plans first. Rationalized "I know what a plan looks like" — the documented red flag. Post-write hook flagged: missing YAML frontmatter, missing plans-registry row, missing trigger reference.
+- **why:** writing-plans skill enforces quality gates (risk register, rollback, measurable completion signals, review cadence) AND its scope-check rule explicitly handles ARC plans (break multi-subsystem plans into per-phase plans). Skipping it cost remediation cycles.
+- **apply-when:** Any plan file write under `~/.claude/plans/` or workspace `docs/plans/`. Includes ARC/overview plans (the scope-check IS part of the skill's value). Self-exemption is fine — the invocation itself enforces the discipline.
+- **tags:** writing-plans, plan-frontmatter, methodology, sentinel
+
+---
+
 ## 2026-05-17 S56 (Skill Hub) Process Decisions
 
 ### process: Lift-via-TDD test fixtures trigger the source hook's own runtime gate -- log as Strict Bypass Category C, don't abandon the test approach
@@ -6498,3 +6536,26 @@ tags: pricing, methodology, k1-sot, calibration, sharkitect, hq, phase-3, decisi
 ### Architecture Direction
 - date: 2026-05-17 | direction: Sharkitect's offer architecture for PPM (and likely other services) follows a first-5-founding-partner-cohort pattern: founding rate + partner exchange contributions for first 5 clients; standard rate (no founding discount) for clients beyond #5; Partner Price Protection cap structure applies to BOTH cohorts | context: S47 §1 walkthrough; Chris confirmed canonical adoption post-FF close | apply-when: designing pricing for any new PPM client OR adopting the pattern for other Sharkitect offers (RLR, CPS, etc.) | tags: pricing-architecture, founding-partner-pattern, canonical-adoption
 - date: 2026-05-17 | direction: Brand architecture for businesses with multi-vertical operations should use endorsed-brand framing (Option B: "Division Name, a division of Master Brand") rather than master-brand-subordinate framing (Option A), when the secondary vertical needs distinct credibility but parent-brand backing | context: FF Construction & Remodeling decision — Chris chose Option B over my Option A recommendation | apply-when: future client architectures or Sharkitect's own brand structure | tags: brand-architecture, endorsed-brand
+
+## 2026-05-18 — Session S50 — FF PPM Close
+
+### Preferences
+
+- `preference:` **Positive framing only in client-facing content.** Never describe what we lack (the absence is a given). Context: AI drafted email with "It's a demo, not a working site — and that's the point" framing; Chris caught it, said *"we should never talk about what we don't have or the negative. Just talk about what we do have... It's already a given, right? I mean, it's a demo. We're not building the whole thing out, so we don't have to explain and we don't have this and we don't have that."* Apply-when: ALL client-facing surfaces (emails, proposals, landing pages, ads, social). Tags: brand-voice, positive-framing, all-workspaces, client-facing
+
+- `preference:` **No date rendered at top of client-facing document body.** Keep `date:` in MD frontmatter for versioning (internal). Strip from rendered output (client-facing). Apply-when: all client-facing DOCX/PDF deliverables. Fix landed in `tools/sop_docx_builder.py` (passes `--metadata date=` to pandoc). Tags: docx, pandoc, client-facing, date-handling, workforce-hq
+
+- `preference:` **Mexican Spanish vernacular for FF audience: "Superficies" not "Encimeras" for countertops.** While technically "encimeras" is correct Spanish, the natural everyday term in Mexican Spanish (especially KC Hispanic trades audience) is "superficies." Tags: spanish, localization, ff-client, voice
+
+### Process Decisions
+
+- `process:` **Brand positioning template LOCKED for reuse.** Canonical line: *"This is what we mean when we say we work differently. Most agencies hand you a pitch deck and ask you to imagine. We hand you the thing itself."* Structure: PROOF (concrete artifact + specifics) → MEANING (this line) → ACTION (CTA). Why: validated across CEO/Dunford/CRO lenses as button-adjacent conversion-critical copy. Tags: brand-voice, positioning, sharkitect-manifesto, dunford, reusable-template
+
+- `process:` **Always re-read source files before describing them in client-facing content.** Failure mode observed twice this session: AI wrote MVP description from intent/memory rather than re-reading actual index.html — claimed "live forms" and "chatbot" when MVP has placeholders. User had to correct twice. Apply-when: any client-facing claim about external state (built features, file contents, system capabilities). Verify directly against source per the Verify Before Acting / 100% Verification Before Any Action protocols. Tags: verification, client-facing, process-discipline, never-write-from-memory
+
+- `process:` **For pricing copy in client-facing briefs: lead with headline + ceiling, skip incremental math.** Buyers anchor on the LOWEST number they see (the lock) and the HIGHEST guarantee (the ceiling). The math between them belongs in proposal tables, not in brief headline copy. The brief is for the owner-style reader who wants three facts: starting rate, lock period, max ever. Source: 4-lens analysis (CEO/Dunford/Marketing/CRO) on FF PPM brief pricing line. Tags: pricing, copywriting, conversion-psychology, brief-vs-proposal
+
+### Architecture Direction
+
+- `direction:` **MVP demos: build the visible SHELL fast, leave functionality for the full build.** Pattern: ship a Vercel-deployed single-page demo with brand integration, voice, structure, and 1-2 standout "real" features (e.g., live third-party catalog iframe). Leave forms/chatbots/navigation as placeholders. Frame as "we put this together in hours to show you what we can do in days — imagine what we can do in two weeks." Why: speed proof is the differentiator vs incumbents (Cyncly/Hibu) who pitch decks for weeks. Apply-when: prospect-stage where decision-maker needs to FEEL the work before signing. Tags: mvp, sales-engineering, sharkitect-positioning, conversion, all-workspaces
+
