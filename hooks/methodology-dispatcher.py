@@ -80,6 +80,9 @@ _multi_file_build = _safe_import("multi_file_build")
 _production_tool = _safe_import("production_tool")
 _creation_gate = _safe_import("creation_gate")
 _strategy_work = _safe_import("strategy_work")  # Cluster A Layer 3 (2026-05-12)
+_n8n_http = _safe_import("n8n_http")            # Phase 2 Build #2B (2026-05-18)
+_scope_discipline = _safe_import("scope_discipline")  # Phase 2 Build #2B (2026-05-18)
+_end_session = _safe_import("end_session")      # Phase 2 Build #2B (2026-05-18)
 
 
 # Order matters for advisory concatenation; HARD GATE sub-rules go first so
@@ -89,6 +92,8 @@ PRE_TOOL_USE_SUBRULES = [
     _brainstorming,        # HARD GATE
     _writing_plans,        # HARD GATE
     _supabase_ddl,         # HARD GATE
+    _n8n_http,             # HARD GATE (Build #2B)
+    _end_session,          # HARD GATE (Build #2B)
     _creation_gate,        # HARD GATE (Tier 1) + Advisory (Tier 2)
     _strategy_work,        # ASK (Tier 1) + Advisory (Tier 2) -- Cluster A
     _claude_api,           # Advisory
@@ -97,6 +102,7 @@ PRE_TOOL_USE_SUBRULES = [
     _plan_file_read,       # Advisory
     _multi_file_build,     # Advisory
     _production_tool,      # Advisory
+    _scope_discipline,     # Advisory (Build #2B)
 ]
 POST_TOOL_USE_SUBRULES = [
     _iterative_work,       # Advisory

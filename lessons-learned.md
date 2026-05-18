@@ -1,5 +1,65 @@
 # Global Lessons Learned
 
+## 2026-05-17 S56 (Skill Hub) Process Decisions
+
+### process: Lift-via-TDD test fixtures trigger the source hook's own runtime gate -- log as Strict Bypass Category C, don't abandon the test approach
+
+**Context:** Phase 2 Build #2A lifted 4 source hooks (content-enforcer-hook.py, marketing-content-detector.py, content-pitching-detector.py, drift-detection-hook.py) into dispatcher sub-rules. Writing characterization tests for marketing_keywords + content_pitching meant writing TEST FIXTURES containing the very marketing keywords + pitching patterns those source hooks scan for. The source hooks were still LIVE during the lift -- they fired on the test files at edit time. 4 separate runtime gate triggers across the session.
+
+**Why:** Source hooks treat any matching content as "needs nudge/deny" regardless of whether the content is authored marketing prose or a test fixture exercising the detector itself. They have no signal to distinguish.
+
+**How to apply:** When lifting a detector hook via TDD, expect the source hook to fire on your test fixtures. Classify each fire as Strict Bypass Category C (self-referential meta-edit -- the edit IS infrastructure for the gate being lifted). Log the reasoning in conversation, proceed. Do NOT redesign fixtures to avoid the triggers -- fixtures that don't exercise actual detection patterns are useless characterization tests.
+
+**Tags:** tdd, hook-consolidation, strict-bypass-vocabulary, phase-2-builds
+
+---
+
+### process: Lazy-path resolution as a behavior-preserving lift improvement when source hooks use module-load-time Path.home() / os.getcwd()
+
+**Context:** drift-detection-hook.py (source for drift_detection sub-rule lift in Build #2A) had `_POINTER_VALIDATOR_PATH = Path.home() / ...` + `CACHE_PATH = os.getcwd() ...` resolved at module load. Works in production (HOME + cwd stable across the hook's lifetime). Broke under test isolation (monkeypatch.setenv("HOME") after import has no effect on already-resolved Path constants).
+
+**Why:** Module-load-time constants assume the import context matches every future call context. True in production. False in tests.
+
+**How to apply:** When lifting hooks with Path.home() / os.getcwd() module constants, wrap them as lazy function calls (`def _validator_path(): return Path.home() / ...`). Production behavior is unchanged (cwd + HOME still stable per-process). Tests with monkeypatched HOME / chdir now work correctly. Document as a deliberate improvement in the lift's docstring -- it IS a behavior-change vs source in the edge case where HOME / cwd changes mid-process, but that edge case never occurs in production hooks.
+
+**See also:** 2026-04-30 "HOME-override is the right pattern for hermetic hook tests" (line ~678) -- complementary, not duplicate. That entry covers SUBPROCESS-invoked hooks (use `env=HOME=tempdir`). This entry covers IN-PROCESS sub-rule lifts where monkeypatch.setenv runs after module import; lazy-path is the in-process equivalent.
+
+**Tags:** hook-consolidation, test-isolation, lazy-resolution, phase-2-builds, complements-2026-04-30-home-override
+
+---
+
+### process: Fortification-vs-Expansion Q1 test correctly classified a mid-build infrastructure fix as inline-absorb rather than scope-creep
+
+**Context:** Mid-Build #1 close-out, discovered sync-skills.py compare_hooks/sync_hooks silently excluded `_dispatchers/_signal_extract.py` + modified `_feedback_events.py` from toolkit mirror (two exclusions: no subdir recursion + `_*.py` filter). The Build #1 deliverable was unbacked.
+
+**Why:** Applied Fortification-vs-Expansion 3Q test. Q1: "Without this fix, would the in-scope deliverable FAIL to deliver its stated outcome?" YES -- per In-Session Close-Out Workflow Contract Step 1 (backup-verify), the close requires durable backup; sync gap = failed backup invariant.
+
+**How to apply:** When a verified infrastructure gap blocks an in-flight deliverable's completion invariant, Q1 returns YES -> absorb as fortification. The alternative (park as separate scope, ship Build #1 with broken backup, hope to fix later) would have shipped a deliverable that fails its own close-out protocol. Brain-dump capture is for marginal improvements (Q2 / Q3), not for fortifications that gate close-out invariants.
+
+**Tags:** anti-drift, fortification-vs-expansion, close-out-protocol, in-session-judgment
+
+---
+
+## 2026-05-17 S55 (Sentinel) Process Decisions
+
+### process: When a "USER APPROVAL GATE" already has historical evidence of passing, surface the evidence for explicit close rather than redoing the ritual
+
+**Date:** 2026-05-17
+**Workspace:** sentinel
+**Context:** Sentinel Reports Restructure Phase 1 Task 1.6 (trigger integration in health-monitor.py) was code-marked "in_progress" awaiting a USER APPROVAL GATE on the first --apply live fire. Investigation showed the gate had already been passed on 2026-05-15: live fire ran end-to-end against 4 real health issues, a --apply pass-through bug was discovered + fixed + re-verified in commit 2d22a63. At S55 close-out, both options were on the table: (A) re-fire the integration with --apply for a new "first live fire" ceremony, OR (B) close on the existing 2026-05-15 evidence. Option A would have fired alerts on `sentinel-brief` + `sentinel-evening` heartbeats — the EXACT systems being retired in Phase 5 of the same plan — so the alerts would be operational noise about doomed components.
+**Why:** A USER APPROVAL GATE exists to surface a one-time risk decision. Once the decision has been made and the evidence captured (git commit + alert-history JSONL + verification output), repeating the ritual on retiring/doomed targets is performative compliance, not safety. The right behavior is to surface the existing evidence + the cost of redoing the ritual + the alternative (close on historical evidence), and ask for explicit user direction. The cost of asking is low; the cost of running redundant alerts on systems being killed is real Slack noise + suppression-cadence pollution + downstream session confusion.
+**Apply when:** Closing any task whose status header / commit message references a "user approval gate" / "first live fire" / "manual signoff" condition. Verify whether the gate condition has historical evidence of passing BEFORE proposing the ritual. If evidence exists: present it to the user with a close-on-evidence option, and flag specifically what re-running would do (cost + side effects). If no historical evidence: run the ritual as designed.
+**Tags:** #process #approval-gates #close-out-discipline #historical-evidence #avoid-redundant-rituals
+
+### process: Cron with state-change dedup baseline beats raw polling cron when alerting on persistent conditions
+
+**Date:** 2026-05-17
+**Workspace:** sentinel
+**Context:** S55 created `gap-inbox-monitor` cron at 7-minute cadence with prompt "If critical gaps found, alert via Slack." First fire detected CRITICAL state (7 stale reports + 3 never-audited workspaces) and alerted Slack. Second fire 7 minutes later detected IDENTICAL state and would have re-alerted, producing ~206 identical Slack messages/day. The conditions were Skill Hub-owned backlog (oldest 26 days) — persistent by design, not transient. Pattern: monitoring crons whose alerting prompt doesn't read prior state will spam any persistent condition.
+**Why:** "Alert if critical" assumes critical is rare/transient. When critical is a persistent backlog condition (owned by another workspace, not currently being processed), the alert layer must distinguish state-transition from steady-state. Without dedup baseline, the cron becomes adversarial to the user's attention — every fire is identical noise. Fix pattern: cron prompt reads prior state from `.tmp/<monitor>-last-state.json`, alerts ONLY on (a) status transitions to/from CRITICAL, (b) new entry in critical list, or (c) all-clear. Writes current state after every run. Initial fire writes baseline + suppresses (or alerts once and writes baseline).
+**Apply when:** Designing any monitoring cron whose alert condition could persist across multiple fires. Build dedup logic INTO the cron prompt (the AI reads state.json before alerting) rather than relying on the monitored tool's own dedup (often absent). Also extend cadence to hourly+ when persistent-condition spam is a risk — 7-minute polling on conditions that take days/weeks to clear is mismatched cadence + signal volume. Same pattern applies to: gap-pipeline alerts, health-monitor heartbeat alerts, asset-drift alerts, any "fire if condition holds" check that doesn't naturally encode "fire if condition CHANGED."
+**Tags:** #process #cron-design #alerting-dedup #state-baseline #persistent-conditions #signal-vs-noise
+
 ## 2026-05-17 S44 (Sentinel) Architecture Direction
 
 ### direction: Memory architecture evolution is incremental on existing infrastructure, not replacement
@@ -6422,3 +6482,19 @@ tags: pricing, methodology, k1-sot, calibration, sharkitect, hq, phase-3, decisi
 
 **Tags:** facts-only, training-data-inference, ask-dont-assume, aios-rule, verification-discipline
 
+
+## 2026-05-17 — S47 FF PPM Walkthrough Lock-In (workforce-hq)
+
+### Preferences
+- date: 2026-05-17 | preference: NEVER use the word "barter" in any document (client-facing OR internal) | context: S47 §1 — used "barter exchange" in pricing-structure parking note | apply-when: any document Sharkitect produces in any workspace | tags: brand-voice, vocabulary, authority-figure-positioning
+- date: 2026-05-17 | preference: When CEO advisor is available as a skill, invoke it for ANY strategic/plan/direction decision (mandatory committee seat) | context: S47 §3 walkthrough; Chris saw resource-audit naming the available skills and explicitly directed committee composition to include them | apply-when: any session doing strategic work, brainstorming, or company-direction decisions | tags: committee-composition, skills-first
+- date: 2026-05-17 | preference: When pricing-strategy is available, invoke for any pricing decision; when contract-legal is available, invoke for any SOW/contract work | context: same S47 committee composition direction | apply-when: pricing or contract sessions in any workspace | tags: committee-composition, skills-first
+
+### Process Decisions
+- date: 2026-05-17 | process: Before referencing ANY existing-customer contact name in client-facing or working documents, look up from HubSpot via mcp__claude_ai_HubSpot__search_crm_objects (company → associated contacts) | context: S47 invented "Chris Lord" as a designee name without verification; Chris pushback "I've told you a million times" | why: hallucinated names in contract documents are a serious failure mode; HubSpot lookup is one MCP call away | tags: 100-percent-verification, hallucination-prevention, hubspot
+- date: 2026-05-17 | process: marketing-strategy-pmm skill should be invoked BEFORE drafting any proposal narrative sequence or positioning content | context: S47 §12 — drafted 8-step proposal sequence inline without invoking marketing-strategy-pmm; Chris caught the gap; reinvoked and applied April Dunford lens (structural attributes vs features, persona-appropriate framing for economic buyer) | why: proposal narratives benefit massively from positioning methodology (competitive alternatives → unique attributes → who it's for) | tags: skills-first, marketing-strategy-pmm, april-dunford
+- date: 2026-05-17 | process: When proposal language asserts strong commitments that have carve-outs in the SOW (Tech Inclusion Guarantee safety valve, IP ownership of active services, Material Scope Change), use good-faith framing — lead with the strong commitment, parenthetically acknowledge extraordinary-event safety nets, reference SOW for legal specifics | context: S47 §12 — Chris flagged proposal could contradict SOW legal protections | why: keeps proposal-SOW consistency while preserving authority-figure commitment tone | tags: contract-marketing-consistency, good-faith-framing
+
+### Architecture Direction
+- date: 2026-05-17 | direction: Sharkitect's offer architecture for PPM (and likely other services) follows a first-5-founding-partner-cohort pattern: founding rate + partner exchange contributions for first 5 clients; standard rate (no founding discount) for clients beyond #5; Partner Price Protection cap structure applies to BOTH cohorts | context: S47 §1 walkthrough; Chris confirmed canonical adoption post-FF close | apply-when: designing pricing for any new PPM client OR adopting the pattern for other Sharkitect offers (RLR, CPS, etc.) | tags: pricing-architecture, founding-partner-pattern, canonical-adoption
+- date: 2026-05-17 | direction: Brand architecture for businesses with multi-vertical operations should use endorsed-brand framing (Option B: "Division Name, a division of Master Brand") rather than master-brand-subordinate framing (Option A), when the secondary vertical needs distinct credibility but parent-brand backing | context: FF Construction & Remodeling decision — Chris chose Option B over my Option A recommendation | apply-when: future client architectures or Sharkitect's own brand structure | tags: brand-architecture, endorsed-brand

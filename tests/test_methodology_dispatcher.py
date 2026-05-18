@@ -2790,11 +2790,12 @@ class TestDispatcher:
     def test_real_subrules_loaded_for_pre_tool_use(self, tmp_path):
         """Sanity: actual PRE_TOOL_USE_SUBRULES list is populated post-import."""
         d = self._import_dispatcher()
-        # All 11 PreToolUse sub-rules should have imported successfully.
-        # (10 original + strategy_work added in Cluster A 2026-05-12)
+        # All 14 PreToolUse sub-rules should have imported successfully.
+        # (10 original + strategy_work [Cluster A 2026-05-12]
+        #  + n8n_http + end_session + scope_discipline [Build #2B 2026-05-18])
         # Filter Nones (none expected, but graceful).
         loaded = [s for s in d.PRE_TOOL_USE_SUBRULES if s is not None]
-        assert len(loaded) == 11
+        assert len(loaded) == 14
 
     def test_real_dispatcher_does_not_crash_on_pre_tool_use_write(self, tmp_path):
         """End-to-end smoke: dispatcher accepts a real PreToolUse:Write payload
