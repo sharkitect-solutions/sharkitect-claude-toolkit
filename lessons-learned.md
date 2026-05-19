@@ -6600,3 +6600,28 @@ tags: pricing, methodology, k1-sot, calibration, sharkitect, hq, phase-3, decisi
 
 - `direction:` **MVP demos: build the visible SHELL fast, leave functionality for the full build.** Pattern: ship a Vercel-deployed single-page demo with brand integration, voice, structure, and 1-2 standout "real" features (e.g., live third-party catalog iframe). Leave forms/chatbots/navigation as placeholders. Frame as "we put this together in hours to show you what we can do in days — imagine what we can do in two weeks." Why: speed proof is the differentiator vs incumbents (Cyncly/Hibu) who pitch decks for weeks. Apply-when: prospect-stage where decision-maker needs to FEEL the work before signing. Tags: mvp, sales-engineering, sharkitect-positioning, conversion, all-workspaces
 
+
+## 2026-05-18 (HQ S58) — End-Session Captures
+
+### Architecture Direction
+direction: **CLEO ≠ AIOS — they are SEPARATE projects with distinct freeze rationale.** CLEO = internal-infrastructure marketing workspace (offloads marketing ops from HQ). AIOS = client-shipped AI Operating System product. Do not conflate them in Tier 2 freeze discussions or strategic synthesis. CLEO's pause rationale was focus-on-FF; AIOS's pause rationale is "cannot ship client-facing AIOS while internal system mirrors a broken pattern." Different freezes, different conditions to lift, different scopes.
+apply-when: any discussion of Tier 2 freeze, CLEO scope, AIOS scope, or any decision touching either project. When the user asks about one, do NOT bring up the other unless they're explicitly related on the merits.
+tags: workspace-architecture, tier-2-freeze, CLEO, AIOS
+
+### Process Decisions
+process: **Direct-from-user stale-update batching.** When the user goes through a list of tasks and dictates direct status updates (complete/withdrawn/rescope), batch them into a single Supabase SQL transaction with provenance notes ("per Chris direct confirmation YYYY-MM-DD: <reason>") rather than running update-project-status.py task-by-task. Faster, atomic, audit trail clearer. S58 Hibu cleanup pass: 5 completed + 2 updated + 1 folded in one transaction.
+why: minimizes round-trips, gives the user immediate visual confirmation, and the provenance notes survive the cascade rollup.
+tags: supabase-writes, stale-cleanup, batching
+
+### Resolved Errors
+date: 2026-05-18
+category: schema-discovery
+attempted: smoke test of seed_plan_to_supabase.py after adding assigned_workspace inheritance
+error: Postgres 23502 NOT NULL violation on tasks.project_id (column had no default; seed script never set it)
+solution: When patching a writer to set ONE missing field, query information_schema.columns first for ALL NOT NULL columns on the target table — fix them together in the same edit (Q1 fortification). Lone-field fixes that don't survive smoke tests are not real fixes.
+tags: supabase-writers, schema-discovery, fortification-test
+
+### Preferences
+preference: **Stale-data drift confirmation.** Chris explicitly wants the AI to challenge stale data inline — when a Supabase row's phase_description carries a rationale that contradicts current user direction, the AI must surface the contradiction rather than cite the stale rationale as-is. S58 example: the AIOS Contrarian Truth project's phase_description said "Chris directive 2026-05-10: pause Tier 2 (AIOS + CLEO + AIOS-related)..." but the actual reason for the CLEO table was focus-on-FF, not Tier 2 grouping. AI cited verbatim → user corrected → record updated.
+apply-when: any time AI reads a Supabase notes/phase_description field that carries rationale text. Verify the rationale against current user statements before citing as authoritative.
+tags: stale-data, supabase-trust, verify-before-citing
