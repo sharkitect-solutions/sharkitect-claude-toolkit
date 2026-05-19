@@ -1,5 +1,46 @@
 # Global Lessons Learned
 
+## 2026-05-18 S58 (Skill Hub) Lessons — Bigger-Picture-First + Research-Alignment Discipline
+
+### direction: Bigger-picture-first is necessary but NOT sufficient — research-alignment is the missing half
+
+User direction (verbatim, 2026-05-18 S58, after spec alignment pass): *"we need to make sure that everything we do is methodical, with purpose and strategic alignment. Not only are we looking at the bigger picture, but we're also making sure they're aligned with the documents that align with our research and with how the system is meant to operate. That way, everything is aligned, and... all those play a role at the bigger goal, because we can't get there if we are working against the system."*
+
+**The dual rule:** Two checks fire together on every plan / build / spec / architecture decision:
+
+1. **Bigger-Picture-First** (codified earlier S58 in universal-protocols.md) — start from long-term vision, walk back to today's step
+2. **Research-Alignment** (this lesson) — cross-reference against (a) the actual platform research artifacts (capability-map, roadmap-signals, Phase 1.5 deepening), (b) how the platform/system actually operates today (not how we wish it operated), (c) authoritative source-of-truth documents (K1 SoTs, plans-registry, AIOS master plan)
+
+A plan that aligns with the bigger picture but fights the system is still wrong. A plan that aligns with the system but ignores the bigger picture is also wrong. Both checks must pass.
+
+**Why "working against the system" produces wasted work:** Every platform feature we ignore is a feature we re-invent inline (drift). Every research finding we don't cite is research we'll redo later (waste). Every architecture decision made without consulting the existing reference implementation (e.g., methodology-dispatcher) creates a second pattern to maintain (entropy). The cumulative cost compounds across every plan / build.
+
+**Concrete S58 incident (the trigger for this lesson):** Build 6 v1 spec v1.0 was authored applying Bigger-Picture-First (walking back from AIOS destination) but did NOT explicitly trace against Phase 1.5 NARROW findings or capability-map §543 until user pushed back ("make sure you use the skills... see the bigger picture and align everything towards a bigger picture... aligns with how the system is functioning"). The alignment pass added: (a) capability-map §543 citation showing Build 6 IS a planned Phase 2 build target per platform research, (b) Phase 1.5 §57 hook composition platform-native confirmation, (c) §6 strengthened with `claudeMd` / `allowManagedHooksOnly` / `policyHelper` / `prompt`-hook v3 migration path (all CONFIRMED-shipped platform mechanisms), (d) new §4.4 "Layered enforcement architecture" showing Build 6 verify_state + Phase 2 Task 2.3 + Phase 3 prompt-hook are 3 layers not alternatives, (e) `/goal` command overlap noted on plan_resume v3. Spec v1.0 → v1.1.
+
+**The enforcement question (open):** Bigger-Picture-First has runtime enforcement planned as a UserPromptSubmit sub-rule under Build 6 itself. Research-Alignment needs the SAME treatment — a sub-rule that detects "plan / spec / architecture-decision work in progress" + "no recent Read on platform-research/ OR plans-registry.md OR K1 SoT" → nudge research-consult before continuing. Filed as a Build 6 v4+ sub-rule candidate.
+
+**How to apply (the checklist):** before producing any plan, spec, or architecture decision, the work MUST:
+
+1. **State the long-term destination** (Bigger-Picture-First check 1)
+2. **Walk back to today's step** (Bigger-Picture-First check 2)
+3. **Cite the research artifacts that ground this work in platform reality** (Research-Alignment — capability-map, roadmap-signals, Phase 1.5 findings, vendor docs)
+4. **Cite the system's authoritative source-of-truth docs** (Research-Alignment — K1 SoTs, plans-registry, universal-protocols.md, methodology-dispatcher source if mirroring a pattern)
+5. **Identify how the work could be working AGAINST the system** (Research-Alignment — what platform features does this duplicate, fight, or ignore? Address each.)
+6. **Identify how the work serves the bigger picture AND the system together** (combined check — the final synthesis)
+
+If any of these 6 is skipped, the work is incomplete. Documentation alone is insufficient (per past lesson "Documentation without runtime detection eventually fails"); runtime detection of this checklist is the natural enforcement layer.
+
+**Scope:** This rule applies to ALL workspaces, ALL plans, ALL specs, ALL builds. PERMANENT. Ships as AIOS client feature when AIOS productizes — every AIOS client's plans inherit this discipline, with their company's research artifacts filling the source slots.
+
+**Related:**
+- Bigger-Picture-First Discipline (universal-protocols.md, NEW S58)
+- Platform Grounding Before Building (universal-protocols.md) — covers UNFAMILIAR-platform work; this lesson extends to ALL work even on familiar platforms
+- Verify Before Acting + Verify Before Filing (universal-protocols.md) — runtime checks; this lesson is the strategic frame above them
+- Capability-Map + Roadmap-Signals + Phase 1.5 NARROW Findings — the artifacts this lesson says to consult
+- methodology-dispatcher.py — the reference implementation pattern to mirror, not reinvent
+
+---
+
 ## 2026-05-18 S57 (Sentinel) Lessons
 
 ### preference: User wants forcing-function reports, not data-dump reports
