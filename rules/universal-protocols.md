@@ -3122,6 +3122,63 @@ If a "mechanical" task starts to imply a strategic question ("should we build X 
 
 ---
 
+## Plain English Output + Inline Term Explanation (NON-NEGOTIABLE)
+
+**Classification (per Contradiction Check protocol):** NEW additive rule. Grep of universal-protocols.md found 1 trivial mention of "plain language" inside the Brain Dump Capture Protocol (line 1368, one-line acknowledgement context). No existing rule mandates plain-English-output discipline or inline term explanation across all user-facing work. No contradictions; no supersessions. Peer-level with the CEO Advisor Mandatory Invocation rule above.
+
+Every substantive user-facing response MUST use plain English via the `writing-clearly-and-concisely` skill (a writing-discipline guide enforcing active voice, concrete language, omitted needless words, and no AI-puffery vocabulary). Every reference to a skill, tool, hook, script, agent, or other internal artifact MUST be paired inline with a brief plain-English explanation of what the artifact is and what it does. The operator cannot make informed decisions about output they do not understand — and AIOS clients downstream are non-technical users who will be even more lost than the operator.
+
+**Source:** User direction 2026-05-19 (verbatim, S60 mid-session): *"use the skill that allows you to write in simple English so that it's understandable. If you refer to a skill or a tool or a hook, make sure that it's explained so I know exactly what it is. I don't know what they do or what their purpose is, so I need to make sure that what we're talking about, I understand too, because I need to be able to make informed decisions... That needs to be a built non-negotiable... if I don't understand it, imagine we ship something like this in the AIOS. They get this type of jargon, they get this type of convolution, they get this type of confusion. If I don't understand it, my clients who use AIOS are going to be completely lost. You might as well talk to him in a foreign language."*
+
+This is the third+ documented recurrence of the same class of feedback (jargon-heavy AI output). Per the documented "Documentation without runtime detection eventually fails" lesson, this rule pairs documentation with planned runtime enforcement.
+
+### Triggers (when this protocol fires)
+
+The protocol fires on every substantive user-facing response, including:
+
+- Status reports, briefings, plans, analyses, recommendations, verdicts, summaries
+- Any response containing the name of a skill, tool, hook, script, agent, plugin, MCP, or other internal artifact
+- Any response containing technical jargon that a non-technical reader (operator, client, future hire) might not parse
+- Decision-presentation moments (where the operator chooses between paths)
+- Closing-out work descriptions (what got built, what got fixed, what got shipped)
+- Architectural review outputs, audit reports, post-mortems
+
+### What this protocol REQUIRES
+
+1. **Invoke `writing-clearly-and-concisely` skill** before producing the response. The skill is a writing-discipline guide that enforces active voice, concrete specifics over abstractions, omitted needless words, no AI-puffery (no "delve / leverage / robust / seamless"), and emphatic placement of key words.
+2. **Explain every internal-artifact reference inline.** First time a skill/tool/hook/agent/script/MCP/plugin name appears in a response, follow it with a brief plain-English gloss in parentheses or a short clause.
+   - Bad: "The methodology-nudge hook fires on the third edit."
+   - Good: "The methodology-nudge hook (a small background script that watches for me skipping the right methodology and reminds me) fires on the third edit."
+3. **Pair with `ceo-advisor` skill** invocation for company-affecting work. Both rules co-trigger; both apply.
+4. **Use everyday words.** Replace abstract nouns with verbs. Replace passive voice with active. Replace "leverage" with "use." Replace "robust" with whatever specific quality "robust" was trying to convey.
+
+### What this protocol does NOT require
+
+- **One-line acknowledgements** ("done", "running tests", "pushed") do not need the full skill invocation. The skill is for substantive responses, not micro-acknowledgements.
+- **Direct command outputs** (test pass/fail summaries, git status, file listings) that the operator reads as raw tool output do not need rewording.
+- **Code, configuration values, file paths, IDs** stay in their literal form. The wrapping prose around them gets plain-English treatment; the technical identifier itself stays accurate.
+
+### What this protocol PREVENTS
+
+- AI-puffery vocabulary (delve / leverage / robust / seamless / pivotal / multifaceted / tapestry / realm) appearing in user-facing output
+- Jargon-laden status updates that force the operator to ask "what is that?" before deciding
+- AIOS client outputs that read as foreign language to non-technical users
+- The recurring "I'm a little confused, can you explain?" moment that flags the operator has not been able to make an informed decision
+
+### Enforcement
+
+- **Documentation (this section):** the rule. Necessary but not sufficient per the documented "Documentation without runtime detection eventually fails" lesson — third+ recurrence as of 2026-05-19.
+- **Runtime detection (planned, follow-up build):** a hook that detects substantive assistant output without preceding `writing-clearly-and-concisely` skill invocation in the recent tool journal — advisory nudge if missing. Same enforcement pattern as the methodology dispatcher used for other process-skill discipline.
+- **Self-audit:** the resource-auditor PROCESS check includes `plain_english_skill_skipped` as a gap class.
+- **Cross-workspace consistency:** every workspace honors this identically — no workspace gets a jargon exemption.
+
+### Scope and persistence
+
+- All sessions, all workspaces (HQ, Skill Hub, Sentinel, future workspaces), PERMANENT (not project-scoped).
+- Ships as AIOS client feature when AIOS productizes — every AIOS client inherits this discipline so their non-technical users receive plain-English output too. This is what makes AIOS productizable as a tool for non-technical operators, not just developers.
+
+---
+
 ## Bigger-Picture-First Discipline (NON-NEGOTIABLE)
 
 **Classification (per Contradiction Check protocol):** NEW additive rule. Grep of universal-protocols.md (2026-05-18, S58) found 1 adjacent match at line 1758 (Platform Grounding "future-proofing considerations" — narrow-scope, only for unfamiliar-platform research) and 4 AIOS product references at lines 1139 / 3054 / 3103 / 3121 (individual rule mentions, not a general discipline). No existing rule prescribes "always start from long-term vision and walk back to today's step" across all work. No contradictions; no supersessions.

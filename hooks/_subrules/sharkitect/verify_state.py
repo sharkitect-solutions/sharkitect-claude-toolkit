@@ -1,11 +1,20 @@
 """
-verify_state sub-rule - detects AI-about-to-claim-state without recent verification.
+verify_state sub-rule - detects AI-about-to-claim-state on state-query prompts.
 
-Fires when:
-- User prompt matches a state-query pattern ("is X done?", "what's the status?", etc.)
-- AND no verification tool call (Read/Grep/Bash/Supabase MCP) in recent_tool_calls
+Fires when the user's prompt matches a state-query pattern ("is X done?",
+"what's the status?", "did Y land?", etc.). The 100% Verification Before
+Any Action protocol mandates verifying directly-related facts against
+source for EVERY action / recommendation / judgment call -- so the rule
+fires on every state-query, regardless of prior session tool history.
+Prior verification of a different topic does not satisfy verification need
+for the current state-query.
 
-Bypass: 'skip verify-state' in the user's prompt.
+Bypass: 'skip verify-state' (word-boundary match) in the user's prompt.
+
+History:
+    v1.5 (2026-05-19) - removed recent_tool_calls defensive check (was
+      dead code; conflicted with 100% Verification protocol's per-action
+      mandate). Added severity + match_evidence population per defect #3.
 """
 import re
 
@@ -21,42 +30,35 @@ STATE_QUERY_PATTERNS = [
     r"\bdoes\s+(?:\S+\s+){1,4}(exist|work|run|fire)\b",
 ]
 
-VERIFICATION_TOOLS = {
-    "Read", "Grep", "Glob", "Bash",
-}
 
-VERIFICATION_TOOL_PREFIXES = (
-    "mcp__claude_ai_Supabase__",  # Supabase MCP queries count
-    "mcp__github-mcp__get_",       # GitHub read-only counts
-    "mcp__github-mcp__list_",
-    "mcp__github-mcp__search_",
-)
-
-
-def _is_state_query(prompt: str) -> bool:
+def _matched_state_query(prompt: str):
+    """Return (pattern, match_object) for first matching state-query pattern, else None."""
     p = prompt.lower()
     for pattern in STATE_QUERY_PATTERNS:
-        if re.search(pattern, p):
-            return True
-    return False
-
-
-def _has_recent_verification(recent_tool_calls: list) -> bool:
-    for call in recent_tool_calls:
-        name = call.get("name", "")
-        if name in VERIFICATION_TOOLS:
-            return True
-        if any(name.startswith(prefix) for prefix in VERIFICATION_TOOL_PREFIXES):
-            return True
-    return False
+        m = re.search(pattern, p)
+        if m:
+            return pattern, m
+    return None
 
 
 def check(prompt: str, context: dict):
-    if not _is_state_query(prompt):
+    """Fire per-action on every state-query.
+
+    The 100% Verification Before Any Action protocol (universal-protocols.md)
+    mandates source-reads for every action / recommendation / judgment call.
+    Each state-query is its own verification need; prior verification of a
+    different topic does not satisfy this one.
+    """
+    matched = _matched_state_query(prompt)
+    if matched is None:
         return None
-    recent = context.get("recent_tool_calls", [])
-    if _has_recent_verification(recent):
-        return None
+
+    pattern, m = matched
+    # Plain-language evidence so debugging "why did this fire?" doesn't
+    # require re-running the rule logic mentally.
+    matched_phrase = m.group(0)
+    evidence = f"matched pattern {pattern!r} on phrase {matched_phrase!r} at offset {m.start()}"
+
     return SubRuleResult(
         mode="advisory",
         message=(
@@ -67,4 +69,6 @@ def check(prompt: str, context: dict):
         ),
         rule_name="verify_state",
         bypass_keyword="skip verify-state",
+        severity="info",
+        match_evidence=evidence,
     )

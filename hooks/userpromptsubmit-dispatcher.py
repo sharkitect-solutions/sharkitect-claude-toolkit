@@ -121,8 +121,12 @@ def run_dispatcher(prompt: str, recent_tool_calls: list = None) -> dict:
         if result is None:
             continue
 
-        # Bypass check: prompt contains the rule's exact bypass_keyword
-        if result.bypass_keyword in prompt.lower():
+        # Bypass check: rule's bypass_keyword must appear with word boundaries
+        # in the prompt. Uses _detect_bypass_phrases output (line 79) which
+        # already runs the regex `\bskip\s+[a-z][a-z0-9\-]*` -- guarantees the
+        # match is not embedded inside a larger word (defect #1 fix, ai-systems-
+        # architect verdict 2026-05-19). Substring fallback retired.
+        if result.bypass_keyword in bypass_phrases:
             bypass_slug = result.bypass_keyword.replace("skip ", "")
             _log_bypass({
                 "ts": _now_iso(),

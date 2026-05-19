@@ -169,3 +169,61 @@ def test_dispatcher_multiple_subrules_aggregate(dispatcher_module, tmp_path, mon
         assert "ALWAYS-FIRES" in ctx
     finally:
         extra.unlink(missing_ok=True)
+
+
+# ---------------------------------------------------------------------------
+# Build 6 v1.5 fortification — ai-systems-architect verdict 2026-05-19
+# Defect #1: bypass uses substring match instead of word-boundary regex.
+# ---------------------------------------------------------------------------
+
+
+def test_dispatcher_bypass_uses_word_boundary_not_substring(dispatcher_module, tmp_path, monkeypatch):
+    """A bypass keyword embedded as substring of a larger word does NOT bypass.
+
+    Source: ai-systems-architect verdict 2026-05-19 defect #1.
+    Before fix: line 125 `if result.bypass_keyword in prompt.lower()` is a
+    bare substring check. "noskip verify-state" contains "skip verify-state"
+    as substring -> falsely bypasses verify_state, no nudge emitted.
+    After fix: dispatcher uses the same word-boundary regex output from
+    _detect_bypass_phrases (which already runs at line 79). Embedded
+    substrings are rejected; only intentional word-boundary mentions bypass.
+    """
+    cfg_path = write_dispatcher_config(tmp_path)
+    monkeypatch.setenv("USERPROMPTSUBMIT_DISPATCHER_CONFIG", str(cfg_path))
+
+    # Substring "skip verify-state" present, but no word boundary before "skip"
+    # because "o" (in "no") and "s" (in "skip") are both word chars -> not a real bypass.
+    result = dispatcher_module.run_dispatcher(
+        prompt="is the migration done? noskip verify-state",
+        recent_tool_calls=[],
+    )
+
+    ctx = _ctx(result)
+    # verify_state SHOULD fire because the embedded match is not a real bypass
+    assert "verify" in ctx.lower(), (
+        f"verify_state must fire when bypass keyword is embedded in a larger "
+        f"word (no word boundary). Substring match is too permissive. Got: {ctx!r}"
+    )
+
+
+def test_dispatcher_real_bypass_still_works_after_word_boundary_fix(dispatcher_module, tmp_path, monkeypatch):
+    """Regression guard: legitimate bypass with surrounding whitespace still works.
+
+    After fixing defect #1, the standard form 'skip verify-state' with proper
+    word boundaries must still bypass correctly. Without this guard the
+    word-boundary fix could over-correct and break the standard bypass case.
+    """
+    cfg_path = write_dispatcher_config(tmp_path)
+    monkeypatch.setenv("USERPROMPTSUBMIT_DISPATCHER_CONFIG", str(cfg_path))
+
+    # Standard bypass syntax with surrounding whitespace -> word boundary matches.
+    result = dispatcher_module.run_dispatcher(
+        prompt="is the migration done? skip verify-state",
+        recent_tool_calls=[],
+    )
+
+    ctx = _ctx(result)
+    assert ctx == "", (
+        f"Standard bypass 'skip verify-state' with word boundaries must still "
+        f"work after the word-boundary fix. Got: {ctx!r}"
+    )

@@ -25,6 +25,37 @@
 
 ---
 
+## 2026-05-19 S61 (Sentinel) Process Decisions
+
+### process: Inline execution is the default; subagent dispatch is the exception with a strict allowlist [SUPERSEDES 2026-04-28 "transcribe inline / subagent for judgment"]
+
+**Rule:** Inline execution (controller drives every task in the live session via `superpowers:executing-plans`) is the default for plan execution. Subagent dispatch is reserved for tasks meeting ALL FOUR conditions:
+1. Task is fully self-contained in the plan (code + test commands + expected output present inline)
+2. Task has zero prior-conversation context dependency
+3. Task is repetitive (same shape, different data — e.g., 50 file renames, 20 doc audits) OR parallelizable across tasks
+4. Task is handoff-safe to a developer who joined this morning with no session memory
+
+Anything failing any one of the four conditions → inline. Strategic decisions, ambiguous specs, fix-it-up debugging, multi-step plans where earlier tasks set context for later tasks, tasks where the controller's session memory IS the load-bearing context → ALWAYS inline.
+
+**Why:** Subagent context loss is a recurring cost. Subagents do NOT inherit the controller's session memory (prior decisions, conversation discussions, accumulated nuance from earlier in the same workspace). When the controller has internalized context the plan does not capture, dispatching to a subagent loses that context — and the subagent's output, however well-executed against the plan-as-written, can drift from the actual intent. The user explicitly flagged this concern: "the cost is that sub-agents might miss [nuance I've internalized] — that worries me." Past sessions confirm the recurring pattern: subagent-driven workflows for context-dependent work produce work that LOOKS correct but misses something the controller would have caught. Inline preserves session context, accumulated decisions, the controller's awareness of upstream / downstream effects, and a fast verify loop (write → run → see → fix in seconds).
+
+**Why subagents still earn their slot:** The four conditions identify the narrow case where there is no nuance for the subagent to miss. Pure transcription tasks, parallel-dispatchable independent work, repetitive same-shape tasks — these benefit from subagent isolation (fresh context per task prevents controller context-bloat) WITHOUT the loss-of-nuance cost (because the plan already captures everything).
+
+**Why this supersedes 2026-04-28's entry:** The 2026-04-28 entry was a refinement INSIDE a subagent-driven-default world ("don't subagent for pure transcription"). It implicitly endorsed subagent dispatch for judgment-requiring tasks (multiple valid implementations, plan describes intent not code, multi-file coordination). That endorsement INVERTS the actual cost structure: judgment-requiring tasks are precisely where session context matters most, and where subagents lose the most. The 2026-05-19 rule corrects the default: inline is the safe baseline; subagents earn their slot only when there is no judgment for them to apply.
+
+**Apply when:** About to invoke `superpowers:executing-plans` OR `superpowers:subagent-driven-development` for a plan. Before dispatching anything: check the 4 conditions. If any fails → inline. If all 4 pass and the work is independent across tasks → parallel subagent dispatch is the right tool. Anything ambiguous → default to inline.
+
+**Tags:** subagent-driven-development, executing-plans, inline-execution, plan-execution, context-preservation, default-discipline, supersede-2026-04-28
+
+**Cross-references:**
+- 2026-04-28 "transcribe inline / subagent for judgment" (SUPERSEDED by this entry — partial framework, inverted recommendation on the key axis)
+- 2026-05-17 "subagent context-inheritance budget" (compatible — that entry addresses recovery when subagent dispatch fails; this entry addresses initial choice)
+- universal-protocols.md "Bigger-Picture-First Discipline" (compatible — long-term vision belongs in session memory the controller holds; subagents can't see it)
+
+**Source:** 2026-05-19 (Sentinel S61, MRL Phase 1 execution-mode discussion). User pushed back on the "subagent might miss nuance" cost; refined the heuristic to strict-inline-default with narrow allowlist; authorized supersession of the 2026-04-28 entry.
+
+---
+
 ## 2026-05-18 S58 (Skill Hub) Lessons — Bigger-Picture-First + Research-Alignment Discipline
 
 ### direction: Bigger-picture-first is necessary but NOT sufficient — research-alignment is the missing half
@@ -892,7 +923,7 @@ curl -X DELETE -H "Authorization: Bearer $GH_PAT" "https://api.github.com/repos/
 
 ## 2026-04-28 Session Lessons (Permissions Overhaul — Phases 0+A+B)
 
-### process: When the plan provides literal code, transcribe inline; reserve subagent dispatch for tasks requiring judgment
+### process: When the plan provides literal code, transcribe inline; reserve subagent dispatch for tasks requiring judgment [SUPERSEDED 2026-05-19 — see "Inline default, narrow subagent allowlist" entry]
 
 **Context:** Executing the Permissions Overhaul plan with `superpowers:subagent-driven-development` loaded. The skill recommends "Dispatch implementer subagent (./implementer-prompt.md)" for each task. But Phases A2 (templates JSON), A3 (3-row table edit), B1 (pytest scaffold), B2 (full implementation) all had the EXACT code already specified in the plan. Dispatching subagents would have meant: providing them ~500-1000 lines of plan-content as context, waiting for output, running spec-reviewer + code-quality-reviewer, then merging. For pure transcription, that's 4× more work than just writing the file directly.
 
@@ -6677,3 +6708,31 @@ tags: stale-data, supabase-trust, verify-before-citing
 **Why:** S59 v1.0 brief authored without invoking pricing-strategy + marketing-strategy-pmm + hq-revenue-ops + smb-cfo + brainstorming. Chris caught the gap, required reauthor as v2.0 with full committee lenses applied. AI's unaided opinion is NOT acceptable framing for pricing recommendations.
 **How to apply:** Per HQ Strategy Creation Rules + this confirmation: invoke all 5 methodology skills BEFORE drafting any pricing-decision-prep brief. Apply each lens per item. Cite which lens informed which recommendation. Author within committee frame, not as unaided opinion.
 **Tags:** preference, methodology, committee, hq-strategy-creation-rules, pricing
+
+## 2026-05-19 — Process Decision: Cross-doc cascade at moment of change
+
+**process:** When making canonical changes to any K1 SoT (pricing, naming, terminology, architecture), downstream cross-doc cascade MUST happen IN THE SAME SESSION as the K1 SoT change, NOT deferred to a future cascade session.
+
+**Context:** S61 RLR v3.5 → v3.6 cascade. Discovered legacy v2.0 Partnership Tier drift across 9 strategy docs that had been deferred across multiple sessions (Approval History rows from v3.4-v3.9 explicitly said "drift cascade impact: 31 downstream documents flagged — full cascade deferred to Sub-project D"). Chris's verbatim correction: *"anytime we make any changes like this, we need to make sure that moment is part of our process. We need to audit and update any drifts, any terminology changes, any pricing change, anything. When you make sure to update it at that precise moment."*
+
+**Why:** Deferred cascades compound. The 6-week-old v2.0 drift would have continued growing if a sweep hadn't surfaced it. "One at a time" refers to OFFERS (RLR, then Wrapper, then SLW), NOT to changes within an offer's scope.
+
+**Apply when:** Editing any K1 SoT under `knowledge-base/`. Use `drift-detection-hook.py` output (lists downstream docs) as the audit checklist for the same session.
+
+**Tags:** drift-prevention, cross-doc-cascade, k1-sot, process-discipline, workforce-hq
+
+## 2026-05-19 — Architecture Direction: Doc Drift Registry pattern
+
+**direction:** Every workspace should maintain a Doc Drift Registry (K1 SoT) tracking: (a) all K1 SoT documents, (b) downstream documents per K1, (c) sync status (SYNCED / PARTIAL / STALE / UNAUDITED), (d) K-tier classification (K1-K5 per `hq-knowledge-governance`), (e) machine-readable next_audit_date, (f) K1-SoT-bump-cascade test rubric, (g) Supabase event pattern for status changes.
+
+**Context:** S61 (HQ). Built `knowledge-base/governance/doc-drift-registry.md` v1.1 in response to discovering 9-doc legacy v2.0 drift. Registry is queryable across sessions: "go back and audit everything that needs to be audited" — without it, drift is invisible until manually rediscovered.
+
+**Apply when:** Any workspace that maintains K1 SoT documents with downstream dependencies. Universal: every Sharkitect workspace should have one. AIOS-clean: each client AIOS instance inherits the pattern with their own SoT graph.
+
+**Design principles:**
+1. Self-classified K1 (loss of registry = loss of audit trail)
+2. Machine-readable status + next_audit_date enables cron-driven enforcement
+3. K1-SoT-bump-cascade test rubric runs in-session, not deferred
+4. Three resolution paths: targeted fix → sync; section-rewrite → stale-section marker + queue; whole-doc rewrite → doc-level banner + one-at-a-time sequencing
+
+**Tags:** architecture-direction, drift-prevention, governance, registry-pattern, workforce-hq, aios-shippable
