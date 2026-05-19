@@ -10,6 +10,11 @@ import pytest
 from _subrule_test_fixtures import write_dispatcher_config
 
 
+def _ctx(result):
+    """Extract additionalContext from harness-contract envelope."""
+    return result.get("hookSpecificOutput", {}).get("additionalContext", "")
+
+
 @pytest.fixture
 def dispatcher_module():
     """Import the dispatcher fresh per test (it reads config at import-time)."""
@@ -45,7 +50,7 @@ def test_dispatcher_returns_no_context_when_no_rule_fires(dispatcher_module, tmp
         recent_tool_calls=[],
     )
 
-    assert result.get("additionalContext", "") == ""
+    assert _ctx(result) == ""
 
 
 def test_dispatcher_emits_nudge_when_rule_fires(dispatcher_module, tmp_path, monkeypatch):
@@ -58,7 +63,7 @@ def test_dispatcher_emits_nudge_when_rule_fires(dispatcher_module, tmp_path, mon
         recent_tool_calls=[],
     )
 
-    ctx = result.get("additionalContext", "")
+    ctx = _ctx(result)
     assert "verify_state" in ctx or "verify" in ctx.lower()
     assert "skip verify-state" in ctx  # bypass discovery
 
@@ -73,7 +78,7 @@ def test_dispatcher_honors_bypass_phrase(dispatcher_module, tmp_path, monkeypatc
         recent_tool_calls=[],
     )
 
-    assert result.get("additionalContext", "") == ""
+    assert _ctx(result) == ""
 
 
 def test_dispatcher_isolates_subrule_failures(dispatcher_module, tmp_path, monkeypatch, capsys):
@@ -94,7 +99,7 @@ def test_dispatcher_isolates_subrule_failures(dispatcher_module, tmp_path, monke
             prompt="is X done?",
             recent_tool_calls=[],
         )
-        assert "verify" in result.get("additionalContext", "").lower()
+        assert "verify" in _ctx(result).lower()
     finally:
         buggy_file.unlink(missing_ok=True)
 
@@ -159,7 +164,7 @@ def test_dispatcher_multiple_subrules_aggregate(dispatcher_module, tmp_path, mon
             prompt="is X done?",
             recent_tool_calls=[],
         )
-        ctx = result.get("additionalContext", "")
+        ctx = _ctx(result)
         assert "verify" in ctx.lower()
         assert "ALWAYS-FIRES" in ctx
     finally:

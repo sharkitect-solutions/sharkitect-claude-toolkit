@@ -147,9 +147,15 @@ def run_dispatcher(prompt: str, recent_tool_calls: list = None) -> dict:
         "enabled_count": len(enabled),
     })
 
-    if nudges:
-        return {"additionalContext": "\n\n".join(nudges)}
-    return {"additionalContext": ""}
+    # Harness contract: Claude Code UserPromptSubmit expects nudges nested under
+    # hookSpecificOutput.{hookEventName,additionalContext}. Bare top-level
+    # additionalContext is silently dropped. Mirror methodology-dispatcher /
+    # cron-context-enforcer output shape.
+    inner = {
+        "hookEventName": "UserPromptSubmit",
+        "additionalContext": "\n\n".join(nudges) if nudges else "",
+    }
+    return {"hookSpecificOutput": inner}
 
 
 def main():
@@ -161,7 +167,10 @@ def main():
         print(json.dumps({}))
         sys.exit(0)
 
-    prompt = hook_input.get("prompt", "") or hook_input.get("user_message", "")
+    # Accept both 'prompt' and 'user_prompt' field names (harness uses both
+    # across Claude Code versions; methodology-dispatcher + cron-context-enforcer
+    # both fall back the same way).
+    prompt = hook_input.get("prompt") or hook_input.get("user_prompt") or ""
     # Recent tool calls would be passed from hook context if available; for now empty
     result = run_dispatcher(prompt=prompt, recent_tool_calls=[])
     print(json.dumps(result))
