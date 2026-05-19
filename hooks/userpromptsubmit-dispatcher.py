@@ -67,21 +67,23 @@ def _import_subrule(subrule_id: str):
     return importlib.import_module(full)
 
 
-def run_dispatcher(prompt: str, recent_tool_calls: list = None) -> dict:
+def run_dispatcher(prompt: str) -> dict:
     """
-    Main dispatcher entry. Returns dict with 'additionalContext' key (str).
+    Main dispatcher entry. Returns harness envelope dict with hookSpecificOutput.
 
-    Called by both the actual hook entry (read stdin) AND tests (pass args directly).
+    Called by both the actual hook entry (read stdin) AND tests.
+
+    v1.5 (2026-05-19): recent_tool_calls parameter removed per Option D
+    (100% Verification protocol mandates per-action verification; the
+    defensive logic that consumed this field has been retired).
     """
-    recent_tool_calls = recent_tool_calls or []
     cfg = load_config()
     enabled = cfg.get("enabled_subrules", [])
     bypass_phrases = _detect_bypass_phrases(prompt, enabled)
 
     context = {
-        "recent_tool_calls": recent_tool_calls,
-        "active_plans": [],  # populated by hook entry from plans-registry; tests pass []
-        "session_brief": None,
+        "active_plans": [],  # populated by hook entry in v3 prep
+        "session_brief": None,  # populated by hook entry in v4 prep
         "workspace": os.environ.get("CLAUDE_WORKSPACE", "skill-management-hub"),
         "bypass_phrases_in_prompt": bypass_phrases,
     }
@@ -175,8 +177,7 @@ def main():
     # across Claude Code versions; methodology-dispatcher + cron-context-enforcer
     # both fall back the same way).
     prompt = hook_input.get("prompt") or hook_input.get("user_prompt") or ""
-    # Recent tool calls would be passed from hook context if available; for now empty
-    result = run_dispatcher(prompt=prompt, recent_tool_calls=[])
+    result = run_dispatcher(prompt=prompt)
     print(json.dumps(result))
 
 

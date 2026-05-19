@@ -46,8 +46,7 @@ def test_dispatcher_returns_no_context_when_no_rule_fires(dispatcher_module, tmp
     monkeypatch.setenv("USERPROMPTSUBMIT_DISPATCHER_CONFIG", str(cfg_path))
 
     result = dispatcher_module.run_dispatcher(
-        prompt="write a python function to reverse a string",
-        recent_tool_calls=[],
+        prompt="write a python function to reverse a string"
     )
 
     assert _ctx(result) == ""
@@ -59,8 +58,7 @@ def test_dispatcher_emits_nudge_when_rule_fires(dispatcher_module, tmp_path, mon
     monkeypatch.setenv("USERPROMPTSUBMIT_DISPATCHER_CONFIG", str(cfg_path))
 
     result = dispatcher_module.run_dispatcher(
-        prompt="is the migration done?",
-        recent_tool_calls=[],
+        prompt="is the migration done?"
     )
 
     ctx = _ctx(result)
@@ -74,8 +72,7 @@ def test_dispatcher_honors_bypass_phrase(dispatcher_module, tmp_path, monkeypatc
     monkeypatch.setenv("USERPROMPTSUBMIT_DISPATCHER_CONFIG", str(cfg_path))
 
     result = dispatcher_module.run_dispatcher(
-        prompt="is the migration done? skip verify-state",
-        recent_tool_calls=[],
+        prompt="is the migration done? skip verify-state"
     )
 
     assert _ctx(result) == ""
@@ -96,8 +93,7 @@ def test_dispatcher_isolates_subrule_failures(dispatcher_module, tmp_path, monke
 
         # Should NOT raise, and verify_state should still fire
         result = dispatcher_module.run_dispatcher(
-            prompt="is X done?",
-            recent_tool_calls=[],
+            prompt="is X done?"
         )
         assert "verify" in _ctx(result).lower()
     finally:
@@ -112,8 +108,7 @@ def test_dispatcher_logs_fires_to_telemetry(dispatcher_module, tmp_path, monkeyp
     monkeypatch.setenv("HOOK_FIRE_LOG_PATH", str(log_path))
 
     dispatcher_module.run_dispatcher(
-        prompt="is the build done?",
-        recent_tool_calls=[],
+        prompt="is the build done?"
     )
 
     assert log_path.exists()
@@ -132,8 +127,7 @@ def test_dispatcher_logs_bypasses_to_bypass_log(dispatcher_module, tmp_path, mon
     monkeypatch.setenv("BYPASS_LOG_PATH", str(bypass_log))
 
     dispatcher_module.run_dispatcher(
-        prompt="is X done? skip verify-state",
-        recent_tool_calls=[],
+        prompt="is X done? skip verify-state"
     )
 
     assert bypass_log.exists()
@@ -161,8 +155,7 @@ def test_dispatcher_multiple_subrules_aggregate(dispatcher_module, tmp_path, mon
         monkeypatch.setenv("USERPROMPTSUBMIT_DISPATCHER_CONFIG", str(cfg_path))
 
         result = dispatcher_module.run_dispatcher(
-            prompt="is X done?",
-            recent_tool_calls=[],
+            prompt="is X done?"
         )
         ctx = _ctx(result)
         assert "verify" in ctx.lower()
@@ -194,8 +187,7 @@ def test_dispatcher_bypass_uses_word_boundary_not_substring(dispatcher_module, t
     # Substring "skip verify-state" present, but no word boundary before "skip"
     # because "o" (in "no") and "s" (in "skip") are both word chars -> not a real bypass.
     result = dispatcher_module.run_dispatcher(
-        prompt="is the migration done? noskip verify-state",
-        recent_tool_calls=[],
+        prompt="is the migration done? noskip verify-state"
     )
 
     ctx = _ctx(result)
@@ -218,8 +210,7 @@ def test_dispatcher_real_bypass_still_works_after_word_boundary_fix(dispatcher_m
 
     # Standard bypass syntax with surrounding whitespace -> word boundary matches.
     result = dispatcher_module.run_dispatcher(
-        prompt="is the migration done? skip verify-state",
-        recent_tool_calls=[],
+        prompt="is the migration done? skip verify-state"
     )
 
     ctx = _ctx(result)
