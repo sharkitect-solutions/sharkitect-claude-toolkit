@@ -95,10 +95,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/mcp-limitation-guard.py\""
-          },
-          {
-            "type": "command",
             "command": "python \"{HOME}/.claude/hooks/inbox-move-guard.py\""
           },
           {
@@ -126,6 +122,15 @@
           {
             "type": "command",
             "command": "python \"{HOME}/.claude/hooks/methodology-dispatcher.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__claude_ai_Airtable__create_field",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python ~/.claude/hooks/airtable-create-field-guard.py"
           }
         ]
       }
