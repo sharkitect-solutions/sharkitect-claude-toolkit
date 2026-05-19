@@ -1,5 +1,30 @@
 # Global Lessons Learned
 
+## 2026-05-19 S59 (Skill Hub) Lessons — TDD passes ≠ harness contract honored
+
+### error: Build 6 v1 dispatcher used bare `additionalContext` instead of `hookSpecificOutput.{hookEventName,additionalContext}` envelope — hook fired but nudge silently dropped
+
+**Symptom:** Build 6 v1 shipped with 20/20 TDD pass + empirical stdin smoke test producing correct nudge text. Live smoke test in fresh CC session (S59): user typed "is the migration done?" — `hook-fire-log.jsonl` recorded `fired_count: 1`, but the verify_state nudge was NOT visible in the assistant's prompt context. Hook fired, output produced, harness silently ignored it.
+
+**Root cause:** Claude Code UserPromptSubmit harness contract requires output as `{"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": "..."}}`. Bare top-level `{"additionalContext": "..."}` is silently dropped. The 3 working precedents in `~/.claude/hooks/` (methodology-dispatcher, cron-context-enforcer, cron-activity-surfacer) all use the wrapped form. The Build 6 spec / plan didn't verify the contract against working precedent before specifying the dispatcher's output shape.
+
+**Why TDD missed it:** Unit tests checked the dispatcher's INTERNAL return dict; integration tests checked stdout shape — both against the WRONG expected shape (bare `additionalContext`). Tests passed because tests + impl + spec all shared the same wrong assumption. TDD validates implementation matches specification — it cannot validate the specification matches the harness contract. That gap is closed by checking working precedent, not by writing more tests.
+
+**Secondary issue found in same investigation:** Dispatcher fallback `hook_input.get("user_message")` was wrong — should be `user_prompt` (matches methodology-dispatcher + cron-context-enforcer fallback chain).
+
+**Fix:**
+- Dispatcher's `run_dispatcher()` now returns `{"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": <text_or_empty>}}`
+- `main()` reads `hook_input.get("prompt") or hook_input.get("user_prompt")`
+- 2 new failing-first tests assert the harness contract envelope explicitly (`test_dispatcher_emits_harness_contract_envelope`, `test_dispatcher_accepts_user_prompt_field_name`)
+- Total: 22/22 tests pass (was 20/20)
+- Live stdin pipe now produces correctly-wrapped output
+
+**Rule for future hook builds:** Before specifying ANY hook's output shape, grep `~/.claude/hooks/` for the same event type and READ at least 2 working precedents. Mirror their envelope exactly. The spec / plan / first test MUST capture the envelope as a literal expected value, not a description of "what fields the output has."
+
+**Connects to:** Verify Before Filing Protocol; Verify Before Building Protocol; the Research-Alignment lesson below (S58). All three are the same class — assumption-based work that passes tests but fails contracts. Documentation alone is insufficient; runtime smoke test in a real CC session is the only proof.
+
+---
+
 ## 2026-05-18 S58 (Skill Hub) Lessons — Bigger-Picture-First + Research-Alignment Discipline
 
 ### direction: Bigger-picture-first is necessary but NOT sufficient — research-alignment is the missing half
@@ -6625,3 +6650,30 @@ tags: supabase-writers, schema-discovery, fortification-test
 preference: **Stale-data drift confirmation.** Chris explicitly wants the AI to challenge stale data inline — when a Supabase row's phase_description carries a rationale that contradicts current user direction, the AI must surface the contradiction rather than cite the stale rationale as-is. S58 example: the AIOS Contrarian Truth project's phase_description said "Chris directive 2026-05-10: pause Tier 2 (AIOS + CLEO + AIOS-related)..." but the actual reason for the CLEO table was focus-on-FF, not Tier 2 grouping. AI cited verbatim → user corrected → record updated.
 apply-when: any time AI reads a Supabase notes/phase_description field that carries rationale text. Verify the rationale against current user statements before citing as authoritative.
 tags: stale-data, supabase-trust, verify-before-citing
+
+## 2026-05-19 (S60) — HQ Workforce — Pricing-decision-prep methodology gaps
+
+### preference: NEVER use shorthand in conversation about pricing/positioning decisions
+**Why:** Chris explicitly flagged S59 that shorthand like "GE", "7e", "v4.0", and "FP" without context causes confusion that derails decision flow. He had to ask "what is PPP?" mid-walkthrough because partnership-progression-pricing was abbreviated.
+**How to apply:** When walking Chris through ANY pricing/positioning/strategic decision item, always expand acronyms on first reference per response. Use "Growth Essentials (GE)" not "GE" — and after the expansion, prefer the full term. Plain language only. Applies UNIFORMLY across pricing, positioning, brand, financial decisions.
+**Tags:** preference, communication, pricing-work, chris-direction
+
+### process: Internal-consistency check REQUIRED before any v.x lock summary
+**Why:** S59 summarized v4.0 with Item 7e (CPS 90-day exception) locked while the broader CPS architecture restructure (which eliminates the 90-day rule entirely) was brain-dumped in the same session. The two decisions directly contradicted each other. Chris caught the contradiction on review and called the hard reset.
+**How to apply:** Before producing a version-lock summary that touches multiple items, run an internal-consistency pass: do any locks depend on rules being changed/eliminated by other locks in the same summary? If yes, flag and resolve BEFORE summarizing. Specifically: never lock an exception to a rule being eliminated. Never lock a price for a service being restructured. Never lock a discount mechanic against a tier structure being redesigned.
+**Tags:** process, decision-quality, version-lock, anti-pattern
+
+### direction: Add-ons NEVER receive discounts
+**Why:** Chris stated 2026-05-19 S59 that add-ons (AI Chatbot, lead destinations beyond cap, bilingual extensions, 4th+ verticals, etc.) are priced at full rate every occurrence. Annual Commitment Discount + Partnership Progression Pricing apply ONLY to main offers (RLR / SLW / PPM / Wrapper). Add-ons don't accumulate any discount layer. Standing pricing principle for v4.0 forward.
+**How to apply:** When pricing any add-on or capability extension, do NOT apply Annual % or PPP %. Pricing-strategy "NEVER offer more than one discount mechanism at the same time" + Chris's explicit principle reinforce this. Document in pricing-structure.md §15 as Rule #16 when v4.0 ships.
+**Tags:** direction, pricing, discounts, brand-discipline
+
+### direction: CPS is a structural add-on, not a sellable offer
+**Why:** Chris stated 2026-05-19 S59 that selling CPS as a standalone is vendor-pattern behavior — and "we are not vendors, we're systems-first." CPS without a foundational lead-capture system is what vendors sell; Sharkitect's Good Doctor philosophy requires the foundational system to be in place. Therefore CPS exists only as: (a) add-on to RLR, (b) add-on to SLW, (c) bundled component of PPM. No standalone path.
+**How to apply:** Phase 2 of the CPS Resolution plan executes this. §7.5 rewrites with "CPS is add-on only — never standalone." §14 removes CPS from Standalone SaaS. 90-day waiting rule eliminated (bundling makes it automatic). Sweep cross-references across 8 K1 documents. Future pricing decisions never treat CPS as a separable offer.
+**Tags:** direction, architecture, brand-positioning, systems-first, good-doctor-philosophy
+
+### preference: Committee analysis (full 5 lenses) is required for ANY pricing-decision-prep brief
+**Why:** S59 v1.0 brief authored without invoking pricing-strategy + marketing-strategy-pmm + hq-revenue-ops + smb-cfo + brainstorming. Chris caught the gap, required reauthor as v2.0 with full committee lenses applied. AI's unaided opinion is NOT acceptable framing for pricing recommendations.
+**How to apply:** Per HQ Strategy Creation Rules + this confirmation: invoke all 5 methodology skills BEFORE drafting any pricing-decision-prep brief. Apply each lens per item. Cite which lens informed which recommendation. Author within committee frame, not as unaided opinion.
+**Tags:** preference, methodology, committee, hq-strategy-creation-rules, pricing
