@@ -1,0 +1,9 @@
+{
+  "_comment": "Build 6 v1 production config. Enabled sub-rules under sharkitect/ namespace are the reference implementation. AIOS clients add their own namespace (v2).",
+  "version": "1.0",
+  "enabled_subrules": [
+    "sharkitect.verify_state"
+  ],
+  "log_dir": null,
+  "spec": "3.- Skill Management Hub/docs/superpowers/specs/2026-05-18-build-6-userpromptsubmit-dispatcher-design.md"
+}
