@@ -1612,6 +1612,101 @@ python ~/.claude/scripts/notify-human-action.py \
 
 Appends entry to the workspace's HUMAN-ACTION-REQUIRED.md (creating it with header if missing) and sends Slack notification via the Polaris bot to the **workspace's dedicated channel** (per the per-workspace channel table established 2026-05-13 — see Autonomous Completion Notification to User Protocol below). Slack credentials loaded from `~/.claude/.env`: `SLACK_POLARIS_BOT_OAUTH_TOKEN` (bot token) + workspace channel env var (`SKILL_MANAGMENT_HUB_ALERTS` / `HQ_ALERTS` / `SENTINEL_ALERTS`). Override per-call with `--channel <id>` if needed. Telegram credentials are no longer consulted by this helper as of 2026-05-13 (wr-sentinel-2026-05-13-002).
 
+### Step-by-step format requirement (NON-NEGOTIABLE — added 2026-05-20)
+
+Every HAR entry MUST contain step-by-step instructions complete enough that the operator does NOT need to open any referenced document to act. The operator's time is the bottleneck; HARs that say "see X for details" force a context switch and slow execution.
+
+**Source:** Sentinel wr-sentinel-2026-05-20-003. User direction (verbatim): *"I don't have time to be reading documents trying to find out what it is. Just give me exactly what I need to do."*
+
+The `Action required` field MUST contain:
+
+1. **A numbered list** (1, 2, 3, ...) — not bullet points, not prose paragraphs
+2. **Imperative verbs** as the first word of each step ("Open", "Click", "Type", "Run", "Verify")
+3. **Named surfaces** for every UI interaction (exact menu paths, button labels, field names — not "the settings page" but "Task Scheduler Library > Claude-Orphan-Cleanup-Daily > Properties > Actions tab > Edit")
+4. **Exact commands** for every CLI step (full command line, copy-pasteable, no placeholders unless the operator needs to fill them in)
+5. **A final verification step** the operator can run to confirm the action took effect (file appears, status shows green, command returns 0)
+
+**Acceptable** (passes the test):
+
+```
+1. Open Task Scheduler (taskschd.msc)
+2. Navigate to: Task Scheduler Library > Claude-Orphan-Cleanup-Daily
+3. Right-click > Properties > Actions tab > Edit
+4. Change Arguments field from `--execute` to `--report-only`
+5. Click OK on Edit, OK on Properties
+6. Right-click the task > Enable
+7. Verify: right-click > Run, then check `~/.claude/.tmp/orphan-cleanup-reports/` for a new report-*.json file (NOT a kill log)
+```
+
+**Not acceptable** (fails the test):
+
+```
+- See spec-orphan-cleanup-heartbeat.md section 7 for re-enable steps
+- Update the Task Scheduler entry per the protocol
+- Use the new flag
+```
+
+Any HAR entry that doesn't pass the test should be amended before the file write completes. The `notify-human-action.py` helper SHOULD grow a `--steps` flag (list of step strings) that renders the canonical numbered format automatically; until that lands, callers must format the `--details` payload manually using the structure above.
+
+### Active alert on unblock (NON-NEGOTIABLE — added 2026-05-20)
+
+When a HAR entry is BLOCKED on another workspace's work (e.g., "re-enable Task Scheduler" blocked on "ship heartbeat fix"), the AI must ACTIVELY push a Slack alert to the operator's workspace channel the moment the blocking dependency completes — not leave the unblock to passive notice during the next session start.
+
+**Source:** Sentinel wr-sentinel-2026-05-20-003. User direction (verbatim): *"As soon as you get a notification that it finished, you need to alert me that I am ready to take care of that. That should be the universal protocol."*
+
+#### Required entry fields when an HAR is blocked
+
+Two additional fields extend the canonical entry format when blockage applies:
+
+```markdown
+## {ISO-DATE} -- {SHORT-ACTION-SUMMARY}
+
+- ... (existing fields)
+- **Blocked by:** {WR or RT id of the dependency}
+- **Alert on unblock:** yes
+```
+
+The `Blocked by` field carries the same identifier the completion-notification routed-task will reference in its `completes_task_id` field — this is the match key used by the alert-fire logic.
+
+#### Match-and-fire logic (where this lives)
+
+When a completion-notification routed-task arrives in a workspace's inbox (via `close-inbox-item.py` notification flow), the receiving workspace MUST:
+
+1. Read the notification's `completes_task_id`
+2. Scan the workspace's `HUMAN-ACTION-REQUIRED.md` for any open entry whose `Blocked by` value matches
+3. On match: push a Slack alert via the workspace's dedicated channel (per the per-workspace table) using the canonical format below
+4. Flip the matched HAR entry's `Blocked by` line to add a `(CLEARED at {ISO-timestamp})` annotation so the trend surfacing pass sees the state transition
+
+Detection runs at three trigger points:
+- Session start (`session-startup-guard.py` step that checks routed-task inbox)
+- CronCreate-fired hourly inbox poll
+- Live close-inbox-item.py invocation (when this workspace is the originator of the closed item)
+
+#### Canonical Slack alert format
+
+```
+*[HAR UNBLOCKED — {WORKSPACE}]*
+The dependency for this human action just completed:
+
+  • Action: {short summary from the HAR entry}
+  • Blocked by: {WR/RT id} ← just completed
+  • You can now: {first line of Action required steps}
+
+Steps (full list inline so you don't need to switch windows):
+1. {step 1}
+2. {step 2}
+3. ... (full numbered list from the HAR entry)
+
+Verify with: {final verification step from the HAR entry}
+HAR file: {workspace}/HUMAN-ACTION-REQUIRED.md (entry: {ISO-DATE} -- {summary})
+```
+
+The steps are inlined intentionally — the operator should be able to act from the Slack message without opening any file.
+
+#### Implementation status
+
+The protocol is documented here; the runtime mechanism (notify-human-action.py `--blocked-by` flag + session-startup-guard match-and-fire logic + cron-fired poll integration) is filed as a follow-up Sentinel WR (wr-sentinel-2026-05-20-003 part C+D). Until that ships, the AI MUST honor the discipline manually: when closing any cross-workspace inbox item whose `completes_task_id` matches an open HAR `Blocked by` field, run the Slack alert by hand using the format above.
+
 ## 100% Verification Before Any Action, Recommendation, or Judgment Call (NON-NEGOTIABLE)
 
 **Source:** wr-sentinel-2026-05-10-001 (filed by Sentinel after the 2026-05-10 HealthCheck miscall: paused operational heartbeat after assuming `health summary` = report; a 4-second verify against the actual schtasks `//v` output would have prevented it). The user explicitly escalated this rule to NON-NEGOTIABLE across ALL workspaces in the same session. Sentinel's local seed text: `feedback_100_percent_verify_before_anything.md`.
