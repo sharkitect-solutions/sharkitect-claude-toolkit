@@ -1,5 +1,47 @@
 # Global Lessons Learned
 
+## 2026-05-19 S60 (Skill Hub) Lessons — Build 6 v1.5 fortification + plain-English mandate
+
+### direction: Plain-English output + inline term explanation is NON-NEGOTIABLE
+- Date: 2026-05-19
+- Context: User pushback (3rd+ recurrence of jargon-output feedback class) — "if I don't understand it, my clients who use AIOS are going to be completely lost. You might as well talk to him in a foreign language."
+- Apply when: every substantive user-facing response across all workspaces; ships with AIOS
+- Design principles:
+  - Invoke `writing-clearly-and-concisely` skill before substantive output
+  - Every skill/tool/hook/agent reference gets inline plain-English explanation when first mentioned in a response
+  - Pairs with CEO Advisor Mandatory Invocation for company-affecting work
+  - Codified as NON-NEGOTIABLE section in universal-protocols.md (peer-level with CEO Advisor rule)
+- Tags: plain-english, NON-NEGOTIABLE, AIOS-ship, communication, universal-protocols
+
+### process: Architect verdicts need protocol-layer reconciliation before execution
+- Date: 2026-05-19
+- Context: ai-systems-architect agent reviewed Build 6 v1; verdict prescribed wiring `recent_tool_calls` from tool-usage journal to reduce verify_state false positives. Surface-level technical observation was correct (dead code in verify_state). Framing was wrong — "fire less often" conflicts with 100% Verification Before Any Action protocol mandating per-action verification.
+- Why: Architect optimizes for one dimension (UX / operator fatigue); protocols encode multi-dimensional priorities. Mechanical execution of architect prescription would weaken the rule the dispatcher enforces.
+- Pattern: Path D (remove dead code, align with protocol) selected over Path A (wire journal, weaken protocol). Architect's verdict is independent lens, NOT authoritative override of protocol layer.
+- Apply when: any independent agent verdict (architect, judge, reviewer) lands. Pause before execution; cross-check against universal-protocols.md rules; surface conflict as honest pushback if found.
+- Tags: pushback, protocol-precedence, architect-review, decision-making
+
+### process: When offering option-sets to operator, surface the cleanest long-term fix as a peer option
+- Date: 2026-05-19
+- Context: defect #2 option-presenting. Initially offered Option A (wire journal — conflicts with protocol) and Option B (decline + leave dead code — leaves code health issue). User asked "what's the best long-term fix?" — I had missed Option D (remove dead code, align with protocol).
+- Why: Muddled framing presented two suboptimal options without surfacing the clean alternative. User had to dig for it.
+- Apply when: presenting multi-option decisions to operator. The "do nothing" / "decline" option is rarely the best long-term fix — there's usually a cleaner code-health option (remove dead code, refactor, simplify). Surface it.
+- Tags: option-presenting, communication, long-term-fix, code-health
+
+### error: hook-development skill not invoked before editing hook files (recurrence pattern)
+- Date: 2026-05-19
+- Category: process
+- Attempted: edited 3 hook files (userpromptsubmit-dispatcher.py + _subrules/sharkitect/_contract.py + _subrules/sharkitect/verify_state.py) for Build 6 v1.5 fortification without invoking hook-development skill
+- Error: CLAUDE.md Mandatory Skill Invocations rule explicitly requires hook-development invocation BEFORE editing files under ~/.claude/hooks/. Skipped silently.
+- Solution: Build 6 v4 bigger_picture_first sub-rule is architecturally designed to address this enforcement gap. Until v4 ships, AI-side discipline: check ACTIVE_SKILLS in CLAUDE.md before touching hook files.
+- Tags: hook-development, recurrence-pattern, methodology-skip, build-6-v4-target
+
+### preference: When user asks "explain in more detail," restructure with clarity-not-volume
+- Date: 2026-05-19
+- Context: User said "Can you explain in more detail what each one does? Why extended journaling, even though whatever you're telling me conflicts or whatever? What is the best long-term solution fix? If these are issues that you flag as a deeper issue, then why are we?"
+- Apply when: User asks clarifying questions on a previous response. Don't just add more words — restructure the framing, name the confusion source explicitly ("you caught me — my framing was muddled"), surface the option I missed.
+- Tags: clarification-response, communication, restructuring
+
 ## 2026-05-19 S59 (Skill Hub) Lessons — TDD passes ≠ harness contract honored
 
 ### error: Build 6 v1 dispatcher used bare `additionalContext` instead of `hookSpecificOutput.{hookEventName,additionalContext}` envelope — hook fired but nudge silently dropped
