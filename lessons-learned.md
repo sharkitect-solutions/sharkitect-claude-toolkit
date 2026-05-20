@@ -32,6 +32,24 @@
 - Solution: Build 6 v3 or v4 should include `hook-development` as a dispatcher sub-rule that nudges before Edit/Write on `~/.claude/hooks/**`. Until then, AI-side discipline is the only enforcement — and discipline has now failed 2 sessions running on the same class.
 - Tags: hook-development, recurrence-pattern, methodology-skip, build-6-v3-or-v4-target, AIOS-self-enforcement
 
+## 2026-05-19 S62 (Sentinel) Lessons — MRL Phase 2 + audit-gate validation
+
+### process: PostToolUse rule-file-self-audit gate caught real gaps twice in one session — validates runtime-detection-over-documentation
+
+**Context:** During MRL Phase 2 close (10-task atomic-TDD batch, Sentinel S62), the `rule-file-self-audit-gate.py` PostToolUse hook fired twice:
+- After edit to `~/.claude/plans/2026-05-17-memory-retrieval-layer.md` (parent plan) → checklist Item 2 ("Did you update plans-registry.md?") = honest **NO** — I had queued the registry update for the next step but skipped it temporarily. Forced immediate remediation.
+- After edit to `brain-dump/2026-05-19-sync-skills-missing-plans-docs-mirror.md` → checklist Item 2 ("If cross-workspace topic, did you file routed-task copies?") = honest **PARTIAL** — `routed_to:` frontmatter annotation present, no actual WR filed. Forced immediate WR filing (`wr-sentinel-2026-05-20-001` to Skill Hub).
+
+**Why this matters:** Both gaps were SCHEDULED to be fixed in the same task batch (Task 2.10 and end-session-step respectively), but the gate caught them DURING the work rather than at task-end summary. The work-as-written would have committed the parent plan with an out-of-sync registry, then committed the brain-dump with no actual routing, until the next audit caught the divergence (potentially next session).
+
+**Pattern confirmed:** The "Documentation without runtime detection eventually fails" lesson is real, AND the inverse is also true — runtime detection without honest engagement IS bypassable. The gate's value depends on the AI answering honestly when prompted. The strict A/B/C/D bypass vocabulary + visible "Loose excuses are INVALID" list made the bypass psychologically expensive enough that honest answers became the default.
+
+**Apply when:** Building any new runtime gate — pair it with explicit honest-answer prompts and a vocabulary of invalid excuses, not just a "did you do X?" question. The bypass surface matters as much as the trigger surface.
+
+**Tags:** runtime-detection, audit-gate, bypass-vocabulary, post-task-self-audit, validated-pattern, mrl-phase-2
+
+---
+
 ## 2026-05-19 S60 (Skill Hub) Lessons — Build 6 v1.5 fortification + plain-English mandate
 
 ### direction: Plain-English output + inline term explanation is NON-NEGOTIABLE
@@ -6810,3 +6828,33 @@ tags: stale-data, supabase-trust, verify-before-citing
 4. Three resolution paths: targeted fix → sync; section-rewrite → stale-section marker + queue; whole-doc rewrite → doc-level banner + one-at-a-time sequencing
 
 **Tags:** architecture-direction, drift-prevention, governance, registry-pattern, workforce-hq, aios-shippable
+
+## 2026-05-19 — Process: Plain English Output protocol — 4th+ recurrence (S62 HQ)
+
+**process:** AI dumped jargon ("Sub-product Promotion Rule," "Step 5.5 Value Overlay Check," "small-scope routing formalize") in committee report without invoking `writing-clearly-and-concisely` BEFORE generating user-facing analysis, even though the Plain English Output + Inline Term Explanation protocol was locked into universal-protocols.md as NON-NEGOTIABLE earlier the same week. Chris caught it mid-session and explicitly flagged the failure. AI remediated via translation table for all six flagged terms.
+
+**Context:** S62 SLW v3.12 restructure committee analysis. Same class of failure as prior documented recurrences (universal-protocols.md notes "third+ recurrence" before S62; this makes 4th+). Documentation alone has not been sufficient.
+
+**Why:** AI defaults to internal-system vocabulary when generating committee analyses because the source skills + K1 SoTs use that vocabulary. Without a runtime hook detecting substantive output without preceding `writing-clearly-and-concisely` invocation, the failure recurs.
+
+**How to apply:** Until the planned runtime detection hook is built (filed as follow-up WR to Skill Hub at S62 close), AI discipline: invoke `writing-clearly-and-concisely` BEFORE generating any substantive committee report, decision matrix, or multi-section response. The Plain English protocol explicitly says this is required for "every substantive user-facing response."
+
+**Action:** File WR to Skill Hub for the planned runtime detection hook (detect substantive assistant output without preceding `writing-clearly-and-concisely` skill invocation in recent tool journal → advisory nudge).
+
+**Tags:** plain-english-failure, recurring-pattern, protocol-enforcement, runtime-detection-needed, workforce-hq, s62
+
+## 2026-05-19 — Process: Pushback Protocol works in BOTH directions — confirmed (S62 HQ)
+
+**process:** Pushback Protocol is not just "AI pushes back on user when user is wrong." It also means "AI honestly concedes when user pushback is correct on merits — not because of CEO authority but because the argument is stronger." S62 demonstrated both directions: (1) AI pushed back on Chris's initial $175 anchor by running the $150 vs $175 comparison and committee voted $175 anyway — AI didn't cave. (2) Chris pushed back on committee's Option C (separate framework SoT) with sharp argument that the framework was already conceptually defined; AI honestly re-evaluated, each committee lens reconsidered, five lenses conceded Chris was right, decision flipped to Option B + lightweight Rule #17 capture.
+
+**Context:** S62 CPS+PPM approach decision. Chris affirmed the protocol working at the meta-level: "And you are right to go ahead and use a bigger picture too. That's a good job."
+
+**Why this matters:** Trust requires honesty in both directions. If AI only pushes back but never concedes, AI becomes contrarian. If AI only concedes but never pushes back, AI becomes a yes-agent. Both extremes erode the protocol's value.
+
+**How to apply:** 
+- When AI is about to defend a recommendation against user pushback, ask: "Is the user's pushback stronger on merits, or is AI's recommendation stronger?"
+- If user's pushback is stronger → concede explicitly, name the reasoning that flipped
+- If AI's recommendation is stronger → restate it with reasoning, let user decide with full information (don't cave)
+- "Good job" / "you are right" from user is a positive feedback signal worth capturing — it means the protocol worked at the meta-level
+
+**Tags:** pushback-protocol, both-directions, honesty-discipline, committee-pattern, protocol-confirmation, workforce-hq, s62
