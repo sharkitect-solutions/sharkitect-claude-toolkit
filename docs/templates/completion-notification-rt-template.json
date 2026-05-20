@@ -1,0 +1,47 @@
+{
+  "_template_meta": {
+    "purpose": "Canonical schema for the Completion Notification Protocol routed-task. Filled in by close-inbox-item.py auto-write logic, or hand-populated when needed. See ~/.claude/rules/universal-protocols.md 'Completion Notification Protocol' section.",
+    "source_protocol": "Completion Notification Protocol",
+    "filed_under": "wr-2026-04-25-002 (Sentinel)",
+    "filename_convention": "rt-<YYYY-MM-DD>-<original-task-slug>-completed-by-<completer-workspace>.json",
+    "required_fields": [
+      "task_id",
+      "kind",
+      "routed_from",
+      "routed_to",
+      "routed_date",
+      "completes_task_id",
+      "what_was_done",
+      "fix_instructions",
+      "notify_on_completion"
+    ],
+    "recommended_fields": [
+      "verification_summary",
+      "what_originator_can_do_now",
+      "completes_task_status",
+      "priority",
+      "status",
+      "context"
+    ]
+  },
+  "task_id": "rt-YYYY-MM-DD-<original-slug>-completed-by-<completer-workspace>",
+  "kind": "completion_notification",
+  "routed_from": "<completer canonical workspace name>",
+  "routed_to": "<originator canonical workspace name>",
+  "routed_date": "YYYY-MM-DD",
+  "priority": "low",
+  "status": "pending",
+  "completes_task_id": "<original task or work-request id>",
+  "completes_task_status": "processed",
+  "what_was_done": "<copy of the closer's --what-was-done value, describing the actual work completed>",
+  "verification_summary": "<one or two lines on how the work was verified -- key proof points, test runs, file paths, etc.>",
+  "what_originator_can_do_now": [
+    "<concrete next action the originator can take, e.g. flip AUTOFIX_V2_MODE=on>",
+    "<another action, e.g. update project status to verified>"
+  ],
+  "context": "Completion notification for <original id> (originally filed by <originator>, completed by <completer>).",
+  "fix_instructions": "Acknowledge this notification by closing it via close-inbox-item.py with --status processed. Optionally take the downstream actions listed in what_originator_can_do_now before closing.",
+  "notify_on_completion": false,
+  "source_protocol": "Completion Notification Protocol",
+  "source_protocol_doc": "~/.claude/rules/universal-protocols.md"
+}
