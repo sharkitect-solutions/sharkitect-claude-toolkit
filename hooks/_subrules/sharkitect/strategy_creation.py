@@ -130,4 +130,5 @@ def check(prompt: str, context: dict):
         bypass_keyword="skip strategy-creation",
         severity="warning",
         match_evidence=evidence,
+        cost_class="heuristic",
     )

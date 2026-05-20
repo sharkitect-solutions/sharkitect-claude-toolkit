@@ -71,4 +71,5 @@ def check(prompt: str, context: dict):
         bypass_keyword="skip verify-state",
         severity="info",
         match_evidence=evidence,
+        cost_class="heuristic",
     )

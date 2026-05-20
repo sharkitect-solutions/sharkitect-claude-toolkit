@@ -41,6 +41,13 @@ match_evidence (NEW v1.5):
     debugging "why did this rule fire?" doesn't require re-running the rule
     logic mentally. Example: "matched pattern 'is X done' at offset 12".
 
+cost_class (NEW v2.1 — SHOULD-before-v3):
+    'heuristic' (default) - regex / pattern / fixed-cost local check; ~free, ~10ms
+    'audit'               - post-task offline analysis (Phase 2 Task 2.3 layer)
+    'llm_judge'           - prompt-hook layer; calls a sub-LLM; ~1-3s + API cost
+    Forward-compatibility for Layer 3 migration (spec §4.4). Dispatcher
+    today routes by cost_class -- timeout policy + telemetry differ per class.
+
 Failure isolation:
     A sub-rule that raises an exception MUST NOT crash the dispatcher.
     Dispatcher catches, logs the error, continues to next sub-rule.
@@ -49,6 +56,10 @@ History:
     v1.5 (2026-05-19) - added severity + match_evidence per ai-systems-architect
       defect #3. Removed recent_tool_calls context key per defect #2 + Option D
       (100% Verification protocol mandates per-action, not per-session).
+    v2.1 (2026-05-20) - added cost_class field per ai-systems-architect
+      SHOULD-before-v3 fortification list. Forward-compatibility for Layer 3
+      prompt-hook migration (spec §4.4). Default 'heuristic' matches all
+      current sub-rules.
 """
 from dataclasses import dataclass
 from typing import Literal, Optional
@@ -63,6 +74,7 @@ class SubRuleResult:
     bypass_keyword: str  # the exact 'skip <slug>' phrase that disables this rule
     severity: Literal["info", "warning", "critical"] = "info"
     match_evidence: Optional[str] = None
+    cost_class: Literal["heuristic", "audit", "llm_judge"] = "heuristic"
 
     def __post_init__(self):
         if self.mode == "hard_block":
@@ -77,4 +89,9 @@ class SubRuleResult:
             raise ValueError(
                 f"severity must be one of info|warning|critical (log-level "
                 f"taxonomy): got {self.severity!r}"
+            )
+        if self.cost_class not in ("heuristic", "audit", "llm_judge"):
+            raise ValueError(
+                f"cost_class must be one of heuristic|audit|llm_judge: "
+                f"got {self.cost_class!r}"
             )
