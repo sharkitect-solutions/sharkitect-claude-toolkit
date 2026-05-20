@@ -7037,3 +7037,29 @@ The plan_resume + verify_state UserPromptSubmit nudge fired on Chris's "are we g
 Apply when: any user state-query ("where are we at," "what's pending," "did X happen yet"). Always read source files / Supabase / disk before answering. Memory-only answers fail this class of question.
 
 Tags: verify-state-protocol, source-of-truth, state-query-discipline, runtime-detection-validated, sentinel, s64
+
+### 2026-05-20 — process: Cross-references to numbered rules can drift from rule text over time (S66 cross-reference-drift-in-numbered-rules)
+
+**Context:** pricing-structure.md  Rule #4 was cited across multiple sections (  stacking clarification, \.2 RLR, \.5 CPS, \.4 PPM) as 'capacity flex IS the value lever' for ~2 weeks. Rule #4 itself said 'No monthly discounts for multiple services. Only setup fees receive Partnership Progression Pricing.' The cross-references were citing an IMPLIED principle, not the literal rule text. v3.15 fixed it by restructuring Rule #4 to explicitly include the capacity-flex carve-out language the cross-references assumed.
+
+**Why this matters:** When cross-references to rule numbers proliferate across sections, the literal rule text and the cited principle can drift apart. Each individual citation looks correct in isolation; only a full read-through catches the mismatch. Multiple version locks (v3.6 through v3.14) survived this drift because no one ran the cross-reference accuracy check.
+
+**Apply when:** Adding cross-references to numbered rules in K1 SoTs. Also when running the Contradiction Check protocol — extend scope from 'cross-doc contradictions' to 'inline cross-reference accuracy against literal rule text.'
+
+**Fix codified:** v3.15 §15 Rule #4 restructured with explicit Bundle Exception carve-out; all cross-references in §10 + §7.2 + §7.5 + §7.4 now read against actual rule text.
+
+**Tags:** rule-cross-reference, k1-sot-drift, contradiction-check-extension, pricing-structure
+
+---
+
+### 2026-05-20 — process: Operator-articulated positioning frames are load-bearing — capture verbatim with attribution (S66 operator-positioning-frame-capture)
+
+**Context:** During S66 PPM v3.15 lock, Chris articulated the brand-aligned positioning frame that unifies the Option Y Annual Discount mechanic with Sharkitect's 'pay for what you need' brand principle: 'by us starting everyone at the lowest level (pay for what you need mentality) if they take the yearly discount of a bundled package... they are paying for the lowest possible level of each flex item which means it only makes sense that they pay the overage per month when they go over and since it is only when they need it they are still only paying for what they need.' Captured verbatim in §7.4 + §10 with explicit attribution ('S66 articulation, Chris read-back lock 2026-05-20').
+
+**Why this matters:** Committee-drafted positioning frames are functional but can read as marketing-engineered. When the operator articulates the frame in their own voice connecting mechanic to brand principle, it carries credibility the committee version cannot. The attribution AND the verbatim capture protect against future drift toward committee-style language.
+
+**Apply when:** Operator articulates a positioning frame that unifies a mechanic with a brand principle mid-session. Classify per Anti-Drift Scope Discipline Fortification-vs-Expansion 3-question test (Q1: without this frame, would the K1 SoT lock fail to deliver its stated outcome? — for load-bearing positioning frames, YES). Treat as fortification, absorb inline with verbatim attribution.
+
+**Fix codified:** pricing-structure.md v3.15 §7.4 + §10 carry the frame with S66 attribution. Future hybrid offers (SLW + embedded-flex bundles, AIOS productization) reference this frame as the load-bearing positioning narrative.
+
+**Tags:** positioning-frame, operator-attribution, anti-drift-fortification, brand-mechanic-unification, pricing-structure

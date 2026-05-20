@@ -56,32 +56,32 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/check-line-count.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/check-line-count.py\""
           },
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/content-governance-dispatcher.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/content-governance-dispatcher.py\""
           },
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/content-enforcement-gate.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/content-enforcement-gate.py\""
           },
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/methodology-nudge.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/methodology-nudge.py\""
           },
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/inbox-move-guard.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/inbox-move-guard.py\""
           },
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/hq-content-skill-stack-enforcer.py\"",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/hq-content-skill-stack-enforcer.py\"",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/inbox-json-validate.py\"",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/inbox-json-validate.py\"",
             "timeout": 10
           }
         ]
@@ -95,15 +95,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/inbox-move-guard.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/inbox-move-guard.py\""
           },
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/methodology-nudge.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/methodology-nudge.py\""
           },
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/content-enforcement-gate.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/content-enforcement-gate.py\""
           }
         ]
       },
@@ -112,7 +112,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/skill-invocation-tracker.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/skill-invocation-tracker.py\""
           }
         ]
       },
@@ -121,7 +121,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/methodology-dispatcher.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/methodology-dispatcher.py\""
           }
         ]
       },
@@ -141,31 +141,31 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/checkpoint-reminder.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/checkpoint-reminder.py\""
           },
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/quality-gate-hook.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/quality-gate-hook.py\""
           },
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/resource-audit-hook.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/resource-audit-hook.py\""
           },
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/skill-sync-nudge.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/skill-sync-nudge.py\""
           },
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/supabase-status-nudge.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/supabase-status-nudge.py\""
           },
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/asset-registration-nudge.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/asset-registration-nudge.py\""
           },
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/rule-file-self-audit-gate.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/rule-file-self-audit-gate.py\""
           }
         ]
       },
@@ -174,11 +174,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/error-tracker-hook.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/error-tracker-hook.py\""
           },
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/notification-write-verify.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/notification-write-verify.py\""
           }
         ]
       },
@@ -187,7 +187,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/log-tool-invocation.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/log-tool-invocation.py\""
           }
         ]
       },
@@ -196,7 +196,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/log-tool-invocation.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/log-tool-invocation.py\""
           }
         ]
       },
@@ -205,7 +205,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/cron-activity-logger.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/cron-activity-logger.py\""
           }
         ]
       },
@@ -214,7 +214,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/methodology-dispatcher.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/methodology-dispatcher.py\""
           }
         ]
       },
@@ -223,7 +223,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/stale-pointer-nudge.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/stale-pointer-nudge.py\""
           }
         ]
       },
@@ -232,7 +232,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/log-hook-fire.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/log-hook-fire.py\""
           }
         ]
       }
@@ -243,21 +243,21 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/session-startup-guard.py\"",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/session-startup-guard.py\"",
             "timeout": 15000
           },
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/session-start-lifecycle.py\"",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/session-start-lifecycle.py\"",
             "timeout": 15000
           },
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/session-start-register-pid.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/session-start-register-pid.py\""
           },
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/resume-plan-detector.py\"",
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/resume-plan-detector.py\"",
             "timeout": 5000
           }
         ]
@@ -268,11 +268,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/cron-context-enforcer.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/cron-context-enforcer.py\""
           },
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/cron-activity-surfacer.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/cron-activity-surfacer.py\""
           },
           {
             "type": "command",
@@ -288,7 +288,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/voice-capture-hook.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/voice-capture-hook.py\""
           },
           {
             "type": "command",
@@ -301,7 +301,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/methodology-dispatcher.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/methodology-dispatcher.py\""
           }
         ]
       }
@@ -311,7 +311,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"{HOME}/.claude/hooks/session-end-cleanup.py\""
+            "command": "python \"C:/Users/Sharkitect Digital/.claude/hooks/session-end-cleanup.py\""
           }
         ]
       }
@@ -356,7 +356,7 @@
       "Edit(~/.claude/config/**)",
       "Edit(~/.claude/tests/**)",
       "Edit(~/.claude/plans/**)",
-      "Edit(/{HOME}/Documents/Claude Code Workspaces/**)",
+      "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/**)",
       "Bash(python ~/.claude/scripts/sync-permissions.py *)",
       "Bash(python ~/.claude/scripts/inbox-amend.py *)",
       "Bash(git mv:*)",
@@ -381,12 +381,12 @@
       "Bash(git notes:*)",
       "Edit(~/.claude/.env)",
       "Write(~/.claude/.env)",
-      "Write(/{HOME}/Documents/Claude Code Workspaces/4.- Sentinel/.routed-tasks/inbox/**)",
-      "Write(/{HOME}/Documents/Claude Code Workspaces/4.- Sentinel/.lifecycle-reviews/inbox/**)",
-      "Write(/{HOME}/Documents/Claude Code Workspaces/3.- Skill Management Hub/.work-requests/inbox/**)",
-      "Write(/{HOME}/Documents/Claude Code Workspaces/3.- Skill Management Hub/.lifecycle-reviews/inbox/**)",
-      "Write(/{HOME}/Documents/Claude Code Workspaces/4.- Sentinel/HUMAN-ACTION-REQUIRED.md)",
-      "Write(/{HOME}/Documents/Claude Code Workspaces/3.- Skill Management Hub/HUMAN-ACTION-REQUIRED.md)"
+      "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.routed-tasks/inbox/**)",
+      "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.lifecycle-reviews/inbox/**)",
+      "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.work-requests/inbox/**)",
+      "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.lifecycle-reviews/inbox/**)",
+      "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/HUMAN-ACTION-REQUIRED.md)",
+      "Write(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/HUMAN-ACTION-REQUIRED.md)"
     ],
     "deny": [
       "Bash(git push * --force*)",
@@ -401,12 +401,12 @@
       "Bash(git remote *)",
       "Edit(~/.claude/settings.json)",
       "Edit(~/.claude/settings.local.json)",
-      "Edit(/{HOME}/Documents/Claude Code Workspaces/**/.claude/settings.json)",
-      "Edit(/{HOME}/Documents/Claude Code Workspaces/**/.claude/settings.local.json)",
+      "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/**/.claude/settings.json)",
+      "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/**/.claude/settings.local.json)",
       "Edit(~/.claude/plugins/**)",
-      "Edit(/{HOME}/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.env)",
-      "Edit(/{HOME}/Documents/Claude Code Workspaces/3.- Skill Management Hub/.env)",
-      "Edit(/{HOME}/Documents/Claude Code Workspaces/4.- Sentinel/.env)"
+      "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/1.- SHARKITECT DIGITAL WORKFORCE HQ/.env)",
+      "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/3.- Skill Management Hub/.env)",
+      "Edit(//c/Users/Sharkitect Digital/Documents/Claude Code Workspaces/4.- Sentinel/.env)"
     ]
   },
   "autoUpdatesChannel": "latest",
