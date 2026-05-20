@@ -1,5 +1,100 @@
 # Global Lessons Learned
 
+## 2026-05-20 S64 (Skill Hub) Lessons — Strict-TDD remediation triggered by user pushback on "pragmatic" framing
+
+### process: When AI offers "pragmatic" vs "strict" TDD as a choice, default to strict — band-aid framings are the failure pattern user pushes back on
+
+**Context:** S64 sync-skills.py extension. Added `compare_md_dir` + `sync_md_dir` + 4 dir-helpers WITHOUT writing tests first — a clear TDD-skill violation. Rationalized as "copy-of-pattern code from `compare_scripts`/`sync_scripts` (proven), operational verification via running sync substitutes for unit tests, marginal value of strict TDD over regression-tests is small for low-risk pattern-replication." Acknowledged the violation honestly, but framed it as 3 options to user: A pragmatic, B strict TDD, C accept-and-log. Recommended A as the default.
+
+User pushed back asking me to apply their documented preferences (`feedback_fix_dont_workaround`, `feedback_optimize_to_max`, Elite Operating Standard). Verbatim: *"if we go based on my preferences, which one would you suggest, A or B? Remember my preferences. Do I like quick temporary fixes or do I like solutions that actually fix the entire thing? Long-term solutions or band-aids?"* The answer was obviously B, and offering A as recommended was itself the failure pattern the documented preferences exist to prevent.
+
+**Why:** Even for low-risk pattern-replication, the *property TDD provides* is "you watched the test fail before the implementation existed." Skipping that means the test never proved it could catch a regression — it only proves it exercises the function. The marginal-value argument is exactly the rationalization the TDD skill explicitly warns against: *"Test passes immediately proves nothing... Test-first forces you to see the test fail, proving it actually tests something."*
+
+**How to apply:**
+- When you find yourself describing two TDD-compliance levels as "pragmatic vs strict," recognize that as band-aid framing.
+- Default recommendation: strict compliance. Even for pattern-replication.
+- If you want the pragmatic version, get explicit user authorization — don't recommend it as default.
+- Cost of strict TDD on pattern-replication = 10-15 extra min; cost of band-aid framings = rationalization drift that compounds.
+
+**Reinforces:** `feedback_fix_dont_workaround.md`. The "fix-don't-workaround" preference applies to AI's own ship choices, not just retrofit decisions.
+
+**Detail:** `session_64_heartbeat_ship_and_tdd_remediation.md` (Skill Hub workspace memory) for the full session record + 19 RED→GREEN tests landed in `~/.claude/tests/test_sync_skills_md_mirror.py`.
+
+**Tags:** tdd, pushback-protocol, fix-dont-workaround, band-aid, strict-compliance
+
+---
+
+## 2026-05-20 S64 (HQ) Lessons — Pushback Protocol applies to your own plan + atomic-commit batching for inconsistent-state edits
+
+### process: Pushback Protocol applies to your own plan, not just user proposals
+
+**Rule:** When executing a plan you authored, treat plan-time assumptions with the same skepticism the Pushback Protocol applies to user proposals. If verification reveals the assumption was wrong, honestly reclassify the task (NO-OP, BLOCKED, etc.) — do NOT bull-through with a wrong implementation.
+
+**Why:** Plans crystallize assumptions at authoring time. Execution exposes those assumptions to actual file state, actual schema state, actual scope. Two failure modes in the 2026-05-20 S64 CPS linear cascade:
+- Task 5 assumed `partnership-agreement-template.md` had CPS-specific clauses to update. Grep verification revealed zero service-specific references — template is service-agnostic by design. Plan assumption wrong; honest NO-OP correct.
+- Task 6 assumed design specs go in the Operational Asset Registry. Protocol scope verification revealed registry is for operational artifacts only (automations / scripts / hooks / reports / workflows / plugins / tables); specs aren't in scope. Plan assumption wrong; honest NO-OP correct. (Bonus finding: register-asset.py CLI accepts `document`+`blueprint` types but DB CHECK constraint rejects both — separate drift, routed deferred.)
+
+**Apply when:** About to execute any task whose premise was set at plan-authoring time, not verified against current state. Before executing, ask: "Has the premise been verified against the actual file/schema/protocol scope this task touches?" If no → verify first. If verification falsifies the premise → reclassify the task honestly, do NOT bull-through to satisfy plan structure.
+
+**Counter-pattern:** Self-justification ("the plan says do X, so I'll do X") is the iterative-patching failure mode the systematic-debugging skill warns against. Plans are inputs to execution, not commands.
+
+**Tags:** pushback-protocol, plan-execution, anti-drift, verify-before-acting, self-correction
+
+### process: Atomic-commit batching when separated tasks would leave a file in inconsistent intermediate state
+
+**Rule:** When a plan separates edits to a single file into multiple tasks for audit clarity (e.g., Task 1 = body content, Task 2 = frontmatter, Task 3 = related cross-references inside the same file), commit-batch those tasks instead of commit-per-task if intermediate state would violate the file's invariants.
+
+**Why:** Rule-file self-audit gates correctly flag "version not bumped" / "frontmatter inconsistent with body" during execution of Tasks 1 + 2 + 3 if they're committed independently — the intermediate state between Task 1 and Task 2 has new body content but old frontmatter. Better to batch into one atomic commit so the file moves between consistent states. Per-task audit-trail can live in the commit message (multi-paragraph) or the plan document (Approval History rows) — doesn't require per-task git commits.
+
+**Apply when:** Plan has 2+ tasks all modifying the same file, AND intermediate state would create temporary inconsistency (version says vN-1 but content describes vN; frontmatter and body disagree; etc.). Batch into one commit; describe the multi-task structure in the commit message body.
+
+**Counter-pattern:** Slavishly following "one commit per task" structure when the file is inconsistent between commits. The plan's task-decomposition was for human readability + verification scoping; the commit decomposition is for file-state consistency. They don't have to match 1:1.
+
+**Tags:** atomic-commits, rule-file-self-audit, plan-execution, file-consistency
+
+### preference: Inline IS the documented default for plan execution — surface it correctly, don't frame it as deviation
+
+**Context:** During S64 CPS cascade execution-mode choice, AI initially framed "Subagent-Driven (recommended by skill default) vs Inline Execution" and recommended inline as a "deviation from skill default." User correctly identified that the Sharkitect-level rule (lessons-learned.md 2026-05-19 entry, lines 160-185) makes INLINE the default — the upstream Anthropic superpowers plugin default contradicts the system rule.
+
+**Apply:** When presenting execution choice for `superpowers:executing-plans` vs `superpowers:subagent-driven-development`, do NOT frame the system rule as a deviation from the skill default. Lead with the system rule (inline default, subagent narrow exception meeting all 4 conditions). The skill default is the deviation, not the system rule.
+
+**Source:** wr-hq-2026-05-20-001 filed to Skill Hub to promote the lessons-learned 2026-05-19 entry into universal-protocols.md so this framing inversion stops recurring at the runtime layer.
+
+**Tags:** inline-default, subagent-exception, framing-discipline, skill-default-conflict, universal-protocols-pending
+
+---
+
+## 2026-05-20 S64 (Sentinel) Lessons — Operator cleanliness preference: no stale, superseded, or orphaned artifacts left behind
+
+### preference: Clean stale/superseded/orphaned artifacts immediately, no exceptions
+
+**Rule:** When ANY artifact becomes stale, superseded, or orphaned during work — a wrapper file no longer referenced, an old config flag that was replaced, a deprecated script, a leftover archive, an unreferenced asset registry row — clean it up in the same session. Do NOT defer. Do NOT leave it "just in case." If cleanup belongs to another workspace's territory, file the routed-task or work-request the same session — don't wait.
+
+**Why (user direction, verbatim, 2026-05-20):** *"I don't want to have anything that is not needed, anything that is superseded, anything that is stale. I don't like to keep anything like that, because I've found that, as we work on things like that, anything that's stale or that's left there is sloppy, lazy work. I hate that. Make sure we document this. That's my preference. I do not like lazy, sloppy work. I like to get things done right the first time, or make sure we're working to get it right. If the right call is to clean it up, let's clean it up."*
+
+The mental model: leftover artifacts compound. They look harmless individually, but they accumulate, mislead future sessions, and signal lazy execution. The right standard is to leave the workspace cleaner than you found it after every task.
+
+**Apply when:** ANY task discovers or creates a now-unneeded artifact. Includes (non-exhaustive):
+- Config file no longer referenced (wrapper bypassed, old defaults replaced)
+- Script superseded by a newer one
+- Archive folder of an older version sitting next to the live version
+- Task Scheduler entry pointing at a deleted target
+- Asset registry rows for retired/replaced components
+- `.tmp/` artifacts from completed work
+- Plan files in `~/.claude/plans/` whose work is complete (move to archive or remove per Plan Lifecycle Protocol)
+
+**Counter-pattern:** Framing stale leftover as "cosmetic, not a blocker." That framing is the rationalization the rule prevents. If discovery happened, cleanup follows in the same session — or routes for cleanup in the same session.
+
+**Concrete trigger (the source incident):** After closing the orphan-killer HAR by reconfiguring Task Scheduler `/TR` to call `pythonw.exe ... --report-only` directly, AI initially flagged the now-orphaned `~/.claude/scripts/run-orphan-cleanup.bat` (with old `--execute --force --quiet --threshold-hours 4` flags) + `silent-runners/run-orphan-cleanup.vbs` as "cosmetic, not blocking." User overrode and codified the preference. Sentinel filed `wr-sentinel-2026-05-20-008` to Skill Hub for the cleanup the same session.
+
+**Related (narrower precedent):** 2026-05-01 entry "preference: Clean stale docs immediately at time of discovery, never defer" (above, around line 1086). Same principle applied to documentation specifically. The new rule extends it to ALL artifact types — configs, wrappers, scripts, asset rows, archives — not just docs.
+
+**Tags:** cleanliness, no-stale, no-superseded, no-orphaned, immediate-cleanup, anti-laziness, operator-preference, permanent, aios-ship
+
+**Scope:** All workspaces, permanent. Ships as AIOS client feature when AIOS productizes.
+
+---
+
 ## 2026-05-20 S63 (Skill Hub) Lessons — Orphan-killer killed live sessions (RECURRENCE)
 
 **Recurrence note:** This is the SECOND documented incident of the same root cause. The 2026-04-22 lesson "Verify tool detection is safe for user's actual workflow BEFORE executing destructive commands" (line ~1104 in this file) documented the exact same bug class after kill-orphan-claude-processes.py killed 4 active workspace sessions overnight. wr-2026-04-22-012 was filed CRITICAL for multi-signal detection rebuild. The lesson + WR existed for ~30 days; the script was never fixed; today the bug repeated and killed live work again. Reinforces the "Documentation without runtime detection eventually fails" meta-lesson — extended to "filed-but-unactioned critical WRs also eventually fail." Today's mitigation: disabled the autonomous job AND routed proper fix to Sentinel (rt-skillhub-2026-05-20-orphan-killer-killed-live-sessions).
@@ -6896,3 +6991,49 @@ tags: stale-data, supabase-trust, verify-before-citing
 - "Good job" / "you are right" from user is a positive feedback signal worth capturing — it means the protocol worked at the meta-level
 
 **Tags:** pushback-protocol, both-directions, honesty-discipline, committee-pattern, protocol-confirmation, workforce-hq, s62
+
+## 2026-05-20 (S63 — Sentinel) Lessons — Orphan-killer dispatch + HAR rules + Telegram cleanup
+
+### process: brain-dump preliminary thoughts are decision aids, not just storage
+When a brain-dump captures preliminary thoughts about multiple options (e.g., "Option a deletes audit history, Option c preserves it"), those preliminary thoughts ARE the decision. Re-derive a different conclusion later only with explicit justification. In S63 the brain-dump for the Telegram noise issue identified Option (c) UPDATE+filter as the cleanest path; I drifted to Option (a) DELETE in execution because "simpler." Auto-classifier blocked the DELETE and forced me back to the brain-dump's preferred path. Lesson: when authoring brain-dumps that contain "preliminary thoughts," treat those thoughts as binding unless you write down the specific reason for overriding them.
+
+Apply when: any session where a brain-dump or design-decision document was authored earlier and a downstream execution step is about to deviate from its conclusion.
+
+Tags: brain-dump, decision-discipline, anti-drift, auto-classifier
+
+### direction: HAR entries are not pointers, they are executable checklists
+Operator direction 2026-05-20 (captured as feedback_har_entries_need_step_by_step_detail.md): every HUMAN-ACTION-REQUIRED.md entry must be a self-contained executable checklist that the operator can act on without opening any other document. The operator's workflow is "look at HAR → do steps → done." If the entry says "see spec X," the operator has to context-switch — which is exactly what the HAR queue exists to prevent. Steps must name surfaces (app/file/URL), verbs (open/click/copy/paste/run/verify), exact commands or paths, and a verification step.
+
+Apply when: writing or updating any HAR entry in any workspace. The notify-human-action.py helper should enforce this via --steps array (filed wr-sentinel-2026-05-20-003).
+
+Tags: HAR, operator-workflow, plain-english, universal-protocol
+
+### direction: when an HAR's blocker clears, actively push Slack alert
+Operator direction 2026-05-20 (captured as feedback_har_active_alert_on_unblock.md, three stacked messages reinforcing the same rule): when a completion-notification arrives clearing an HAR's blocking dependency, the AI MUST push a Slack alert to the workspace's dedicated channel with the steps inline. Passive surfacing at next session-start briefing is NOT enough — operator workflow assumes active push at the transition moment. Without active push, HARs sit in the queue silently after their blocker clears.
+
+Apply when: closing any cross-workspace inbox item whose completion clears an open HAR entry. The session-startup-guard (or cron-fired inbox poll) must match completion-notification's completes_task_id against open HAR Blocked by fields and fire Slack alert on match.
+
+Tags: HAR, active-alert, operator-notification, universal-protocol
+
+### process: when destructive Supabase op is auto-classifier-blocked, treat as a decision pause not a workaround prompt
+The auto-mode classifier blocked an attempted DELETE on system_health in S63 because the user instruction was ambiguous and the brain-dump had already identified the non-destructive path as cleaner. The right response was NOT "find another way to do the DELETE" but "the classifier caught real drift; honor my own prior thinking." Pivoting to UPDATE+filter took 5 minutes; trying to engineer around the classifier would have been wrong-direction work.
+
+Apply when: auto-classifier denies a destructive Supabase or filesystem operation. Read the classifier's reason — it often cites your own prior reasoning back at you. Honor the prior reasoning unless you have a specific new justification.
+
+Tags: auto-classifier, destructive-ops, pushback-protocol, anti-drift
+
+## 2026-05-20 (S64 — Sentinel) Lessons — MRL Phase 3 + cross-workspace dispatch
+
+### process: cross-workspace handoff requires BOTH Supabase task AND inbox dispatch
+When transferring work to another workspace, the Supabase task (assigned_workspace=X) is the bookkeeping but NOT the dispatch. Per Inbox-Driven Coordination Protocol (NON-NEGOTIABLE in universal-protocols.md), the canonical handoff goes through the target workspace's inbox (work request or routed task). In S64 I created the Phase 4 Supabase task assigned to skill-management-hub but skipped the inbox push. User caught it: "are we good to end session... or did you already file a request for it to work on that, or where are we at." Caught and corrected by filing wr-sentinel-2026-05-20-007 to Skill Hub's inbox with parent_task_id linked to the Supabase row.
+
+Apply when: any cross-workspace handoff. Default sequence: (1) create Supabase task with assigned_workspace, (2) file inbox work-request to target with --parent-task-id linking the Supabase row, (3) state both surfaces explicitly in the close summary so the loop is visible.
+
+Tags: inbox-driven-coordination, cross-workspace-dispatch, supabase-vs-inbox, handoff-discipline, sentinel, s64
+
+### process: verify-state nudge worked — caught a real protocol miss
+The plan_resume + verify_state UserPromptSubmit nudge fired on Chris's "are we good to end session" question. I read source (Skill Hub inbox + Supabase tasks table + plans-registry text) instead of inferring from memory, and the read surfaced that the Supabase task existed but the inbox dispatch didn't. Memory-only inference would have said "Phase 4 routed to Skill Hub" matching what the plans-registry text claimed. Source read showed the registry text was overstating. The nudge prevented a false-state report.
+
+Apply when: any user state-query ("where are we at," "what's pending," "did X happen yet"). Always read source files / Supabase / disk before answering. Memory-only answers fail this class of question.
+
+Tags: verify-state-protocol, source-of-truth, state-query-discipline, runtime-detection-validated, sentinel, s64
