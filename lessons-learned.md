@@ -1,5 +1,43 @@
 # Global Lessons Learned
 
+## 2026-05-20 S63 (Skill Hub) Lessons — Orphan-killer killed live sessions (RECURRENCE)
+
+**Recurrence note:** This is the SECOND documented incident of the same root cause. The 2026-04-22 lesson "Verify tool detection is safe for user's actual workflow BEFORE executing destructive commands" (line ~1104 in this file) documented the exact same bug class after kill-orphan-claude-processes.py killed 4 active workspace sessions overnight. wr-2026-04-22-012 was filed CRITICAL for multi-signal detection rebuild. The lesson + WR existed for ~30 days; the script was never fixed; today the bug repeated and killed live work again. Reinforces the "Documentation without runtime detection eventually fails" meta-lesson — extended to "filed-but-unactioned critical WRs also eventually fail." Today's mitigation: disabled the autonomous job AND routed proper fix to Sentinel (rt-skillhub-2026-05-20-orphan-killer-killed-live-sessions).
+
+### direction: Long-running claude.exe sessions (6-12h) are normal in user's workflow
+
+Context: User reported intentionally-left-open multi-hour sessions terminated unexpectedly. S62's orphan-cleanup killed 13 processes at 6.5h age with 4.0h threshold. User direction (verbatim): *"sometimes our sessions are running really long, so we need to be careful with that."* Reinforces the 2026-04-22 documented direction (same root cause, second occurrence).
+
+Apply when: Designing ANY automation that terminates claude.exe processes (orphan cleanup, idle timeouts, resource limits). Age alone is NOT a valid kill signal. Live work routinely runs 6-12+ hours.
+
+Design principles:
+- Liveness signal required (heartbeat file with periodic refresh)
+- Conservative age fallback: 24h minimum when no heartbeat available
+- Dry-run by default in cron jobs that kill processes
+- Trust-but-verify: report what would be killed; explicit confirmation to act
+
+Tags: infrastructure, automation, claude-exe-lifecycle, AIOS-shippable
+
+### process: When autonomous infrastructure misbehaves, disable first, fix second
+
+Context: S63 discovered the orphan-cleanup was killing live work. Two paths considered: (a) raise the threshold immediately and let the autonomous job keep running, (b) disable the job entirely and route a proper fix. Chose (b). User authorized "let's go ahead and have it killed or disabled in the meantime."
+
+Why: Better to leak occasional orphans (zero cost) than kill live work (multi-hour productivity loss). Disabling is reversible; killed live sessions are not.
+
+Apply when: An autonomous system causes user-visible harm. Disable the autonomous loop BEFORE attempting to fix the underlying logic. Route the proper fix to the owning workspace.
+
+Tags: incident-response, autonomous-systems, fail-safe
+
+### process: Pattern compliance is necessary but not sufficient — the encoded policy matters
+
+Context: The orphan-cleanup followed the asset-registry pattern correctly (registered, owned by Sentinel, scheduled, silent execution). But the kill criteria encoded in the script (4.0h threshold, no liveness check) were wrong by an order of magnitude.
+
+Why: "Pattern-compliant automation" is not synonymous with "correct automation." Code review must include policy review — what does this automation DECIDE, not just how does it run.
+
+Apply when: Reviewing any automation that takes destructive action. Verify the kill/delete/disable criteria match real-world data, not idealized assumptions.
+
+Tags: code-review, policy-vs-mechanism, destructive-actions
+
 ## 2026-05-20 S61 (Skill Hub) Lessons — Build 6 v2 + v2.1 SHOULD-before-v3
 
 ### process: ThreadPoolExecutor context manager defeats the timeout it's protecting
