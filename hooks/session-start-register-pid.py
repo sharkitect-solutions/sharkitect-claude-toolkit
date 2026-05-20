@@ -50,6 +50,11 @@ from pathlib import Path
 
 REGISTRY_PATH = Path.home() / ".claude" / ".tmp" / "active-sessions.json"
 
+# Session-heartbeat directory. This hook also writes the initial heartbeat file
+# at SessionStart and prunes heartbeats for dead PIDs alongside registry pruning.
+# Source: spec-orphan-cleanup-heartbeat.md v1.0 (2026-05-20).
+HEARTBEAT_DIR = Path.home() / ".claude" / ".tmp" / "session-heartbeats"
+
 VSCODE_VARIANT_NAMES = frozenset({
     "code.exe",
     "code - insiders.exe",
@@ -188,6 +193,47 @@ def prune_dead_sessions(data):
     return data
 
 
+def prune_dead_heartbeats():
+    """Remove session-heartbeat files whose PID is no longer alive.
+
+    Called from main() alongside prune_dead_sessions so the heartbeat directory
+    does not accumulate files for departed sessions. Spec section 5.4.
+    """
+    if not HEARTBEAT_DIR.exists():
+        return
+    for hb_file in HEARTBEAT_DIR.glob("*.json"):
+        # Filename is <pid>.json
+        stem = hb_file.stem
+        try:
+            pid = int(stem)
+        except ValueError:
+            continue
+        if not is_pid_alive(pid):
+            try:
+                hb_file.unlink()
+            except OSError:
+                pass
+
+
+def write_initial_heartbeat(claude_pid, workspace, vs_pid, vs_name):
+    """Write the initial session-heartbeat file at SessionStart. Atomic."""
+    HEARTBEAT_DIR.mkdir(parents=True, exist_ok=True)
+    now_iso = datetime.now(timezone.utc).isoformat()
+    data = {
+        "pid": claude_pid,
+        "workspace": workspace,
+        "vscode_ppid": vs_pid,
+        "vscode_ppname": vs_name,
+        "first_seen": now_iso,
+        "last_refresh": now_iso,
+        "refresh_count": 0,
+    }
+    path = HEARTBEAT_DIR / f"{claude_pid}.json"
+    tmp = path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    tmp.replace(path)
+
+
 def write_registry(data):
     REGISTRY_PATH.parent.mkdir(parents=True, exist_ok=True)
     # Atomic write: tmp + rename
@@ -224,6 +270,7 @@ def main():
 
         data = load_registry()
         data = prune_dead_sessions(data)
+        prune_dead_heartbeats()
 
         # Remove any prior entry with the same PID (session restart on same PID is rare,
         # but keeps the registry idempotent).
@@ -231,6 +278,10 @@ def main():
         data["sessions"].append(entry)
 
         write_registry(data)
+        # Write the initial session-heartbeat file alongside the registry entry.
+        # Subsequent refreshes happen in user-prompt-heartbeat-refresh.py on every
+        # UserPromptSubmit event.
+        write_initial_heartbeat(claude_pid, entry["workspace"], vs_pid, vs_name)
     except Exception:
         # Never block session start. Any failure is silent.
         pass

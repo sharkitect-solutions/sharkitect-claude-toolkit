@@ -33,12 +33,19 @@ import importlib.util
 import json
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 
 SCRIPT_DIR = Path(__file__).parent
 LOG_FILE = Path.home() / ".claude" / ".tmp" / "orphan-kill-log.jsonl"
+
+# Operator-authorized kill flow (spec-orphan-cleanup-heartbeat.md v1.0, 2026-05-20).
+# --report-only writes detection reports here without killing. --from-report
+# reads a specific report and kills only PIDs still eligible at execute time.
+REPORT_DIR = Path.home() / ".claude" / ".tmp" / "orphan-cleanup-reports"
+REPORT_ARCHIVE_DIR = REPORT_DIR / "archive"
+REPORT_STALE_DAYS = 14
 
 # Suppress console window when spawned from pythonw.exe (GUI subsystem).
 # Without this flag, every child process (wmic, taskkill) allocates a new
@@ -113,18 +120,197 @@ def log_kill(entries: list):
             f.write(json.dumps(entry) + "\n")
 
 
+def _classify_for_kill(threshold_hours):
+    """Helper used by both the legacy interactive flow and the new report flows.
+
+    Returns (classify_report, current_session_pid).
+    Importable seam for tests; production path calls the real check module.
+    """
+    check_mod = load_check_module()
+    procs = check_mod.get_claude_processes()
+    current_pid = check_mod.find_session_pid()
+    report = check_mod.classify_processes(procs, current_pid, threshold_hours)
+    return report, current_pid
+
+
+def run_report_only(threshold_hours):
+    """Detect-only mode: classify, write a report file, kill nothing.
+
+    Exits 0 regardless of how many candidates are found (detection != verdict).
+    Spec-orphan-cleanup-heartbeat.md section 7.1.
+    """
+    classify_report, _current_pid = _classify_for_kill(threshold_hours)
+    suspects = classify_report.get("orphan_suspects", [])
+
+    REPORT_DIR.mkdir(parents=True, exist_ok=True)
+    now = datetime.now(timezone.utc)
+    report_id = "report-" + now.strftime("%Y-%m-%d-%H-%M-%S")
+    report_path = REPORT_DIR / f"{report_id}.json"
+    report_doc = {
+        "report_id": report_id,
+        "generated_at": now.isoformat().replace("+00:00", "Z"),
+        "generator": "kill-orphan-claude-processes.py --report-only",
+        "threshold_hours": threshold_hours,
+        "candidates": [
+            {
+                "pid": s["pid"],
+                "age_hours": s["age_hours"],
+                "working_set_mb": s.get("mb"),
+                "created_at": s.get("created_at"),
+                "evidence": {
+                    "heartbeat": "missing_or_stale",
+                    "vscode_ancestor": "not_found",
+                    "registry_entry": "absent_or_dead_parent",
+                    "current_session_match": False,
+                },
+            }
+            for s in suspects
+        ],
+        "protected_count": len(classify_report.get("protected", [])),
+        "recent_count": len(classify_report.get("recent", [])),
+        "total_claude_processes": classify_report.get("total", 0),
+        "status": "pending_operator_review",
+    }
+    # Atomic write
+    tmp = report_path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(report_doc, indent=2), encoding="utf-8")
+    tmp.replace(report_path)
+    return 0
+
+
+def run_from_report(report_path, threshold_hours):
+    """Operator-authorized kill flow: re-classify report's candidates at execute time
+    and kill only PIDs still eligible. PIDs that recovered protection (e.g. fresh
+    heartbeat written after report generation) are skipped and annotated.
+
+    Spec-orphan-cleanup-heartbeat.md section 7.2.
+    """
+    try:
+        report_doc = json.loads(report_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"ERROR: cannot load report {report_path}: {e}", file=sys.stderr)
+        return 1
+
+    candidates = report_doc.get("candidates", [])
+    if not candidates:
+        report_doc["status"] = "executed"
+        report_doc["executed_at"] = (
+            datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        )
+        report_path.write_text(json.dumps(report_doc, indent=2), encoding="utf-8")
+        return 0
+
+    # Re-classify with current state
+    classify_report, _current = _classify_for_kill(threshold_hours)
+    eligible_pids = {s["pid"] for s in classify_report.get("orphan_suspects", [])}
+
+    now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    log_entries = []
+    for c in candidates:
+        pid = c.get("pid")
+        if pid not in eligible_pids:
+            c["result"] = "protection_recovered"
+            c["resolved_at"] = now_iso
+            continue
+        status, msg = kill_pid(pid)
+        c["result"] = status
+        c["message"] = msg
+        c["resolved_at"] = now_iso
+        log_entries.append({
+            "timestamp": now_iso,
+            "pid": pid,
+            "age_hours": c.get("age_hours"),
+            "result": status,
+            "message": msg,
+            "from_report": report_doc.get("report_id"),
+        })
+
+    if log_entries:
+        log_kill(log_entries)
+    report_doc["status"] = "executed"
+    report_doc["executed_at"] = now_iso
+    report_path.write_text(json.dumps(report_doc, indent=2), encoding="utf-8")
+    return 0
+
+
+def archive_stale_reports():
+    """Move reports older than REPORT_STALE_DAYS with status=pending_operator_review
+    AND no current-eligible candidates into REPORT_ARCHIVE_DIR.
+
+    Spec-orphan-cleanup-heartbeat.md section 7.3 final paragraph.
+    """
+    if not REPORT_DIR.exists():
+        return
+    cutoff = datetime.now(timezone.utc) - timedelta(days=REPORT_STALE_DAYS)
+    # Cache classifier output across all archive checks in this run.
+    classify_cache = None
+    for report_path in REPORT_DIR.glob("report-*.json"):
+        try:
+            mtime = datetime.fromtimestamp(report_path.stat().st_mtime, tz=timezone.utc)
+            if mtime >= cutoff:
+                continue
+            doc = json.loads(report_path.read_text(encoding="utf-8"))
+            if doc.get("status") != "pending_operator_review":
+                continue
+            if classify_cache is None:
+                classify_report, _ = _classify_for_kill(doc.get("threshold_hours", 8.0))
+                classify_cache = {s["pid"] for s in classify_report.get("orphan_suspects", [])}
+            candidate_pids = {c.get("pid") for c in doc.get("candidates", [])}
+            if candidate_pids & classify_cache:
+                # Still actionable -- leave alone
+                continue
+            REPORT_ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+            report_path.replace(REPORT_ARCHIVE_DIR / report_path.name)
+        except (OSError, json.JSONDecodeError):
+            continue
+
+
 def main():
     desc = (__doc__ or "Kill orphan Claude processes.").split("\n\n")[0]
     p = argparse.ArgumentParser(description=desc)
-    p.add_argument("--threshold-hours", type=float, default=4.0,
-                   help="Kill processes older than this (default: 4h)")
+    p.add_argument("--threshold-hours", type=float, default=8.0,
+                   help="Kill processes older than this (default: 8h, "
+                        "raised from 4h by spec-orphan-cleanup-heartbeat.md 2026-05-20)")
     p.add_argument("--execute", action="store_true",
                    help="Actually kill (default is dry-run, prints what WOULD be killed)")
+    p.add_argument("--report-only", action="store_true",
+                   help="Detection-only mode: classify, write a JSON report under "
+                        f"{REPORT_DIR}, kill nothing. Recommended cron mode.")
+    p.add_argument("--from-report", type=str, default=None, metavar="PATH",
+                   help="Operator-authorized kill flow: re-classify candidates in "
+                        "the named report and kill only PIDs still eligible.")
+    p.add_argument("--show-report", type=str, default=None, metavar="PATH",
+                   help="Print the contents of a report without killing or modifying.")
     p.add_argument("--force", action="store_true",
                    help="Allow killing even when current session PID can't be identified "
                         "(unsafe). Default refuses to kill if current PID is unknown.")
     p.add_argument("--quiet", action="store_true", help="Less verbose output")
     args = p.parse_args()
+
+    # New report-flow branches dispatch first; legacy interactive flow follows below.
+    if args.report_only:
+        archive_stale_reports()
+        return run_report_only(args.threshold_hours)
+    if args.show_report:
+        path = Path(args.show_report)
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as e:
+            print(f"ERROR: cannot read report {path}: {e}", file=sys.stderr)
+            return 1
+        print(json.dumps(doc, indent=2))
+        return 0
+    if args.from_report:
+        path = Path(args.from_report)
+        if not path.exists():
+            print(f"ERROR: report not found: {path}", file=sys.stderr)
+            return 1
+        if not args.execute:
+            print(f"REFUSING: --from-report requires --execute. (dry-run not supported "
+                  f"on report-driven flow; the report itself IS the dry-run record.)",
+                  file=sys.stderr)
+            return 2
+        return run_from_report(path, args.threshold_hours)
 
     try:
         check_mod = load_check_module()

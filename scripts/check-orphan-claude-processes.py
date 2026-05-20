@@ -86,6 +86,15 @@ VSCODE_ANCESTOR_MAX_HOPS = 8
 # Active-sessions registry path
 REGISTRY_PATH = Path.home() / ".claude" / ".tmp" / "active-sessions.json"
 
+# Session-heartbeat directory (one file per claude.exe PID).
+# Third protection signal added by spec-orphan-cleanup-heartbeat.md v1.0 (2026-05-20).
+# A heartbeat is "fresh" when last_refresh is within DEFAULT_STALENESS_MINUTES; a fresh
+# heartbeat alone protects the process from kill regardless of age. The bare word
+# "heartbeat" in this file always refers to SESSION heartbeats (per-claude.exe-PID),
+# never the component heartbeats in public.system_health.
+HEARTBEAT_DIR = Path.home() / ".claude" / ".tmp" / "session-heartbeats"
+DEFAULT_STALENESS_MINUTES = 30
+
 # Suppress console window when spawned from pythonw.exe (GUI subsystem).
 # Without this flag, every wmic child allocates a new console window = flash.
 # Cross-platform safe (no-op on non-Windows).
@@ -237,32 +246,78 @@ def read_active_sessions_registry(_lookup=None):
     return alive
 
 
-def classify_processes(procs, current_pid, threshold_hours,
-                       _ancestor_lookup=None, _registry_reader=None):
+def read_session_heartbeat(pid, _now=None):
+    """Read ~/.claude/.tmp/session-heartbeats/<pid>.json. Returns dict or None.
+
+    Fail-safe: missing file, unreadable file, malformed JSON, or a file whose
+    `pid` field disagrees with the filename all return None. Callers must treat
+    None as "no heartbeat signal" (which then defers to the other protection
+    signals — never causes a kill on its own).
+
+    _now is an injection point for tests; defaults to wall clock UTC.
     """
-    Multi-signal orphan classifier (wr-2026-04-22-012).
+    hb_file = HEARTBEAT_DIR / f"{pid}.json"
+    if not hb_file.exists():
+        return None
+    try:
+        data = json.loads(hb_file.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    return data
+
+
+def _heartbeat_is_fresh(heartbeat, staleness_minutes, _now=None):
+    """Return True iff heartbeat['last_refresh'] is within staleness_minutes of now."""
+    if not heartbeat or "last_refresh" not in heartbeat:
+        return False
+    now = _now or datetime.now(timezone.utc)
+    try:
+        last_str = heartbeat["last_refresh"]
+        # Tolerate trailing 'Z' or '+00:00'
+        if last_str.endswith("Z"):
+            last_str = last_str[:-1] + "+00:00"
+        last_refresh = datetime.fromisoformat(last_str)
+        if last_refresh.tzinfo is None:
+            last_refresh = last_refresh.replace(tzinfo=timezone.utc)
+    except (ValueError, TypeError, KeyError):
+        return False
+    return (now - last_refresh) < timedelta(minutes=staleness_minutes)
+
+
+def classify_processes(procs, current_pid, threshold_hours,
+                       _ancestor_lookup=None, _registry_reader=None,
+                       _heartbeat_reader=None,
+                       staleness_minutes=DEFAULT_STALENESS_MINUTES, _now=None):
+    """
+    Multi-signal orphan classifier (wr-2026-04-22-012 + spec-orphan-cleanup-heartbeat 2026-05-20).
 
     For each claude.exe process:
       - If age < threshold_hours  -> recent
-      - If pid == current_pid      -> current
-      - Else check protection signals in order:
-          (1) live VS Code ancestor in process tree  -> protected
-          (2) listed in active-sessions registry w/
-              live vscode_ppid                        -> protected
-      - Otherwise                                    -> orphan_suspects (TRUE orphan)
+      - If pid == current_pid     -> current
+      - Else check protection signals (ANY ONE is sufficient to protect):
+          (1) session heartbeat file with last_refresh within staleness_minutes -> protected
+          (2) live VS Code variant ancestor in process tree                     -> protected
+          (3) listed in active-sessions registry w/ live vscode_ppid            -> protected
+      - Otherwise                                                               -> orphan_suspects
 
     Returns dict: total, threshold_hours, current, recent, protected, orphan_suspects.
     Lists sorted oldest-first by age_hours (descending).
 
-    Injection points _ancestor_lookup and _registry_reader let tests simulate
-    arbitrary process trees and registry states.
+    Injection points (for tests):
+      _ancestor_lookup(pid) -> (name_lower, ppid)
+      _registry_reader()    -> dict pid -> entry
+      _heartbeat_reader(pid) -> heartbeat dict or None
+      _now                  -> datetime override for time-based assertions
     """
-    now = datetime.now(timezone.utc)
+    now = _now or datetime.now(timezone.utc)
     orphan = []
     protected = []
     recent = []
     current_proc = None
     registry = (_registry_reader or read_active_sessions_registry)()
+    heartbeat_reader = _heartbeat_reader or read_session_heartbeat
     for p in procs:
         age = now - p["created_at"]
         info = {
@@ -277,7 +332,12 @@ def classify_processes(procs, current_pid, threshold_hours,
         if age < timedelta(hours=threshold_hours):
             recent.append(info)
             continue
-        # Old enough to be a suspect -- apply protection signals
+        # Old enough to be a suspect -- apply protection signals (any one suffices)
+        heartbeat = heartbeat_reader(p["pid"])
+        if heartbeat is not None and _heartbeat_is_fresh(heartbeat, staleness_minutes, _now=now):
+            info["protection"] = f"heartbeat:fresh(refresh_count={heartbeat.get('refresh_count','?')})"
+            protected.append(info)
+            continue
         vs_pid, vs_name = find_vscode_ancestor(p["pid"], _lookup=_ancestor_lookup)
         if vs_pid:
             info["protection"] = f"vscode_ancestor:{vs_name}(PID {vs_pid})"
@@ -364,8 +424,9 @@ def find_session_pid():
 def main():
     desc = (__doc__ or "Check orphan Claude processes.").split("\n\n")[0]
     p = argparse.ArgumentParser(description=desc)
-    p.add_argument("--threshold-hours", type=float, default=4.0,
-                   help="Process older than this is a suspect orphan (default: 4)")
+    p.add_argument("--threshold-hours", type=float, default=8.0,
+                   help="Process older than this is a suspect orphan (default: 8h, "
+                        "raised from 4h by spec-orphan-cleanup-heartbeat.md 2026-05-20)")
     p.add_argument("--json", action="store_true", help="Output JSON")
     p.add_argument("--summary", action="store_true",
                    help="One-line summary for session-startup-guard")

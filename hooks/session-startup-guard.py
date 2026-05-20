@@ -562,10 +562,16 @@ def check_orphan_processes():
     Step 3.9: Detect orphan claude.exe processes (Windows-only). Calls the
     standalone check-orphan-claude-processes.py script in --summary mode.
     Returns one-line summary string or None on failure.
+
+    Also scans ~/.claude/.tmp/orphan-cleanup-reports/ for pending reports awaiting
+    operator review (written by scheduled --report-only runs); appends a second
+    line surfacing the most recent pending report path + authorize command.
+    Source: spec-orphan-cleanup-heartbeat.md v1.0 section 7.3.
     """
     script = Path.home() / ".claude" / "scripts" / "check-orphan-claude-processes.py"
     if not script.exists():
         return None
+    summary = None
     try:
         import subprocess
         result = subprocess.run(
@@ -573,10 +579,45 @@ def check_orphan_processes():
             capture_output=True, text=True, timeout=15,
         )
         if result.returncode == 0 and result.stdout:
-            return result.stdout.strip()
+            summary = result.stdout.strip()
     except Exception:
         return None
-    return None
+    if not summary:
+        return None
+    # Append pending-report awareness if any reports exist with status=pending
+    pending_lines = _format_pending_orphan_reports()
+    if pending_lines:
+        return summary + "\n" + pending_lines
+    return summary
+
+
+def _format_pending_orphan_reports():
+    """Return formatted multi-line block describing pending orphan-cleanup reports,
+    or empty string if none. Helper for check_orphan_processes."""
+    report_dir = Path.home() / ".claude" / ".tmp" / "orphan-cleanup-reports"
+    if not report_dir.exists():
+        return ""
+    pending = []
+    for path in sorted(report_dir.glob("report-*.json")):
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if doc.get("status") != "pending_operator_review":
+            continue
+        pending.append((path, doc))
+    if not pending:
+        return ""
+    lines = [f"  PENDING REPORTS: {len(pending)} orphan-cleanup report(s) awaiting operator review."]
+    for path, doc in pending[-3:]:  # show most recent 3
+        n = len(doc.get("candidates", []))
+        lines.append(f"    - {path.name} ({n} candidate(s))")
+    lines.append(
+        f"    Review/authorize via: "
+        f"python ~/.claude/scripts/kill-orphan-claude-processes.py "
+        f"--show-report <path>  /  --execute --from-report <path>"
+    )
+    return "\n".join(lines)
 
 
 def check_cron_config():
