@@ -1,7 +1,8 @@
 {
-  "_comment": "Build 6 v3 production config. Enabled sub-rules under sharkitect/ namespace are the reference implementation. AIOS clients add their own namespace (v2).",
-  "version": "3.0",
+  "_comment": "Build 6 v4 production config. Enabled sub-rules under sharkitect/ namespace are the reference implementation. AIOS clients add their own namespace (v2). bigger_picture_first runs FIRST -- decide WHAT to build before HOW to execute.",
+  "version": "4.0",
   "enabled_subrules": [
+    "sharkitect.bigger_picture_first",
     "sharkitect.verify_state",
     "sharkitect.strategy_creation",
     "sharkitect.plan_resume"

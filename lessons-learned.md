@@ -6404,6 +6404,11 @@ Future fix: Add a separate AFTER UPDATE OF parent_project_id trigger on projects
 Tags: supabase, postgres, triggers, rollup, hierarchy, projects, recompute_project_task_counts
 
 ## Preferences
+2026-05-21 — preference: Lead session/work headlines with the ACTION VERB so the outcome is unmistakable at a glance
+Context: Sentinel S67 reported Reports Restructure Phase E completion with headline "Phase E SHIPPED." User read it as "the briefs were restructured" rather than the actual outcome (briefs RETIRED). Asked confused: "Did you optimize the briefs already? I should see what they look like, or what?" Acknowledged the ambiguity was on the AI side.
+Apply-when: ALL completion summaries, Slack alerts, session briefs, commit message subjects, and status reports where the action could be one of several possibilities (retire/optimize, build/replace, fix/revert, ship/defer). Headline must name the verb: "Phase E SHIPPED — briefs RETIRED" not "Phase E SHIPPED." For tasks where the action is unambiguous from context (e.g., "Bug X fixed"), default headlines are fine.
+Tags: communication, headlines, status-reporting, action-verbs, ambiguity-prevention
+
 2026-05-12 — preference: Substantial design work goes step-by-step, ONE thing at a time, alignment-first
 Context: During initiative-hierarchy proposal work, AI dumped schemas + options + columns + brain-dump + decisions across one response. User explicitly redirected: "this is very confusing... I want to go slowly, one at a time, to figure out first what our actual objective is and what our goal is."
 Apply-when: ANY substantial design conversation, multi-decision proposals, or architecture work that has more than one open question. Default to "state the objective, get alignment, then drill in." NOT for tactical one-step tasks.
