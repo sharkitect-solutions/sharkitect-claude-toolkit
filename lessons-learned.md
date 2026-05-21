@@ -1,5 +1,48 @@
 # Global Lessons Learned
 
+## 2026-05-20 S65 (Skill Hub) Lessons — 41-day silent plugin death cycle root-caused; cosmetic success masking real failure
+
+### architecture: Cosmetic success reports mask silent failure — verification must check SURVIVAL, not COMPLETION
+
+**Context:** Skill Hub's `session-startup-guard.py check_plugin_integrity()` reported "RESTORED: aios-core, quality-gate, phase-gate" at every session start for 41 days. The restore did happen — file copy succeeded. But within minutes, Claude Code's plugin manager cleaned them up again because the copied content carried `.orphaned_at` markers Claude Code uses to flag superseded marketplace plugin versions. The startup-guard's "success" report was about the COPY operation, not about whether the plugins SURVIVED. Nobody noticed for 41 days.
+
+**Why:** "Operation completed" is the easiest thing to log. "Outcome verified" requires waiting + re-checking. Most success reports default to the easy version. When the system has a recovery loop (startup-guard restores every session), the cosmetic success creates a perfect blind spot — the loop fires every session, succeeds every session, never reaches the question of whether the restore stuck.
+
+**How to apply:** Any restore / heal / repair operation must include a SURVIVAL check, not just a completion check. Specifically:
+1. After copy, observe outcome over time (poll, fs-watch, or defer check to next session start with a marker).
+2. If outcome can't be observed in-session, write a marker that the NEXT session checks ("did the thing I restored last session still exist when this session opened?").
+3. Log a structured event for each cycle so post-hoc analysis can spot loops (restore-N-times-without-survival pattern).
+4. Test failure modes deliberately: poison the source, run restore, verify the poison gets detected and stripped (not silently propagated).
+
+**Tags:** observability, drift-detection, restoration-loops, plugin-management
+
+### architecture: `.orphaned_at` is Claude Code's internal "eligible for cleanup" marker — never mirror to backup, always strip during restore
+
+**Context:** Claude Code's plugin cache structure uses `.orphaned_at` markers at content-root level (e.g., `<plugin>/.claude-plugin/.orphaned_at`, `<plugin>/hooks/.orphaned_at`) to mark superseded content for its periodic cleanup pass. Confirmed by inspecting `~/.claude/plugins/cache/claude-plugins-official/context7/<old-hash>/.orphaned_at` — these are tombstones for old versions of marketplace plugins. When `sync-skills.py` mirrored `cache/local/ → toolkit/custom-plugins/` after a CC auto-update wipe, the markers were captured along with the plugin content. Every subsequent restore re-poisoned cache/local.
+
+**Why:** The markers are CC-internal state, not plugin source code. Mirroring them is mirroring state, not source. State should never be mirrored to a backup intended for source-of-truth restoration.
+
+**How to apply:**
+1. `sync-skills.py compare_plugins` + `sync_plugins` must filter `.orphaned_at` out of both diff and copy (never mirror to toolkit).
+2. `startup-guard.check_plugin_integrity()` restore must strip `.orphaned_at` from copied content before placing in cache/local (defense in depth: if poison ever re-enters toolkit, restore strips it).
+3. Both guards belong in the same TDD batch — test for poison detection + stripping in both directions.
+
+**Tags:** plugin-management, sync-discipline, defense-in-depth, claude-code-internals
+
+### process: Concurrent sessions are now normal — root-cause investigation must consider WHICH session triggered the event
+
+**Context:** During root-cause investigation, hook-fire-log showed 6 active Claude Code session IDs in the past hour (HQ + Skill Hub + Sentinel + 3 others). The plugin deletion at 20:38:58 UTC was triggered by another session's SessionStart firing at 20:39:27 UTC (CC's plugin manager scans cache/local on session start). Without multi-session awareness, the investigation would have looked only at MY session's actions and missed the actual cause.
+
+**Why:** The "what did this session do?" model assumes single-session-at-a-time. The Sharkitect AIOS runs HQ + Skill Hub + Sentinel concurrently as standard practice, plus user may have additional sessions open. Events visible in shared logs may be caused by other sessions' actions, not the investigating session.
+
+**How to apply:**
+1. During root-cause investigation, always check ALL session IDs in hook-fire-log around the event timestamp.
+2. Don't assume "I didn't do this in my session" means "this session's infrastructure didn't do this" — could be another concurrent session.
+3. Cross-session race conditions are now a debugging class. Look for: file modifications between session starts, shared-state writes, plugin/cache mutations that aren't tied to a specific tool call.
+4. The hook-fire-log session_id field is the discriminator — use it.
+
+**Tags:** debugging, concurrent-sessions, multi-workspace, root-cause-analysis
+
 ## 2026-05-20 S64 (Skill Hub) Lessons — Strict-TDD remediation triggered by user pushback on "pragmatic" framing
 
 ### process: When AI offers "pragmatic" vs "strict" TDD as a choice, default to strict — band-aid framings are the failure pattern user pushes back on
@@ -2064,6 +2107,23 @@ The per-workspace channel binding means: do NOT use generic Polaris channels for
 **Tags:** voice, email, tone, brand, communication, templates, kpi-reports
 
 ## Process Decisions
+
+### 2026-05-20 — process: Plans older than ~14 days REQUIRE schema discovery audit BEFORE migration execution, not just before plan approval
+
+**Context:** Luminous Foundation Bridge Phase 4 plan was drafted 2026-04-30 with `projects.project_type text NOT NULL DEFAULT 'internal' CHECK IN (client, internal)`. Picked up 2026-05-20 (S65) for the dedicated session the plan recommended. Discovery audit (per `feedback_discover_before_migrate.md`) ran first and caught that `projects.project_type` ALREADY existed since 2026-05-12 (sub-project hierarchy work, `wr-sentinel-2026-05-12-003`) holding values `(initiative | project | phase_subproject)`. The plan's draft DDL would have either (a) failed at CHECK-constraint conflict and rolled back, or worse (b) succeeded silently if I'd used `ALTER TABLE ... DROP CONSTRAINT` to make room, destroying hierarchy semantics.
+
+**Why:** Adjacent schema work lands continuously. A plan written 20 days ago carries 20 days of assumed-still-valid column-name availability + schema invariants. The longer the gap, the higher the probability of collision. The cost of discovery is 5 SQL queries (~30s of work); the cost of a colliding migration is hours of rollback + restoration + re-design — and in the silent-success case, weeks of subtle data corruption before someone notices the hierarchy data was lost.
+
+**How to apply:** Before executing ANY schema migration from a plan written more than ~14 days ago, run the full discovery audit FIRST as Step 0:
+1. `information_schema.columns` query on all tables the plan touches
+2. `pg_constraint` query for CHECKs/FKs/UNIQUEs on those tables
+3. Row counts on those tables
+4. Cross-check plan-assumed column names against existing columns
+5. ONLY THEN apply DDL
+
+If a collision is found, the resolution path is Q1 Fortification per Anti-Drift Scope Discipline: preserve the plan's intent, rename the implementation detail (column name), document the deviation inline in the plan + commit message + schema-index + activity_stream event + session log. Do NOT silently overwrite the existing column, and do NOT abandon the plan's deliverable.
+
+**Source:** Sentinel S65 Luminous Phase 4 ship (2026-05-20). Engagement_type rename worked cleanly because discovery ran first. Plan stayed valid, intent preserved, both axes (`project_type` hierarchy + `engagement_type` revenue dimension) now coexist orthogonally. Tags: schema-discovery, anti-drift-q1-fortification, plan-staleness, supabase-migrations.
 
 ### 2026-05-07 — process: Channel-context awareness in brand-review prevents false-positive HOLDs
 
@@ -7037,3 +7097,29 @@ The plan_resume + verify_state UserPromptSubmit nudge fired on Chris's "are we g
 Apply when: any user state-query ("where are we at," "what's pending," "did X happen yet"). Always read source files / Supabase / disk before answering. Memory-only answers fail this class of question.
 
 Tags: verify-state-protocol, source-of-truth, state-query-discipline, runtime-detection-validated, sentinel, s64
+
+### 2026-05-20 — process: Cross-references to numbered rules can drift from rule text over time (S66 cross-reference-drift-in-numbered-rules)
+
+**Context:** pricing-structure.md  Rule #4 was cited across multiple sections (  stacking clarification, \.2 RLR, \.5 CPS, \.4 PPM) as 'capacity flex IS the value lever' for ~2 weeks. Rule #4 itself said 'No monthly discounts for multiple services. Only setup fees receive Partnership Progression Pricing.' The cross-references were citing an IMPLIED principle, not the literal rule text. v3.15 fixed it by restructuring Rule #4 to explicitly include the capacity-flex carve-out language the cross-references assumed.
+
+**Why this matters:** When cross-references to rule numbers proliferate across sections, the literal rule text and the cited principle can drift apart. Each individual citation looks correct in isolation; only a full read-through catches the mismatch. Multiple version locks (v3.6 through v3.14) survived this drift because no one ran the cross-reference accuracy check.
+
+**Apply when:** Adding cross-references to numbered rules in K1 SoTs. Also when running the Contradiction Check protocol — extend scope from 'cross-doc contradictions' to 'inline cross-reference accuracy against literal rule text.'
+
+**Fix codified:** v3.15 §15 Rule #4 restructured with explicit Bundle Exception carve-out; all cross-references in §10 + §7.2 + §7.5 + §7.4 now read against actual rule text.
+
+**Tags:** rule-cross-reference, k1-sot-drift, contradiction-check-extension, pricing-structure
+
+---
+
+### 2026-05-20 — process: Operator-articulated positioning frames are load-bearing — capture verbatim with attribution (S66 operator-positioning-frame-capture)
+
+**Context:** During S66 PPM v3.15 lock, Chris articulated the brand-aligned positioning frame that unifies the Option Y Annual Discount mechanic with Sharkitect's 'pay for what you need' brand principle: 'by us starting everyone at the lowest level (pay for what you need mentality) if they take the yearly discount of a bundled package... they are paying for the lowest possible level of each flex item which means it only makes sense that they pay the overage per month when they go over and since it is only when they need it they are still only paying for what they need.' Captured verbatim in §7.4 + §10 with explicit attribution ('S66 articulation, Chris read-back lock 2026-05-20').
+
+**Why this matters:** Committee-drafted positioning frames are functional but can read as marketing-engineered. When the operator articulates the frame in their own voice connecting mechanic to brand principle, it carries credibility the committee version cannot. The attribution AND the verbatim capture protect against future drift toward committee-style language.
+
+**Apply when:** Operator articulates a positioning frame that unifies a mechanic with a brand principle mid-session. Classify per Anti-Drift Scope Discipline Fortification-vs-Expansion 3-question test (Q1: without this frame, would the K1 SoT lock fail to deliver its stated outcome? — for load-bearing positioning frames, YES). Treat as fortification, absorb inline with verbatim attribution.
+
+**Fix codified:** pricing-structure.md v3.15 §7.4 + §10 carry the frame with S66 attribution. Future hybrid offers (SLW + embedded-flex bundles, AIOS productization) reference this frame as the load-bearing positioning narrative.
+
+**Tags:** positioning-frame, operator-attribution, anti-drift-fortification, brand-mechanic-unification, pricing-structure

@@ -499,6 +499,21 @@ def check_sync_flag():
 # Plugin integrity
 # ---------------------------------------------------------------------------
 
+def _restore_plugin_tree(src, dst):
+    """Copy a plugin directory from src to dst, stripping .orphaned_at markers.
+
+    S65 plugin poison cycle (2026-05-20): Claude Code's plugin manager writes
+    .orphaned_at marker files into superseded plugin subdirs. If the toolkit
+    backup is ever poisoned (manual error, old clone, third-party fork), the
+    restore must still deliver a poison-free tree. Otherwise CC sees the markers
+    after restore and deletes the plugin within minutes, restarting the cycle.
+
+    Defense-in-depth with sync-skills.py's marker-exclusion guard.
+    """
+    import shutil
+    shutil.copytree(src, dst, ignore=shutil.ignore_patterns(".orphaned_at"))
+
+
 def check_plugin_integrity():
     """Check that all @local plugins exist in cache. Auto-restore from backup."""
     plugins_dir = Path.home() / ".claude" / "plugins"
@@ -541,7 +556,7 @@ def check_plugin_integrity():
                 cache_local.mkdir(parents=True, exist_ok=True)
                 if plugin_path.exists():
                     shutil.rmtree(plugin_path)
-                shutil.copytree(backup_dir / name, plugin_path)
+                _restore_plugin_tree(backup_dir / name, plugin_path)
                 restored.append(name)
             except (OSError, shutil.Error):
                 missing.append(name)
