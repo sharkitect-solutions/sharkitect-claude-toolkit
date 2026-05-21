@@ -3369,6 +3369,80 @@ This rule encodes the user's documented operating style (per about-chris.md K1 S
 
 ---
 
+## Inline-Default / Subagent-Exception Discipline (NON-NEGOTIABLE)
+
+**Classification (per Contradiction Check protocol):** NEW additive rule. Grep of universal-protocols.md found one adjacent reference (Bigger-Picture-First Discipline cross-references the S61 lesson source). No existing rule mandates inline-default execution; no contradictions; no supersessions. Peer-level with Bigger-Picture-First, Anti-Drift Scope Discipline, and Pushback Protocol.
+
+Every plan execution defaults to **inline** — the controller (the live AI session) drives every task via `superpowers:executing-plans`. Subagent dispatch (`superpowers:subagent-driven-development`) is the EXCEPTION reserved for tasks that meet ALL FOUR conditions below. Anything failing any one condition → inline. When in doubt → inline.
+
+**Source:** Sentinel S61 lesson (lessons-learned.md, 2026-05-19) + HQ refinements (wr-hq-2026-05-20-001, 2026-05-20). Both source records remain in lessons-learned with supersession markers pointing to this protocol section as the authoritative location.
+
+### The four conditions for subagent dispatch
+
+1. **Self-contained in the plan** — code, test commands, expected output present inline. The subagent receives the plan and needs nothing else to execute.
+2. **Zero prior-conversation context dependency** — no decision, nuance, or clarification from earlier in this session is load-bearing for the task.
+3. **Repetitive or parallelizable** — same shape, different data (e.g., 50 file renames, 20 doc audits) OR independent across tasks (parallel dispatch correct).
+4. **Plan + workspace documentation are sufficient context for the task** — no in-conversation discussion is load-bearing. (Reworded from S61's original "handoff-safe to a developer who joined this morning" per wr-hq-2026-05-20-001 refinement 1 — the original wording reads as stricter than the rule intends.)
+
+Anything failing any one of the four → inline. Strategic decisions, ambiguous specs, fix-it-up debugging, multi-step plans where earlier tasks set context for later tasks, tasks where the controller's session memory IS the load-bearing context → ALWAYS inline.
+
+### Cost-framing — both directions
+
+**Inline cost:** controller's context budget grows with each task. Long plans executed inline eventually approach the controller's context limit. Mitigation: incremental commits + executing-plans skill's task-by-task discipline + Anti-Drift Scope Discipline parking side concerns.
+
+**Subagent cost:** subagent context-loss is real. Subagents do NOT inherit the controller's session memory (prior decisions, conversation discussions, accumulated nuance). When the controller has internalized context the plan does not capture, dispatching to a subagent loses that context — and the subagent's output, however well-executed against the plan-as-written, can drift from actual intent.
+
+**Controller context state — informational consideration, not a binary gate** (per wr-hq-2026-05-20-001 refinement 2): if the work's context is already loaded in the main thread, inline is even cheaper (no ramp-up cost). If the main thread is cold and the plan is dense, the inline-vs-subagent cost difference narrows. This is a gradient, not a binary, and so it factors into the decision as context, not as a 5th gate.
+
+### Why this supersedes the upstream skill default
+
+The `superpowers:writing-plans` skill's execution-choice prompt presents Subagent-Driven as "recommended." This is the upstream Anthropic plugin's default. Sharkitect's documented system rule (inline-default + 4-condition exception) OVERRIDES this default per the universal-protocols.md "Instruction Priority" ordering: user instructions (CLAUDE.md, universal-protocols.md, AGENTS.md) take precedence over default system prompt behavior.
+
+When presenting execution-choice for `superpowers:executing-plans` vs `superpowers:subagent-driven-development`:
+- DO NOT frame the system rule as a deviation from the skill default.
+- LEAD with the system rule (inline default).
+- The skill default IS the deviation, not the system rule.
+
+### Anti-patterns this rule prevents
+
+| Pattern | What goes wrong |
+|---|---|
+| Subagent dispatch for judgment-requiring tasks | Judgment is precisely where session context matters most. Subagent's output looks correct against plan-as-written but misses the controller's accumulated nuance. |
+| Subagent dispatch for "context-light" assessment by the AI | The AI cannot reliably measure its own context state. "It looks light" produces wrong dispatches. Default to inline; let the 4 conditions decide. |
+| Subagent dispatch citing "skill default" as justification | The skill default is upstream Anthropic. The system rule is Sharkitect's. System rule wins. |
+| Inline execution citing "always inline" without consulting the 4 conditions | The 4 conditions identify genuine subagent-fit cases (parallel transcription, mass renames). Defaulting away from them when they fit wastes time. The rule is inline-DEFAULT, not inline-ONLY. |
+
+### Required AI behavior at plan-execution moments
+
+When the user prompts plan execution OR the AI is about to invoke `superpowers:executing-plans` / `superpowers:subagent-driven-development`:
+
+1. State the inline-default position as the system rule.
+2. Check the 4 conditions against the plan + task in scope.
+3. If ALL 4 pass AND work is independent across tasks → subagent dispatch is the correct tool. Name which condition each task satisfies.
+4. If ANY 1 fails → inline. Cite which condition failed and why.
+5. If ambiguous → inline. Cite that ambiguity = inline per the rule.
+
+### Enforcement
+
+- **Documentation (this section):** the rule. Necessary but not sufficient per the documented "Documentation without runtime detection eventually fails" lesson.
+- **Runtime detection:** `~/.claude/hooks/_subrules/sharkitect/subagent_vs_inline.py` (Build 6 v5 sub-rule) — fires on USER prompts at plan-execution moments and injects an advisory nudge naming this protocol + the 4 conditions.
+- **Self-audit:** the `resource-auditor` PROCESS check includes `subagent_dispatched_without_4_condition_check` as a gap class.
+- **Bypass:** `skip subagent-vs-inline` in user prompt — Strict Bypass Vocabulary category A (explicit user direction in prompt). Logged to `<tempdir>/claude_bypass_log.jsonl`.
+
+### Scope and persistence
+
+- All sessions, all workspaces (HQ, Skill Hub, Sentinel, future workspaces), PERMANENT (not project-scoped).
+- Ships as AIOS client feature when AIOS productizes — every AIOS client inherits this discipline so their AI sessions default to inline execution + apply the 4-condition allowlist for subagent dispatch.
+
+### Cross-references
+
+- **Source lessons:** lessons-learned.md 2026-05-19 S61 entry "Inline execution is the default" (will carry a supersession marker pointing here after this protocol section ships) + 2026-05-20 S64 entry on the framing-as-deviation incident.
+- **Refinement source:** wr-hq-2026-05-20-001 (HQ, 2026-05-20).
+- **Compatible protocols:** Bigger-Picture-First Discipline (long-term vision belongs in session memory the controller holds; subagents can't see it); Anti-Drift Scope Discipline (the controller's session memory IS the load-bearing context — both rules protect that); Bilateral Scope Discipline (mid-plan additions need justification regardless of execution mode).
+- **Platform research:** capability-map.md confirms subagents share `session_id` with parent BUT have isolated `agent_transcript_path` (Phase 1.5 Bundle A, line 344) — the platform-level evidence that subagent context-loss is structural, not implementation-detail.
+
+---
+
 ## Extension Rule
 
 Workspace CLAUDE.md files define ONLY workspace-specific additions to these protocols. They should NOT duplicate items listed above, but if they do, this rule is authoritative.

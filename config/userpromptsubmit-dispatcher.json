@@ -1,11 +1,12 @@
 {
-  "_comment": "Build 6 v4 production config. Enabled sub-rules under sharkitect/ namespace are the reference implementation. AIOS clients add their own namespace (v2). bigger_picture_first runs FIRST -- decide WHAT to build before HOW to execute.",
-  "version": "4.0",
+  "_comment": "Build 6 v5 production config. Enabled sub-rules under sharkitect/ namespace are the reference implementation. AIOS clients add their own namespace (v2). bigger_picture_first runs FIRST (decide WHAT to build); subagent_vs_inline runs LAST (decide HOW to execute at plan-execution moments).",
+  "version": "5.0",
   "enabled_subrules": [
     "sharkitect.bigger_picture_first",
     "sharkitect.verify_state",
     "sharkitect.strategy_creation",
-    "sharkitect.plan_resume"
+    "sharkitect.plan_resume",
+    "sharkitect.subagent_vs_inline"
   ],
   "log_dir": null,
   "spec": "3.- Skill Management Hub/docs/superpowers/specs/2026-05-18-build-6-userpromptsubmit-dispatcher-design.md"

@@ -97,6 +97,8 @@ User pushed back asking me to apply their documented preferences (`feedback_fix_
 
 ### preference: Inline IS the documented default for plan execution — surface it correctly, don't frame it as deviation
 
+> **SUPERSEDED (2026-05-21 S67):** Promoted to binding rule at universal-protocols.md "Inline-Default / Subagent-Exception Discipline" (NON-NEGOTIABLE). HQ's 3 refinements applied (condition 4 reword, controller-context-state as 5th informational consideration, symmetric cost framing) — see wr-hq-2026-05-20-001. Runtime detection: `~/.claude/hooks/_subrules/sharkitect/subagent_vs_inline.py` (Build 6 v5 sub-rule). This lessons-learned.md entry preserved as historical source; consult universal-protocols.md as authoritative.
+
 **Context:** During S64 CPS cascade execution-mode choice, AI initially framed "Subagent-Driven (recommended by skill default) vs Inline Execution" and recommended inline as a "deviation from skill default." User correctly identified that the Sharkitect-level rule (lessons-learned.md 2026-05-19 entry, lines 160-185) makes INLINE the default — the upstream Anthropic superpowers plugin default contradicts the system rule.
 
 **Apply:** When presenting execution choice for `superpowers:executing-plans` vs `superpowers:subagent-driven-development`, do NOT frame the system rule as a deviation from the skill default. Lead with the system rule (inline default, subagent narrow exception meeting all 4 conditions). The skill default is the deviation, not the system rule.
@@ -296,6 +298,8 @@ Tags: code-review, policy-vs-mechanism, destructive-actions
 ## 2026-05-19 S61 (Sentinel) Process Decisions
 
 ### process: Inline execution is the default; subagent dispatch is the exception with a strict allowlist [SUPERSEDES 2026-04-28 "transcribe inline / subagent for judgment"]
+
+> **SUPERSEDED (2026-05-21 S67):** Promoted to binding rule at universal-protocols.md "Inline-Default / Subagent-Exception Discipline" (NON-NEGOTIABLE). HQ's 3 refinements applied (condition 4 reworded from "handoff-safe to a developer who joined this morning" → "plan + workspace documentation are sufficient context"; controller-context-state added as 5th informational consideration; cost framing made symmetric) — see wr-hq-2026-05-20-001. Runtime detection: `~/.claude/hooks/_subrules/sharkitect/subagent_vs_inline.py` (Build 6 v5 sub-rule). This lessons-learned.md entry preserved as historical source; consult universal-protocols.md as authoritative.
 
 **Rule:** Inline execution (controller drives every task in the live session via `superpowers:executing-plans`) is the default for plan execution. Subagent dispatch is reserved for tasks meeting ALL FOUR conditions:
 1. Task is fully self-contained in the plan (code + test commands + expected output present inline)
