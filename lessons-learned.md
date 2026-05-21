@@ -1782,6 +1782,34 @@ Cross-project patterns, API limitations, tool quirks, user preferences, and proc
 
 ## Preferences
 
+### 2026-05-21 -- preference: one question at a time in active design dialogue
+
+**Context:** During S68 FF workflow fix planning, Chris pushed back twice when I stacked multiple questions in a single response or introduced new options when he was trying to converge on a decision. Direct quotes: "you keep on throwing out everything we're supposed to be doing one at a time" and "you're kinda just going all over the place here. We're making it much more confusing and hard than it has to be."
+
+**Preference:** In any extended conversation involving multiple decisions, ask ONE question per response. Pattern: state my recommendation → ask the single question → wait for answer → move to next question. Do NOT introduce new options/alternatives once user is trying to converge.
+
+**Apply when:** Active design dialogue with multiple decision points. Any conversation tagged "let's go through them one at a time" / "let's decide on X first" / "let's lock this in before moving on." Especially important when stacking options creates analysis paralysis.
+
+**Anti-pattern to avoid:** Tables of A/B/C options each with sub-options. Multi-part questions where each part is independent. Re-opening already-locked decisions to offer alternatives.
+
+**tags:** communication, dialogue-pacing, design-discussion, anti-rabbit-hole
+
+---
+
+### 2026-05-21 -- direction: n8n native nodes primary, HTTP Request only as fallback
+
+**Context:** Chris confirmed during S68 FF workflow audit that n8n service-native nodes (Monday, Airtable, QBO, etc.) are PRIMARY and HTTP Request is fallback only. Recurring pattern: AI assistants (including Claude) keep converting native nodes to HTTP Request during edits. Chris has given this instruction multiple times. The drift has measurable cost (escaping bugs, harder maintenance, no native error parsing).
+
+**Direction:** Whenever modifying or creating n8n workflow nodes that talk to external services with native n8n nodes available, USE the native node. HTTP Request only when the operation isn't supported natively. Memory file `memory/feedback_n8n_native_nodes_primary.md` in HQ workspace documents this in detail.
+
+**Design principle:** Service-native abstractions > generic HTTP when both can perform the operation. Native nodes survive API changes (n8n maintainers update them); HTTP Request mutations break silently.
+
+**Apply when:** Any n8n workflow build/modify task. Especially Monday.com, Airtable, QuickBooks, Slack, Gmail, Google Calendar, HubSpot, Notion.
+
+**tags:** n8n, workflow-design, monday-com, airtable, native-vs-http, durability
+
+---
+
 ### [04/21/2026] preference: Auto-log every client/prospect touchpoint to HubSpot
 
 - **Incident:** Chris visited FF office 04/21/2026 and debriefed mid-session (Juan SOW drop-off, Emmanuel card delivery, Jesus data-sending commitment). I updated Supabase project notes but did NOT proactively log to HubSpot until Chris asked explicitly.
