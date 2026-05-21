@@ -1,0 +1,6 @@
+{
+  "name": "phase-gate",
+  "version": "1.0.0",
+  "description": "Phase lifecycle enforcer for project-lifecycle skill. Detects plan changes, tracks artifacts, blocks session end without cleanup, preserves state before compaction.",
+  "author": "Sharkitect Solutions"
+}

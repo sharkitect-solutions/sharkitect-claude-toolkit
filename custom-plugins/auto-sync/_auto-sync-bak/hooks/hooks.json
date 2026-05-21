@@ -1,0 +1,26 @@
+{
+  "description": "Auto-Sync - Tracks skill/agent file changes and prompts sync before session end.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PLUGIN_ROOT}/scripts/track-changes.py\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PLUGIN_ROOT}/scripts/sync-reminder.py\""
+          }
+        ]
+      }
+    ]
+  }
+}

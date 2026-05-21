@@ -273,10 +273,6 @@
           {
             "type": "command",
             "command": "python \"{HOME}/.claude/hooks/cron-activity-surfacer.py\""
-          },
-          {
-            "type": "command",
-            "command": "pythonw \"$HOME/.claude/hooks/user-prompt-heartbeat-refresh.py\""
           }
         ]
       },

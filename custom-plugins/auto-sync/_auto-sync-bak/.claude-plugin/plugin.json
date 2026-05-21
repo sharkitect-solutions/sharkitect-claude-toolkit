@@ -1,0 +1,6 @@
+{
+  "name": "auto-sync",
+  "version": "1.0.0",
+  "description": "Auto-Sync - Automatic detection of skill/agent changes with sync prompting",
+  "author": "Sharkitect Digital"
+}
